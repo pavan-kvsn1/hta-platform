@@ -1,0 +1,20 @@
+{
+  "id": "hta",
+  "name": "HTA Calibr8s",
+  "slug": "hta",
+  "domain": "htacalibr8s.com",
+  "subdomains": ["app.htacalibr8s.com", "portal.htacalibr8s.com"],
+  "features": {
+    "customerPortal": true,
+    "internalRequests": true,
+    "multipleInstruments": true,
+    "emailNotifications": true,
+    "downloadTokens": true
+  },
+  "settings": {
+    "defaultTatDays": 5,
+    "maxInstrumentsPerCertificate": 10,
+    "passwordResetExpiry": 3600,
+    "sessionTimeout": 86400
+  }
+}

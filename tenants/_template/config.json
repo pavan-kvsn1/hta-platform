@@ -1,0 +1,20 @@
+{
+  "id": "{{TENANT_ID}}",
+  "name": "{{TENANT_NAME}}",
+  "slug": "{{TENANT_SLUG}}",
+  "domain": "{{TENANT_DOMAIN}}",
+  "subdomains": [],
+  "features": {
+    "customerPortal": true,
+    "internalRequests": true,
+    "multipleInstruments": true,
+    "emailNotifications": true,
+    "downloadTokens": true
+  },
+  "settings": {
+    "defaultTatDays": 5,
+    "maxInstrumentsPerCertificate": 10,
+    "passwordResetExpiry": 3600,
+    "sessionTimeout": 86400
+  }
+}
