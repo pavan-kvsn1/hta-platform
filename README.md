@@ -2,6 +2,8 @@
 
 Multi-tenant calibration certificate management platform built with Turborepo.
 
+Monorepo with microservices for Web App, API and Worker.
+
 ## Structure
 
 ```
