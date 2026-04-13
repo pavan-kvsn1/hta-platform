@@ -5,8 +5,8 @@
  * Uses React Email for templates and Resend for delivery.
  */
 
-// Export templates
-// export * from './templates'
+// Templates
+export * from './templates'
 
-// Export send utilities
-// export { sendEmail } from './send'
+// Components (for custom templates)
+export { Layout, Button } from './components'
