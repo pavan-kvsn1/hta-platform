@@ -12,7 +12,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@hta/ui', '@hta/shared'],
+  transpilePackages: ['@hta/ui', '@hta/shared', '@hta/database'],
 
   async headers() {
     return [

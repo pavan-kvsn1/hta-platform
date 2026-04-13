@@ -1,0 +1,7716 @@
+[
+  {
+    "id": 1,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "ac_voltage",
+        "dc_voltage",
+        "ac_current",
+        "dc_current",
+        "frequency",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET3/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET7/R01"
+    ],
+    "instrument_desc": "Multi Function Calibrator",
+    "make": "Fluke",
+    "model": "5500A",
+    "asset_no": "149 HTAIPL/L",
+    "instrument_sl_no": "9585024",
+    "usage": "For Lab",
+    "calibrated_at": "ETDC, Bangalore",
+    "report_no": "CR/PCAL/53053",
+    "next_due_on": "1/30/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/20/001"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 2,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "ac_voltage",
+        "dc_voltage",
+        "ac_current",
+        "dc_current",
+        "frequency",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET3/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET7/R01"
+    ],
+    "instrument_desc": "Multi Product Calibrator",
+    "make": "Fluke",
+    "model": "5522A",
+    "asset_no": "682 HTAIPL/L",
+    "instrument_sl_no": "4324902",
+    "usage": "For Lab",
+    "calibrated_at": "ETDC, Bangalore",
+    "report_no": "CR/PCAL/53430",
+    "next_due_on": "11/21/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/20/011"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 3,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "resistance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Universal Calibrator",
+    "make": "Gipitronix",
+    "model": "Unical - 38534E",
+    "asset_no": "711 HTAIPL/L",
+    "instrument_sl_no": "1950212",
+    "usage": "For On Site",
+    "calibrated_at": "Gipitronix, Vadodara",
+    "report_no": "GPL/TC/25-26/060",
+    "next_due_on": "7/16/2026",
+    "range": [
+      {
+        "referencedoc": "Refer the Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 4,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "resistance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Universal Calibrator",
+    "make": "Gipitronix",
+    "model": "Unical - 38534E",
+    "asset_no": "710 HTAIPL/L",
+    "instrument_sl_no": "1950214",
+    "usage": "For On Site",
+    "calibrated_at": "Gipitronix, Vadodara",
+    "report_no": "GPL/TC/25-26/073",
+    "next_due_on": "8/19/2026",
+    "range": [
+      {
+        "referencedoc": "Refer the Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 5,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "resistance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Universal Calibrator",
+    "make": "Gipitronix",
+    "model": "Unical - 38534E",
+    "asset_no": "708 HTAIPL/L",
+    "instrument_sl_no": "1920192",
+    "usage": "For On Site",
+    "calibrated_at": "Gipitronix, Vadodara",
+    "report_no": "GPL/TC/25-26/137",
+    "next_due_on": "11/16/2026",
+    "range": [
+      {
+        "referencedoc": "Refer the Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 6,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "resistance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Universal Calibrator",
+    "make": "Gipitronix",
+    "model": "Unical - 38534E",
+    "asset_no": "709 HTAIPL/L",
+    "instrument_sl_no": "1950213",
+    "usage": "For On Site",
+    "calibrated_at": "Gipitronix, Vadodara",
+    "report_no": "GPL/TC/25-26/072",
+    "next_due_on": "8/19/2026",
+    "range": [
+      {
+        "referencedoc": "Refer the Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 7,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "resistance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Universal Calibrator",
+    "make": "Gipitronix",
+    "model": "Unical - 38534E",
+    "asset_no": "865 HTAIPL/L",
+    "instrument_sl_no": "2310390",
+    "usage": "For On Site",
+    "calibrated_at": "Gipitronix, Vadodara",
+    "report_no": "HTA/C50281/01/25",
+    "next_due_on": "2/4/2026",
+    "range": [
+      {
+        "referencedoc": "Refer the Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 8,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "resistance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Universal Calibrator",
+    "make": "Gipitronix",
+    "model": "Unical - 38534E",
+    "asset_no": "866 HTAIPL/L",
+    "instrument_sl_no": "2310389",
+    "usage": "For On Site",
+    "calibrated_at": "Gipitronix, Vadodara",
+    "report_no": "HTA/C50287/01/25",
+    "next_due_on": "2/8/2026",
+    "range": [
+      {
+        "referencedoc": "Refer the Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 9,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "frequency",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Universal Calibrator",
+    "make": "Masibus",
+    "model": "UC 12",
+    "asset_no": "1017 HTAIPL/L",
+    "instrument_sl_no": "241129-00306",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/17007-1",
+    "next_due_on": "12/15/2026",
+    "range": [
+      {
+        "referencedoc": "Refer the Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 10,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "frequency",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Thermocouple RTD Calibrator",
+    "make": "Masibus",
+    "model": "TC 12+",
+    "asset_no": "1018 HTAIPL/L",
+    "instrument_sl_no": "241120-00074",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/17007-2",
+    "next_due_on": "12/15/2026",
+    "range": [
+      {
+        "referencedoc": "Refer the Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 11,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "frequency",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Multifunction Calibrator",
+    "make": "LR-CAL",
+    "model": "LTC-100",
+    "asset_no": "679 HTAIPL/L",
+    "instrument_sl_no": "1712005",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/13754-1",
+    "next_due_on": "10/29/2026",
+    "range": [
+      {
+        "referencedoc": "Refer the Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 12,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "frequency",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Handy calibrator",
+    "make": "Yokogawa",
+    "model": "CA 71",
+    "asset_no": "391 HTAIPL/L",
+    "instrument_sl_no": "T1P4074",
+    "usage": "For On Site",
+    "calibrated_at": "Sarvashree, Bangalore",
+    "report_no": "SS/25/B4335-01",
+    "next_due_on": "12/30/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/20/005"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 13,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring",
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "dc_current",
+        "frequency",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET4/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Multi Function Process Calibrator",
+    "make": "Fluke",
+    "model": "725",
+    "asset_no": "228 HTAIPL/L",
+    "instrument_sl_no": "1567119",
+    "usage": "For On Site",
+    "calibrated_at": "ETDC, Bangalore",
+    "report_no": "CR/ECAL/53442",
+    "next_due_on": "12/23/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/20/004"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 14,
+    "type": "Electro-Technical",
+    "parameter_group": "Voltage & Current",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "ac_current"
+      ]
+    },
+    "sop_references": [
+      "AS A SOURCE"
+    ],
+    "instrument_desc": "Current Coil",
+    "make": "Fluke",
+    "model": "5500A",
+    "asset_no": "149 HTAIPL/L",
+    "instrument_sl_no": "94870103",
+    "usage": "For On Site",
+    "calibrated_at": "ETDC, Bangalore",
+    "report_no": "CR/ECAL/53054",
+    "next_due_on": "1/17/2026",
+    "range": [
+      {
+        "parameter": "Current",
+        "min": "0",
+        "max": "50",
+        "unit": "Turns"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 15,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Temperature Calibrator",
+    "make": "Kusam-Meco",
+    "model": "KM-CAL-801",
+    "asset_no": "849 HATIPL/L",
+    "instrument_sl_no": "183170214",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50322/01/25",
+    "next_due_on": "5/5/2026",
+    "range": [
+      {
+        "referencedoc": "As per Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 16,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple",
+        "dc_voltage",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET1/R01",
+      "NLAB/CAL/ET2/R01",
+      "NLAB/CAL/ET5/R01",
+      "NLAB/CAL/ET6/R01"
+    ],
+    "instrument_desc": "Temperature Calibrator",
+    "make": "Kusam-Meco",
+    "model": "KM-CAL-801",
+    "asset_no": "850 HTAIPL/L",
+    "instrument_sl_no": "183170215",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50429/01/25",
+    "next_due_on": "10/24/2026",
+    "range": [
+      {
+        "referencedoc": "As per Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 17,
+    "type": "Electro-Technical",
+    "parameter_group": "Voltage & Current",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "dc_voltage",
+        "dc_current"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET4/R01"
+    ],
+    "instrument_desc": "Clamp meter",
+    "make": "Center",
+    "model": "232",
+    "asset_no": "119 HTAIPL/L",
+    "instrument_sl_no": "060310218.",
+    "usage": "For Onsite",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50457/03/25",
+    "next_due_on": "12/26/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/20/008"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 18,
+    "type": "Electro-Technical",
+    "parameter_group": "Resistance",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "resistance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET4/R01"
+    ],
+    "instrument_desc": "Digital Earth Tester",
+    "make": "Smart Sensor",
+    "model": "AR 910",
+    "asset_no": "289 HTAIPL/L",
+    "instrument_sl_no": "00038818",
+    "usage": "For Lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26//11942-1",
+    "next_due_on": "9/26/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/20/006"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 19,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "ac_voltage",
+        "dc_voltage",
+        "ac_current",
+        "dc_current",
+        "frequency",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET4/R01"
+    ],
+    "instrument_desc": "6 ½ Digit Precision Multimeter",
+    "make": "Fluke",
+    "model": "8845A",
+    "asset_no": "165 HTAIPL/L",
+    "instrument_sl_no": "9674010",
+    "usage": "For lab",
+    "calibrated_at": "Tektronix, Bangalore",
+    "report_no": "2412224-1-8845A-9674010-1",
+    "next_due_on": "4/9/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/20/002"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 20,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "ac_voltage",
+        "dc_voltage",
+        "ac_current",
+        "dc_current",
+        "frequency",
+        "resistance",
+        "capacitance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET4/R01"
+    ],
+    "instrument_desc": "True RMS Multimeter",
+    "make": "UNI-T",
+    "model": "UT-805",
+    "asset_no": "63 HTAIPL/L",
+    "instrument_sl_no": "3050129401",
+    "usage": "For On Site",
+    "calibrated_at": "ETDC, Bangalore",
+    "report_no": "CR/ECAL/53417",
+    "next_due_on": "11/25/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/20/003"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 21,
+    "type": "Electro-Technical",
+    "parameter_group": "Temperature (readout)",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "rtd",
+        "thermocouple"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL2/R01"
+    ],
+    "instrument_desc": "CHUB E-4 Thermometer Readout",
+    "make": "Fluke",
+    "model": "1529",
+    "asset_no": "211 HTAIPL/L",
+    "instrument_sl_no": "B04208",
+    "usage": "For lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/5587--1",
+    "next_due_on": "6/23/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/20/009"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 22,
+    "type": "Electro-Technical",
+    "parameter_group": "Power",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "power"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET4/R01"
+    ],
+    "instrument_desc": "Digital Power Meter",
+    "make": "BrainChild",
+    "model": "PD 1000",
+    "asset_no": "153 HTAIPL/L",
+    "instrument_sl_no": "9906120807050529",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50457/02/25",
+    "next_due_on": "12/26/2026",
+    "range": [
+      {
+        "parameter": "Voltage",
+        "min": "120",
+        "max": "240",
+        "unit": "V"
+      },
+      {
+        "parameter": "Current",
+        "min": "0.1",
+        "max": "5",
+        "unit": "A"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 23,
+    "type": "Electro-Technical",
+    "parameter_group": "Conductivity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "conductivity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/WC2/R01"
+    ],
+    "instrument_desc": "Conductivity Test Kit",
+    "make": "Gipitronix",
+    "model": "TK18593",
+    "asset_no": "695 HTAIPL/L",
+    "instrument_sl_no": "1920014",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C23174/01/25",
+    "next_due_on": "7/24/2026",
+    "range": [
+      {
+        "parameter": "Conductivity",
+        "min": "1",
+        "max": "10000",
+        "unit": "µS/cm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 24,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Stop Watch",
+    "make": "Racer",
+    "model": "630",
+    "asset_no": "872 HTAIPL/L",
+    "instrument_sl_no": "20223506",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50354/01/25",
+    "next_due_on": "7/17/2026",
+    "range": [
+      {
+        "parameter": "Time",
+        "min": "0",
+        "max": "24",
+        "unit": "hr"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 25,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Stop Watch",
+    "make": "Racer",
+    "model": "630",
+    "asset_no": "873 HTAIPL/L",
+    "instrument_sl_no": "20223507",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50338/02/25",
+    "next_due_on": "6/23/2026",
+    "range": [
+      {
+        "parameter": "Time",
+        "min": "0",
+        "max": "24",
+        "unit": "hr"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 26,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Stop Watch",
+    "make": "Racer",
+    "model": "630",
+    "asset_no": "874 HTAIPL/L",
+    "instrument_sl_no": "20223508",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50340/01/25",
+    "next_due_on": "6/25/2026",
+    "range": [
+      {
+        "parameter": "Time",
+        "min": "0",
+        "max": "24",
+        "unit": "hr"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 27,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Stop Watch",
+    "make": "Racer",
+    "model": "369",
+    "asset_no": "705 HTAIPL/L",
+    "instrument_sl_no": "A2754",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/24-25/22042-1",
+    "next_due_on": "3/14/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/21/007"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 28,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Stop Watch",
+    "make": "Racer",
+    "model": "NA",
+    "asset_no": "582 HTAIPL/L",
+    "instrument_sl_no": "C43184",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50526/02/26",
+    "next_due_on": "2/25/2027",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/21/007"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 29,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Stop Watch",
+    "make": "Racer",
+    "model": "SW306",
+    "asset_no": "583 HTAIPL/L",
+    "instrument_sl_no": "8267",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50314/01/25",
+    "next_due_on": "3/31/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/21/007"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 30,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Stop Watch",
+    "make": "Racer",
+    "model": "SW306",
+    "asset_no": "615 HTAIPL/L",
+    "instrument_sl_no": "8268",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50338/01/25",
+    "next_due_on": "6/19/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/21/007"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 31,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Stop Watch",
+    "make": "Racer",
+    "model": "SW306",
+    "asset_no": "587 HTAIPL/L",
+    "instrument_sl_no": "8269",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50526/01/26",
+    "next_due_on": "2/24/2027",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/21/007"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 32,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Stop Watch",
+    "make": "Casio",
+    "model": "HS-80TW-1DF",
+    "asset_no": "638 HTAIPL/L",
+    "instrument_sl_no": "603Q12R",
+    "usage": "For On Site",
+    "calibrated_at": "HITECH,Chennai",
+    "report_no": "HT/CC/250805-04/001",
+    "next_due_on": "8/7/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/21/007"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 33,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Stop Watch",
+    "make": "Casio",
+    "model": "HS-80TW-1DF",
+    "asset_no": "639 HTAIPL/L",
+    "instrument_sl_no": "603Q16R",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/14429-2",
+    "next_due_on": "11/12/2026",
+    "range": [
+      {
+        "referencedoc": "NLAB/DOC/MSD/49/21/007"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 34,
+    "type": "Electro-Technical",
+    "parameter_group": "Time",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "time"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS1/R01"
+    ],
+    "instrument_desc": "Digital Time calibrator",
+    "make": "Saica",
+    "model": "SCSDTC01",
+    "asset_no": "891 HTAIPL/L",
+    "instrument_sl_no": "202403006",
+    "usage": "For Lab",
+    "calibrated_at": "Wika Instruments, Chennai",
+    "report_no": "C-251004-7-2",
+    "next_due_on": "10/16/2026",
+    "range": [
+      {
+        "referencedoc": "As per Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 35,
+    "type": "Electro-Technical",
+    "parameter_group": "Frequency",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "frequency"
+      ]
+    },
+    "sop_references": [
+      "AS A SOURCE"
+    ],
+    "instrument_desc": "DDS Signal generator / counter",
+    "make": "Vartech",
+    "model": "SGD-6M",
+    "asset_no": "917 HTAIPL/L",
+    "instrument_sl_no": "D371200215",
+    "usage": "",
+    "calibrated_at": "Sarvashree, Bangalore",
+    "report_no": "SS/25/B2661-01",
+    "next_due_on": "9/1/2026",
+    "range": [
+      {
+        "referencedoc": "As per Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 36,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "ac_voltage",
+        "dc_voltage",
+        "ac_current",
+        "dc_current",
+        "frequency",
+        "resistance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET4/R01"
+    ],
+    "instrument_desc": "Digital Multimeter",
+    "make": "Waco",
+    "model": "45",
+    "asset_no": "1030 HTAIPL/L",
+    "instrument_sl_no": "2000088",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50486/02/25",
+    "next_due_on": "12/29/2026",
+    "range": [
+      {
+        "referencedoc": "As per Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 37,
+    "type": "Electro-Technical",
+    "parameter_group": "Electrical (multi-function)",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "ac_voltage",
+        "dc_voltage",
+        "ac_current",
+        "dc_current",
+        "frequency",
+        "resistance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ET4/R01"
+    ],
+    "instrument_desc": "Digital Multimeter",
+    "make": "Waco",
+    "model": "45",
+    "asset_no": "1031 HTAIPL/L",
+    "instrument_sl_no": "2000038",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50486/01/25",
+    "next_due_on": "12/29/2026",
+    "range": [
+      {
+        "referencedoc": "As per Manual"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 38,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "PRT with Thermometer",
+    "make": "Fluke",
+    "model": {
+      "ind": "1523",
+      "sen": "5626"
+    },
+    "asset_no": "230 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "1082061",
+      "sen": "2915"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "ETDC, Bangalore",
+    "report_no": "CR/NCAL/53156",
+    "next_due_on": "4/7/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-190",
+        "max": "600",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 39,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "AS A SOURCE"
+    ],
+    "instrument_desc": "Portable Temperature & Humidity Chamber",
+    "make": "Indeecon",
+    "model": "INDEE/PTHG/001",
+    "asset_no": "408 HTAIPL/L",
+    "instrument_sl_no": "PTHG/005/2015",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C22925/01/25",
+    "next_due_on": "6/3/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "5",
+        "max": "50",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "20",
+        "max": "95",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 40,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Equinox",
+    "model": "EQ-321S",
+    "asset_no": "347 HTAIPL/L",
+    "instrument_sl_no": "12112819",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50478/02/25",
+    "next_due_on": "12/26/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "10",
+        "max": "50",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "20",
+        "max": "95",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 41,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Equinox",
+    "model": "EQ-321S",
+    "asset_no": "639A HTAIPL/L",
+    "instrument_sl_no": "151005145",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50331/01/25",
+    "next_due_on": "5/26/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "10",
+        "max": "50",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "20",
+        "max": "95",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 42,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Equinox",
+    "model": "EQ-321S",
+    "asset_no": "784 HTAIPL/L",
+    "instrument_sl_no": "181006615",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50357/01/25",
+    "next_due_on": "7/5/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "10",
+        "max": "50",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "20",
+        "max": "95",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 43,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Equinox",
+    "model": "EQ-321S",
+    "asset_no": "934 HTAIPL/L",
+    "instrument_sl_no": "211005760",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50347/01/25",
+    "next_due_on": "7/5/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "10",
+        "max": "50",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "20",
+        "max": "95",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 44,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Equinox",
+    "model": "EQ-321S",
+    "asset_no": "933 HTAIPL/L",
+    "instrument_sl_no": "211005753",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50367/01/25",
+    "next_due_on": "7/23/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "10",
+        "max": "50",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "20",
+        "max": "95",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 45,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Equinox",
+    "model": "EQ-321S",
+    "asset_no": "935HTAIPL/L",
+    "instrument_sl_no": "211005740",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50344/01/25",
+    "next_due_on": "7/5/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "10",
+        "max": "50",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "20",
+        "max": "95",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 46,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Equinox",
+    "model": "EQ-321S",
+    "asset_no": "763 HTAIPL/L",
+    "instrument_sl_no": "181006607",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "HTA/C50377/01/25",
+    "next_due_on": "7/24/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "10",
+        "max": "50",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "20",
+        "max": "95",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 47,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Testo",
+    "model": "625",
+    "asset_no": "942 HTAIPL/L",
+    "instrument_sl_no": "62936356",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50361/01/25",
+    "next_due_on": "7/17/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-20",
+        "max": "60",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 48,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Testo",
+    "model": "625",
+    "asset_no": "943 HTAIPL/L",
+    "instrument_sl_no": "62936365",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50380/01/25",
+    "next_due_on": "8/5/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-20",
+        "max": "60",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 49,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Center",
+    "model": "31",
+    "asset_no": "1026 HTAIPL/L",
+    "instrument_sl_no": "250107581",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50466/02/25",
+    "next_due_on": "11/11/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-20",
+        "max": "60",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 50,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Center",
+    "model": "31",
+    "asset_no": "1027 HTAIPL/L",
+    "instrument_sl_no": "250107588",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50466/01/25",
+    "next_due_on": "11/11/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-20",
+        "max": "60",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 51,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Center",
+    "model": "31",
+    "asset_no": "1028 HTAIPL/L",
+    "instrument_sl_no": "250107582",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50466/03/25",
+    "next_due_on": "11/11/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-20",
+        "max": "60",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 52,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Digital Temperature and Humidity meter",
+    "make": "Center",
+    "model": "31",
+    "asset_no": "1029 HTAIPL/L",
+    "instrument_sl_no": "250107584",
+    "usage": "For Lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/16176-1",
+    "next_due_on": "12/1/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-20",
+        "max": "60",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 53,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Thermocouple Thermometer with ‘R’ Type Sensor",
+    "make": "Ind: Delta Ohm Sen: Emko",
+    "model": "HD 2108.1",
+    "asset_no": "189 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "08020628",
+      "sen": "41020793"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "Shriram Institute, Bangalore.",
+    "report_no": "C2/0000074273",
+    "next_due_on": "10/14/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "200",
+        "max": "1100",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 54,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Thermocouple Thermometer with ‘S’ Type Sensor",
+    "make": "Delta Ohm",
+    "model": "HD 2128.2",
+    "asset_no": "160 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "04022669",
+      "sen": "041108001"
+    },
+    "usage": "For On Site",
+    "calibrated_at": "Shriram Institute, Bangalore.",
+    "report_no": "C2/0000076877",
+    "next_due_on": "1/6/2027",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "200",
+        "max": "1100",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 55,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Thermocouple Thermometer with ‘N’ Type Sensor",
+    "make": "Delta Ohm",
+    "model": "HD 2128.2",
+    "asset_no": "715 HTAIPL",
+    "instrument_sl_no": {
+      "ind": "19010976",
+      "sen": "1908976"
+    },
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50434/01/25",
+    "next_due_on": "10/28/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "200",
+        "max": "1100",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 56,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Thermocouple thermometer with k type sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2128.1",
+      "sen": "TP 750"
+    },
+    "asset_no": "430A HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "14026959",
+      "sen": "14014755"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50345/01/25",
+    "next_due_on": "7/9/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "0",
+        "max": "800",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 57,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Thermocouple thermometer with 'N' type sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2128.1",
+      "sen": "TP 750"
+    },
+    "asset_no": "430B HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "14026944",
+      "sen": "14014775"
+    },
+    "usage": "For On site",
+    "calibrated_at": "Shriram Institute, Bangalore",
+    "report_no": "C2/0000069229",
+    "next_due_on": "4/18/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "50",
+        "max": "1100",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 58,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital Thermocouple thermometer with k type sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2108.1",
+      "sen": "TP 647"
+    },
+    "asset_no": "878 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "23015977",
+      "sen": "15036948"
+    },
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50334/01/25",
+    "next_due_on": "5/27/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-50",
+        "max": "250",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 59,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Temperature Humidity meter",
+    "make": "Rotronic",
+    "model": {
+      "ind": "HP 32",
+      "sen": "HC2A-S3"
+    },
+    "asset_no": "791 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "5190553",
+      "sen": "20467296"
+    },
+    "usage": "For On site",
+    "calibrated_at": "Wika Instruments, Chennai",
+    "report_no": "C -251004-7-1",
+    "next_due_on": "10/4/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-10",
+        "max": "60",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 60,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Temperature Humidity meter",
+    "make": "Rotronic",
+    "model": {
+      "ind": "HP 32",
+      "sen": "HC2A-S4"
+    },
+    "asset_no": "1014 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "5250062",
+      "sen": "25005083"
+    },
+    "usage": "",
+    "calibrated_at": "Jupiter, Mumbai",
+    "report_no": "JI/DK/25-26/09869",
+    "next_due_on": "6/3/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-10",
+        "max": "60",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 61,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Temperature Humidity meter",
+    "make": "Rotronic",
+    "model": {
+      "ind": "HP 32",
+      "sen": "HC2A-S5"
+    },
+    "asset_no": "1015 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "5250074",
+      "sen": "25005098"
+    },
+    "usage": "",
+    "calibrated_at": "Jupiter, Mumbai",
+    "report_no": "JI/DK/25-26/09870",
+    "next_due_on": "6/3/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-10",
+        "max": "60",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 62,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Temperature Humidity meter",
+    "make": "Rotronic",
+    "model": "HL-1D",
+    "asset_no": "817A HTAIPL/L",
+    "instrument_sl_no": "A17040901",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50311/01/25",
+    "next_due_on": "3/24/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-30",
+        "max": "75",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 63,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Temperature Humidity meter",
+    "make": "Rotronic",
+    "model": "HL-1D",
+    "asset_no": "817 HTAIPL/L",
+    "instrument_sl_no": "A17040892",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50311/04/25",
+    "next_due_on": "3/24/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-30",
+        "max": "75",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 64,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Temperature Humidity meter",
+    "make": "Rotronic",
+    "model": "HL-1D",
+    "asset_no": "818 HTAIPL/L",
+    "instrument_sl_no": "A17020595",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50311/03/25",
+    "next_due_on": "3/24/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-30",
+        "max": "75",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 65,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Temperature Humidity meter",
+    "make": "Rotronic",
+    "model": "HL-1D",
+    "asset_no": "827 HTAIPL/L",
+    "instrument_sl_no": "A17040922",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50311/02/25",
+    "next_due_on": "3/24/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-30",
+        "max": "75",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 66,
+    "type": "Thermal",
+    "parameter_group": "Temperature & Humidity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature",
+        "humidity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL1/R01"
+    ],
+    "instrument_desc": "Temperature Humidity meter",
+    "make": "Rotronic",
+    "model": "HL-1D",
+    "asset_no": "828 HTAIPL/L",
+    "instrument_sl_no": "A17020687",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50311/05/25",
+    "next_due_on": "3/24/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-30",
+        "max": "75",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Humidity",
+        "min": "0",
+        "max": "100",
+        "unit": "%RH"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 67,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital Thermometer with Sensor",
+    "make": "Fluke",
+    "model": "1552 AEX",
+    "asset_no": "781 HTAIPL/L",
+    "instrument_sl_no": "5122002",
+    "usage": "For On site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/14261-1",
+    "next_due_on": "11/5/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-80",
+        "max": "300",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 68,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with sensor",
+    "make": "Delta Ohm",
+    "model": "HD 2307.0",
+    "asset_no": "252 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "10026233",
+      "sen": "56504"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50411/01/25",
+    "next_due_on": "9/18/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "250",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 69,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with sensor",
+    "make": "Delta Ohm",
+    "model": "HD 2307.0",
+    "asset_no": "352 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "12003577",
+      "sen": "46503"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50425/01/25",
+    "next_due_on": "10/14/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "250",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 70,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with sensor",
+    "make": "Delta Ohm",
+    "model": "HD 2307.0",
+    "asset_no": "354 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "14000594",
+      "sen": "46501"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50425/01/25",
+    "next_due_on": "10/14/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "250",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 71,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2307.0",
+      "sen": "TP 472I"
+    },
+    "asset_no": "351 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "14000590",
+      "sen": "46505"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50432/01/25",
+    "next_due_on": "10/27/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "250",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 72,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with PT 100 Sensor (4 Wire)",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "492A HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "15035889",
+      "sen": "15036741"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/2218-1",
+    "next_due_on": "4/23/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "500",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 73,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with PT 100 Sensor (4 Wire)",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "494B HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "15035872",
+      "sen": "15036736"
+    },
+    "usage": "For On site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/7734-2",
+    "next_due_on": "7/20/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "500",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 74,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TPMSN 140340"
+    },
+    "asset_no": "621 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "17007076",
+      "sen": "17014227"
+    },
+    "usage": "For On site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50375/01/25",
+    "next_due_on": "7/24/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 75,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with PT 100 Sensor (4 Wire)",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "717 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "17013097",
+      "sen": "19012265"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/11942-3",
+    "next_due_on": "9/25/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "500",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 76,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "620 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "17013098",
+      "sen": "19012268"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/8383-1",
+    "next_due_on": "7/30/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "500",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 77,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "619 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "16024227",
+      "sen": "20211110"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50465/01/25",
+    "next_due_on": "12/4/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 78,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "659 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "17025978",
+      "sen": "20211030"
+    },
+    "usage": "For On site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50457/01/25",
+    "next_due_on": "11/20/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 79,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "718 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "17013094",
+      "sen": "21018600"
+    },
+    "usage": "For On site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50483/01/25",
+    "next_due_on": "12/26/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 80,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "807 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "20032393",
+      "sen": "21018599"
+    },
+    "usage": "For On site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50478/01/25",
+    "next_due_on": "12/26/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 81,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "805 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "20032399",
+      "sen": "21022186"
+    },
+    "usage": "For On site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50480/01/25",
+    "next_due_on": "12/26/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 82,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "806 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "21004418",
+      "sen": "26092023"
+    },
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50427/01/25",
+    "next_due_on": "10/15/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 83,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "719 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "17007068",
+      "sen": "26092024"
+    },
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50428/01/25",
+    "next_due_on": "10/16/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 84,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with Sensor",
+    "make": "Delta Ohm",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "810 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "21004419",
+      "sen": "28112023"
+    },
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50467/01/25",
+    "next_due_on": "12/4/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 85,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital RTD Thermometer with PT 100 Sensor (4 Wire)",
+    "make": "DeltaOhm / Sanseca",
+    "model": {
+      "ind": "HD 2107.1",
+      "sen": "TP 472 I"
+    },
+    "asset_no": "966 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "24023425",
+      "sen": "24018379"
+    },
+    "usage": "",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/4062-1",
+    "next_due_on": "5/25/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "500",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 86,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01",
+      "NLAB/CAL/TL2/R01",
+      "NLAB/CAL/TL3/R01"
+    ],
+    "instrument_desc": "Digital Thermometer With Sensor (2 CH )",
+    "make": "Center",
+    "model": "378",
+    "asset_no": "375 HTAIPL/L",
+    "instrument_sl_no": "140206295",
+    "usage": "For Onsite",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50524/04/26",
+    "next_due_on": "2/24/2027",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-180",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 87,
+    "type": "Thermal",
+    "parameter_group": "Dew point",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "dew_point"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL6/R01"
+    ],
+    "instrument_desc": "Dew Point Transmitter",
+    "make": "Delta Ohm",
+    "model": "HD 2307.0R",
+    "asset_no": "564 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "15033719",
+      "sen": "16002163"
+    },
+    "usage": "For On site & lab",
+    "calibrated_at": "Testo, Pune",
+    "report_no": "102510614",
+    "next_due_on": "3/28/2027",
+    "range": [
+      {
+        "parameter": "Dew Point",
+        "min": "-30",
+        "max": "60",
+        "unit": "°C DP"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 88,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL4/R01"
+    ],
+    "instrument_desc": "Digital IR Thermometer",
+    "make": "Optris",
+    "model": "MS",
+    "asset_no": "335 HTAIPL/L",
+    "instrument_sl_no": "12086355",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/18709-1",
+    "next_due_on": "1/8/2027",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "50",
+        "max": "350",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 89,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/TL1/R01"
+    ],
+    "instrument_desc": "Datalogger with RTD sensor - (9-Channel)",
+    "make": "Equinox",
+    "model": "EQ-DAQ-9016",
+    "asset_no": "510A HTAIPL/L",
+    "instrument_sl_no": "151677",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50430/01/25",
+    "next_due_on": "10/28/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "100",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 90,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/VL2/R01"
+    ],
+    "instrument_desc": "Digital Paperless recorder with RTD sensor",
+    "make": "Brainchild",
+    "model": "PR2012-0A011000",
+    "asset_no": "580 HTAIPL/L",
+    "instrument_sl_no": "166280021",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50519/14/26",
+    "next_due_on": "2/17/2027",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "150",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 91,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/VL2/R01"
+    ],
+    "instrument_desc": "Digital Paperless recorder for 'N' type",
+    "make": "Brainchild",
+    "model": "PR2012-0A011000",
+    "asset_no": "580 HTAIPL/L",
+    "instrument_sl_no": "166280018",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50519/01/26",
+    "next_due_on": "5/17/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-250",
+        "max": "1300",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 92,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/VL2/R01"
+    ],
+    "instrument_desc": "Digital Paperless recorder for 'T' type",
+    "make": "Brainchild",
+    "model": "PR2006-0A011000",
+    "asset_no": "580 HTAIPL/L",
+    "instrument_sl_no": "164070002",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50519/15/26",
+    "next_due_on": "5/17/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-250",
+        "max": "400",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 93,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/VL2/R01"
+    ],
+    "instrument_desc": "T type sensor",
+    "make": "NA",
+    "model": "NA",
+    "asset_no": "584 HTAIPL/L",
+    "instrument_sl_no": "TTC01 to TTC12",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50519/16/26 to HTA/C50519/27/26",
+    "next_due_on": "5/18/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "0",
+        "max": "300",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 94,
+    "type": "Thermal",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/VL2/R01"
+    ],
+    "instrument_desc": "N type sensor",
+    "make": "NA",
+    "model": "NA",
+    "asset_no": "585 HTAIPL/L",
+    "instrument_sl_no": "NTC01 to NTC12",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50519/02/26 to HTA/C50519/13/26",
+    "next_due_on": "5/17/2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "200",
+        "max": "1100",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 95,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "force"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Digital Force Gauge",
+    "make": "Lutron",
+    "model": "FG-5100",
+    "asset_no": "219 HTAIPL/L",
+    "instrument_sl_no": "I.100666",
+    "usage": "For On site & lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/7734-1",
+    "next_due_on": "7/23/2026",
+    "range": [
+      {
+        "parameter": "Force",
+        "min": "0",
+        "max": "100",
+        "unit": "kgf"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 96,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "force"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Digital Force Gauge",
+    "make": "Lutron",
+    "model": "FG-5020",
+    "asset_no": "746 HTAIPL/L",
+    "instrument_sl_no": "Q659605",
+    "usage": "For On site & lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C23232/01/25",
+    "next_due_on": "8/5/2026",
+    "range": [
+      {
+        "parameter": "Force",
+        "min": "0",
+        "max": "20",
+        "unit": "kgf"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 97,
+    "type": "Mechanical",
+    "parameter_group": "Sound",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "sound"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL2/R01"
+    ],
+    "instrument_desc": "Sound Level Calibrator",
+    "make": "Delta Ohm",
+    "model": "HD 2020",
+    "asset_no": "242 HTAIPL/L",
+    "instrument_sl_no": "11001197",
+    "usage": "For Lab",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C11/251290/269",
+    "next_due_on": "10/7/2026",
+    "range": [
+      {
+        "parameter": "Sound",
+        "min": "94",
+        "max": "114",
+        "unit": "dB"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 98,
+    "type": "Mechanical",
+    "parameter_group": "Sound",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "sound"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL2/R01"
+    ],
+    "instrument_desc": "Sound Calibrator",
+    "make": "Center",
+    "model": "326",
+    "asset_no": "65 HTAIPL/L",
+    "instrument_sl_no": "040521564",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C23829/04/26",
+    "next_due_on": "1/22/2027",
+    "range": [
+      {
+        "parameter": "Sound",
+        "min": "94",
+        "max": "114",
+        "unit": "dB"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 99,
+    "type": "Mechanical",
+    "parameter_group": "Sound",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "sound"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL2/R01"
+    ],
+    "instrument_desc": "Digital Sound Level meter",
+    "make": "Equinox",
+    "model": "EQ-805",
+    "asset_no": "338 HTAIPL/L",
+    "instrument_sl_no": "130919162",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50504/01/26",
+    "next_due_on": "1/29/2027",
+    "range": [
+      {
+        "parameter": "Sound",
+        "min": "30",
+        "max": "130",
+        "unit": "dB"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 100,
+    "type": "Mechanical",
+    "parameter_group": "Level & Angle",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "level",
+        "angle"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML9/R01"
+    ],
+    "instrument_desc": "Spirit Level",
+    "make": "fujiseimitsukeiki",
+    "model": "NA",
+    "asset_no": "46 HTAIPL/L",
+    "instrument_sl_no": "041943",
+    "usage": "For lab",
+    "calibrated_at": "CMTI, Bangalore",
+    "report_no": "24/53/01/041-S/3/371",
+    "next_due_on": "2/18/2026",
+    "range": [
+      {
+        "referencedoc": "NA"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 101,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "thickness"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML6/R01"
+    ],
+    "instrument_desc": "Slip Gauges",
+    "make": "Mitutoyo",
+    "model": "NA",
+    "asset_no": "237 HTAIPL/L",
+    "instrument_sl_no": "1103503",
+    "usage": "For Lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/18709-3",
+    "next_due_on": "9/1/2027",
+    "range": [
+      {
+        "referencedoc": "NA"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 102,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "thickness"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML6/R01"
+    ],
+    "instrument_desc": "Slip Gauges",
+    "make": "Peacock",
+    "model": "NA",
+    "asset_no": "30 HTAIPL/L",
+    "instrument_sl_no": "30 HTAIPL/L",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C23794/01/26",
+    "next_due_on": "1/5/2027",
+    "range": [
+      {
+        "referencedoc": "NA"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 103,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "flatness",
+        "parallelism"
+      ]
+    },
+    "sop_references": [
+      "AS A SOURCE"
+    ],
+    "instrument_desc": "Optical Parallels",
+    "make": "Carl-Zeiss Jena",
+    "model": "NA",
+    "asset_no": "268 HTAIPL/L",
+    "instrument_sl_no": "268/HTAIPL/L",
+    "usage": "For Lab",
+    "calibrated_at": "CMTI, Bangalore",
+    "report_no": "23/53/01/041-S/3/354-B",
+    "next_due_on": "2/27/2026",
+    "range": [
+      {
+        "referencedoc": "NA"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 104,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "thickness"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML6/R01"
+    ],
+    "instrument_desc": "Slip Gauge M10. Grade 0",
+    "make": "Mikronix",
+    "model": "NA",
+    "asset_no": "783 HTAIPL/L",
+    "instrument_sl_no": "5944",
+    "usage": "For Lab",
+    "calibrated_at": "CMTI, Bangalore",
+    "report_no": "24/53/01/041-S/3/341-A",
+    "next_due_on": "1/29/2027",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "2.5",
+        "max": "25",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 105,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "length"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML7/R01"
+    ],
+    "instrument_desc": "Steel Caliper Checker",
+    "make": "Mikronix",
+    "model": "NA",
+    "asset_no": "782 HTAIPL/L",
+    "instrument_sl_no": "2825",
+    "usage": "For Lab",
+    "calibrated_at": "CMTI, Bangalore",
+    "report_no": "24/53/01/041-S/3/341-B",
+    "next_due_on": "1/23/2027",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "0",
+        "max": "300",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 106,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "weight"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Standard Weights",
+    "make": "NA",
+    "model": "NA",
+    "asset_no": "284 HTAIPL/L",
+    "instrument_sl_no": "284 HTAIPL/L",
+    "usage": "For lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C22699/01/25",
+    "next_due_on": "3/20/2026",
+    "range": [
+      {
+        "parameter": "Mass",
+        "min": "1.0",
+        "max": "2.0",
+        "unit": "kg"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 107,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "weight"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Electronic Weighing Machine",
+    "make": "Essae",
+    "model": "DS-252",
+    "asset_no": "864 HTAIPL/L",
+    "instrument_sl_no": "G25222844153",
+    "usage": "",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/3778-1",
+    "next_due_on": "5/22/2026",
+    "range": [
+      {
+        "parameter": "Mass",
+        "min": "0",
+        "max": "15",
+        "unit": "kg"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 108,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "weight"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Analytical Balance",
+    "make": "Radwag",
+    "model": "AS 60/220 R2",
+    "asset_no": "601 HTAIPL/L",
+    "instrument_sl_no": "477939",
+    "usage": "For lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C22797/01/25",
+    "next_due_on": "4/15/2026",
+    "range": [
+      {
+        "parameter": "Mass",
+        "min": "0.001",
+        "max": "220.0",
+        "unit": "g"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 109,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "weight"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Analytical Weight box",
+    "make": "NA",
+    "model": "NA",
+    "asset_no": "29 HTAIPL/L",
+    "instrument_sl_no": "29 HTAIPL/L",
+    "usage": "For On site",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23550/01/25",
+    "next_due_on": "11/12/2026",
+    "range": [
+      {
+        "parameter": "Mass",
+        "min": "0.2",
+        "max": "100.0",
+        "unit": "g"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 110,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "weight"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Analytical Weight box",
+    "make": "NA",
+    "model": "NA",
+    "asset_no": "281 HTAIPL/L",
+    "instrument_sl_no": "281 HTAIPL/L",
+    "usage": "For On site",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23829/01/26",
+    "next_due_on": "1/22/2027",
+    "range": [
+      {
+        "parameter": "Mass",
+        "min": "0.2",
+        "max": "100.0",
+        "unit": "g"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 111,
+    "type": "Mechanical",
+    "parameter_group": "Level & Angle",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "level"
+      ]
+    },
+    "sop_references": [
+      "AS A SOURCE"
+    ],
+    "instrument_desc": "Granite Surface Plate",
+    "make": "Jafuji",
+    "model": "NA",
+    "asset_no": "35 HTAIPL/L",
+    "instrument_sl_no": "35 HTAIPL/L",
+    "usage": "For lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/24-25/22042-4",
+    "next_due_on": "3/13/2026",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "400",
+        "max": "400",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 112,
+    "type": "Mechanical",
+    "parameter_group": "Weight & Volume",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "weight",
+        "volume"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML13/R01",
+      "NLAB/CAL/OS3/R01"
+    ],
+    "instrument_desc": "Standard Weight box",
+    "make": "Wensar",
+    "model": "NA",
+    "asset_no": "602 HTAIPL/L",
+    "instrument_sl_no": "2291",
+    "usage": "For lab",
+    "calibrated_at": "RRSL, Bangalore",
+    "report_no": "RRSL/B/CAL//136/2025-26",
+    "next_due_on": "6/5/2026",
+    "range": [
+      {
+        "parameter": "Mass",
+        "min": "0.001",
+        "max": "200.0",
+        "unit": "g"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 113,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "length"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML7/R01"
+    ],
+    "instrument_desc": "Digital Vernier Caliper",
+    "make": "Lutron",
+    "model": "NA",
+    "asset_no": "52 HTAIPL/L",
+    "instrument_sl_no": "4054914",
+    "usage": "For lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C50524/01/26",
+    "next_due_on": "2/24/2027",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "0",
+        "max": "150",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 114,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "length"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML7/R01"
+    ],
+    "instrument_desc": "Digital Vernier Caliper",
+    "make": "Mitutoyo",
+    "model": "CD-12\"PSX",
+    "asset_no": "463A HTAIPL/L",
+    "instrument_sl_no": "0068139",
+    "usage": "For lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C50511/01/26",
+    "next_due_on": "2/9/2027",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "0",
+        "max": "300",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 115,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "length"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML7/R01"
+    ],
+    "instrument_desc": "Digital Vernier Caliper",
+    "make": "Mitutoyo",
+    "model": "NA",
+    "asset_no": "463 HTAIPL/L",
+    "instrument_sl_no": "15018616",
+    "usage": "For lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C50522/01/26",
+    "next_due_on": "2/24/2027",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "0",
+        "max": "150",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 116,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "thickness"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML7/R01"
+    ],
+    "instrument_desc": "Micrometer",
+    "make": "Mitutoyo",
+    "model": "MDC-25SX",
+    "asset_no": "1003 HTAIPL/L",
+    "instrument_sl_no": "71839223",
+    "usage": "For Lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/24-25/22320-2",
+    "next_due_on": "3/19/2026",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "0",
+        "max": "25",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 117,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "thickness"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML7/R01"
+    ],
+    "instrument_desc": "Feeler Gauge",
+    "make": "Mitutoyo",
+    "model": "NA",
+    "asset_no": "465 HTAIPL/L",
+    "instrument_sl_no": "4 946368 424118",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23309/01/25",
+    "next_due_on": "8/23/2026",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "0.05",
+        "max": "1",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 118,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "thickness"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML7/R01"
+    ],
+    "instrument_desc": "Lever Type Dial Gauge",
+    "make": "Mitutoyo",
+    "model": "NA",
+    "asset_no": "44 HTAIPL/L",
+    "instrument_sl_no": "FHT327",
+    "usage": "For lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/18709-2",
+    "next_due_on": "1/8/2027",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "0",
+        "max": "0.14",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 119,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "thickness"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML7/R01"
+    ],
+    "instrument_desc": "Dial Gauge",
+    "make": "Mitutoyo",
+    "model": "FBR 103",
+    "asset_no": "45 HTAIPL/L",
+    "instrument_sl_no": "2046S",
+    "usage": "For lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23829/03/26",
+    "next_due_on": "1/20/2027",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "0",
+        "max": "10",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 120,
+    "type": "Mechanical",
+    "parameter_group": "Level & Angle",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "level",
+        "angle"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML9/R01"
+    ],
+    "instrument_desc": "Universal Bevel Protractor (Digital)",
+    "make": "Insize",
+    "model": "2172-360A",
+    "asset_no": "266 HTAIPL/L",
+    "instrument_sl_no": "2009168415",
+    "usage": "For lab",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/14429-1",
+    "next_due_on": "11/7/2026",
+    "range": [
+      {
+        "parameter": "Angle",
+        "min": "0",
+        "max": "360",
+        "unit": "°"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 121,
+    "type": "Mechanical",
+    "parameter_group": "Dimensional",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "length"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML10/R01"
+    ],
+    "instrument_desc": "Steel Scale",
+    "make": "Kristeel Shinwa",
+    "model": "NA",
+    "asset_no": "278 HTAIPL/L",
+    "instrument_sl_no": "401 F12",
+    "usage": "For Lab",
+    "calibrated_at": "CMTI, Bangalore",
+    "report_no": "23/53/01/041-S/3/354-A",
+    "next_due_on": "3/13/2026",
+    "range": [
+      {
+        "parameter": "Length",
+        "min": "0",
+        "max": "1000",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 122,
+    "type": "Mechanical",
+    "parameter_group": "Hardness",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "hardness"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML12/R01"
+    ],
+    "instrument_desc": "Durometer",
+    "make": "Equinox",
+    "model": "EQ-HT-6510D",
+    "asset_no": "651 HTAIPL/L",
+    "instrument_sl_no": "N824994",
+    "usage": "For Lab",
+    "calibrated_at": "HITECH,Chennai",
+    "report_no": "HT/CC/050918-12/001/A",
+    "next_due_on": "9/18/2026",
+    "range": [
+      {
+        "parameter": "Hardness",
+        "min": "0",
+        "max": "100",
+        "unit": "HD"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 123,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Calibrator",
+    "make": "Druck",
+    "model": "DPI 611",
+    "asset_no": "665 HTAIPL/L",
+    "instrument_sl_no": "5262160",
+    "usage": "For Lab",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C01/251289/ 562",
+    "next_due_on": "10/9/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "20",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 124,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Low Pressure External Transducer",
+    "make": "GE Druck",
+    "model": "LE6 0FH",
+    "asset_no": "666 HTAIPL/L",
+    "instrument_sl_no": "11134267",
+    "usage": "For Lab",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C01/251289/ 563",
+    "next_due_on": "10/7/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "25",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 125,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01",
+      "NLAB/CAL/ML8/R01"
+    ],
+    "instrument_desc": "High Pressure External Transducer",
+    "make": "Druck",
+    "model": "DPI 611",
+    "asset_no": "667 HTAIPL/L",
+    "instrument_sl_no": "10751116",
+    "usage": "For Lab",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C01/251289/ 564",
+    "next_due_on": "10/8/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "700",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 126,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Calibrator",
+    "make": "Druck",
+    "model": "DPI 610",
+    "asset_no": "188 HTAIPL/L",
+    "instrument_sl_no": "61056430",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50458/01/25",
+    "next_due_on": "11/25/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "20",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 127,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01",
+      "NLAB/CAL/ML8/R01"
+    ],
+    "instrument_desc": "High Pressure External Transducer",
+    "make": "Druck",
+    "model": "DPI 610",
+    "asset_no": "188 HTAIPL/L",
+    "instrument_sl_no": "2899734",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50458/02/25",
+    "next_due_on": "11/25/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "700",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 128,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Low Pressure External Transducer",
+    "make": "Druck",
+    "model": "LPE 9400",
+    "asset_no": "188 HTAIPL/L",
+    "instrument_sl_no": "2862100",
+    "usage": "For Lab",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C01/251289/ 565",
+    "next_due_on": "10/7/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "25",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 129,
+    "type": "Mechanical",
+    "parameter_group": "Vibration",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "vibration"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML5/R01"
+    ],
+    "instrument_desc": "Vibration Meter",
+    "make": "Equinox",
+    "model": "EQ-VM 6360",
+    "asset_no": "374 HTAIPL/L",
+    "instrument_sl_no": "N650369",
+    "usage": "For Lab",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C11/241523/270",
+    "next_due_on": "10/29/2026",
+    "range": [
+      {
+        "parameter": "Vibration",
+        "min": "5.5",
+        "max": "135",
+        "unit": "mm/s"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 130,
+    "type": "Mechanical",
+    "parameter_group": "Vibration",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "vibration"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML5/R01"
+    ],
+    "instrument_desc": "Vibration Meter",
+    "make": "Equinox",
+    "model": "EQ-VM 6360",
+    "asset_no": "600 HTAIPL/L",
+    "instrument_sl_no": "N728923",
+    "usage": "For Lab",
+    "calibrated_at": "Transcal , Bangalore",
+    "report_no": "TSC/24-25/22042-3",
+    "next_due_on": "3/17/2026",
+    "range": [
+      {
+        "parameter": "Vibration",
+        "min": "5.5",
+        "max": "135",
+        "unit": "mm/s"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 131,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Tachometer calibrator",
+    "make": "sansel",
+    "model": "",
+    "asset_no": "909 HTAIPL/L",
+    "instrument_sl_no": "RPM032K24570",
+    "usage": "",
+    "calibrated_at": "Transcal , Bangalore",
+    "report_no": "TSC/25-26/4881-1",
+    "next_due_on": "6/8/2026",
+    "range": [
+      {
+        "parameter": "Speed",
+        "min": "0",
+        "max": "100000",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 132,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Digital Tachometer",
+    "make": "Check Line",
+    "model": "CDT-2000HD",
+    "asset_no": "261 HTAIPL/L",
+    "instrument_sl_no": "1216097",
+    "usage": "For Lab",
+    "calibrated_at": "Sansel, Chennai",
+    "report_no": "SAN/25/1197/MO/1",
+    "next_due_on": "9/11/2026",
+    "range": [
+      {
+        "parameter": "Contact Speed",
+        "min": "100",
+        "max": "10000",
+        "unit": "rpm"
+      },
+      {
+        "parameter": "Non-contact Speed",
+        "min": "60",
+        "max": "99999",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 133,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Digital Tachometer",
+    "make": "Equinox",
+    "model": "EQ-801B",
+    "asset_no": "911 HTAIPL/L",
+    "instrument_sl_no": "S463864",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50153/01/24",
+    "next_due_on": "5/13/2026",
+    "range": [
+      {
+        "parameter": "Contact Speed",
+        "min": "100",
+        "max": "10000",
+        "unit": "rpm"
+      },
+      {
+        "parameter": "Non-contact Speed",
+        "min": "100",
+        "max": "20000",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 134,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Digital Tachometer",
+    "make": "Equinox",
+    "model": "EQ-801B",
+    "asset_no": "912 HTAIPL/L",
+    "instrument_sl_no": "S463892",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50153/02/24",
+    "next_due_on": "5/13/2026",
+    "range": [
+      {
+        "parameter": "Contact Speed",
+        "min": "100",
+        "max": "10000",
+        "unit": "rpm"
+      },
+      {
+        "parameter": "Non-contact Speed",
+        "min": "100",
+        "max": "20000",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 135,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Digital Tachometer",
+    "make": "Equinox",
+    "model": "EQ-801B",
+    "asset_no": "913 HTAIPL/L",
+    "instrument_sl_no": "S463528",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50153/02/24",
+    "next_due_on": "5/13/2026",
+    "range": [
+      {
+        "parameter": "Contact Speed",
+        "min": "100",
+        "max": "10000",
+        "unit": "rpm"
+      },
+      {
+        "parameter": "Non-contact Speed",
+        "min": "100",
+        "max": "20000",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 136,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Digital Tachometer",
+    "make": "Equinox",
+    "model": "EQ-801B",
+    "asset_no": "220 HTAIPL/L",
+    "instrument_sl_no": "S029782",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50522/02/26",
+    "next_due_on": "2/24/2027",
+    "range": [
+      {
+        "parameter": "Contact Speed",
+        "min": "100",
+        "max": "10000",
+        "unit": "rpm"
+      },
+      {
+        "parameter": "Non-contact Speed",
+        "min": "100",
+        "max": "20000",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 137,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Digital Tachometer",
+    "make": "Equinox",
+    "model": "EQ-801B",
+    "asset_no": "501 HTAIPL/L",
+    "instrument_sl_no": "S006548",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50524/02/26",
+    "next_due_on": "2/24/2027",
+    "range": [
+      {
+        "parameter": "Contact Speed",
+        "min": "100",
+        "max": "10000",
+        "unit": "rpm"
+      },
+      {
+        "parameter": "Non-contact Speed",
+        "min": "100",
+        "max": "20000",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 138,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Digital Tachometer",
+    "make": "Equinox",
+    "model": "EQ-801B",
+    "asset_no": "214 HTAIPL/L",
+    "instrument_sl_no": "S029741",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50524/03/26",
+    "next_due_on": "2/24/2027",
+    "range": [
+      {
+        "parameter": "Contact Speed",
+        "min": "100",
+        "max": "10000",
+        "unit": "rpm"
+      },
+      {
+        "parameter": "Non-contact Speed",
+        "min": "100",
+        "max": "20000",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 139,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Digital Tachometer",
+    "make": "Tenmars",
+    "model": "TM-4100",
+    "asset_no": "476 HTAIPL/L",
+    "instrument_sl_no": "140702401",
+    "usage": "For Lab",
+    "calibrated_at": "Godrej, Chennai",
+    "report_no": "C-240524-7-2",
+    "next_due_on": "5/29/2026",
+    "range": [
+      {
+        "parameter": "Contact Speed",
+        "min": "100",
+        "max": "10000",
+        "unit": "rpm"
+      },
+      {
+        "parameter": "Non-contact Speed",
+        "min": "60",
+        "max": "99999",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 140,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Digital Tachometer",
+    "make": "Tenmars",
+    "model": "TM-4100D",
+    "asset_no": "767 HTAIPL/L",
+    "instrument_sl_no": "170601290",
+    "usage": "For On Site",
+    "calibrated_at": "Godrej, Chennai",
+    "report_no": "C-240524-7-3",
+    "next_due_on": "5/29/2026",
+    "range": [
+      {
+        "parameter": "Contact Speed",
+        "min": "100",
+        "max": "10000",
+        "unit": "rpm"
+      },
+      {
+        "parameter": "Non-contact Speed",
+        "min": "60",
+        "max": "99999",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 141,
+    "type": "Mechanical",
+    "parameter_group": "Speed",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "contact_speed",
+        "non_contact_speed"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML3/R01"
+    ],
+    "instrument_desc": "Digital Tachometer",
+    "make": "CHECKLINE",
+    "model": "CDT-2000HD",
+    "asset_no": "643 HTAIPL/L",
+    "instrument_sl_no": "131410",
+    "usage": "For Lab",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C11/232413/494",
+    "next_due_on": "2/22/2026",
+    "range": [
+      {
+        "parameter": "Contact Speed",
+        "min": "100",
+        "max": "10000",
+        "unit": "rpm"
+      },
+      {
+        "parameter": "Non-contact Speed",
+        "min": "60",
+        "max": "99999",
+        "unit": "rpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 142,
+    "type": "Mechanical",
+    "parameter_group": "Pressure & Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure",
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01",
+      "NLAB/CAL/TL1/R01"
+    ],
+    "instrument_desc": "Digital Manometer with Temperature Sensor",
+    "make": "Delta Ohm",
+    "model": "HD 2114P.2",
+    "asset_no": "152 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "07011059",
+      "sen": "20194659"
+    },
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50441/01/25",
+    "next_due_on": "11/7/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "20",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 143,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Delta Ohm",
+    "model": "HD 2114P.0",
+    "asset_no": "317 HTAIPL/L",
+    "instrument_sl_no": "12029209",
+    "usage": "For On Site",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C01/242321/083",
+    "next_due_on": "2/16/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "20",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 144,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Delta Ohm",
+    "model": "HD2114P.2",
+    "asset_no": "876 HTAIPL/L",
+    "instrument_sl_no": "23015675",
+    "usage": "",
+    "calibrated_at": "Wika, Chennai",
+    "report_no": "C-251115-5-2",
+    "next_due_on": "11/15/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "20",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 145,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Delta Ohm",
+    "model": "HD2114P.2",
+    "asset_no": "877 HTAIPL/L",
+    "instrument_sl_no": "23015676",
+    "usage": "",
+    "calibrated_at": "Godrej, Chennai",
+    "report_no": "C-251115-5-1",
+    "next_due_on": "11/15/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "20",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 146,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Delta Ohm",
+    "model": "HD2134P.2",
+    "asset_no": "469 HTAIPL/L",
+    "instrument_sl_no": "12036349",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/14261-2",
+    "next_due_on": "11/5/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "100",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 147,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Delta Ohm",
+    "model": "HD 2114P.0",
+    "asset_no": "506 HTAIPL/L",
+    "instrument_sl_no": "13028850",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50393/01/25",
+    "next_due_on": "8/21/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "20",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 148,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Delta Ohm",
+    "model": "HD 2114P.0",
+    "asset_no": "617 HTAIPL/L",
+    "instrument_sl_no": "16032512",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50437/01/25",
+    "next_due_on": "10/29/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "20",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 149,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Delta Ohm",
+    "model": "HD 2114P.0",
+    "asset_no": "618 HTAIPL/L",
+    "instrument_sl_no": "16032517",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50302/01/25",
+    "next_due_on": "3/13/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "20",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 150,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Testo",
+    "model": "510",
+    "asset_no": "837 HTAIPL/L",
+    "instrument_sl_no": "51510263/0820",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/24-25/22320-1",
+    "next_due_on": "3/19/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "100",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 151,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Testo",
+    "model": "510",
+    "asset_no": "836 HTAIPL/L",
+    "instrument_sl_no": "51514914/0920",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/11942-2",
+    "next_due_on": "9/26/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "100",
+        "unit": "hPa"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 152,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Testo",
+    "model": "512",
+    "asset_no": "853 HTAIPL/L",
+    "instrument_sl_no": "BA281111/107",
+    "usage": "For On Site",
+    "calibrated_at": "Polltech Instruments, Mumbai",
+    "report_no": "PICAL/1025/P/246",
+    "next_due_on": "11/3/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "2",
+        "unit": "hPa"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 153,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Delta Ohm",
+    "model": "HD 2114P.0",
+    "asset_no": "713 HTAIPL/L",
+    "instrument_sl_no": "16032515",
+    "usage": "For On Site",
+    "calibrated_at": "Godrej, Chennai",
+    "report_no": "C-250422-5-2",
+    "next_due_on": "4/29/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "20",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 154,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Calibrator",
+    "make": "Polltech",
+    "model": "PSI-DPC2",
+    "asset_no": "1008 HTAIPL/L",
+    "instrument_sl_no": "30324",
+    "usage": "",
+    "calibrated_at": "Polltech, Mumbai",
+    "report_no": "POLLTECH/P/DPC/0325/135",
+    "next_due_on": "3/26/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "250",
+        "unit": "Pa"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 155,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Calibrator",
+    "make": "Polltech",
+    "model": "PSI-DPC2",
+    "asset_no": "1007 HTAIPL/L",
+    "instrument_sl_no": "30424",
+    "usage": "",
+    "calibrated_at": "Polltech, Mumbai",
+    "report_no": "POLLTECH/P/DPC/0325/136",
+    "next_due_on": "3/26/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "2000",
+        "unit": "Pa"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 156,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Calibrator",
+    "make": "Polltech",
+    "model": "PSI-DPC2",
+    "asset_no": "1006 HTAIPL/L",
+    "instrument_sl_no": "30524",
+    "usage": "",
+    "calibrated_at": "Polltech, Mumbai",
+    "report_no": "POLLTECH/P/DPC/0325/137",
+    "next_due_on": "3/26/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "2000",
+        "unit": "Pa"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 157,
+    "type": "Mechanical",
+    "parameter_group": "Pressure & Temperature",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure",
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer with Temperature Sensor",
+    "make": "Delta Ohm",
+    "model": "HD 2114P.0",
+    "asset_no": "712 HTAIPL/L",
+    "instrument_sl_no": "19011066",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C50304/01/25",
+    "next_due_on": "3/20/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "20",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 158,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Vijay Enterprises",
+    "model": "TX 430-1",
+    "asset_no": "1000 HTAIPL/L",
+    "instrument_sl_no": "NVET2502806",
+    "usage": "",
+    "calibrated_at": "Vijay Instrument LLP",
+    "report_no": "VILLP/25-26/T-0258",
+    "next_due_on": "2/20/2027",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "700",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 159,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Keller",
+    "model": "Leo2",
+    "asset_no": "120 HTAIPL/L",
+    "instrument_sl_no": "024095",
+    "usage": "For On Site",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C01/242321/082",
+    "next_due_on": "2/12/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "3",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 160,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-501",
+    "asset_no": "738A HTAIPL/L",
+    "instrument_sl_no": "NAIM1907048",
+    "usage": "",
+    "calibrated_at": "HTAIPL, Bangalore",
+    "report_no": "HTA/C23653/01/25",
+    "next_due_on": "12/1/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "6",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 161,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-501",
+    "asset_no": "738 HTAIPL/L",
+    "instrument_sl_no": "NAIM1907036",
+    "usage": "",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/16176-3",
+    "next_due_on": "12/1/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "6",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 162,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Keller",
+    "model": "Leo2",
+    "asset_no": "389 HTAIPL/L",
+    "instrument_sl_no": "69924",
+    "usage": "For On Site",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C01/251499/607",
+    "next_due_on": "10/16/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "30",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 163,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Keller",
+    "model": "Leo2",
+    "asset_no": "7 HTAIPL/L",
+    "instrument_sl_no": "012667",
+    "usage": "For On Site",
+    "calibrated_at": "Godrej, Chennai",
+    "report_no": "C-250319-10-1",
+    "next_due_on": "3/19/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "30",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 164,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-400",
+    "asset_no": "74 HTAIPL/L",
+    "instrument_sl_no": "AIT1509212",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/16176-2",
+    "next_due_on": "12/1/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "40",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 165,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-401",
+    "asset_no": "520 HTAIPL/L",
+    "instrument_sl_no": "NAIT1603507",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/4421-1",
+    "next_due_on": "5/30/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "70",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 166,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-401",
+    "asset_no": "488 HTAIPL/L",
+    "instrument_sl_no": "NAIT1512352",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/8974-1",
+    "next_due_on": "8/11/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "200",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 167,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-401",
+    "asset_no": "489 HTAIPL/L",
+    "instrument_sl_no": "NAIT1511351",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/24-26/21513-1",
+    "next_due_on": "2/23/2027",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "700",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 168,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-401",
+    "asset_no": "607 HTAIPL/L",
+    "instrument_sl_no": "NAIT1704021",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/4421-3",
+    "next_due_on": "5/30/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "70",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 169,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-401",
+    "asset_no": "609 HTAIPL/L",
+    "instrument_sl_no": "NAIT1704023",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/4421-2",
+    "next_due_on": "5/30/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "70",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 170,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Vijay Enterprises",
+    "model": "TX 430-1",
+    "asset_no": "995 HTAIPL/L",
+    "instrument_sl_no": "NVET2410502",
+    "usage": "",
+    "calibrated_at": "Vijay Instrument LLP, Vadodara",
+    "report_no": "VILLP/25-26/T-1310",
+    "next_due_on": "10/31/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "1000",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 171,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "DRUCK",
+    "model": "DPI104-IS",
+    "asset_no": "669 HTAIPL/L",
+    "instrument_sl_no": "10618391",
+    "usage": "For On Site",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C01/251289/561",
+    "next_due_on": "10/6/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "1000",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 172,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Keller",
+    "model": "Leo2",
+    "asset_no": "839 HTAIPL/L",
+    "instrument_sl_no": "123495",
+    "usage": "For On Site",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C01/242321/081",
+    "next_due_on": "2/10/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "30",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 173,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Keller",
+    "model": "Leo2",
+    "asset_no": "840 HTAIPL/L",
+    "instrument_sl_no": "123496",
+    "usage": "For On Site",
+    "calibrated_at": "FCRI, Palakkad",
+    "report_no": "C01/242321/084",
+    "next_due_on": "2/11/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "30",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 174,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-401",
+    "asset_no": "1021 HTAIPL/L",
+    "instrument_sl_no": "NAIT2507347",
+    "usage": "",
+    "calibrated_at": "Vijay Instrumentation, Vadodara",
+    "report_no": "VILLP/25-26/O-0877",
+    "next_due_on": "7/29/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "70",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 175,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-401",
+    "asset_no": "1019 HTAIPL/L",
+    "instrument_sl_no": "NAIT2507348",
+    "usage": "",
+    "calibrated_at": "Vijay Instrumentation, Vadodara",
+    "report_no": "VILLP/25-26/O-0878",
+    "next_due_on": "7/29/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "70",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 176,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Adarsh",
+    "model": "EN-401",
+    "asset_no": "1020 HTAIPL/L",
+    "instrument_sl_no": "NAIT2507349",
+    "usage": "",
+    "calibrated_at": "Vijay Instrumentation, Vadodara",
+    "report_no": "VILLP/25-26/O-0879",
+    "next_due_on": "7/29/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "70",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 177,
+    "type": "Mechanical",
+    "parameter_group": "Vacuum",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "ultra_vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML14/R01"
+    ],
+    "instrument_desc": "Digital Hi.Pr. Pirani Gauge",
+    "make": "HHV",
+    "model": "DHPG-222 / HPS-2",
+    "asset_no": "742 HTAIPL/L",
+    "instrument_sl_no": "525/61 & 525/61-1",
+    "usage": "For On Site",
+    "calibrated_at": "HHV, Bangalore",
+    "report_no": "1421112K25",
+    "next_due_on": "11/10/2026",
+    "range": [
+      {
+        "parameter": "Vacuum",
+        "min": "10⁻³",
+        "max": "10³",
+        "unit": "mbar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 178,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Testo",
+    "model": "512",
+    "asset_no": "748 HTAIPL/L",
+    "instrument_sl_no": "AI280598/907",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23569/01/25",
+    "next_due_on": "11/7/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "2.0",
+        "unit": "hPa"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 179,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "differential_pressure"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Manometer",
+    "make": "Testo",
+    "model": "512",
+    "asset_no": "747 HTAIPL/L",
+    "instrument_sl_no": "AH370104/809",
+    "usage": "For On Site",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/13754-2",
+    "next_due_on": "10/28/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "0",
+        "max": "20",
+        "unit": "hPa"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 180,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Nagman",
+    "model": "MPC-P-I-60",
+    "asset_no": "814 HTAIPL/L",
+    "instrument_sl_no": "MPC 2103 P0520",
+    "usage": "For On Site",
+    "calibrated_at": "Nagman, Chennai",
+    "report_no": "CFC/2025-1356-PL/1",
+    "next_due_on": "6/6/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-0.9",
+        "max": "60",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 181,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Nagman",
+    "model": "MPC-P-I-60",
+    "asset_no": "815 HTAIPL/L",
+    "instrument_sl_no": "MPC 2103 P0521",
+    "usage": "For On Site",
+    "calibrated_at": "Nagman, Chennai",
+    "report_no": "CFC2025-900-PL/1",
+    "next_due_on": "3/30/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-0.9",
+        "max": "60",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 182,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Nagman",
+    "model": "MPC-P-I-60",
+    "asset_no": "816 HTAIPL/L",
+    "instrument_sl_no": "MPC 2103 P0522",
+    "usage": "For On Site",
+    "calibrated_at": "Nagman, Chennai",
+    "report_no": "CFC2025-1543-PL/1",
+    "next_due_on": "6/27/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-0.9",
+        "max": "60",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 183,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Vijay Enterprises",
+    "model": "TX 430-1",
+    "asset_no": "947 HTAIPL/L",
+    "instrument_sl_no": "NVET2407344",
+    "usage": "",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/8737-1",
+    "next_due_on": "8/6/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "70",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 184,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Vijay Enterprises",
+    "model": "TX 430-1",
+    "asset_no": "948 HTAIPL/L",
+    "instrument_sl_no": "NVET2407345",
+    "usage": "",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/8737-2",
+    "next_due_on": "8/6/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "70",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 185,
+    "type": "Mechanical",
+    "parameter_group": "Pressure",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "pressure",
+        "vacuum"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML1/R01",
+      "NLAB/CAL/ML2/R01"
+    ],
+    "instrument_desc": "Digital Pressure Gauge",
+    "make": "Vijay Enterprises",
+    "model": "TX 430-1",
+    "asset_no": "949 HTAIPL/L",
+    "instrument_sl_no": "NVET2407346",
+    "usage": "",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/25-26/8737-3",
+    "next_due_on": "8/6/2026",
+    "range": [
+      {
+        "parameter": "Pressure",
+        "min": "-1",
+        "max": "70",
+        "unit": "bar"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 186,
+    "type": "Mechanical",
+    "parameter_group": "Light",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "illuminance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL3/R01"
+    ],
+    "instrument_desc": "Digital Light Meter",
+    "make": "Delta Ohm",
+    "model": "HD2302.0/LP 471",
+    "asset_no": "127 HTAIPL/L",
+    "instrument_sl_no": "06003976",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23124/01/25",
+    "next_due_on": "7/9/2026",
+    "range": [
+      {
+        "parameter": "Illuminance",
+        "min": "100",
+        "max": "10000",
+        "unit": "Lux"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 187,
+    "type": "Mechanical",
+    "parameter_group": "Light",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "illuminance"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL3/R01"
+    ],
+    "instrument_desc": "Digital Lux Meter",
+    "make": "Delta Ohm",
+    "model": "HD2302.0",
+    "asset_no": "227 HTAIPL/L",
+    "instrument_sl_no": "10033777",
+    "usage": "For Lab",
+    "calibrated_at": "Wika Instruments, Chennai",
+    "report_no": "C-050811-37-1",
+    "next_due_on": "8/13/2026",
+    "range": [
+      {
+        "parameter": "Illuminance",
+        "min": "100",
+        "max": "10000",
+        "unit": "Lux"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 188,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "weight"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Stainless Steel Knob type Cylindrical weights",
+    "make": "Weightronics",
+    "model": "NA",
+    "asset_no": "902 HTAIPL/L",
+    "instrument_sl_no": "WT/AS-III/2024/3051",
+    "usage": "",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/24-25/22848-2",
+    "next_due_on": "3/28/2027",
+    "range": [
+      {
+        "parameter": "Mass",
+        "min": "0.001",
+        "max": "200.0",
+        "unit": "g"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 189,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "weight"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Stainless Steel Knob type Cylindrical weights",
+    "make": "Weightronics",
+    "model": "NA",
+    "asset_no": "903 HTAIPL/L",
+    "instrument_sl_no": "WT/AS-III/2024/3052",
+    "usage": "",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/24-25/22848-1",
+    "next_due_on": "3/28/2027",
+    "range": [
+      {
+        "parameter": "Mass",
+        "min": "0.001",
+        "max": "200.0",
+        "unit": "g"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 190,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "weight"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Strainless Steel Knob type Cylindrical weights",
+    "make": "Weightronics",
+    "model": "NA",
+    "asset_no": "907,908 HTAIPL/L",
+    "instrument_sl_no": "WT/AS-III/2024/3054",
+    "usage": "",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/24-25/22848-4",
+    "next_due_on": "3/28/2027",
+    "range": [
+      {
+        "parameter": "Mass",
+        "min": "5.0",
+        "max": "10.0",
+        "unit": "kg"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 191,
+    "type": "Mechanical",
+    "parameter_group": "Force & Weight",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "weight"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/ML4/R01"
+    ],
+    "instrument_desc": "Strainless Steel Knob type Cylindrical weights",
+    "make": "Weightronics",
+    "model": "NA",
+    "asset_no": "904,905,906 HTAIPL/L",
+    "instrument_sl_no": "WT/AS-III/2024/3053",
+    "usage": "",
+    "calibrated_at": "Transcal, Bangalore",
+    "report_no": "TSC/24-25/22848-3",
+    "next_due_on": "3/28/2027",
+    "range": [
+      {
+        "parameter": "Mass",
+        "min": "1.0",
+        "max": "2.0",
+        "unit": "kg"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 192,
+    "type": "Others",
+    "parameter_group": "Air flow & Velocity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "air_flow"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS5/R01"
+    ],
+    "instrument_desc": "Compressed Air flow meter",
+    "make": "Testo",
+    "model": "6441",
+    "asset_no": "674 HTAIPL/L",
+    "instrument_sl_no": "0555",
+    "usage": "For On Site",
+    "calibrated_at": "PI Calibration Laboratory , Mumbai",
+    "report_no": "PICAL/0225/F/177",
+    "next_due_on": "2/7/2026",
+    "range": [
+      {
+        "parameter": "Air flow",
+        "min": "1.2",
+        "max": "75.3",
+        "unit": "Nm³/h"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 193,
+    "type": "Others",
+    "parameter_group": "Air flow & Velocity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "air_flow"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS5/R01"
+    ],
+    "instrument_desc": "Digital Orifice Flow Calibrator",
+    "make": "Polltech",
+    "model": "PSI-0FC3",
+    "asset_no": "842 HTAIPL/L",
+    "instrument_sl_no": "0320",
+    "usage": "For On Site",
+    "calibrated_at": "PI Calibration Laboratory , Mumbai",
+    "report_no": "PICAL/0225/F/176",
+    "next_due_on": "2/7/2026",
+    "range": [
+      {
+        "parameter": "Air flow",
+        "min": "2.00",
+        "max": "30.00",
+        "unit": "lpm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 194,
+    "type": "Others",
+    "parameter_group": "Flow",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "liquid_flow"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS4/R01"
+    ],
+    "instrument_desc": "Clampon Ultra Sonic Flow Meter",
+    "make": "Yantai Auto Instrument Making Co. Ltd",
+    "model": {
+      "ind": "TUF-2000H",
+      "sen": "TS-2, TM-1, TL-1"
+    },
+    "asset_no": "852 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "20052022",
+      "sen": "TS00003541, TM00102954 , TL000000978"
+    },
+    "usage": "For On Site",
+    "calibrated_at": "Flow Cal, Mysore",
+    "report_no": "FCL 25F/F007-01",
+    "next_due_on": "6/12/2026",
+    "range": [
+      {
+        "parameter": "Flow",
+        "min": "15",
+        "max": "6000",
+        "unit": "mm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 195,
+    "type": "Others",
+    "parameter_group": "Air flow & Velocity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "air_velocity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL4/R01"
+    ],
+    "instrument_desc": "Thermal Anemometer",
+    "make": "Equinox",
+    "model": "EQ-618B",
+    "asset_no": "167 HTAIPL/L",
+    "instrument_sl_no": "07093718",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23826/01/26",
+    "next_due_on": "1/24/2027",
+    "range": [
+      {
+        "parameter": "Air velocity",
+        "min": "0.0",
+        "max": "45.0",
+        "unit": "m/s"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 196,
+    "type": "Others",
+    "parameter_group": "Air flow & Velocity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "air_velocity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL4/R01"
+    ],
+    "instrument_desc": "Digital Hot Wire Anemometer",
+    "make": "Lutron",
+    "model": "AM-4204",
+    "asset_no": "854 HTAIPL/L",
+    "instrument_sl_no": "T.040098",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23703/01/25",
+    "next_due_on": "12/15/2026",
+    "range": [
+      {
+        "parameter": "Air velocity",
+        "min": "0.2",
+        "max": "20",
+        "unit": "m/s"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 197,
+    "type": "Others",
+    "parameter_group": "Air flow & Velocity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "air_velocity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL4/R01"
+    ],
+    "instrument_desc": "Vane Anemometer",
+    "make": "Equinox",
+    "model": "EQ-619",
+    "asset_no": "337 HTAIPL/L",
+    "instrument_sl_no": "12050635",
+    "usage": "For Lab",
+    "calibrated_at": "FCRI , Palakkad",
+    "report_no": "C90 / 250282 / 087",
+    "next_due_on": "5/13/2026",
+    "range": [
+      {
+        "parameter": "Air velocity",
+        "min": "0.4",
+        "max": "30",
+        "unit": "m/s"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 198,
+    "type": "Others",
+    "parameter_group": "Air flow & Velocity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "air_velocity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL4/R01"
+    ],
+    "instrument_desc": "Digital Anemometer",
+    "make": "DeltaOhm",
+    "model": "HD 2303.0",
+    "asset_no": "855 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "21002827",
+      "sen": "22033611"
+    },
+    "usage": "",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C22622/01/25",
+    "next_due_on": "2/27/2026",
+    "range": [
+      {
+        "parameter": "Air velocity",
+        "min": "0.05",
+        "max": "40",
+        "unit": "m/s"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 199,
+    "type": "Others",
+    "parameter_group": "Air flow & Velocity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "air_velocity"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL4/R01"
+    ],
+    "instrument_desc": "Thermal Anemometer",
+    "make": "DeltaOhm",
+    "model": {
+      "ind": "HD2303.0",
+      "sen": "AP471S3"
+    },
+    "asset_no": "784 HTAIPL/L",
+    "instrument_sl_no": {
+      "ind": "22011015",
+      "sen": "19040050"
+    },
+    "usage": "For Lab",
+    "calibrated_at": "FCRI , Palakkad",
+    "report_no": "C90/252167/018A",
+    "next_due_on": "2/2/2027",
+    "range": [
+      {
+        "parameter": "Air velocity",
+        "min": "0.2",
+        "max": "40",
+        "unit": "m/s"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 200,
+    "type": "Others",
+    "parameter_group": "Moisture",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "moisture"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS2/R01"
+    ],
+    "instrument_desc": "Moisture Calibrator",
+    "make": "Equinox",
+    "model": "EQ-GM-CAL-1",
+    "asset_no": "428 HTAIPL/L",
+    "instrument_sl_no": "C34924",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23367/01/25",
+    "next_due_on": "9/8/2026",
+    "range": [
+      {
+        "parameter": "Moisture",
+        "min": "0",
+        "max": "12.5",
+        "unit": "%mc"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 201,
+    "type": "Others",
+    "parameter_group": "Moisture",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "moisture"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/OS2/R02"
+    ],
+    "instrument_desc": "Moisture Meter",
+    "make": "Gann",
+    "model": "HYDROMETTE COMPACT",
+    "asset_no": "298 HTAIPL/L",
+    "instrument_sl_no": "14-53438",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23829/02/26",
+    "next_due_on": "1/22/2027",
+    "range": [
+      {
+        "parameter": "Moisture",
+        "min": "0",
+        "max": "90",
+        "unit": "%mc"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 202,
+    "type": "Others",
+    "parameter_group": "Particle count",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "particle_count"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/VL1/R01"
+    ],
+    "instrument_desc": "TSI Air borne Particle Counter",
+    "make": "TSI",
+    "model": "9500-01",
+    "asset_no": "741 HTAIPL/L",
+    "instrument_sl_no": "95001923002",
+    "usage": "For On Site",
+    "calibrated_at": "Techno Value Solutions, Mumbai",
+    "report_no": "TVSPL/SER/BLR/APC/CM/25-26/051",
+    "next_due_on": "8/11/2026",
+    "range": [
+      {
+        "parameter": "Particle",
+        "min": "0.5",
+        "max": "10",
+        "unit": "µm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 203,
+    "type": "Others",
+    "parameter_group": "Air flow & Velocity",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "air_flow"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/VL1/R02"
+    ],
+    "instrument_desc": "Aerosol Photometer",
+    "make": "TEC",
+    "model": "PH-5",
+    "asset_no": "741 HTAIPL/L",
+    "instrument_sl_no": "3131",
+    "usage": "For On Site",
+    "calibrated_at": "Techno Value Solutions, Mumbai",
+    "report_no": "TVSPL/SER/BLR/PM/CM/25-26/018",
+    "next_due_on": "8/11/2026",
+    "range": [
+      {
+        "referencedoc": "NA"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 204,
+    "type": "Others",
+    "parameter_group": "CO2",
+    "parameter": {
+      "role": [
+        "measuring"
+      ],
+      "capabilities": [
+        "co2"
+      ]
+    },
+    "sop_references": [
+      "NLAB/CAL/EL6/R01"
+    ],
+    "instrument_desc": "CO2 Transmitter",
+    "make": "Sense Air",
+    "model": "Asense(045-7-0032-01)",
+    "asset_no": "755 HTAIPL/L",
+    "instrument_sl_no": "03127F72",
+    "usage": "For On Site",
+    "calibrated_at": "Tritech, Mumbai",
+    "report_no": "HTA-004/24-25",
+    "next_due_on": "3/20/2026",
+    "range": [
+      {
+        "parameter": "CO2",
+        "min": "0",
+        "max": "100000",
+        "unit": "ppm"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 205,
+    "type": "Source",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "AS A SOURCE"
+    ],
+    "instrument_desc": "Ultra cool Drywell",
+    "make": "Fluke",
+    "model": "9190 A",
+    "asset_no": "333 HTAIPL/L/285",
+    "instrument_sl_no": "B3C165",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23847/03/26",
+    "next_due_on": "Jan-2027",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-100",
+        "max": "140",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 206,
+    "type": "Source",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "AS A SOURCE"
+    ],
+    "instrument_desc": "Metrology Drywell",
+    "make": "Fluke",
+    "model": "9170",
+    "asset_no": "204 HTAIPL/L",
+    "instrument_sl_no": "A 99420",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23847/4/26",
+    "next_due_on": "Jan-2027",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "-40",
+        "max": "140",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 207,
+    "type": "Source",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "AS A SOURCE"
+    ],
+    "instrument_desc": "Dryblock Calibrator",
+    "make": "LRCAL",
+    "model": "Pulsar 50BA",
+    "asset_no": "139 HTAIPL/L",
+    "instrument_sl_no": "HB 80407",
+    "usage": "For Lab",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23847/02/26",
+    "next_due_on": "Jan-2027",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "30",
+        "max": "600",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 208,
+    "type": "Source",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "AS A SOURCE"
+    ],
+    "instrument_desc": "Dryblock Calibrator",
+    "make": "LRCAL",
+    "model": "Pulsar 65BA",
+    "asset_no": "197 HTAIPL/L",
+    "instrument_sl_no": "J 66509",
+    "usage": "For On Site",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23847/01/26",
+    "next_due_on": "Jan-2027",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "30",
+        "max": "600",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  },
+  {
+    "id": 209,
+    "type": "Source",
+    "parameter_group": "Temperature",
+    "parameter": {
+      "role": [
+        "source"
+      ],
+      "capabilities": [
+        "temperature"
+      ]
+    },
+    "sop_references": [
+      "AS A SOURCE"
+    ],
+    "instrument_desc": "High Temperature Dryblock Calibrator",
+    "make": "LNV",
+    "model": "SUD-1200D",
+    "asset_no": "996 HTAIPL/L",
+    "instrument_sl_no": "HTAIPL/L/996",
+    "usage": "",
+    "calibrated_at": "HTAIPL,Bangalore",
+    "report_no": "HTA/C23613/01/25",
+    "next_due_on": "Dec-2026",
+    "range": [
+      {
+        "parameter": "Temperature",
+        "min": "250",
+        "max": "1200",
+        "unit": "°C"
+      }
+    ],
+    "remarks": ""
+  }
+]
