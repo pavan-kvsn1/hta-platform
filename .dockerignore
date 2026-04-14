@@ -1,0 +1,50 @@
+# Dependencies (will be installed in container)
+node_modules
+**/node_modules
+
+# Build outputs (will be rebuilt in container)
+dist
+**/dist
+.next
+**/.next
+
+# Development files
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Test files
+tests
+**/tests
+**/*.test.ts
+**/*.spec.ts
+coverage
+**/coverage
+
+# Documentation
+docs
+*.md
+!README.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Turborepo
+.turbo
+**/.turbo
+
+# Misc
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
