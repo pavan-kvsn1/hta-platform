@@ -1,0 +1,77 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service to rollback"
+        required: true
+        type: choice
+        options:
+          - api
+          - worker
+          - all
+      revision:
+        description: "Revision to rollback to (leave empty for previous)"
+        required: false
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
+  GKE_ZONE: ${{ secrets.GKE_ZONE }}
+
+jobs:
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Rollback API
+        if: inputs.service == 'api' || inputs.service == 'all'
+        run: |
+          if [ -n "${{ inputs.revision }}" ]; then
+            kubectl -n hta-platform rollout undo deployment/hta-api --to-revision=${{ inputs.revision }}
+          else
+            kubectl -n hta-platform rollout undo deployment/hta-api
+          fi
+          kubectl -n hta-platform rollout status deployment/hta-api --timeout=300s
+
+      - name: Rollback Worker
+        if: inputs.service == 'worker' || inputs.service == 'all'
+        run: |
+          if [ -n "${{ inputs.revision }}" ]; then
+            kubectl -n hta-platform rollout undo deployment/hta-worker --to-revision=${{ inputs.revision }}
+          else
+            kubectl -n hta-platform rollout undo deployment/hta-worker
+          fi
+          kubectl -n hta-platform rollout status deployment/hta-worker --timeout=300s
+
+      - name: Verify rollback
+        run: |
+          echo "=== Rollback Status ==="
+          kubectl -n hta-platform get deployments
+          echo ""
+          echo "=== Pods ==="
+          kubectl -n hta-platform get pods
+          echo ""
+          echo "=== Rollout History ==="
+          if [ "${{ inputs.service }}" == "api" ] || [ "${{ inputs.service }}" == "all" ]; then
+            kubectl -n hta-platform rollout history deployment/hta-api
+          fi
+          if [ "${{ inputs.service }}" == "worker" ] || [ "${{ inputs.service }}" == "all" ]; then
+            kubectl -n hta-platform rollout history deployment/hta-worker
+          fi
