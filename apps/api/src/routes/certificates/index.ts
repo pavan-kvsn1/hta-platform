@@ -3,9 +3,24 @@ import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma, Prisma } from '@hta/database'
 import { requireStaff, requireAuth, requireAdmin } from '../../middleware/auth.js'
+import certificateImagesRoutes from './images/index.js'
 
 // Type for Prisma transaction client
 type TransactionClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
+
+// Helper to safely parse JSON
+function safeJsonParse<T>(value: unknown, fallback: T): T {
+  if (!value) return fallback
+  if (typeof value === 'object') return value as T
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as T
+    } catch {
+      return fallback
+    }
+  }
+  return fallback
+}
 
 // Schema for creating a certificate
 const createCertificateSchema = z.object({
@@ -1387,15 +1402,6 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       } : {}),
     } : undefined
 
-    // Helper to safely parse JSON
-    const safeJsonParse = <T>(value: unknown, fallback: T): T => {
-      if (!value) return fallback
-      if (typeof value === 'string') {
-        try { return JSON.parse(value) as T } catch { return fallback }
-      }
-      return value as T
-    }
-
     return {
       signatures,
       certificateNumber: certificate.certificateNumber,
@@ -1476,6 +1482,284 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       engineerNotes: '',
     }
   })
+
+  // GET /api/certificates/check-number - Check if certificate number exists
+  fastify.get('/check-number', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const tenantId = request.tenantId
+    const query = request.query as { number?: string; excludeId?: string }
+
+    if (!query.number) {
+      return { error: 'Certificate number is required', exists: false }
+    }
+
+    const where: Record<string, unknown> = {
+      tenantId,
+      certificateNumber: query.number,
+    }
+
+    // Exclude current certificate when editing
+    if (query.excludeId) {
+      where.NOT = { id: query.excludeId }
+    }
+
+    const existingCertificate = await prisma.certificate.findFirst({
+      where,
+      select: { id: true, certificateNumber: true },
+    })
+
+    return {
+      exists: !!existingCertificate,
+      certificateNumber: query.number,
+    }
+  })
+
+  // POST /api/certificates/:id/change-reviewer - Change the assigned reviewer
+  fastify.post<{ Params: { id: string } }>('/:id/change-reviewer', {
+    preHandler: [requireStaff],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+    const { id } = request.params
+    const body = request.body as {
+      newReviewerId: string
+      reason: string
+    }
+
+    if (!body.newReviewerId) {
+      return reply.status(400).send({ error: 'New reviewer ID is required' })
+    }
+
+    if (!body.reason?.trim()) {
+      return reply.status(400).send({ error: 'Reason for changing reviewer is required' })
+    }
+
+    // Get the certificate
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+      include: {
+        reviewer: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    // Check ownership - only the certificate creator or admin can change reviewer
+    const isAdmin = userRole === 'ADMIN' || request.user!.isAdmin
+    if (certificate.createdById !== userId && !isAdmin) {
+      return reply.status(403).send({ error: 'Forbidden' })
+    }
+
+    // Check if certificate is in a status that allows reviewer change
+    if (certificate.status !== 'PENDING_REVIEW') {
+      return reply.status(400).send({
+        error: `Cannot change reviewer for certificate with status: ${certificate.status}`,
+      })
+    }
+
+    // Check if new reviewer is same as current
+    if (certificate.reviewerId === body.newReviewerId) {
+      return reply.status(400).send({
+        error: 'New reviewer must be different from current reviewer',
+      })
+    }
+
+    // Cannot assign to self
+    if (body.newReviewerId === userId) {
+      return reply.status(400).send({
+        error: 'You cannot assign yourself as reviewer',
+      })
+    }
+
+    // Validate new reviewer exists and is active
+    const newReviewer = await prisma.user.findFirst({
+      where: { tenantId, id: body.newReviewerId, isActive: true },
+      select: { id: true, name: true, email: true, role: true },
+    })
+
+    if (!newReviewer) {
+      return reply.status(400).send({ error: 'Selected reviewer is not available' })
+    }
+
+    // Perform the update in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Get next event sequence
+      const lastEvent = await tx.certificateEvent.findFirst({
+        where: { certificateId: id },
+        orderBy: { sequenceNumber: 'desc' },
+      })
+      const nextSequence = (lastEvent?.sequenceNumber ?? 0) + 1
+
+      // Update the certificate with new reviewer
+      const updatedCertificate = await tx.certificate.update({
+        where: { id },
+        data: {
+          reviewerId: body.newReviewerId,
+          lastModifiedById: userId,
+        },
+        include: {
+          reviewer: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      })
+
+      // Create event for reviewer change
+      await tx.certificateEvent.create({
+        data: {
+          certificateId: id,
+          sequenceNumber: nextSequence,
+          revision: certificate.currentRevision,
+          eventType: 'REVIEWER_CHANGED',
+          eventData: JSON.stringify({
+            previousReviewerId: certificate.reviewerId,
+            previousReviewerName: certificate.reviewer?.name || null,
+            newReviewerId: newReviewer.id,
+            newReviewerName: newReviewer.name,
+            reason: body.reason.trim(),
+            changedAt: new Date().toISOString(),
+          }),
+          userId,
+          userRole,
+        },
+      })
+
+      // Create audit log
+      await tx.auditLog.create({
+        data: {
+          entityType: 'Certificate',
+          entityId: id,
+          action: 'REVIEWER_CHANGED',
+          actorId: userId,
+          actorType: 'USER',
+          changes: JSON.stringify({
+            previousReviewerId: certificate.reviewerId,
+            previousReviewerName: certificate.reviewer?.name,
+            newReviewerId: newReviewer.id,
+            newReviewerName: newReviewer.name,
+            reason: body.reason.trim(),
+          }),
+        },
+      })
+
+      return updatedCertificate
+    })
+
+    return {
+      success: true,
+      message: 'Reviewer changed successfully',
+      certificate: {
+        id: result.id,
+        certificateNumber: result.certificateNumber,
+        reviewer: result.reviewer,
+      },
+    }
+  })
+
+  // GET /api/certificates/:id/unlock-requests - Get section unlock requests for a certificate
+  fastify.get<{ Params: { id: string } }>('/:id/unlock-requests', {
+    preHandler: [requireAuth],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+    const { id: certificateId } = request.params
+
+    // Check certificate exists and user has access
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id: certificateId },
+      select: {
+        id: true,
+        createdById: true,
+        reviewerId: true,
+        status: true,
+      },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    // Only assignee, reviewer, or admin can view unlock requests
+    const isAssignee = certificate.createdById === userId
+    const isReviewer = certificate.reviewerId === userId
+    const isAdmin = userRole === 'ADMIN' || request.user!.isAdmin
+
+    if (!isAssignee && !isReviewer && !isAdmin) {
+      return reply.status(403).send({ error: 'Forbidden' })
+    }
+
+    // Fetch all section unlock requests for this certificate
+    const unlockRequests = await prisma.internalRequest.findMany({
+      where: {
+        certificateId,
+        type: 'SECTION_UNLOCK',
+      },
+      include: {
+        requestedBy: {
+          select: { id: true, name: true },
+        },
+        reviewedBy: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    // Get sections that are unlocked from feedback (reviewer comments)
+    const feedbacks = await prisma.reviewFeedback.findMany({
+      where: {
+        certificateId,
+        feedbackType: { in: ['REVISION_REQUESTED', 'CUSTOMER_REVISION_FORWARDED'] },
+        targetSection: { not: null },
+      },
+      select: { targetSection: true },
+    })
+
+    const feedbackUnlockedSections = [...new Set(feedbacks.map(f => f.targetSection).filter(Boolean))] as string[]
+
+    // Get sections from approved unlock requests
+    const approvedUnlockedSections: string[] = []
+    unlockRequests
+      .filter(r => r.status === 'APPROVED')
+      .forEach(r => {
+        const data = safeJsonParse<Record<string, unknown>>(r.data, {})
+        if (data.sections && Array.isArray(data.sections)) {
+          approvedUnlockedSections.push(...(data.sections as string[]))
+        }
+      })
+
+    // Combine all unlocked sections
+    const allUnlockedSections = [...new Set([...feedbackUnlockedSections, ...approvedUnlockedSections])]
+
+    return {
+      requests: unlockRequests.map((r) => ({
+        id: r.id,
+        type: r.type,
+        status: r.status,
+        data: safeJsonParse<Record<string, unknown>>(r.data, {}),
+        requestedBy: r.requestedBy,
+        reviewedBy: r.reviewedBy,
+        reviewedAt: r.reviewedAt?.toISOString() || null,
+        adminNote: r.adminNote,
+        createdAt: r.createdAt.toISOString(),
+      })),
+      unlockedSections: {
+        fromFeedback: feedbackUnlockedSections,
+        fromApprovedRequests: [...new Set(approvedUnlockedSections)],
+        all: allUnlockedSections,
+      },
+    }
+  })
+
+  // Register certificate images sub-routes
+  await fastify.register(certificateImagesRoutes, { prefix: '/:id/images' })
 }
 
 export default certificateRoutes

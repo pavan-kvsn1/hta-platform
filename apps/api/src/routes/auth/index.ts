@@ -49,6 +49,15 @@ const resetPasswordSchema = z.object({
   path: ['confirmPassword'],
 })
 
+const activateSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string().min(1, 'Confirm password is required'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+})
+
 // =============================================================================
 // ROUTES
 // =============================================================================
@@ -516,6 +525,114 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           isPoc: customer?.isPoc,
         },
       }
+    }
+  })
+
+  // ---------------------------------------------------------------------------
+  // GET /activate?token=xxx - Validate activation token
+  // ---------------------------------------------------------------------------
+  fastify.get('/activate', async (request, reply) => {
+    const query = request.query as { token?: string }
+    const token = query.token
+
+    if (!token) {
+      return reply.status(400).send({ valid: false, error: 'Token is required' })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { activationToken: token },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isActive: true,
+        activationExpiry: true,
+      },
+    })
+
+    if (!user) {
+      return { valid: false, error: 'Invalid activation link' }
+    }
+
+    if (user.isActive) {
+      return { valid: false, error: 'This account has already been activated' }
+    }
+
+    if (!user.activationExpiry || new Date() > user.activationExpiry) {
+      return { valid: false, error: 'This activation link has expired' }
+    }
+
+    return {
+      valid: true,
+      email: user.email,
+      name: user.name,
+    }
+  })
+
+  // ---------------------------------------------------------------------------
+  // POST /activate - Activate staff account with password
+  // ---------------------------------------------------------------------------
+  fastify.post('/activate', async (request, reply) => {
+    const body = activateSchema.parse(request.body)
+    const { token, password } = body
+
+    // Validate password
+    const validation = validatePassword(password)
+    if (!validation.valid) {
+      return reply.status(400).send({
+        error: 'Password does not meet requirements',
+        details: validation.errors,
+      })
+    }
+
+    // Find user with this activation token
+    const user = await prisma.user.findUnique({
+      where: { activationToken: token },
+    })
+
+    if (!user) {
+      return reply.status(400).send({ error: 'Invalid or expired activation link' })
+    }
+
+    if (user.isActive) {
+      return reply.status(400).send({ error: 'This account has already been activated' })
+    }
+
+    if (!user.activationExpiry || new Date() > user.activationExpiry) {
+      return reply.status(400).send({
+        error: 'This activation link has expired. Please contact your administrator for a new link.',
+      })
+    }
+
+    // Hash password and activate
+    const passwordHash = await hashPassword(password)
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          isActive: true,
+          activatedAt: new Date(),
+          activationToken: null,
+          activationExpiry: null,
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          entityType: 'User',
+          entityId: user.id,
+          action: 'ACCOUNT_ACTIVATED',
+          actorId: user.id,
+          actorType: 'USER',
+          changes: JSON.stringify({ event: 'account_activated_via_email' }),
+        },
+      }),
+    ])
+
+    return {
+      success: true,
+      message: 'Your account has been activated. You can now log in.',
     }
   })
 }

@@ -1070,6 +1070,323 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
     return { success: true, message: 'Revision request submitted successfully' }
   })
+
+  // GET /api/customer/instruments - List instruments used in customer's authorized certificates
+  fastify.get('/instruments', {
+    preHandler: [requireCustomer],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const customerEmail = request.user!.email
+    const query = request.query as {
+      search?: string
+      page?: string
+      limit?: string
+    }
+
+    const search = query.search
+    const page = parseInt(query.page || '1')
+    const limit = parseInt(query.limit || '20')
+
+    // Get customer with their account
+    const customer = await prisma.customerUser.findUnique({
+      where: { tenantId_email: { tenantId, email: customerEmail } },
+      include: { customerAccount: true },
+    })
+
+    if (!customer?.customerAccountId) {
+      return reply.status(400).send({ error: 'No customer account found' })
+    }
+
+    const companyName = customer.customerAccount?.companyName || customer.companyName || ''
+
+    // Build where clause for master instruments used in authorized certificates
+    const certificateInstrumentWhere: Record<string, unknown> = {
+      certificate: {
+        tenantId,
+        status: 'AUTHORIZED',
+        customerName: companyName,
+      },
+    }
+
+    // Search filter
+    if (search) {
+      certificateInstrumentWhere.OR = [
+        { description: { contains: search, mode: 'insensitive' } },
+        { make: { contains: search, mode: 'insensitive' } },
+        { model: { contains: search, mode: 'insensitive' } },
+        { assetNo: { contains: search, mode: 'insensitive' } },
+        { serialNumber: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    // Get all certificate master instruments
+    const certificateInstruments = await prisma.certificateMasterInstrument.findMany({
+      where: certificateInstrumentWhere,
+      include: {
+        certificate: {
+          select: {
+            id: true,
+            certificateNumber: true,
+            uucDescription: true,
+            dateOfCalibration: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: [
+        { description: 'asc' },
+        { make: 'asc' },
+      ],
+    })
+
+    // Group by masterInstrumentId
+    const instrumentMap = new Map<string, {
+      masterInstrumentId: string
+      category: string | null
+      description: string | null
+      make: string | null
+      model: string | null
+      assetNo: string | null
+      serialNumber: string | null
+      calibratedAt: string | null
+      reportNo: string | null
+      calibrationDueDate: string | null
+      sopReference: string
+      certificates: Array<{
+        id: string
+        certificateNumber: string
+        uucDescription: string | null
+        dateOfCalibration: string | null
+      }>
+    }>()
+
+    for (const ci of certificateInstruments) {
+      const key = ci.masterInstrumentId
+      if (!instrumentMap.has(key)) {
+        instrumentMap.set(key, {
+          masterInstrumentId: ci.masterInstrumentId,
+          category: ci.category,
+          description: ci.description,
+          make: ci.make,
+          model: ci.model,
+          assetNo: ci.assetNo,
+          serialNumber: ci.serialNumber,
+          calibratedAt: ci.calibratedAt,
+          reportNo: ci.reportNo,
+          calibrationDueDate: ci.calibrationDueDate,
+          sopReference: ci.sopReference,
+          certificates: [],
+        })
+      }
+      const inst = instrumentMap.get(key)!
+      if (!inst.certificates.find(c => c.id === ci.certificate.id)) {
+        inst.certificates.push({
+          id: ci.certificate.id,
+          certificateNumber: ci.certificate.certificateNumber,
+          uucDescription: ci.certificate.uucDescription,
+          dateOfCalibration: ci.certificate.dateOfCalibration?.toISOString() || null,
+        })
+      }
+    }
+
+    // Paginate
+    const allInstruments = Array.from(instrumentMap.values())
+    const total = allInstruments.length
+    const paginatedInstruments = allInstruments.slice((page - 1) * limit, page * limit)
+
+    // Get stats
+    const totalAuthorizedCertificates = await prisma.certificate.count({
+      where: {
+        tenantId,
+        status: 'AUTHORIZED',
+        customerName: companyName,
+      },
+    })
+
+    return {
+      instruments: paginatedInstruments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      stats: {
+        totalInstruments: total,
+        totalAuthorizedCertificates,
+      },
+    }
+  })
+
+  // GET /api/customer/download/:token - Validate download token and get certificate info
+  fastify.get<{ Params: { token: string } }>('/download/:token', async (request, reply) => {
+    const { token } = request.params
+
+    // Find the download token
+    const downloadToken = await prisma.downloadToken.findUnique({
+      where: { token },
+      include: {
+        certificate: {
+          select: {
+            id: true,
+            certificateNumber: true,
+            status: true,
+            uucDescription: true,
+            uucMake: true,
+            uucModel: true,
+            uucSerialNumber: true,
+            dateOfCalibration: true,
+            calibrationDueDate: true,
+            customerName: true,
+            signedPdfPath: true,
+          },
+        },
+      },
+    })
+
+    if (!downloadToken) {
+      return reply.status(404).send({ error: 'Invalid or expired download link' })
+    }
+
+    // Check if token is expired
+    if (new Date() > downloadToken.expiresAt) {
+      return reply.status(410).send({ error: 'This download link has expired' })
+    }
+
+    // Check if downloads exhausted
+    if (downloadToken.downloadCount >= downloadToken.maxDownloads) {
+      return reply.status(410).send({ error: 'Maximum download limit reached for this link' })
+    }
+
+    // Log access
+    const ipAddress = (request.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+      request.ip || 'unknown'
+    const userAgent = request.headers['user-agent'] as string | undefined
+
+    await prisma.tokenAccessLog.create({
+      data: {
+        tokenType: 'DOWNLOAD',
+        tokenId: downloadToken.id,
+        action: 'VIEWED',
+        ipAddress,
+        userAgent,
+      },
+    })
+
+    const certificate = downloadToken.certificate
+
+    return {
+      valid: true,
+      certificate: {
+        certificateNumber: certificate.certificateNumber,
+        instrumentDescription: certificate.uucDescription,
+        make: certificate.uucMake,
+        model: certificate.uucModel,
+        serialNumber: certificate.uucSerialNumber,
+        calibrationDate: certificate.dateOfCalibration?.toISOString() || null,
+        calibrationDueDate: certificate.calibrationDueDate?.toISOString() || null,
+        customerName: certificate.customerName,
+        hasPdf: !!certificate.signedPdfPath,
+      },
+      download: {
+        customerName: downloadToken.customerName,
+        customerEmail: downloadToken.customerEmail,
+        downloadCount: downloadToken.downloadCount,
+        maxDownloads: downloadToken.maxDownloads,
+        remainingDownloads: downloadToken.maxDownloads - downloadToken.downloadCount,
+        expiresAt: downloadToken.expiresAt.toISOString(),
+      },
+    }
+  })
+
+  // GET /api/customer/download/:token/pdf - Download certificate PDF
+  fastify.get<{ Params: { token: string } }>('/download/:token/pdf', async (request, reply) => {
+    const { token } = request.params
+
+    // Find the download token with certificate
+    const downloadToken = await prisma.downloadToken.findUnique({
+      where: { token },
+      include: {
+        certificate: {
+          select: {
+            id: true,
+            certificateNumber: true,
+            signedPdfPath: true,
+          },
+        },
+      },
+    })
+
+    if (!downloadToken) {
+      return reply.status(404).send({ error: 'Invalid or expired download link' })
+    }
+
+    // Check if token is expired
+    if (new Date() > downloadToken.expiresAt) {
+      return reply.status(410).send({ error: 'This download link has expired' })
+    }
+
+    // Check if downloads exhausted
+    if (downloadToken.downloadCount >= downloadToken.maxDownloads) {
+      return reply.status(410).send({ error: 'Maximum download limit reached for this link' })
+    }
+
+    const certificate = downloadToken.certificate
+
+    // Check if PDF exists
+    if (!certificate.signedPdfPath) {
+      return reply.status(404).send({ error: 'Certificate PDF not available' })
+    }
+
+    // Read the PDF file
+    const fs = await import('fs/promises')
+    const path = await import('path')
+
+    let pdfBuffer: Buffer
+    try {
+      const pdfPath = certificate.signedPdfPath.startsWith('/')
+        ? certificate.signedPdfPath
+        : path.join(process.cwd(), certificate.signedPdfPath)
+
+      pdfBuffer = await fs.readFile(pdfPath)
+    } catch {
+      return reply.status(404).send({ error: 'Certificate PDF not found' })
+    }
+
+    // Log access and increment download count
+    const ipAddress = (request.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+      request.ip || 'unknown'
+    const userAgent = request.headers['user-agent'] as string | undefined
+
+    await prisma.$transaction([
+      prisma.downloadToken.update({
+        where: { id: downloadToken.id },
+        data: {
+          downloadCount: { increment: 1 },
+          downloadedAt: downloadToken.downloadedAt || new Date(),
+        },
+      }),
+      prisma.tokenAccessLog.create({
+        data: {
+          tokenType: 'DOWNLOAD',
+          tokenId: downloadToken.id,
+          action: 'DOWNLOADED',
+          ipAddress,
+          userAgent,
+        },
+      }),
+    ])
+
+    // Return the PDF
+    const filename = `Certificate-${certificate.certificateNumber}.pdf`
+
+    reply.header('Content-Type', 'application/pdf')
+    reply.header('Content-Disposition', `attachment; filename="${filename}"`)
+    reply.header('Content-Length', pdfBuffer.length.toString())
+    reply.header('Cache-Control', 'no-store, no-cache, must-revalidate')
+
+    return reply.send(pdfBuffer)
+  })
 }
 
 // Helper to get full certificate data for customer review

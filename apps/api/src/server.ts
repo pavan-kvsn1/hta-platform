@@ -3,6 +3,7 @@ import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
 import jwt from '@fastify/jwt'
+import multipart from '@fastify/multipart'
 
 // Import routes
 import authRoutes from './routes/auth/index.js'
@@ -13,6 +14,9 @@ import userRoutes from './routes/users/index.js'
 import adminRoutes from './routes/admin/index.js'
 import customerRoutes from './routes/customer/index.js'
 import notificationRoutes from './routes/notifications/index.js'
+import internalRequestRoutes from './routes/internal-requests/index.js'
+import customersRoutes from './routes/customers/index.js'
+import chatRoutes from './routes/chat/index.js'
 
 // Import middleware
 import { tenantMiddleware } from './middleware/tenant.js'
@@ -61,6 +65,14 @@ await server.register(jwt, {
   },
 })
 
+// Multipart (file uploads)
+await server.register(multipart, {
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max file size
+    files: 10, // Max 10 files per request
+  },
+})
+
 // =============================================================================
 // MIDDLEWARE
 // =============================================================================
@@ -104,6 +116,15 @@ await server.register(customerRoutes, { prefix: '/api/customer' })
 
 // Notification routes
 await server.register(notificationRoutes, { prefix: '/api/notifications' })
+
+// Internal requests routes
+await server.register(internalRequestRoutes, { prefix: '/api/internal-requests' })
+
+// Customers routes (for staff to search customers)
+await server.register(customersRoutes, { prefix: '/api/customers' })
+
+// Chat routes
+await server.register(chatRoutes, { prefix: '/api/chat' })
 
 // =============================================================================
 // START SERVER
