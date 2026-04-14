@@ -1,0 +1,53 @@
+# =============================================================================
+# HTA Platform - Infrastructure Only (Local Development)
+# =============================================================================
+# Usage:
+#   docker compose -f docker-compose.infra.yml up -d   # Start infrastructure
+#   pnpm dev                                            # Run apps locally
+#
+# This provides PostgreSQL and Redis for local development while
+# running the apps natively with hot reload via pnpm.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: hta-postgres
+    environment:
+      POSTGRES_USER: hta_user
+      POSTGRES_PASSWORD: hta_dev_password
+      POSTGRES_DB: hta_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hta_user -d hta_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis Cache & Queue
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: hta-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    name: hta-postgres-data
+  redis_data:
+    name: hta-redis-data

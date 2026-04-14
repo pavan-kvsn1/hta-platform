@@ -1,0 +1,137 @@
+# =============================================================================
+# HTA Platform - Local Development Docker Compose
+# =============================================================================
+# Usage:
+#   docker compose up              # Start all services
+#   docker compose up -d           # Start in background
+#   docker compose up web api      # Start specific services
+#   docker compose logs -f api     # Follow logs for a service
+#   docker compose down            # Stop all services
+#   docker compose down -v         # Stop and remove volumes
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: hta-postgres
+    environment:
+      POSTGRES_USER: hta_user
+      POSTGRES_PASSWORD: hta_dev_password
+      POSTGRES_DB: hta_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hta_user -d hta_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hta-network
+
+  # ---------------------------------------------------------------------------
+  # Redis Cache & Queue
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: hta-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hta-network
+
+  # ---------------------------------------------------------------------------
+  # API Service (Fastify)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: hta-api
+    ports:
+      - "4000:8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DATABASE_URL: postgresql://hta_user:hta_dev_password@postgres:5432/hta_platform
+      REDIS_URL: redis://redis:6379
+      # Add other env vars as needed
+      # JWT_SECRET: your-jwt-secret
+      # RESEND_API_KEY: your-resend-key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hta-network
+
+  # ---------------------------------------------------------------------------
+  # Worker Service (BullMQ)
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: hta-worker
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://hta_user:hta_dev_password@postgres:5432/hta_platform
+      REDIS_URL: redis://redis:6379
+      # Add other env vars as needed
+      # RESEND_API_KEY: your-resend-key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hta-network
+
+  # ---------------------------------------------------------------------------
+  # Web Frontend (Next.js)
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web-hta/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000
+    container_name: hta-web
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      API_URL: http://api:8080
+    depends_on:
+      - api
+    networks:
+      - hta-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: hta-postgres-data
+  redis_data:
+    name: hta-redis-data
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  hta-network:
+    name: hta-network
+    driver: bridge

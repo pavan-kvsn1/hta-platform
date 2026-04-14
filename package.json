@@ -12,7 +12,16 @@
     "test:e2e": "turbo test:e2e",
     "clean": "turbo clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "docker:infra": "docker compose -f docker-compose.infra.yml up -d",
+    "docker:infra:down": "docker compose -f docker-compose.infra.yml down",
+    "docker:up": "docker compose up",
+    "docker:up:build": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:build:api": "docker build -f apps/api/Dockerfile -t hta-api:latest .",
+    "docker:build:worker": "docker build -f apps/worker/Dockerfile -t hta-worker:latest .",
+    "docker:build:web": "docker build -f apps/web-hta/Dockerfile -t hta-web:latest .",
+    "docker:build:all": "pnpm docker:build:api && pnpm docker:build:worker && pnpm docker:build:web"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

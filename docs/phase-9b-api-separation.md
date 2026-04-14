@@ -2161,228 +2161,146 @@ kubectl get httproute,gateway -n hta-platform
 
 ## 14. Docker Configuration
 
-### 13.1 Root Docker Compose
+> **Status:** Implemented. All Dockerfiles production-ready with multi-stage builds.
 
-For local development, all services run together:
+### 14.1 File Structure
 
-```yaml
-# docker-compose.yml (root)
-version: '3.8'
-
-services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: hta_user
-      POSTGRES_PASSWORD: hta_dev_password
-      POSTGRES_DB: hta_calibration
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hta_user -d hta_calibration"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Frontend (Next.js)
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      target: development
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - API_URL=http://api:8080
-      - DATABASE_URL=postgresql://hta_user:hta_dev_password@postgres:5432/hta_calibration
-    volumes:
-      - ./apps/web:/app/apps/web
-      - ./packages:/app/packages
-      - /app/node_modules
-      - /app/apps/web/node_modules
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  # API Server
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-      target: development
-    ports:
-      - "8080:8080"
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://hta_user:hta_dev_password@postgres:5432/hta_calibration
-      - REDIS_URL=redis://redis:6379
-    volumes:
-      - ./apps/api:/app/apps/api
-      - ./packages:/app/packages
-      - /app/node_modules
-      - /app/apps/api/node_modules
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  # Background Worker
-  worker:
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
-      target: development
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://hta_user:hta_dev_password@postgres:5432/hta_calibration
-      - REDIS_URL=redis://redis:6379
-    volumes:
-      - ./apps/worker:/app/apps/worker
-      - ./packages:/app/packages
-      - /app/node_modules
-      - /app/apps/worker/node_modules
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-volumes:
-  postgres_data:
+```
+hta-platform/
+├── .dockerignore              # Excludes node_modules, .next, etc.
+├── .env.example               # Environment variables template
+├── docker-compose.yml         # Full stack (production-like)
+├── docker-compose.infra.yml   # Infrastructure only (local dev)
+└── apps/
+    ├── api/Dockerfile         # Fastify API service
+    ├── worker/Dockerfile      # BullMQ worker service
+    ├── web-hta/Dockerfile     # Next.js frontend
+    └── web-tenant-template/Dockerfile
 ```
 
-### 13.2 Multi-Stage Dockerfiles
+### 14.2 Development Workflow
 
-Each app has a multi-stage Dockerfile for dev and prod:
+**Option A: Infrastructure in Docker, apps native (recommended for hot reload)**
 
-```dockerfile
-# apps/web/Dockerfile
-# ==================== BASE ====================
-FROM node:20-alpine AS base
-RUN npm install -g pnpm turbo
-WORKDIR /app
+```bash
+# Start PostgreSQL and Redis
+pnpm docker:infra
 
-# ==================== DEPENDENCIES ====================
-FROM base AS deps
-# Copy root workspace files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-# Copy package.json files for all packages
-COPY packages/database/package.json ./packages/database/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/ui/package.json ./packages/ui/
-COPY apps/web/package.json ./apps/web/
-# Install all dependencies
-RUN pnpm install --frozen-lockfile
-
-# ==================== DEVELOPMENT ====================
-FROM base AS development
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-# Generate Prisma client
-RUN pnpm --filter @hta/database db:generate
-WORKDIR /app/apps/web
-CMD ["pnpm", "dev"]
-
-# ==================== BUILDER ====================
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-# Generate Prisma client
-RUN pnpm --filter @hta/database db:generate
-# Build all packages and the web app
-RUN turbo run build --filter=@hta/web
-
-# ==================== PRODUCTION ====================
-FROM base AS production
-ENV NODE_ENV=production
-WORKDIR /app
-
-# Copy built assets
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder /app/apps/web/public ./apps/web/public
-
-EXPOSE 3000
-CMD ["node", "apps/web/server.js"]
+# Run apps with hot reload
+pnpm dev
 ```
 
+**Option B: Full stack in Docker**
+
+```bash
+# Build and start all services
+pnpm docker:up:build
+
+# Or just start (if already built)
+pnpm docker:up
+```
+
+### 14.3 Multi-Stage Dockerfile Pattern
+
+All Dockerfiles follow the same secure, optimized pattern:
+
 ```dockerfile
-# apps/api/Dockerfile
-# ==================== BASE ====================
+# apps/api/Dockerfile (example)
 FROM node:20-alpine AS base
-RUN npm install -g pnpm turbo
-WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
-# ==================== DEPENDENCIES ====================
 FROM base AS deps
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-COPY packages/database/package.json ./packages/database/
-COPY packages/shared/package.json ./packages/shared/
-COPY apps/api/package.json ./apps/api/
-RUN pnpm install --frozen-lockfile
+# Install dependencies only
 
-# ==================== DEVELOPMENT ====================
-FROM base AS development
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN pnpm --filter @hta/database db:generate
-WORKDIR /app/apps/api
-CMD ["pnpm", "dev"]
-
-# ==================== BUILDER ====================
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN pnpm --filter @hta/database db:generate
-RUN turbo run build --filter=@hta/api
+# Build the application
 
-# ==================== PRODUCTION ====================
-FROM node:20-alpine AS production
+FROM base AS runner
 ENV NODE_ENV=production
-WORKDIR /app
-
-# Copy only necessary files
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/database/node_modules/.prisma ./node_modules/.prisma
-
-EXPOSE 8080
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 htaapi
+USER htaapi
+# Copy only production artifacts
+HEALTHCHECK --interval=30s --timeout=10s CMD wget --spider http://localhost:8080/health
 CMD ["node", "dist/server.js"]
 ```
 
-### 13.3 Build Commands
+**Key features:**
+- Multi-stage builds (smaller final image)
+- Non-root user (security)
+- Health checks (Kubernetes readiness)
+- pnpm with corepack (consistent versions)
+- Alpine base (minimal attack surface)
+
+### 14.4 Docker Compose Services
+
+**docker-compose.yml** (full stack):
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| `postgres` | 5432 | PostgreSQL 16 database |
+| `redis` | 6379 | Redis 7 cache & queue |
+| `api` | 4000 | Fastify API (maps to 8080 internal) |
+| `worker` | - | BullMQ background jobs |
+| `web` | 3000 | Next.js frontend |
+
+**docker-compose.infra.yml** (infrastructure only):
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| `postgres` | 5432 | PostgreSQL 16 database |
+| `redis` | 6379 | Redis 7 cache & queue |
+
+### 14.5 Build Commands
 
 ```bash
-# Development - all services
-docker compose up
+# NPM Scripts (package.json)
+pnpm docker:infra          # Start infrastructure only
+pnpm docker:infra:down     # Stop infrastructure
+pnpm docker:up             # Start full stack
+pnpm docker:up:build       # Build and start full stack
+pnpm docker:down           # Stop full stack
+pnpm docker:build:api      # Build API image
+pnpm docker:build:worker   # Build worker image
+pnpm docker:build:web      # Build web image
+pnpm docker:build:all      # Build all images
 
-# Development - specific service
-docker compose up web api
-
-# Production build - specific service
-docker build -f apps/web/Dockerfile --target production -t hta-web:latest .
-docker build -f apps/api/Dockerfile --target production -t hta-api:latest .
-docker build -f apps/worker/Dockerfile --target production -t hta-worker:latest .
-
-# Build with Turbo (faster, uses cache)
-turbo run docker:build
+# Direct Docker commands
+docker build -f apps/api/Dockerfile -t hta-api:latest .
+docker build -f apps/worker/Dockerfile -t hta-worker:latest .
+docker build -f apps/web-hta/Dockerfile -t hta-web:latest .
 ```
+
+### 14.6 Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+
+```bash
+# Database
+DATABASE_URL=postgresql://hta_user:hta_dev_password@localhost:5432/hta_platform
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# Authentication
+AUTH_SECRET=your-secret-key
+NEXTAUTH_URL=http://localhost:3000
+
+# Email (Resend)
+RESEND_API_KEY=re_xxxxxxxxxxxx
+
+# API URL (for Next.js)
+API_URL=http://localhost:4000
+```
+
+### 14.7 Image Sizes (Approximate)
+
+| Image | Size | Notes |
+|-------|------|-------|
+| `hta-api` | ~250MB | Fastify + Prisma |
+| `hta-worker` | ~250MB | BullMQ + Prisma |
+| `hta-web` | ~150MB | Next.js standalone |
 
 ---
 
