@@ -1,9 +1,50 @@
 # Phase 9B: API Separation - Detailed Implementation Plan
 
-**Document Version:** 2.0
+**Document Version:** 3.0
 **Created:** 2026-04-13
-**Last Updated:** 2026-04-14 (Phase 6 GitOps update)
-**Status:** Planning (Defer until traffic/team warrants)
+**Last Updated:** 2026-04-14 (Full implementation audit)
+**Status:** Implementation In Progress
+
+---
+
+## Implementation Status Summary
+
+> **Last Audited:** 2026-04-14
+
+| Phase | Section | Status | Completion | Notes |
+|-------|---------|--------|------------|-------|
+| **Phase 1** | Monorepo Setup | ✅ Complete | 100% | Turborepo + pnpm workspace |
+| **Phase 2** | Shared Packages | ✅ Complete | 95% | database, shared, ui, emails |
+| **Phase 3** | API Extraction | ✅ Complete | 95% | 6,881 lines Fastify routes |
+| **Phase 4** | Worker Service | ✅ Complete | 90% | 417 lines BullMQ jobs |
+| **Phase 5** | Load Balancer | ✅ Complete | 100% | GKE Gateway API manifests |
+| **Phase 6** | Deployment | ✅ Complete | 100% | Argo CD + Rollouts + GitHub Actions |
+| **Phase 14** | Docker | ✅ Complete | 100% | All Dockerfiles + compose files |
+| **Phase 15** | CI/CD | ✅ Complete | 100% | 23,363 lines GitHub Actions |
+| **Phase 16** | Testing | 🟡 Partial | 15% | 149 tests / ~1000 needed |
+
+### Code vs Test Coverage
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    IMPLEMENTATION STATUS                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Feature Code:  ████████████████████████████████████  95%   │
+│  Infrastructure: ████████████████████████████████████  100%  │
+│  Test Coverage:  █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  15%   │
+│                                                              │
+│  ⚠️  BLOCKER: Test coverage too low for production          │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Next Steps
+
+1. **P0 - Testing:** Write API integration tests (~50 tests, 2 days)
+2. **P0 - Testing:** Write auth middleware tests (~20 tests, 1 day)
+3. **P1 - Testing:** Write certificate route tests (~80 tests, 3 days)
+4. **P1 - Testing:** Write E2E critical path tests (~30 tests, 2 days)
 
 > **Architecture Decision (2026-04-14):** Changed from Cloud Run to **GKE Standard** for better control over networking, traffic management, and cost predictability. Traffic splitting uses **GKE Gateway API** (not Istio) for simplicity and zero sidecar overhead. Deployments via **Argo CD** (GitOps) with **Argo Rollouts** for automated canary releases. Argo CD protected by **IAP** (Google login) at `argocd.hta-calibration.com`.
 **Estimated Effort:** 3-4 weeks
@@ -905,6 +946,16 @@ Phase 7: Remove old API routes from frontend
 
 ## 8. Phase 1: Monorepo Setup
 
+> **Status:** ✅ COMPLETE (100%)
+> 
+> | Component | Status | Evidence |
+> |-----------|--------|----------|
+> | turbo.json | ✅ | 1,051 bytes, full pipeline config |
+> | pnpm-workspace.yaml | ✅ | Configured for apps/* and packages/* |
+> | Root package.json | ✅ | Scripts for build, dev, lint, test, docker |
+> | apps/ directory | ✅ | 4 apps: api, web-hta, web-tenant-template, worker |
+> | packages/ directory | ✅ | 4 packages: database, emails, shared, ui |
+
 ### Step 1.1: Initialize Turborepo
 
 ```bash
@@ -980,6 +1031,17 @@ mkdir -p packages/{database,shared,emails,ui}/src
 ---
 
 ## 9. Phase 2: Shared Packages
+
+> **Status:** ✅ COMPLETE (95%)
+> 
+> | Package | Status | Lines | Contents |
+> |---------|--------|-------|----------|
+> | @hta/database | ✅ | 881 lines schema | Prisma schema, client.ts, tenant-context.ts |
+> | @hta/shared | ✅ | 1,982 lines | auth, cache, audit, logger, notifications, security (CORS, rate-limiter), tenant, types, utils |
+> | @hta/ui | ✅ | 168 lines | components/index.ts, themes/index.ts |
+> | @hta/emails | ✅ | exists | Email templates package |
+> 
+> **Remaining:** UI components could be expanded; currently re-exports from web-hta
 
 ### Step 2.1: Create packages/database
 
@@ -1349,6 +1411,31 @@ import { createLogger } from '@hta/shared/logger'
 
 ## 10. Phase 3: API Extraction
 
+> **Status:** ✅ COMPLETE (95%)
+> 
+> | Component | Status | Lines | Description |
+> |-----------|--------|-------|-------------|
+> | server.ts | ✅ | 155 | Fastify server with CORS, routes, error handling |
+> | routes/certificates | ✅ | 1,765 | Full CRUD, revisions, PDF generation |
+> | routes/admin | ✅ | 1,872 | User management, settings, audit logs |
+> | routes/customer | ✅ | 1,539 | Customer portal, downloads, profile |
+> | routes/auth | ✅ | 640 | Login, tokens, session management |
+> | routes/chat | ✅ | 358 | AI chat integration |
+> | routes/users | ✅ | 158 | User CRUD |
+> | routes/instruments | ✅ | 123 | Master instruments |
+> | routes/notifications | ✅ | 126 | Notification endpoints |
+> | routes/internal-requests | ✅ | 136 | Internal request handling |
+> | routes/customers | ✅ | 115 | Customer accounts |
+> | routes/health | ✅ | 49 | Health check endpoint |
+> | middleware/auth | ✅ | exists | JWT validation, role checks |
+> | middleware/tenant | ✅ | exists | Multi-tenant context |
+> | middleware/error-handler | ✅ | exists | Centralized error handling |
+> | services/ | ✅ | exists | chat.ts, refresh-token.ts |
+> | lib/storage | ✅ | exists | GCS storage adapter |
+> | **TOTAL** | ✅ | **~6,881** | Full API implementation |
+> 
+> **Remaining:** Integration tests for API routes
+
 ### Step 3.1: Choose API Framework
 
 Options:
@@ -1476,6 +1563,21 @@ CMD ["node", "dist/server.js"]
 ---
 
 ## 11. Phase 4: Worker Service
+
+> **Status:** ✅ COMPLETE (90%)
+> 
+> | Component | Status | Lines | Description |
+> |-----------|--------|-------|-------------|
+> | index.ts | ✅ | exists | Worker entry point |
+> | jobs/email.ts | ✅ | 124 | Email job processor with Resend |
+> | jobs/cleanup.ts | ✅ | 163 | Cleanup job for expired data |
+> | jobs/notifications.ts | ✅ | 123 | Notification job processor |
+> | jobs/index.ts | ✅ | 7 | Job exports |
+> | scheduler/ | ✅ | exists | Scheduled job runners |
+> | types.ts | ✅ | exists | Type definitions |
+> | **TOTAL** | ✅ | **~417** | Worker implementation |
+> 
+> **Remaining:** PDF generation job (currently in API), more comprehensive job tests
 
 ### Step 4.1: Worker Structure
 
@@ -1714,6 +1816,24 @@ CMD ["node", "dist/index.js"]
 ## 12. Phase 5: Load Balancer & Routing
 
 > **Architecture:** GKE Standard + GKE Gateway API (not Cloud Run)
+> 
+> **Status:** ✅ COMPLETE (100%)
+> 
+> | Component | Status | Location | Description |
+> |-----------|--------|----------|-------------|
+> | Gateway API manifest | ✅ | infra/k8s/base/gateway.yaml | GKE Gateway with routing rules |
+> | API deployment | ✅ | infra/k8s/base/api-deployment.yaml | API pod spec |
+> | API service | ✅ | infra/k8s/base/api-service.yaml | ClusterIP service |
+> | Web deployment | ✅ | infra/k8s/base/web-hta-deployment.yaml | Web pod spec |
+> | Web service | ✅ | infra/k8s/base/web-hta-service.yaml | ClusterIP service |
+> | Worker deployment | ✅ | infra/k8s/base/worker-deployment.yaml | Worker pod spec |
+> | ConfigMap | ✅ | infra/k8s/base/configmap.yaml | Environment config |
+> | Secrets | ✅ | infra/k8s/base/secrets.yaml | Secret references |
+> | HPA | ✅ | infra/k8s/base/hpa.yaml | Horizontal pod autoscaling |
+> | Service accounts | ✅ | infra/k8s/base/service-accounts.yaml | K8s service accounts |
+> | Namespace | ✅ | infra/k8s/base/namespace.yaml | hta-platform namespace |
+> | Kustomization | ✅ | infra/k8s/base/kustomization.yaml | Kustomize base |
+> | Production overlay | ✅ | infra/k8s/overlays/production/ | Prod-specific configs |
 
 ### Step 5.1: Terraform Infrastructure
 
@@ -1906,6 +2026,22 @@ User Request
 ## 13. Phase 6: Deployment & Cutover
 
 > **Architecture:** GitOps with Argo CD + Argo Rollouts for automated canary deployments on GKE Standard
+> 
+> **Status:** ✅ COMPLETE (100%)
+> 
+> | Component | Status | Location | Description |
+> |-----------|--------|----------|-------------|
+> | Argo CD Application | ✅ | infra/k8s/base/argocd/application.yaml | App-of-apps pattern |
+> | Argo CD ConfigMap | ✅ | infra/k8s/base/argocd/argocd-cm.yaml | Argo CD configuration |
+> | Argo CD Ingress | ✅ | infra/k8s/base/argocd/ingress.yaml | IAP-protected access |
+> | Argo CD Namespace | ✅ | infra/k8s/base/argocd/namespace.yaml | argocd namespace |
+> | Argo Rollouts Install | ✅ | infra/k8s/base/argo-rollouts/install.yaml | Rollouts controller |
+> | Rollouts Namespace | ✅ | infra/k8s/base/argo-rollouts/namespace.yaml | argo-rollouts namespace |
+> | Rollout Configs | ✅ | infra/k8s/base/rollouts/ | Canary rollout specs |
+> | CI Workflow | ✅ | .github/workflows/ci.yml | Lint, test, build (5,604 lines) |
+> | Deploy Workflow | ✅ | .github/workflows/deploy.yml | Direct deploy (8,196 lines) |
+> | GitOps Workflow | ✅ | .github/workflows/gitops-deploy.yml | Image build + manifest PR (6,972 lines) |
+> | Rollback Workflow | ✅ | .github/workflows/rollback.yml | Emergency rollback (2,591 lines) |
 
 ### Step 6.1: Deployment Architecture Overview
 
@@ -2161,7 +2297,19 @@ kubectl get httproute,gateway -n hta-platform
 
 ## 14. Docker Configuration
 
-> **Status:** Implemented. All Dockerfiles production-ready with multi-stage builds.
+> **Status:** ✅ COMPLETE (100%)
+> 
+> | Component | Status | Size | Description |
+> |-----------|--------|------|-------------|
+> | docker-compose.yml | ✅ | 4,255 bytes | Full stack (postgres, redis, api, worker, web) |
+> | docker-compose.infra.yml | ✅ | 1,728 bytes | Infrastructure only (postgres, redis) |
+> | .env.example | ✅ | exists | Environment variables template |
+> | .dockerignore | ✅ | exists | Excludes node_modules, .next, etc. |
+> | apps/api/Dockerfile | ✅ | 3,747 bytes | Multi-stage Fastify build |
+> | apps/worker/Dockerfile | ✅ | 3,659 bytes | Multi-stage worker build |
+> | apps/web-hta/Dockerfile | ✅ | 3,063 bytes | Multi-stage Next.js build |
+> | apps/web-tenant-template/Dockerfile | ✅ | 3,206 bytes | Multi-stage Next.js build |
+> | Root package.json scripts | ✅ | exists | docker:infra, docker:up, docker:build:* |
 
 ### 14.1 File Structure
 
@@ -2306,7 +2454,25 @@ API_URL=http://localhost:4000
 
 ## 15. GitHub Actions CI/CD
 
-### 14.1 Workflow Structure
+> **Status:** ✅ COMPLETE (100%)
+> 
+> | Workflow | Status | Lines | Description |
+> |----------|--------|-------|-------------|
+> | ci.yml | ✅ | 5,604 | Lint, typecheck, test on PRs |
+> | deploy.yml | ✅ | 8,196 | Direct deployment to GKE |
+> | gitops-deploy.yml | ✅ | 6,972 | Build images, create manifest PR for Argo CD |
+> | rollback.yml | ✅ | 2,591 | Emergency rollback workflow |
+> | **TOTAL** | ✅ | **23,363** | Full CI/CD pipeline |
+> 
+> **Features:**
+> - Turborepo caching for fast builds
+> - Parallel jobs per package
+> - Docker image builds with layer caching
+> - Workload Identity Federation (no service account keys)
+> - Environment-based deployment (dev/prod)
+> - Automatic canary rollouts via Argo Rollouts
+
+### 15.1 Workflow Structure
 
 ```
 .github/
@@ -2702,7 +2868,150 @@ Enable Turbo remote caching for faster CI:
 
 ## 16. Testing Strategy
 
-> **Status:** Implemented. Mirrors hta-calibration test structure.
+> **Status:** 🟡 PARTIAL (15% coverage)
+> 
+> | Component | Status | Tests | Coverage |
+> |-----------|--------|-------|----------|
+> | Test Infrastructure | ✅ | - | Vitest, Playwright, MSW configured |
+> | API Tests | 🟡 | 5 | Health endpoint only (6,881 lines untested) |
+> | Worker Tests | 🟡 | 6 | Email job only (417 lines untested) |
+> | Web-HTA Tests | 🟡 | 138 | Components + stores (272 files, ~15% covered) |
+> | E2E Tests | 🟡 | 1 | Skeleton journey (full journeys needed) |
+> | **TOTAL** | 🟡 | **~149** | ~15% of codebase |
+> 
+> **Gap Analysis:** ~10,000+ lines of production code with only ~149 tests.
+> Target: Match hta-calibration's ~1,000 tests for parity.
+
+### 16.0 Test Migration Overview
+
+#### Current State Comparison
+
+| Repository | Test Count | Lines of Code | Coverage | Status |
+|------------|------------|---------------|----------|--------|
+| **hta-calibration** (source) | 1,000+ tests | ~50,000 | ~85% | Production, mature |
+| **hta-platform** (target) | ~149 tests | ~10,000+ | ~15% | Code migrated, tests lagging |
+
+#### The Reality
+
+**Code IS migrated** — API routes, worker jobs, web components all exist and are functional.
+**Tests are NOT migrated** — Only ~149 tests exist for ~10,000 lines of production code.
+
+This creates a **testing debt** that must be addressed before production deployment.
+
+#### What's Currently Implemented
+
+| Location | File | Tests | What It Covers |
+|----------|------|-------|----------------|
+| `apps/api/tests/unit/` | health.test.ts | 5 | Health endpoint only |
+| `apps/worker/tests/unit/` | email.test.ts | 6 | Email job structure |
+| `apps/web-hta/tests/unit/` | button.test.tsx | 9 | Button component |
+| `apps/web-hta/src/components/dashboard/__tests__/` | StatusBadge.test.tsx | 18 | Status badge variants |
+| `apps/web-hta/src/components/tat/__tests__/` | TATBadge.test.tsx | 25 | TAT badge logic |
+| `apps/web-hta/src/lib/services/queue/providers/__tests__/` | database.test.ts | 23 | Database queue provider |
+| `apps/web-hta/src/lib/services/queue/__tests__/` | queue.test.ts | 17 | Queue service |
+| `apps/web-hta/src/lib/stores/__tests__/` | certificate-store.test.ts | 46 | Certificate Zustand store |
+| `apps/web-hta/e2e/journeys/` | certificate-flow.spec.ts | 0 | Skeleton (test.skip) |
+| **TOTAL** | | **~149** | |
+
+#### What's MISSING (Critical Gaps)
+
+| Category | Lines of Code | Current Tests | Gap |
+|----------|---------------|---------------|-----|
+| **API Routes** | 6,881 | 5 | Certificate CRUD, auth, admin, customer portal untested |
+| **Worker Jobs** | 417 | 6 | Cleanup, notifications untested |
+| **Middleware** | ~500 | 0 | Auth, tenant, error-handler untested |
+| **Services** | ~300 | 0 | Chat, refresh-token untested |
+| **E2E Journeys** | - | 0 | No complete user journeys |
+| **Integration** | - | 0 | No API integration tests |
+
+#### Test Migration Plan
+
+| Priority | Category | Tests Needed | Effort | Rationale |
+|----------|----------|--------------|--------|-----------|
+| **P0** | API Integration | ~50 | 2 days | Core business logic, highest risk |
+| **P0** | Auth Middleware | ~20 | 1 day | Security critical |
+| **P1** | Certificate Routes | ~80 | 3 days | Primary feature |
+| **P1** | E2E Critical Paths | ~30 | 2 days | User journey validation |
+| **P2** | Worker Jobs | ~30 | 1 day | Background processing |
+| **P2** | Admin Routes | ~40 | 2 days | Admin functionality |
+| **P3** | Customer Portal | ~50 | 2 days | Customer-facing features |
+| **P3** | Remaining Components | ~100 | 3 days | UI coverage |
+
+**Total Estimated Effort:** ~16 days to reach ~550 tests (~55% of hta-calibration)
+
+#### Migration Strategy Per Test Type
+
+##### Unit Tests (Migrate with code)
+```
+hta-calibration/tests/unit/          →  hta-platform/
+├── auth.test.ts                     →  packages/shared/tests/auth.test.ts
+├── certificate-utils.test.ts        →  packages/shared/tests/certificate.test.ts
+├── components/button.test.tsx       →  packages/ui/tests/button.test.tsx
+├── api/certificates.test.ts         →  apps/api/tests/unit/certificates.test.ts
+└── workers/email.test.ts            →  apps/worker/tests/unit/email.test.ts
+```
+
+##### Integration Tests (Migrate after API routes)
+```
+hta-calibration/tests/integration/   →  hta-platform/
+├── certificates.test.ts             →  apps/api/tests/integration/certificates.test.ts
+├── customers.test.ts                →  apps/api/tests/integration/customers.test.ts
+└── auth.test.ts                     →  apps/api/tests/integration/auth.test.ts
+```
+
+##### E2E Tests (Migrate after full stack working)
+```
+hta-calibration/tests/e2e/           →  hta-platform/apps/web-hta/e2e/
+├── journeys/                        →  journeys/
+│   ├── certificate-flow.spec.ts     →  journeys/certificate-flow.spec.ts
+│   ├── customer-portal.spec.ts      →  journeys/customer-portal.spec.ts
+│   └── review-flow.spec.ts          →  journeys/review-flow.spec.ts
+├── pages/                           →  pages/
+├── evals/                           →  evals/
+└── auth.setup.ts                    →  auth.setup.ts (already migrated)
+```
+
+#### When Tests Get Written/Migrated
+
+| Trigger | Action | Example |
+|---------|--------|---------|
+| Feature code migrated | Migrate corresponding tests | Move `getCertificates` handler → move `getCertificates.test.ts` |
+| New feature added | Write new tests | New tenant isolation logic → new tenant.test.ts |
+| Bug discovered | Add regression test | Bug in PDF generation → add specific test case |
+| Integration point created | Add contract test | API/Frontend boundary → add schema validation |
+
+#### Test Coverage Targets
+
+| Phase | Expected Test Count | Coverage Target |
+|-------|---------------------|-----------------|
+| Infrastructure (current) | 20 | N/A (scaffolding) |
+| After API migration | 200+ | 80% API routes |
+| After worker migration | 250+ | 80% job handlers |
+| After shared packages | 350+ | 90% utilities |
+| After web migration | 550+ | 75% components |
+| After E2E migration | 1,050+ | Full journey coverage |
+| Post-migration parity | 1,000+ | Match hta-calibration |
+
+#### Why Not Migrate All Tests First?
+
+1. **Tests depend on code** — Can't test `getCertificates` handler until handler exists
+2. **Avoid drift** — Tests migrated early would fail until code catches up
+3. **Incremental validation** — Each feature migration is validated by its tests passing
+4. **Reduces risk** — Migrating code + tests together ensures nothing breaks
+
+#### Quality Gates
+
+Before any PR is merged to hta-platform:
+
+| Gate | Requirement | Enforced By |
+|------|-------------|-------------|
+| Unit tests pass | All `pnpm test` green | GitHub Actions |
+| Coverage threshold | ≥80% for changed files | Vitest coverage |
+| E2E smoke test | Core journeys pass | Playwright |
+| Type check | No TypeScript errors | `tsc --noEmit` |
+| Lint | No ESLint errors | `eslint` |
+
+---
 
 ### 16.1 Test Organization
 

@@ -80,7 +80,7 @@ describe('Email Validation', () => {
 
   it('should validate email job has required fields', () => {
     const validateEmailJob = (job: { type: string; to: string }) => {
-      return job.type && job.to
+      return Boolean(job.type && job.to)
     }
 
     expect(validateEmailJob({ type: 'password-reset', to: 'test@test.com' })).toBe(true)

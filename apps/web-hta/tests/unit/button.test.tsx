@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { Button } from '@/components/ui/button'
 
 describe('Button Component', () => {
@@ -96,14 +97,16 @@ describe('Button Accessibility', () => {
     expect(document.activeElement).toBe(button)
   })
 
-  it('responds to keyboard events', () => {
+  it('responds to keyboard events', async () => {
+    const user = userEvent.setup()
     const handleClick = vi.fn()
     render(<Button onClick={handleClick}>Keyboard</Button>)
 
     const button = screen.getByRole('button')
-    fireEvent.keyDown(button, { key: 'Enter' })
+    button.focus()
+    await user.keyboard('{Enter}')
 
-    // Enter key on button should trigger click
+    // Enter key on focused button should trigger click
     expect(handleClick).toHaveBeenCalled()
   })
 })
