@@ -5,10 +5,13 @@ namespace: hta-platform
 
 resources:
   - namespace.yaml
+  - service-accounts.yaml
   - configmap.yaml
   - secrets.yaml
   - api-deployment.yaml
   - api-service.yaml
+  - web-hta-deployment.yaml
+  - web-hta-service.yaml
   - worker-deployment.yaml
   - ingress.yaml
   - hpa.yaml

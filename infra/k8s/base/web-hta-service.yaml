@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hta-web
+  namespace: hta-platform
+  labels:
+    app: hta-web
+    app.kubernetes.io/name: hta-web
+  annotations:
+    cloud.google.com/backend-config: '{"default": "hta-web-backend-config"}'
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app: hta-web
+---
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: hta-web-backend-config
+  namespace: hta-platform
+spec:
+  healthCheck:
+    checkIntervalSec: 30
+    timeoutSec: 10
+    healthyThreshold: 1
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /api/health
+    port: 3000
+  connectionDraining:
+    drainingTimeoutSec: 30
+  cdn:
+    enabled: true
+    cachePolicy:
+      includeHost: true
+      includeProtocol: true
+      includeQueryString: false

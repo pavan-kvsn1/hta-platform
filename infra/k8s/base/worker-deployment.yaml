@@ -64,11 +64,3 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 3
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: hta-worker
-  namespace: hta-platform
-  annotations:
-    iam.gke.io/gcp-service-account: hta-worker@PROJECT_ID.iam.gserviceaccount.com

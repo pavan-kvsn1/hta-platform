@@ -8,19 +8,17 @@ metadata:
   annotations:
     # GKE Ingress annotations
     kubernetes.io/ingress.class: "gce"
-    kubernetes.io/ingress.global-static-ip-name: "hta-platform-ip"
+    # Static IP name from Terraform: module.cloud_armor.ingress_ip_name
+    kubernetes.io/ingress.global-static-ip-name: "production-security-policy-ip"
 
     # SSL/TLS
     networking.gke.io/managed-certificates: "hta-certificate"
 
     # Health check configuration
     cloud.google.com/backend-config: '{"default": "hta-backend-config"}'
-
-    # Security headers (via BackendConfig)
-    # See backend-config.yaml for details
 spec:
   rules:
-    # API routes
+    # API subdomain - dedicated API traffic
     - host: api.hta.example.com
       http:
         paths:
@@ -32,24 +30,26 @@ spec:
                 port:
                   number: 80
 
-    # Alternative: Route /api/* to API service on same domain
-    # - host: hta.example.com
-    #   http:
-    #     paths:
-    #       - path: /api
-    #         pathType: Prefix
-    #         backend:
-    #           service:
-    #             name: hta-api
-    #             port:
-    #               number: 80
-    #       - path: /
-    #         pathType: Prefix
-    #         backend:
-    #           service:
-    #             name: hta-web  # Frontend service
-    #             port:
-    #               number: 80
+    # Main app domain - frontend + API routes
+    - host: app.hta.example.com
+      http:
+        paths:
+          # API routes (must be first - more specific)
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: hta-api
+                port:
+                  number: 80
+          # Frontend (catch-all)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hta-web
+                port:
+                  number: 80
 ---
 # Managed Certificate for HTTPS
 apiVersion: networking.gke.io/v1
@@ -60,7 +60,7 @@ metadata:
 spec:
   domains:
     - api.hta.example.com
-    - hta.example.com
+    - app.hta.example.com
 ---
 # Backend configuration for health checks and security
 apiVersion: cloud.google.com/v1
@@ -78,6 +78,7 @@ spec:
     requestPath: /health
     port: 8080
   securityPolicy:
-    name: "hta-security-policy"  # Cloud Armor policy (create separately)
+    # Cloud Armor policy from Terraform: module.cloud_armor.policy_name
+    name: "production-security-policy"
   connectionDraining:
     drainingTimeoutSec: 30

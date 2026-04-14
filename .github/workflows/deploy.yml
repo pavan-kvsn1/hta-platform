@@ -6,6 +6,7 @@ on:
     paths:
       - "apps/api/**"
       - "apps/worker/**"
+      - "apps/web-hta/**"
       - "packages/**"
       - "infra/k8s/**"
   workflow_dispatch:
@@ -39,6 +40,7 @@ jobs:
     outputs:
       api: ${{ steps.filter.outputs.api }}
       worker: ${{ steps.filter.outputs.worker }}
+      web: ${{ steps.filter.outputs.web }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -50,6 +52,9 @@ jobs:
               - 'packages/**'
             worker:
               - 'apps/worker/**'
+              - 'packages/**'
+            web:
+              - 'apps/web-hta/**'
               - 'packages/**'
 
   # ===========================================================================
@@ -71,6 +76,9 @@ jobs:
           - service: worker
             dockerfile: apps/worker/Dockerfile
             changed: ${{ needs.changes.outputs.worker }}
+          - service: web
+            dockerfile: apps/web-hta/Dockerfile
+            changed: ${{ needs.changes.outputs.web }}
     steps:
       - name: Skip if unchanged
         if: matrix.changed != 'true' && github.event_name != 'workflow_dispatch'
@@ -152,6 +160,11 @@ jobs:
             kustomize edit set image gcr.io/PROJECT_ID/hta-worker=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/hta-worker:${{ github.sha }}
           fi
 
+          # Update Web image if changed
+          if [[ "${{ needs.changes.outputs.web }}" == "true" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            kustomize edit set image gcr.io/PROJECT_ID/hta-web=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/hta-web:${{ github.sha }}
+          fi
+
       - name: Deploy to GKE
         run: |
           kubectl apply -k infra/k8s/overlays/production
@@ -163,6 +176,10 @@ jobs:
 
           if [[ "${{ needs.changes.outputs.worker }}" == "true" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             kubectl -n hta-platform rollout status deployment/hta-worker --timeout=300s
+          fi
+
+          if [[ "${{ needs.changes.outputs.web }}" == "true" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            kubectl -n hta-platform rollout status deployment/hta-web --timeout=300s
           fi
 
       - name: Verify deployment

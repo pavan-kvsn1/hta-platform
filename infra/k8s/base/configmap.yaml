@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/name: hta-platform
 data:
   # CORS configuration
-  cors-origins: "https://hta.example.com,https://www.hta.example.com"
+  cors-origins: "https://app.hta.example.com"
 
   # GCS bucket for certificate images
   gcs-bucket-name: "hta-certificates-prod"
@@ -17,3 +17,7 @@ data:
 
   # Logging level
   log-level: "info"
+
+  # Frontend configuration
+  nextauth-url: "https://app.hta.example.com"
+  api-url: "https://api.hta.example.com"
