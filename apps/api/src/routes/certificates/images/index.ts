@@ -11,12 +11,10 @@ import { prisma } from '@hta/database'
 import { requireAuth } from '../../../middleware/auth.js'
 import {
   getImageStorageProvider,
-  getImageStorageConfig,
   generateImageStorageKey,
   getImageVariantKeys,
   type CertificateImageType,
 } from '../../../lib/storage/index.js'
-import { createOptimizedImage, createThumbnail } from '../../../services/image-processing.js'
 
 // Max images per type
 const MAX_UUC_IMAGES = 10
@@ -142,7 +140,6 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Generate signed URLs for images
     const storage = getImageStorageProvider()
-    const config = getImageStorageConfig()
 
     const imagesWithUrls = await Promise.all(
       images.map(async (img) => {
@@ -168,7 +165,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
           thumbnailUrl,
           optimizedUrl,
           originalUrl,
-          storageProvider: config.type,
+          storageProvider: 'gcs',
         }
       })
     )
@@ -295,7 +292,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Upload to storage
     const storage = getImageStorageProvider()
-    const config = getImageStorageConfig()
+    const storageBucket = process.env.GCS_IMAGES_BUCKET || process.env.GCS_CERTIFICATES_BUCKET || null
 
     const storageKey = generateImageStorageKey(
       {
@@ -325,36 +322,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
       throw uploadError
     }
 
-    // Determine storage provider for database
-    const storageProvider = config.type === 'gcs' ? 'GCP' : 'LOCAL'
-
-    // For local storage, process images immediately (no Cloud Function)
-    // For GCS, the Cloud Function will process asynchronously
-    let optimizedKey: string | null = null
-    let thumbnailKey: string | null = null
-
-    if (config.type === 'local') {
-      try {
-        const variantKeys = getImageVariantKeys(storageKey)
-
-        // Create and upload optimized version
-        const optimized = await createOptimizedImage(file.data)
-        await storage.upload(variantKeys.optimized, optimized.buffer, {
-          contentType: 'image/jpeg',
-        })
-        optimizedKey = variantKeys.optimized
-
-        // Create and upload thumbnail
-        const thumbnail = await createThumbnail(file.data)
-        await storage.upload(variantKeys.thumbnail, thumbnail.buffer, {
-          contentType: 'image/jpeg',
-        })
-        thumbnailKey = variantKeys.thumbnail
-      } catch (processingError) {
-        fastify.log.error(processingError, 'Image processing failed')
-        // Continue without optimized/thumbnail - not critical
-      }
-    }
+    // Cloud Function will process images asynchronously and create optimized/thumbnail variants
 
     // Check if there's an existing image to supersede (for versioning)
     const existingImage = await prisma.certificateImage.findFirst({
@@ -394,11 +362,11 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
           fileName: file!.filename,
           fileSize: file!.data.length,
           mimeType: file!.mimetype,
-          storageProvider,
-          storageBucket: config.gcsBucket ?? null,
+          storageProvider: 'GCP',
+          storageBucket,
           storageKey,
-          optimizedKey,
-          thumbnailKey,
+          optimizedKey: null, // Cloud Function will populate
+          thumbnailKey: null, // Cloud Function will populate
           version: newVersion,
           isLatest: true,
           supersededById: null,
@@ -436,23 +404,18 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
       return newImage
     })
 
-    // Generate signed URLs for the uploaded image and variants
+    // Generate signed URL for the uploaded image
+    // Optimized/thumbnail variants will be created by Cloud Function
     const originalUrl = await storage.getSignedUrl(storageKey, { expiresInMinutes: 60 })
-    const thumbnailUrlResponse = thumbnailKey
-      ? await storage.getSignedUrl(thumbnailKey, { expiresInMinutes: 60 })
-      : null
-    const optimizedUrlResponse = optimizedKey
-      ? await storage.getSignedUrl(optimizedKey, { expiresInMinutes: 60 })
-      : null
 
     return reply.status(201).send({
       image: {
         ...image,
         uploadedAt: image.uploadedAt.toISOString(),
         originalUrl,
-        thumbnailUrl: thumbnailUrlResponse,
-        optimizedUrl: optimizedUrlResponse,
-        storageProvider: config.type,
+        thumbnailUrl: null, // Created async by Cloud Function
+        optimizedUrl: null, // Created async by Cloud Function
+        storageProvider: 'gcs',
       },
     })
   })
@@ -515,7 +478,6 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Generate signed URLs
     const storage = getImageStorageProvider()
-    const config = getImageStorageConfig()
 
     let thumbnailUrl: string | null = null
     let optimizedUrl: string | null = null
@@ -553,7 +515,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
         thumbnailUrl,
         optimizedUrl,
         originalUrl,
-        storageProvider: config.type,
+        storageProvider: 'gcs',
         previousVersions: image.supersedes.map((prev) => ({
           id: prev.id,
           version: prev.version,
