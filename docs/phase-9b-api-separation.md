@@ -2702,6 +2702,8 @@ Enable Turbo remote caching for faster CI:
 
 ## 16. Testing Strategy
 
+> **Status:** Implemented. Mirrors hta-calibration test structure.
+
 ### 16.1 Test Organization
 
 ```

@@ -1,0 +1,2 @@
+# This directory stores authentication state for E2E tests
+# The .json files are gitignored but this .gitkeep ensures the directory exists
