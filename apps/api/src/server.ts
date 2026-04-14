@@ -12,6 +12,7 @@ import instrumentRoutes from './routes/instruments/index.js'
 import userRoutes from './routes/users/index.js'
 import adminRoutes from './routes/admin/index.js'
 import customerRoutes from './routes/customer/index.js'
+import notificationRoutes from './routes/notifications/index.js'
 
 // Import middleware
 import { tenantMiddleware } from './middleware/tenant.js'
@@ -100,6 +101,9 @@ await server.register(adminRoutes, { prefix: '/api/admin' })
 
 // Customer routes
 await server.register(customerRoutes, { prefix: '/api/customer' })
+
+// Notification routes
+await server.register(notificationRoutes, { prefix: '/api/notifications' })
 
 // =============================================================================
 // START SERVER
