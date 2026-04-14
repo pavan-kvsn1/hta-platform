@@ -18,7 +18,8 @@
     "@hta/shared": "workspace:*",
     "@hta/emails": "workspace:*",
     "bullmq": "^5.0.0",
-    "ioredis": "^5.4.0"
+    "ioredis": "^5.4.0",
+    "resend": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
