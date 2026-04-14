@@ -1,0 +1,211 @@
+# =============================================================================
+# API Rollout (replaces api-deployment.yaml when using Argo Rollouts)
+# =============================================================================
+# This defines a canary deployment strategy with automatic traffic shifting.
+#
+# Steps:
+#   1. Deploy new version as canary (10%)
+#   2. Wait 5 minutes, check metrics
+#   3. Increase to 25%, wait 10 minutes
+#   4. Increase to 50%, wait 15 minutes
+#   5. Increase to 100% (full promotion)
+#
+# If any step fails metrics check → automatic rollback
+# =============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: hta-api
+  namespace: hta-platform
+  labels:
+    app: hta-api
+    app.kubernetes.io/name: hta-api
+    app.kubernetes.io/component: api
+spec:
+  replicas: 3
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: hta-api
+
+  # Canary deployment strategy
+  strategy:
+    canary:
+      # Traffic routing via Gateway API
+      trafficRouting:
+        managedRoutes:
+          - name: api-route
+        plugins:
+          argoproj-labs/gatewayAPI:
+            httpRoutes:
+              - name: hta-api-route
+                namespace: hta-platform
+            namespace: hta-platform
+
+      # Canary steps - gradual traffic shift
+      steps:
+        # Step 1: 10% traffic to canary
+        - setWeight: 10
+        - pause: {duration: 5m}
+
+        # Step 2: 25% traffic
+        - setWeight: 25
+        - pause: {duration: 10m}
+
+        # Step 3: 50% traffic
+        - setWeight: 50
+        - pause: {duration: 15m}
+
+        # Step 4: 75% traffic
+        - setWeight: 75
+        - pause: {duration: 10m}
+
+        # Step 5: 100% - full promotion (automatic)
+
+      # Optional: Add analysis at specific steps
+      # analysis:
+      #   templates:
+      #     - templateName: pod-health
+      #   startingStep: 1
+
+      # Canary service (created automatically)
+      canaryService: hta-api-canary
+      stableService: hta-api
+
+      # Anti-affinity - spread canary pods
+      antiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          weight: 100
+
+      # Scale down delay after promotion
+      scaleDownDelaySeconds: 30
+
+  # Pod template (same as Deployment)
+  template:
+    metadata:
+      labels:
+        app: hta-api
+        app.kubernetes.io/name: hta-api
+    spec:
+      serviceAccountName: hta-api
+      containers:
+        - name: api
+          image: gcr.io/PROJECT_ID/hta-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "8080"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: hta-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: hta-secrets
+                  key: redis-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hta-secrets
+                  key: jwt-secret
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: hta-config
+                  key: cors-origins
+            - name: GCS_BUCKET_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: hta-config
+                  key: gcs-bucket-name
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+# Stable service (receives majority traffic)
+apiVersion: v1
+kind: Service
+metadata:
+  name: hta-api
+  namespace: hta-platform
+  labels:
+    app: hta-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+  selector:
+    app: hta-api
+    # Argo Rollouts injects rollouts-pod-template-hash selector
+---
+# Canary service (receives canary traffic)
+apiVersion: v1
+kind: Service
+metadata:
+  name: hta-api-canary
+  namespace: hta-platform
+  labels:
+    app: hta-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+  selector:
+    app: hta-api
+    # Argo Rollouts manages this selector
+---
+# HTTPRoute for Argo Rollouts to manage traffic splitting
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: hta-api-route
+  namespace: hta-platform
+  labels:
+    app: hta-api
+spec:
+  parentRefs:
+    - name: hta-gateway
+      namespace: hta-platform
+  hostnames:
+    - "api.hta.example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        # Argo Rollouts will manage these weights automatically
+        - name: hta-api
+          port: 80
+          weight: 100
+        - name: hta-api-canary
+          port: 80
+          weight: 0

@@ -1,0 +1,70 @@
+# =============================================================================
+# Analysis Templates for Argo Rollouts
+# =============================================================================
+# These define the metrics that determine if a canary is healthy.
+# If analysis fails, Argo Rollouts automatically rolls back.
+# =============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: hta-platform
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: success-rate
+      # Check every 1 minute
+      interval: 1m
+      # Require 3 successful measurements
+      successCondition: result[0] >= 0.99
+      # Fail after 3 failed measurements
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            sum(rate(http_requests_total{service="{{args.service-name}}",status=~"2.."}[5m]))
+            /
+            sum(rate(http_requests_total{service="{{args.service-name}}"}[5m]))
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: latency
+  namespace: hta-platform
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: latency-p95
+      interval: 1m
+      # p95 latency must be under 500ms
+      successCondition: result[0] < 500
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket{service="{{args.service-name}}"}[5m]))
+              by (le)
+            ) * 1000
+---
+# Simple health check analysis (no Prometheus required)
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: pod-health
+  namespace: hta-platform
+spec:
+  metrics:
+    - name: pod-ready
+      interval: 30s
+      successCondition: result == "True"
+      failureLimit: 3
+      provider:
+        kubernetes:
+          function: ready
+          fieldSelector: status.phase=Running
