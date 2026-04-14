@@ -768,22 +768,26 @@ model InternalRequest {
 
 model RefreshToken {
   id            String    @id @default(uuid())
+  tenantId      String
   token         String    @unique
   userId        String?
   customerId    String?
   userType      String
   expiresAt     DateTime
   createdAt     DateTime  @default(now())
+  isRevoked     Boolean   @default(false)
   revokedAt     DateTime?
   revokedReason String?
   replacedById  String?
   userAgent     String?
   ipAddress     String?
 
+  @@index([tenantId])
   @@index([userId])
   @@index([customerId])
   @@index([token])
   @@index([expiresAt])
+  @@index([isRevoked])
 }
 
 model PasswordResetToken {

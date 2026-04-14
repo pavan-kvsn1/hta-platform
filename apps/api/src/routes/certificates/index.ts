@@ -1,0 +1,936 @@
+import { FastifyPluginAsync } from 'fastify'
+import { z } from 'zod'
+import crypto from 'crypto'
+import { prisma, Prisma } from '@hta/database'
+import { requireStaff, requireAuth, requireAdmin } from '../../middleware/auth.js'
+
+// Type for Prisma transaction client
+type TransactionClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
+
+// Schema for creating a certificate
+const createCertificateSchema = z.object({
+  certificateNumber: z.string().min(1),
+  calibratedAt: z.string().optional(),
+  srfNumber: z.string().optional().nullable(),
+  srfDate: z.string().optional().nullable(),
+  dateOfCalibration: z.string().optional().nullable(),
+  calibrationTenure: z.number().optional().default(12),
+  dueDateAdjustment: z.number().optional().default(0),
+  calibrationDueDate: z.string().optional().nullable(),
+  dueDateNotApplicable: z.boolean().optional().default(false),
+  customerName: z.string().min(1),
+  customerAddress: z.string().optional(),
+  customerContactName: z.string().optional(),
+  customerContactEmail: z.string().email().optional().nullable(),
+  uucDescription: z.string().min(1),
+  uucMake: z.string().optional(),
+  uucModel: z.string().optional(),
+  uucSerialNumber: z.string().optional(),
+  uucInstrumentId: z.string().optional().nullable(),
+  uucLocationName: z.string().optional().nullable(),
+  uucMachineName: z.string().optional().nullable(),
+  ambientTemperature: z.string().optional().nullable(),
+  relativeHumidity: z.string().optional().nullable(),
+  calibrationStatus: z.array(z.unknown()).optional(),
+  stickerOldRemoved: z.string().optional().nullable(),
+  stickerNewAffixed: z.string().optional().nullable(),
+  selectedConclusionStatements: z.array(z.unknown()).optional(),
+  additionalConclusionStatement: z.string().optional().nullable(),
+  parameters: z.array(z.object({
+    parameterName: z.string(),
+    parameterUnit: z.string().default(''),
+    rangeMin: z.string().optional().nullable(),
+    rangeMax: z.string().optional().nullable(),
+    rangeUnit: z.string().optional().nullable(),
+    operatingMin: z.string().optional().nullable(),
+    operatingMax: z.string().optional().nullable(),
+    operatingUnit: z.string().optional().nullable(),
+    leastCountValue: z.string().optional().nullable(),
+    leastCountUnit: z.string().optional().nullable(),
+    accuracyValue: z.string().optional().nullable(),
+    accuracyUnit: z.string().optional().nullable(),
+    accuracyType: z.string().optional().default('ABSOLUTE'),
+    errorFormula: z.string().optional().default('A-B'),
+    showAfterAdjustment: z.boolean().optional().default(false),
+    requiresBinning: z.boolean().optional().default(false),
+    bins: z.array(z.unknown()).optional().nullable(),
+    sopReference: z.string().optional().nullable(),
+    masterInstrumentId: z.union([z.string(), z.number()]).optional().nullable(),
+    results: z.array(z.object({
+      pointNumber: z.number(),
+      standardReading: z.string().optional().nullable(),
+      beforeAdjustment: z.string().optional().nullable(),
+      afterAdjustment: z.string().optional().nullable(),
+      errorObserved: z.number().optional().nullable(),
+      isOutOfLimit: z.boolean().optional().default(false),
+    })).optional(),
+  })).optional(),
+  masterInstruments: z.array(z.object({
+    masterInstrumentId: z.union([z.string(), z.number()]).optional(),
+    category: z.string().optional().nullable(),
+    description: z.string().optional().nullable(),
+    make: z.string().optional().nullable(),
+    model: z.string().optional().nullable(),
+    assetNo: z.string().optional().nullable(),
+    serialNumber: z.string().optional().nullable(),
+    calibratedAt: z.string().optional().nullable(),
+    reportNo: z.string().optional().nullable(),
+    calibrationDueDate: z.string().optional().nullable(),
+    sopReference: z.string().optional(),
+  })).optional(),
+})
+
+const certificateRoutes: FastifyPluginAsync = async (fastify) => {
+  // GET /api/certificates - List certificates for the current user
+  fastify.get('/', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+
+    const certificates = await prisma.certificate.findMany({
+      where: {
+        tenantId,
+        createdById: userId,
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    return certificates
+  })
+
+  // GET /api/certificates/all - List all certificates (for admins/reviewers)
+  fastify.get('/all', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const tenantId = request.tenantId
+    const user = request.user!
+
+    // Build where clause based on user role
+    const where: Record<string, unknown> = { tenantId }
+
+    // Non-admins can only see their own or ones they're reviewing
+    if (!user.isAdmin && user.role !== 'ADMIN') {
+      where.OR = [
+        { createdById: user.sub },
+        { reviewerId: user.sub },
+      ]
+    }
+
+    const certificates = await prisma.certificate.findMany({
+      where,
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        reviewer: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    return certificates
+  })
+
+  // POST /api/certificates - Create a new certificate
+  fastify.post('/', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+
+    const body = createCertificateSchema.parse(request.body)
+
+    // Create certificate with transaction
+    const certificate = await prisma.$transaction(async (tx: TransactionClient) => {
+      // Create the certificate
+      const cert = await tx.certificate.create({
+        data: {
+          tenantId,
+          certificateNumber: body.certificateNumber,
+          status: 'DRAFT',
+          currentRevision: 1,
+          calibratedAt: body.calibratedAt,
+          srfNumber: body.srfNumber || null,
+          srfDate: body.srfDate ? new Date(body.srfDate) : null,
+          dateOfCalibration: body.dateOfCalibration ? new Date(body.dateOfCalibration) : null,
+          calibrationTenure: body.calibrationTenure || 12,
+          dueDateAdjustment: body.dueDateAdjustment || 0,
+          calibrationDueDate: body.calibrationDueDate ? new Date(body.calibrationDueDate) : null,
+          dueDateNotApplicable: body.dueDateNotApplicable || false,
+          customerName: body.customerName,
+          customerAddress: body.customerAddress,
+          customerContactName: body.customerContactName,
+          customerContactEmail: body.customerContactEmail,
+          uucDescription: body.uucDescription,
+          uucMake: body.uucMake,
+          uucModel: body.uucModel,
+          uucSerialNumber: body.uucSerialNumber,
+          uucInstrumentId: body.uucInstrumentId || null,
+          uucLocationName: body.uucLocationName || null,
+          uucMachineName: body.uucMachineName || null,
+          ambientTemperature: body.ambientTemperature || null,
+          relativeHumidity: body.relativeHumidity || null,
+          calibrationStatus: JSON.stringify(body.calibrationStatus || []),
+          stickerOldRemoved: body.stickerOldRemoved || null,
+          stickerNewAffixed: body.stickerNewAffixed || null,
+          selectedConclusionStatements: JSON.stringify(body.selectedConclusionStatements || []),
+          additionalConclusionStatement: body.additionalConclusionStatement || null,
+          createdById: userId,
+          lastModifiedById: userId,
+        },
+      })
+
+      // Create parameters and results
+      if (body.parameters && body.parameters.length > 0) {
+        for (let i = 0; i < body.parameters.length; i++) {
+          const param = body.parameters[i]
+          const createdParam = await tx.parameter.create({
+            data: {
+              certificateId: cert.id,
+              parameterName: param.parameterName,
+              parameterUnit: param.parameterUnit,
+              rangeMin: param.rangeMin || null,
+              rangeMax: param.rangeMax || null,
+              rangeUnit: param.rangeUnit || null,
+              operatingMin: param.operatingMin || null,
+              operatingMax: param.operatingMax || null,
+              operatingUnit: param.operatingUnit || null,
+              leastCountValue: param.leastCountValue || null,
+              leastCountUnit: param.leastCountUnit || null,
+              accuracyValue: param.accuracyValue || null,
+              accuracyUnit: param.accuracyUnit || null,
+              accuracyType: param.accuracyType || 'ABSOLUTE',
+              errorFormula: param.errorFormula || 'A-B',
+              showAfterAdjustment: param.showAfterAdjustment || false,
+              requiresBinning: param.requiresBinning || false,
+              bins: param.bins && param.bins.length > 0 ? (param.bins as Prisma.InputJsonValue) : undefined,
+              sopReference: param.sopReference || null,
+              masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
+              sortOrder: i,
+            },
+          })
+
+          // Create calibration results
+          if (param.results && param.results.length > 0) {
+            await tx.calibrationResult.createMany({
+              data: param.results.map((result) => ({
+                parameterId: createdParam.id,
+                pointNumber: result.pointNumber,
+                standardReading: result.standardReading || null,
+                beforeAdjustment: result.beforeAdjustment || null,
+                afterAdjustment: result.afterAdjustment || null,
+                errorObserved: result.errorObserved ?? null,
+                isOutOfLimit: result.isOutOfLimit || false,
+              })),
+            })
+          }
+        }
+      }
+
+      // Create master instrument links
+      if (body.masterInstruments && body.masterInstruments.length > 0) {
+        for (const mi of body.masterInstruments) {
+          if (mi.masterInstrumentId) {
+            await tx.certificateMasterInstrument.create({
+              data: {
+                certificateId: cert.id,
+                masterInstrumentId: String(mi.masterInstrumentId),
+                category: mi.category || null,
+                description: mi.description || null,
+                make: mi.make || null,
+                model: mi.model || null,
+                assetNo: mi.assetNo || null,
+                serialNumber: mi.serialNumber || null,
+                calibratedAt: mi.calibratedAt || null,
+                reportNo: mi.reportNo || null,
+                calibrationDueDate: mi.calibrationDueDate || null,
+                sopReference: mi.sopReference || '',
+              },
+            })
+          }
+        }
+      }
+
+      // Create initial event
+      await tx.certificateEvent.create({
+        data: {
+          certificateId: cert.id,
+          sequenceNumber: 1,
+          revision: 1,
+          eventType: 'CERTIFICATE_CREATED',
+          eventData: JSON.stringify({
+            certificateNumber: body.certificateNumber,
+            initialData: {
+              customerName: body.customerName,
+              uucDescription: body.uucDescription,
+              dateOfCalibration: body.dateOfCalibration,
+            },
+          }),
+          userId,
+          userRole,
+        },
+      })
+
+      // Create audit log
+      await tx.auditLog.create({
+        data: {
+          entityType: 'Certificate',
+          entityId: cert.id,
+          action: 'CREATE',
+          actorId: userId,
+          actorType: 'USER',
+          changes: JSON.stringify({ certificateNumber: body.certificateNumber }),
+        },
+      })
+
+      return cert
+    })
+
+    return {
+      success: true,
+      certificate: {
+        id: certificate.id,
+        certificateNumber: certificate.certificateNumber,
+      },
+    }
+  })
+
+  // GET /api/certificates/:id - Get single certificate
+  fastify.get<{ Params: { id: string } }>('/:id', {
+    preHandler: [requireAuth],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id } = request.params
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        reviewer: {
+          select: { id: true, name: true, email: true },
+        },
+        parameters: {
+          include: {
+            results: {
+              orderBy: { pointNumber: 'asc' },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
+        masterInstruments: true,
+        certificateImages: true,
+        uucImages: true,
+      },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    return certificate
+  })
+
+  // PUT /api/certificates/:id - Update certificate
+  fastify.put<{ Params: { id: string } }>('/:id', {
+    preHandler: [requireStaff],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const { id } = request.params
+
+    // Verify ownership or admin access
+    const existing = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+    })
+
+    if (!existing) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    // Only creator or admin can update
+    if (existing.createdById !== userId && !request.user!.isAdmin) {
+      return reply.status(403).send({ error: 'Not authorized to update this certificate' })
+    }
+
+    // Only allow updates on DRAFT or REVISION_REQUIRED status
+    if (!['DRAFT', 'REVISION_REQUIRED'].includes(existing.status)) {
+      return reply.status(400).send({
+        error: 'Cannot update certificate in current status',
+        status: existing.status,
+      })
+    }
+
+    const body = request.body as Record<string, unknown>
+
+    const certificate = await prisma.certificate.update({
+      where: { id },
+      data: {
+        ...body,
+        lastModifiedById: userId,
+        updatedAt: new Date(),
+      },
+    })
+
+    return { success: true, certificate }
+  })
+
+  // DELETE /api/certificates/:id - Delete draft certificate
+  fastify.delete<{ Params: { id: string } }>('/:id', {
+    preHandler: [requireStaff],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const { id } = request.params
+
+    const existing = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+    })
+
+    if (!existing) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    // Only creator can delete, and only drafts
+    if (existing.createdById !== userId) {
+      return reply.status(403).send({ error: 'Not authorized to delete this certificate' })
+    }
+
+    if (existing.status !== 'DRAFT') {
+      return reply.status(400).send({ error: 'Only draft certificates can be deleted' })
+    }
+
+    await prisma.certificate.delete({ where: { id } })
+
+    return { success: true }
+  })
+
+  // POST /api/certificates/:id/submit - Submit for peer review
+  fastify.post<{ Params: { id: string } }>('/:id/submit', {
+    preHandler: [requireStaff],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+    const userName = request.user!.name
+    const userEmail = request.user!.email
+    const { id } = request.params
+    const body = request.body as {
+      engineerNotes?: string
+      signatureData?: string
+      signerName?: string
+      reviewerId?: string
+      sectionResponses?: Record<string, string>
+    }
+
+    // Validate signature
+    if (!body.signatureData || !body.signerName?.trim()) {
+      return reply.status(400).send({ error: 'Signature and signer name are required' })
+    }
+
+    // Validate signer name matches profile
+    if (userName && body.signerName.trim().toLowerCase() !== userName.toLowerCase()) {
+      return reply.status(400).send({ error: 'Signer name must match your profile name' })
+    }
+
+    // Get certificate
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+      include: {
+        parameters: { include: { results: true } },
+        masterInstruments: true,
+      },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    // Check ownership
+    if (certificate.createdById !== userId && !request.user!.isAdmin) {
+      return reply.status(403).send({ error: 'Forbidden' })
+    }
+
+    // Check status
+    if (certificate.status !== 'DRAFT' && certificate.status !== 'REVISION_REQUIRED') {
+      return reply.status(400).send({ error: `Cannot submit certificate with status: ${certificate.status}` })
+    }
+
+    const isResubmission = certificate.status === 'REVISION_REQUIRED'
+    const effectiveReviewerId = certificate.reviewerId || body.reviewerId
+
+    // Validate reviewer
+    if (!effectiveReviewerId) {
+      return reply.status(400).send({ error: 'Please select a reviewer for the certificate' })
+    }
+
+    // Validate required fields
+    const validationErrors: string[] = []
+    if (!certificate.dateOfCalibration) validationErrors.push('Date of calibration is required')
+    if (!certificate.customerName) validationErrors.push('Customer name is required')
+    if (!certificate.uucDescription) validationErrors.push('UUC description is required')
+    if (certificate.masterInstruments.length === 0) validationErrors.push('At least one master instrument is required')
+    if (!certificate.ambientTemperature) validationErrors.push('Ambient temperature is required')
+
+    if (validationErrors.length > 0) {
+      return reply.status(400).send({ error: 'Validation failed', validationErrors })
+    }
+
+    // Submit in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const lastEvent = await tx.certificateEvent.findFirst({
+        where: { certificateId: id },
+        orderBy: { sequenceNumber: 'desc' },
+      })
+      const nextSequence = (lastEvent?.sequenceNumber ?? 0) + 1
+      const newRevision = isResubmission ? certificate.currentRevision + 1 : certificate.currentRevision
+
+      // Update certificate
+      const cert = await tx.certificate.update({
+        where: { id },
+        data: {
+          status: 'PENDING_REVIEW',
+          currentRevision: newRevision,
+          lastModifiedById: userId,
+          ...(body.reviewerId && !certificate.reviewerId ? { reviewerId: body.reviewerId } : {}),
+        },
+      })
+
+      // Create event
+      await tx.certificateEvent.create({
+        data: {
+          certificateId: id,
+          sequenceNumber: nextSequence,
+          revision: newRevision,
+          eventType: isResubmission ? 'RESUBMITTED_FOR_REVIEW' : 'SUBMITTED_FOR_REVIEW',
+          eventData: JSON.stringify({
+            previousStatus: certificate.status,
+            newStatus: 'PENDING_REVIEW',
+            submittedAt: new Date().toISOString(),
+            isResubmission,
+            engineerNotes: body.engineerNotes || null,
+            hasSignature: true,
+          }),
+          userId,
+          userRole,
+        },
+      })
+
+      // Delete existing signatures and create new
+      await tx.signature.deleteMany({ where: { certificateId: id } })
+      await tx.signature.create({
+        data: {
+          certificateId: id,
+          signerType: 'ASSIGNEE',
+          signerName: body.signerName!,
+          signerEmail: userEmail,
+          signatureData: body.signatureData!,
+          signerId: userId,
+        },
+      })
+
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          entityType: 'Certificate',
+          entityId: cert.id,
+          action: isResubmission ? 'RESUBMIT_FOR_REVIEW' : 'SUBMIT_FOR_REVIEW',
+          actorId: userId,
+          actorType: 'USER',
+          changes: JSON.stringify({
+            previousStatus: certificate.status,
+            newStatus: 'PENDING_REVIEW',
+          }),
+        },
+      })
+
+      return cert
+    })
+
+    return {
+      success: true,
+      message: isResubmission ? 'Certificate resubmitted for peer review' : 'Certificate submitted for peer review',
+      certificate: {
+        id: result.id,
+        certificateNumber: result.certificateNumber,
+        status: result.status,
+        revision: result.currentRevision,
+      },
+    }
+  })
+
+  // POST /api/certificates/:id/review - Review certificate (approve/reject/request revision)
+  fastify.post<{ Params: { id: string } }>('/:id/review', {
+    preHandler: [requireStaff],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userEmail = request.user!.email
+    const { id } = request.params
+    const body = request.body as {
+      action: 'approve' | 'request_revision' | 'reject'
+      comment?: string
+      sectionFeedbacks?: { section: string; comment: string }[]
+      generalNotes?: string
+      signatureData?: string
+      signerName?: string
+      sendToCustomer?: { email: string; name: string; message?: string }
+    }
+
+    // Get certificate
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+      include: {
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    // Verify reviewer
+    if (certificate.reviewerId !== userId) {
+      return reply.status(403).send({ error: 'You are not the reviewer for this certificate' })
+    }
+
+    // Check status
+    const reviewableStatuses = ['PENDING_REVIEW', 'CUSTOMER_REVISION_REQUIRED']
+    if (!reviewableStatuses.includes(certificate.status)) {
+      return reply.status(400).send({ error: `Certificate is not in a reviewable state: ${certificate.status}` })
+    }
+
+    // Validate action
+    if (!['approve', 'request_revision', 'reject'].includes(body.action)) {
+      return reply.status(400).send({ error: 'Invalid action' })
+    }
+
+    // Validate based on action
+    if (body.action === 'request_revision') {
+      const hasFeedback = body.sectionFeedbacks?.some(sf => sf.comment?.trim()) || body.comment?.trim()
+      if (!hasFeedback) {
+        return reply.status(400).send({ error: 'Feedback is required for revision requests' })
+      }
+    }
+
+    if (body.action === 'reject' && !body.comment?.trim()) {
+      return reply.status(400).send({ error: 'Comment is required for rejections' })
+    }
+
+    if (body.action === 'approve') {
+      if (!body.signatureData || !body.signerName?.trim()) {
+        return reply.status(400).send({ error: 'Signature and signer name are required for approval' })
+      }
+    }
+
+    // Process action
+    if (body.action === 'approve') {
+      const newStatus = body.sendToCustomer ? 'PENDING_CUSTOMER_APPROVAL' : 'APPROVED'
+
+      const result = await prisma.$transaction(async (tx) => {
+        const lastEvent = await tx.certificateEvent.findFirst({
+          where: { certificateId: id },
+          orderBy: { sequenceNumber: 'desc' },
+        })
+        const nextSequence = (lastEvent?.sequenceNumber ?? 0) + 1
+
+        // Update certificate
+        await tx.certificate.update({
+          where: { id },
+          data: {
+            status: newStatus,
+            lastModifiedById: userId,
+          },
+        })
+
+        // Create event
+        await tx.certificateEvent.create({
+          data: {
+            certificateId: id,
+            sequenceNumber: nextSequence,
+            revision: certificate.currentRevision,
+            userId,
+            userRole: 'ENGINEER',
+            eventType: body.sendToCustomer ? 'REVIEWER_APPROVED_SENT_TO_CUSTOMER' : 'APPROVED',
+            eventData: JSON.stringify({
+              comment: body.comment || 'Certificate approved by peer reviewer.',
+              reviewerId: userId,
+              signerName: body.signerName,
+              signerEmail: userEmail,
+              sentToCustomer: !!body.sendToCustomer,
+            }),
+          },
+        })
+
+        // Store reviewer signature
+        await tx.signature.deleteMany({ where: { certificateId: id, signerType: 'REVIEWER' } })
+        await tx.signature.create({
+          data: {
+            certificateId: id,
+            signerType: 'REVIEWER',
+            signerName: body.signerName!,
+            signerEmail: userEmail,
+            signatureData: body.signatureData!,
+            signerId: userId,
+          },
+        })
+
+        // Create approval token if sending to customer
+        let tokenResult = null
+        if (body.sendToCustomer) {
+          const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          const token = crypto.randomUUID()
+
+          // Find or create customer
+          let customer = await tx.customerUser.findUnique({
+            where: { tenantId_email: { tenantId, email: body.sendToCustomer.email.toLowerCase() } },
+          })
+
+          if (!customer) {
+            const tempPasswordHash = crypto.randomBytes(32).toString('hex')
+            customer = await tx.customerUser.create({
+              data: {
+                tenantId,
+                email: body.sendToCustomer.email.toLowerCase(),
+                name: body.sendToCustomer.name,
+                passwordHash: tempPasswordHash,
+                companyName: certificate.customerName || 'Unknown Company',
+                isActive: true,
+              },
+            })
+          }
+
+          await tx.approvalToken.create({
+            data: {
+              token,
+              certificateId: id,
+              customerId: customer.id,
+              expiresAt,
+            },
+          })
+
+          tokenResult = { token, customerId: customer.id, expiresAt }
+        }
+
+        return { tokenResult }
+      })
+
+      return {
+        success: true,
+        message: body.sendToCustomer ? 'Certificate approved and sent to customer' : 'Certificate approved',
+        ...(result.tokenResult && {
+          customerToken: {
+            token: result.tokenResult.token,
+            expiresAt: result.tokenResult.expiresAt.toISOString(),
+          },
+        }),
+      }
+    }
+
+    if (body.action === 'request_revision') {
+      await prisma.$transaction(async (tx) => {
+        const lastEvent = await tx.certificateEvent.findFirst({
+          where: { certificateId: id },
+          orderBy: { sequenceNumber: 'desc' },
+        })
+        const nextSequence = (lastEvent?.sequenceNumber ?? 0) + 1
+
+        await tx.certificate.update({
+          where: { id },
+          data: { status: 'REVISION_REQUIRED', lastModifiedById: userId },
+        })
+
+        const event = await tx.certificateEvent.create({
+          data: {
+            certificateId: id,
+            sequenceNumber: nextSequence,
+            revision: certificate.currentRevision,
+            userId,
+            userRole: 'ENGINEER',
+            eventType: 'REVISION_REQUESTED',
+            eventData: JSON.stringify({
+              feedbackCount: (body.sectionFeedbacks?.length || 0) + (body.generalNotes ? 1 : 0),
+              reviewerId: userId,
+            }),
+          },
+        })
+
+        // Create feedback records
+        if (body.sectionFeedbacks) {
+          for (const sf of body.sectionFeedbacks) {
+            if (sf.comment?.trim()) {
+              await tx.reviewFeedback.create({
+                data: {
+                  certificateId: id,
+                  userId,
+                  feedbackType: 'REVISION_REQUESTED',
+                  comment: sf.comment.trim(),
+                  targetSection: sf.section,
+                  revisionNumber: certificate.currentRevision,
+                  eventId: event.id,
+                },
+              })
+            }
+          }
+        }
+
+        if (body.generalNotes?.trim() || body.comment?.trim()) {
+          await tx.reviewFeedback.create({
+            data: {
+              certificateId: id,
+              userId,
+              feedbackType: 'REVISION_REQUESTED',
+              comment: body.generalNotes?.trim() || body.comment!.trim(),
+              revisionNumber: certificate.currentRevision,
+              eventId: event.id,
+            },
+          })
+        }
+      })
+
+      return { success: true, message: 'Revision requested' }
+    }
+
+    if (body.action === 'reject') {
+      await prisma.$transaction(async (tx) => {
+        const lastEvent = await tx.certificateEvent.findFirst({
+          where: { certificateId: id },
+          orderBy: { sequenceNumber: 'desc' },
+        })
+        const nextSequence = (lastEvent?.sequenceNumber ?? 0) + 1
+
+        await tx.certificate.update({
+          where: { id },
+          data: { status: 'REJECTED', lastModifiedById: userId },
+        })
+
+        await tx.reviewFeedback.create({
+          data: {
+            certificateId: id,
+            userId,
+            feedbackType: 'REJECTED',
+            comment: body.comment!.trim(),
+            revisionNumber: certificate.currentRevision,
+          },
+        })
+
+        await tx.certificateEvent.create({
+          data: {
+            certificateId: id,
+            sequenceNumber: nextSequence,
+            revision: certificate.currentRevision,
+            userId,
+            userRole: 'ENGINEER',
+            eventType: 'REJECTED',
+            eventData: JSON.stringify({ comment: body.comment!.trim(), reviewerId: userId }),
+          },
+        })
+      })
+
+      return { success: true, message: 'Certificate rejected' }
+    }
+
+    return reply.status(400).send({ error: 'Invalid action' })
+  })
+
+  // POST /api/certificates/:id/assign-revision - Admin assigns customer revision to engineer
+  fastify.post<{ Params: { id: string } }>('/:id/assign-revision', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+    const userName = request.user!.name
+    const { id } = request.params
+    const body = request.body as {
+      customerFeedback?: string
+      additionalNotes?: string
+      sectionFeedbacks?: { section: string; comment: string }[]
+      generalNotes?: string
+    }
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+      include: { createdBy: { select: { id: true, name: true } } },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    if (certificate.status !== 'CUSTOMER_REVISION_REQUIRED') {
+      return reply.status(400).send({ error: 'Certificate is not in customer revision required status' })
+    }
+
+    const now = new Date()
+
+    await prisma.$transaction(async (tx) => {
+      await tx.certificate.update({
+        where: { id },
+        data: { status: 'REVISION_REQUIRED', updatedAt: now },
+      })
+
+      // Create feedback records
+      if (body.sectionFeedbacks) {
+        for (const sf of body.sectionFeedbacks) {
+          if (sf.comment?.trim()) {
+            await tx.reviewFeedback.create({
+              data: {
+                certificateId: id,
+                revisionNumber: certificate.currentRevision,
+                feedbackType: 'CUSTOMER_REVISION_FORWARDED',
+                comment: sf.comment.trim(),
+                targetSection: sf.section,
+                userId,
+              },
+            })
+          }
+        }
+      }
+
+      if (body.generalNotes?.trim()) {
+        await tx.reviewFeedback.create({
+          data: {
+            certificateId: id,
+            revisionNumber: certificate.currentRevision,
+            feedbackType: 'CUSTOMER_REVISION_FORWARDED',
+            comment: body.generalNotes.trim(),
+            userId,
+          },
+        })
+      }
+
+      const lastEvent = await tx.certificateEvent.findFirst({
+        where: { certificateId: id },
+        orderBy: { sequenceNumber: 'desc' },
+      })
+
+      await tx.certificateEvent.create({
+        data: {
+          certificateId: id,
+          sequenceNumber: (lastEvent?.sequenceNumber || 0) + 1,
+          revision: certificate.currentRevision,
+          eventType: 'CUSTOMER_REVISION_FORWARDED',
+          eventData: JSON.stringify({
+            customerFeedback: body.customerFeedback,
+            additionalNotes: body.additionalNotes,
+            sectionFeedbacks: body.sectionFeedbacks,
+            forwardedAt: now.toISOString(),
+            forwardedBy: userName,
+            engineerId: certificate.createdById,
+          }),
+          userId,
+          userRole,
+        },
+      })
+    })
+
+    return { success: true, message: 'Certificate assigned to engineer for revision' }
+  })
+}
+
+export default certificateRoutes

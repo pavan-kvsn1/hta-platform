@@ -1,35 +1,124 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
+import rateLimit from '@fastify/rate-limit'
+import jwt from '@fastify/jwt'
+
+// Import routes
+import authRoutes from './routes/auth/index.js'
+import healthRoutes from './routes/health/index.js'
+import certificateRoutes from './routes/certificates/index.js'
+import instrumentRoutes from './routes/instruments/index.js'
+import userRoutes from './routes/users/index.js'
+import adminRoutes from './routes/admin/index.js'
+import customerRoutes from './routes/customer/index.js'
+
+// Import middleware
+import { tenantMiddleware } from './middleware/tenant.js'
+import { errorHandler } from './middleware/error-handler.js'
 
 const server = Fastify({
-  logger: true,
+  logger: {
+    level: process.env.LOG_LEVEL || 'info',
+    transport: process.env.NODE_ENV === 'development'
+      ? { target: 'pino-pretty' }
+      : undefined,
+  },
 })
 
-// Security middleware
-await server.register(helmet)
+// =============================================================================
+// PLUGINS
+// =============================================================================
+
+// Security headers
+await server.register(helmet, {
+  contentSecurityPolicy: process.env.NODE_ENV === 'production',
+})
+
+// CORS
 await server.register(cors, {
   origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
 })
 
-// Health check
-server.get('/health', async () => {
-  return { status: 'ok', timestamp: new Date().toISOString() }
+// Rate limiting
+await server.register(rateLimit, {
+  max: 100,
+  timeWindow: '1 minute',
+  keyGenerator: (request) => {
+    return request.headers['x-forwarded-for'] as string || request.ip
+  },
 })
 
-// Routes will be registered here
-// await server.register(authRoutes, { prefix: '/api/auth' })
-// await server.register(certificateRoutes, { prefix: '/api/certificates' })
-// await server.register(adminRoutes, { prefix: '/api/admin' })
-// await server.register(customerRoutes, { prefix: '/api/customer' })
+// JWT
+await server.register(jwt, {
+  secret: process.env.JWT_SECRET || process.env.AUTH_SECRET || 'dev-secret-change-in-production',
+  sign: {
+    expiresIn: '15m', // Access token expires in 15 minutes
+  },
+})
+
+// =============================================================================
+// MIDDLEWARE
+// =============================================================================
+
+// Tenant identification for all routes except health
+server.addHook('preHandler', async (request, reply) => {
+  // Skip tenant check for health endpoints
+  if (request.url.startsWith('/health')) {
+    return
+  }
+  await tenantMiddleware(request, reply)
+})
+
+// Error handler
+server.setErrorHandler(errorHandler)
+
+// =============================================================================
+// ROUTES
+// =============================================================================
+
+// Health check (no auth required)
+await server.register(healthRoutes, { prefix: '/health' })
+
+// Auth routes
+await server.register(authRoutes, { prefix: '/api/auth' })
+
+// Certificate routes
+await server.register(certificateRoutes, { prefix: '/api/certificates' })
+
+// Instrument routes
+await server.register(instrumentRoutes, { prefix: '/api/instruments' })
+
+// User routes
+await server.register(userRoutes, { prefix: '/api/users' })
+
+// Admin routes
+await server.register(adminRoutes, { prefix: '/api/admin' })
+
+// Customer routes
+await server.register(customerRoutes, { prefix: '/api/customer' })
+
+// =============================================================================
+// START SERVER
+// =============================================================================
 
 const start = async () => {
   try {
     const port = parseInt(process.env.PORT || '4000', 10)
     const host = process.env.HOST || '0.0.0.0'
     await server.listen({ port, host })
-    console.log(`API server running on http://${host}:${port}`)
+    console.log(`
+╔═══════════════════════════════════════════════════════════╗
+║           HTA Platform API Server                         ║
+╠═══════════════════════════════════════════════════════════╣
+║  Status:  Running                                         ║
+║  URL:     http://${host}:${port}                             ║
+║  Env:     ${process.env.NODE_ENV || 'development'}                                    ║
+╚═══════════════════════════════════════════════════════════╝
+    `)
   } catch (err) {
     server.log.error(err)
     process.exit(1)
@@ -37,3 +126,5 @@ const start = async () => {
 }
 
 start()
+
+export default server
