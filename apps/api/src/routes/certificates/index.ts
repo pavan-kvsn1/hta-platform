@@ -931,6 +931,345 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     return { success: true, message: 'Certificate assigned to engineer for revision' }
   })
+
+  // POST /api/certificates/:id/send-to-customer - Send certificate to customer for approval
+  fastify.post<{ Params: { id: string } }>('/:id/send-to-customer', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+    const userName = request.user!.name
+    const { id } = request.params
+    const body = request.body as {
+      customerEmail: string
+      customerName: string
+      message?: string
+    }
+
+    if (!body.customerEmail?.trim()) {
+      return reply.status(400).send({ error: 'Customer email is required' })
+    }
+
+    if (!body.customerName?.trim()) {
+      return reply.status(400).send({ error: 'Customer name is required' })
+    }
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    if (certificate.status !== 'PENDING_CUSTOMER_APPROVAL') {
+      return reply.status(400).send({ error: 'Certificate must be approved by Reviewer before sending to customer' })
+    }
+
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    const token = crypto.randomUUID()
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Find or create customer
+      let customer = await tx.customerUser.findUnique({
+        where: { tenantId_email: { tenantId, email: body.customerEmail.toLowerCase() } },
+      })
+
+      if (!customer) {
+        const tempPasswordHash = crypto.randomBytes(32).toString('hex')
+        customer = await tx.customerUser.create({
+          data: {
+            tenantId,
+            email: body.customerEmail.toLowerCase(),
+            name: body.customerName,
+            passwordHash: tempPasswordHash,
+            companyName: certificate.customerName || 'Unknown Company',
+            isActive: true,
+          },
+        })
+      }
+
+      // Revoke existing tokens
+      await tx.approvalToken.updateMany({
+        where: { certificateId: id, usedAt: null },
+        data: { usedAt: now },
+      })
+
+      // Create new token
+      const approvalToken = await tx.approvalToken.create({
+        data: {
+          token,
+          certificateId: id,
+          customerId: customer.id,
+          expiresAt,
+        },
+      })
+
+      // Update certificate
+      await tx.certificate.update({
+        where: { id },
+        data: {
+          customerName: certificate.customerName || body.customerName,
+          updatedAt: now,
+        },
+      })
+
+      // Log event
+      const lastEvent = await tx.certificateEvent.findFirst({
+        where: { certificateId: id },
+        orderBy: { sequenceNumber: 'desc' },
+      })
+
+      await tx.certificateEvent.create({
+        data: {
+          certificateId: id,
+          sequenceNumber: (lastEvent?.sequenceNumber || 0) + 1,
+          revision: certificate.currentRevision,
+          eventType: 'SENT_TO_CUSTOMER',
+          eventData: JSON.stringify({
+            customerEmail: body.customerEmail.toLowerCase(),
+            customerName: body.customerName,
+            message: body.message || null,
+            tokenId: approvalToken.id,
+            expiresAt: expiresAt.toISOString(),
+            sentBy: userName,
+          }),
+          userId,
+          userRole,
+        },
+      })
+
+      return { token: approvalToken.token, customerId: customer.id, expiresAt: approvalToken.expiresAt }
+    })
+
+    return {
+      success: true,
+      token: result.token,
+      tokenExpiry: result.expiresAt.toISOString(),
+      customerId: result.customerId,
+    }
+  })
+
+  // GET /api/certificates/:id/send-to-customer - Get customer status
+  fastify.get<{ Params: { id: string } }>('/:id/send-to-customer', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const { id } = request.params
+
+    const activeToken = await prisma.approvalToken.findFirst({
+      where: {
+        certificateId: id,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      include: { customer: true },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const sentEvent = await prisma.certificateEvent.findFirst({
+      where: { certificateId: id, eventType: 'SENT_TO_CUSTOMER' },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (!activeToken) {
+      return { sent: false, sentTo: null, token: null, canResend: true }
+    }
+
+    let eventData: Record<string, string> = {}
+    if (sentEvent?.eventData) {
+      try {
+        eventData = typeof sentEvent.eventData === 'string'
+          ? JSON.parse(sentEvent.eventData)
+          : sentEvent.eventData as Record<string, string>
+      } catch { /* ignore */ }
+    }
+
+    return {
+      sent: true,
+      sentTo: {
+        email: activeToken.customer.email,
+        name: activeToken.customer.name,
+        sentAt: sentEvent?.createdAt.toISOString() || activeToken.createdAt.toISOString(),
+      },
+      token: {
+        token: activeToken.token,
+        expiresAt: activeToken.expiresAt.toISOString(),
+      },
+      message: eventData?.message || null,
+      canResend: true,
+    }
+  })
+
+  // POST /api/certificates/:id/reply-to-customer - Admin replies to customer feedback
+  fastify.post<{ Params: { id: string } }>('/:id/reply-to-customer', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+    const userName = request.user!.name
+    const { id } = request.params
+    const body = request.body as {
+      response: string
+      resendCertificate?: boolean
+    }
+
+    if (!body.response?.trim()) {
+      return reply.status(400).send({ error: 'Response message is required' })
+    }
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    if (certificate.status !== 'CUSTOMER_REVISION_REQUIRED') {
+      return reply.status(400).send({ error: 'Certificate is not in customer revision required status' })
+    }
+
+    // Get customer info from latest revision event
+    const latestCustomerEvent = await prisma.certificateEvent.findFirst({
+      where: { certificateId: id, eventType: 'CUSTOMER_REVISION_REQUESTED' },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    let customerEmail: string | null = null
+    let customerName: string | null = null
+
+    if (latestCustomerEvent?.eventData) {
+      try {
+        const eventData = typeof latestCustomerEvent.eventData === 'string'
+          ? JSON.parse(latestCustomerEvent.eventData)
+          : latestCustomerEvent.eventData as Record<string, string>
+        customerEmail = eventData.customerEmail
+        customerName = eventData.customerName
+      } catch { /* ignore */ }
+    }
+
+    // Fallback to latest token
+    if (!customerEmail) {
+      const latestToken = await prisma.approvalToken.findFirst({
+        where: { certificateId: id },
+        include: { customer: true },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (latestToken?.customer) {
+        customerEmail = latestToken.customer.email
+        customerName = latestToken.customer.name
+      }
+    }
+
+    const now = new Date()
+
+    const result = await prisma.$transaction(async (tx) => {
+      const lastEvent = await tx.certificateEvent.findFirst({
+        where: { certificateId: id },
+        orderBy: { sequenceNumber: 'desc' },
+      })
+      let nextSeq = (lastEvent?.sequenceNumber || 0) + 1
+
+      // Create reply event
+      await tx.certificateEvent.create({
+        data: {
+          certificateId: id,
+          sequenceNumber: nextSeq,
+          revision: certificate.currentRevision,
+          eventType: 'ADMIN_REPLIED_TO_CUSTOMER',
+          eventData: JSON.stringify({
+            response: body.response.trim(),
+            adminId: userId,
+            adminName: userName,
+            timestamp: now.toISOString(),
+            resendCertificate: !!body.resendCertificate,
+          }),
+          userId,
+          userRole,
+        },
+      })
+      nextSeq++
+
+      let tokenResult = null
+
+      // Resend certificate if requested
+      if (body.resendCertificate && customerEmail) {
+        let customer = await tx.customerUser.findUnique({
+          where: { tenantId_email: { tenantId, email: customerEmail.toLowerCase() } },
+        })
+
+        if (!customer) {
+          const tempPasswordHash = crypto.randomBytes(32).toString('hex')
+          customer = await tx.customerUser.create({
+            data: {
+              tenantId,
+              email: customerEmail.toLowerCase(),
+              name: customerName || 'Customer',
+              passwordHash: tempPasswordHash,
+              companyName: certificate.customerName || 'Unknown Company',
+              isActive: true,
+            },
+          })
+        }
+
+        // Revoke existing tokens
+        await tx.approvalToken.updateMany({
+          where: { certificateId: id, usedAt: null },
+          data: { usedAt: now },
+        })
+
+        // Create new token
+        const token = crypto.randomUUID()
+        const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+        await tx.approvalToken.create({
+          data: { token, certificateId: id, customerId: customer.id, expiresAt },
+        })
+
+        // Update status
+        await tx.certificate.update({
+          where: { id },
+          data: { status: 'PENDING_CUSTOMER_APPROVAL', updatedAt: now },
+        })
+
+        // Create sent event
+        await tx.certificateEvent.create({
+          data: {
+            certificateId: id,
+            sequenceNumber: nextSeq,
+            revision: certificate.currentRevision,
+            eventType: 'SENT_TO_CUSTOMER',
+            eventData: JSON.stringify({
+              customerEmail: customerEmail.toLowerCase(),
+              customerName: customerName || 'Customer',
+              responseToFeedback: body.response.trim(),
+              expiresAt: expiresAt.toISOString(),
+              sentBy: userName,
+            }),
+            userId,
+            userRole,
+          },
+        })
+
+        tokenResult = { token, expiresAt }
+      }
+
+      return { resent: !!body.resendCertificate && !!customerEmail, tokenResult }
+    })
+
+    return {
+      success: true,
+      message: result.resent ? 'Response sent and certificate resent to customer' : 'Response recorded',
+      resent: result.resent,
+      ...(result.tokenResult && {
+        token: result.tokenResult.token,
+        tokenExpiry: result.tokenResult.expiresAt.toISOString(),
+      }),
+    }
+  })
 }
 
 export default certificateRoutes
