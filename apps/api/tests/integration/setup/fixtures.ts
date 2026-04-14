@@ -134,6 +134,7 @@ export async function createTestCertificate(
     uucMake: string
     uucModel: string
     uucSerialNumber: string
+    signedPdfPath: string | null
   }> = {}
 ) {
   const certNumber = overrides.certificateNumber || `HTA/CAL/${Date.now()}/${randomUUID().slice(0, 4)}`
