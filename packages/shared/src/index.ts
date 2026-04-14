@@ -4,10 +4,12 @@
  * Shared utilities, types, and services for HTA platform.
  */
 
-export * from './auth'
-export * from './logger'
-export * from './cache'
-export * from './security'
-export * from './tenant'
-export * from './types'
-export * from './utils'
+export * from './auth/index.js'
+export * from './logger/index.js'
+export * from './cache/index.js'
+export * from './security/index.js'
+export * from './tenant/index.js'
+export * from './types/index.js'
+export * from './utils/index.js'
+export * from './audit/index.js'
+export * from './notifications/index.js'

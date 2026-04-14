@@ -1,11 +1,6 @@
 export { PasswordReset } from './PasswordReset'
 export { StaffActivation } from './StaffActivation'
-
-// TODO: Migrate remaining templates from hta-calibration:
-// - CertificateSubmitted
-// - CertificateReviewed
-// - CertificateSentToCustomer
-// - CustomerApproval
-// - CertificateDownloadReady
-// - PasswordChanged
-// - AccountDeleted
+export { CertificateSubmitted } from './CertificateSubmitted'
+export { CertificateReviewed } from './CertificateReviewed'
+export { CustomerApproval } from './CustomerApproval'
+export { CustomerReview } from './CustomerReview'

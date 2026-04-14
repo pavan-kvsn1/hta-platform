@@ -5,7 +5,7 @@
  * Automatically selects the appropriate provider based on environment.
  */
 
-import { CacheProvider, CacheOptions, CacheConfig, CacheKeys, CacheTTL } from './types'
+import type { CacheProvider, CacheOptions, CacheConfig } from './types'
 import { getMemoryCacheProvider } from './providers/memory'
 
 export { CacheKeys, CacheTTL } from './types'
