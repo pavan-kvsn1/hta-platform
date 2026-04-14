@@ -1,0 +1,111 @@
+# =============================================================================
+# Argo CD Application - HTA Platform
+# =============================================================================
+# This tells Argo CD to:
+#   1. Watch the hta-platform GitHub repo
+#   2. Monitor infra/k8s/overlays/production path
+#   3. Auto-sync changes to the cluster
+# =============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: hta-platform
+  namespace: argocd
+spec:
+  description: HTA Platform production deployment
+
+  # Allow deploying to hta-platform namespace
+  destinations:
+    - namespace: hta-platform
+      server: https://kubernetes.default.svc
+    - namespace: argo-rollouts
+      server: https://kubernetes.default.svc
+
+  # Allow any source repo (restrict in production)
+  sourceRepos:
+    - "https://github.com/pavan-kvsn1/hta-platform.git"
+
+  # Allow all cluster resources
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+
+  # Allow all namespace resources
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hta-platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: hta-platform
+
+  # Source: Your GitHub repository
+  source:
+    repoURL: https://github.com/pavan-kvsn1/hta-platform.git
+    targetRevision: main
+    path: infra/k8s/overlays/production
+
+  # Destination: This cluster, hta-platform namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hta-platform
+
+  # Sync policy
+  syncPolicy:
+    # Auto-sync when git changes detected
+    automated:
+      prune: true        # Delete resources removed from git
+      selfHeal: true     # Revert manual kubectl changes
+      allowEmpty: false  # Don't sync empty manifests
+
+    # Sync options
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+
+    # Retry on failure
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Ignore differences in fields that change at runtime
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # HPA manages this
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas  # HPA manages this
+---
+# Application for Argo Rollouts controller
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+spec:
+  project: hta-platform
+  source:
+    repoURL: https://github.com/pavan-kvsn1/hta-platform.git
+    targetRevision: main
+    path: infra/k8s/base/argo-rollouts
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

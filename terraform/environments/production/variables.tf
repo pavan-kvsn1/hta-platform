@@ -129,3 +129,14 @@ variable "github_repo" {
   description = "GitHub repository (owner/repo)"
   type        = string
 }
+
+# IAP (Identity-Aware Proxy) for Argo CD
+variable "iap_support_email" {
+  description = "Support email for OAuth consent screen"
+  type        = string
+}
+
+variable "iap_authorized_members" {
+  description = "List of members authorized to access Argo CD (e.g., user:you@gmail.com)"
+  type        = list(string)
+}

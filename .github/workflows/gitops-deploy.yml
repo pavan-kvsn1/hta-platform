@@ -1,0 +1,183 @@
+# =============================================================================
+# GitOps Deployment Workflow
+# =============================================================================
+# This workflow:
+#   1. Builds Docker images
+#   2. Pushes to Artifact Registry
+#   3. Creates a PR to update image tags in K8s manifests
+#   4. Argo CD detects the merge and deploys automatically
+#
+# NO kubectl apply - Argo CD handles all deployments
+# =============================================================================
+
+name: GitOps Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "packages/**"
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GAR_LOCATION: asia-south1
+  REPOSITORY: hta-platform
+
+jobs:
+  # ===========================================================================
+  # DETECT CHANGES
+  # ===========================================================================
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      worker: ${{ steps.filter.outputs.worker }}
+      web: ${{ steps.filter.outputs.web }}
+      any_changed: ${{ steps.filter.outputs.api == 'true' || steps.filter.outputs.worker == 'true' || steps.filter.outputs.web == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'apps/api/**'
+              - 'packages/**'
+            worker:
+              - 'apps/worker/**'
+              - 'packages/**'
+            web:
+              - 'apps/web-hta/**'
+              - 'packages/**'
+
+  # ===========================================================================
+  # BUILD AND PUSH IMAGES
+  # ===========================================================================
+  build:
+    name: Build Images
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.any_changed == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      api_tag: ${{ steps.tags.outputs.api }}
+      worker_tag: ${{ steps.tags.outputs.worker }}
+      web_tag: ${{ steps.tags.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for GAR
+        run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
+
+      - name: Generate image tags
+        id: tags
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          echo "api=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/hta-api:${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "worker=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/hta-worker:${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "web=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/hta-web:${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Build and push API image
+        if: needs.changes.outputs.api == 'true'
+        run: |
+          docker build -f apps/api/Dockerfile -t ${{ steps.tags.outputs.api }} .
+          docker push ${{ steps.tags.outputs.api }}
+
+      - name: Build and push Worker image
+        if: needs.changes.outputs.worker == 'true'
+        run: |
+          docker build -f apps/worker/Dockerfile -t ${{ steps.tags.outputs.worker }} .
+          docker push ${{ steps.tags.outputs.worker }}
+
+      - name: Build and push Web image
+        if: needs.changes.outputs.web == 'true'
+        run: |
+          docker build -f apps/web-hta/Dockerfile -t ${{ steps.tags.outputs.web }} .
+          docker push ${{ steps.tags.outputs.web }}
+
+  # ===========================================================================
+  # CREATE PR TO UPDATE MANIFESTS
+  # ===========================================================================
+  update-manifests:
+    name: Update K8s Manifests
+    runs-on: ubuntu-latest
+    needs: [changes, build]
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Update image tags
+        run: |
+          cd infra/k8s/overlays/production
+
+          # Update API image if changed
+          if [[ "${{ needs.changes.outputs.api }}" == "true" ]]; then
+            kustomize edit set image gcr.io/PROJECT_ID/hta-api=${{ needs.build.outputs.api_tag }}
+            echo "Updated API image to ${{ needs.build.outputs.api_tag }}"
+          fi
+
+          # Update Worker image if changed
+          if [[ "${{ needs.changes.outputs.worker }}" == "true" ]]; then
+            kustomize edit set image gcr.io/PROJECT_ID/hta-worker=${{ needs.build.outputs.worker_tag }}
+            echo "Updated Worker image to ${{ needs.build.outputs.worker_tag }}"
+          fi
+
+          # Update Web image if changed
+          if [[ "${{ needs.changes.outputs.web }}" == "true" ]]; then
+            kustomize edit set image gcr.io/PROJECT_ID/hta-web=${{ needs.build.outputs.web_tag }}
+            echo "Updated Web image to ${{ needs.build.outputs.web_tag }}"
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update image tags to ${{ github.sha }}"
+          title: "Deploy: Update images from ${{ github.ref_name }}"
+          body: |
+            ## Automated Deployment PR
+
+            This PR was automatically created by the GitOps workflow.
+
+            ### Changes
+            - **Commit:** ${{ github.sha }}
+            - **Branch:** ${{ github.ref_name }}
+            - **Triggered by:** ${{ github.actor }}
+
+            ### Images Updated
+            ${{ needs.changes.outputs.api == 'true' && format('- API: `{0}`', needs.build.outputs.api_tag) || '' }}
+            ${{ needs.changes.outputs.worker == 'true' && format('- Worker: `{0}`', needs.build.outputs.worker_tag) || '' }}
+            ${{ needs.changes.outputs.web == 'true' && format('- Web: `{0}`', needs.build.outputs.web_tag) || '' }}
+
+            ### What happens when you merge?
+            1. Argo CD detects the change in `infra/k8s/overlays/production/`
+            2. Argo CD syncs the new manifests to the cluster
+            3. Argo Rollouts performs canary deployment (10% → 25% → 50% → 75% → 100%)
+
+            ### Monitoring
+            - [Argo CD Dashboard](https://argocd.hta-calibration.com)
+
+            ---
+            *Merge this PR to deploy. Close it to cancel.*
+          branch: deploy/${{ github.sha }}
+          delete-branch: true
+          labels: |
+            deployment
+            automated

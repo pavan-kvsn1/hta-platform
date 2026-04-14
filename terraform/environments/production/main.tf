@@ -384,3 +384,19 @@ resource "google_project_iam_member" "github_actions_gke_developer" {
   role    = "roles/container.developer"
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
+
+# =============================================================================
+# IAP for Argo CD
+# =============================================================================
+
+module "iap" {
+  source = "../../modules/iap"
+
+  project_id          = var.project_id
+  support_email       = var.iap_support_email
+  application_title   = "HTA Platform"
+  client_display_name = "Argo CD IAP Client"
+
+  # Who can access Argo CD (Google account emails)
+  authorized_members = var.iap_authorized_members
+}

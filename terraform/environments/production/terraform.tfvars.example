@@ -40,3 +40,11 @@ k8s_namespace = "hta-platform"
 
 # GitHub (for Workload Identity Federation)
 github_repo = "your-org/hta-platform"
+
+# IAP (Identity-Aware Proxy) for Argo CD
+iap_support_email = "your-email@gmail.com"
+iap_authorized_members = [
+  "user:your-email@gmail.com",
+  # Add more team members:
+  # "user:teammate@gmail.com",
+]

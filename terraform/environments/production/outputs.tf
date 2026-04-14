@@ -78,3 +78,26 @@ output "web_service_account_email" {
   description = "Web service account email"
   value       = google_service_account.web.email
 }
+
+# Argo CD / IAP outputs
+output "argocd_url" {
+  description = "Argo CD URL"
+  value       = "https://argocd.hta-calibration.com"
+}
+
+output "argocd_ip_address" {
+  description = "Argo CD static IP (point DNS here)"
+  value       = module.iap.argocd_ip_address
+}
+
+output "iap_client_id" {
+  description = "IAP OAuth Client ID (needed for K8s secret)"
+  value       = module.iap.iap_client_id
+  sensitive   = true
+}
+
+output "iap_client_secret" {
+  description = "IAP OAuth Client Secret (needed for K8s secret)"
+  value       = module.iap.iap_client_secret
+  sensitive   = true
+}

@@ -1,0 +1,45 @@
+# =============================================================================
+# Argo CD Configuration
+# =============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Server URL (for UI links)
+  url: https://argocd.hta-calibration.com
+
+  # Disable built-in admin password (using IAP instead)
+  admin.enabled: "false"
+
+  # Enable anonymous access behind IAP (IAP handles auth)
+  users.anonymous.enabled: "true"
+
+  # Repository credentials (configured via UI or secrets)
+  # For private repos, add deploy key or token
+
+  # Kustomize build options
+  kustomize.buildOptions: --enable-helm
+
+  # Resource tracking method
+  application.resourceTrackingMethod: annotation
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Since IAP handles auth, give all authenticated users admin access
+  # Refine this if you add more team members
+  policy.default: role:admin
+  policy.csv: |
+    g, *, role:admin
