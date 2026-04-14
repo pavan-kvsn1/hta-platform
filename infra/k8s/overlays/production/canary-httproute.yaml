@@ -1,0 +1,47 @@
+# =============================================================================
+# Canary HTTPRoute for Traffic Splitting
+# =============================================================================
+# Usage:
+#   1. Deploy canary deployment first (api-canary-deployment.yaml)
+#   2. Apply this HTTPRoute to start traffic splitting
+#   3. Gradually increase canary weight using kubectl patch
+#
+# Traffic shift commands:
+#   # Start with 5%
+#   kubectl patch httproute hta-api-canary -n hta-platform --type=merge -p '{"spec":{"rules":[{"backendRefs":[{"name":"hta-api-canary","port":80,"weight":5},{"name":"hta-api","port":80,"weight":95}]}]}}'
+#
+#   # Increase to 25%
+#   kubectl patch httproute hta-api-canary -n hta-platform --type=merge -p '{"spec":{"rules":[{"backendRefs":[{"name":"hta-api-canary","port":80,"weight":25},{"name":"hta-api","port":80,"weight":75}]}]}}'
+#
+#   # Rollback to 0%
+#   kubectl patch httproute hta-api-canary -n hta-platform --type=merge -p '{"spec":{"rules":[{"backendRefs":[{"name":"hta-api-canary","port":80,"weight":0},{"name":"hta-api","port":80,"weight":100}]}]}}'
+# =============================================================================
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: hta-api-canary
+  namespace: hta-platform
+  labels:
+    app.kubernetes.io/name: hta-platform
+    app.kubernetes.io/component: canary
+spec:
+  parentRefs:
+    - name: hta-gateway
+      sectionName: https
+  hostnames:
+    - "api.hta.example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        # Canary: new version (start at 0%, increase gradually)
+        - name: hta-api-canary
+          port: 80
+          weight: 0
+        # Stable: current version
+        - name: hta-api
+          port: 80
+          weight: 100

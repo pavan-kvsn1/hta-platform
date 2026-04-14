@@ -1,0 +1,121 @@
+# =============================================================================
+# API Canary Deployment
+# =============================================================================
+# This is a copy of the stable API deployment with a different name.
+# Used for canary releases with traffic splitting via Gateway API.
+#
+# Usage:
+#   1. Update the image tag to the new version
+#   2. kubectl apply -f api-canary-deployment.yaml
+#   3. Apply canary-httproute.yaml to start traffic splitting
+#   4. Gradually increase traffic to canary
+#   5. Once verified, promote canary to stable
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hta-api-canary
+  namespace: hta-platform
+  labels:
+    app: hta-api-canary
+    app.kubernetes.io/name: hta-api
+    app.kubernetes.io/component: api
+    app.kubernetes.io/version: canary
+spec:
+  # Start with fewer replicas for canary
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hta-api-canary
+  template:
+    metadata:
+      labels:
+        app: hta-api-canary
+        app.kubernetes.io/name: hta-api
+        version: canary
+    spec:
+      serviceAccountName: hta-api
+      containers:
+        - name: api
+          # UPDATE THIS IMAGE TAG for each canary release
+          image: gcr.io/PROJECT_ID/hta-api:canary
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "8080"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: hta-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: hta-secrets
+                  key: redis-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hta-secrets
+                  key: jwt-secret
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: hta-config
+                  key: cors-origins
+            - name: GCS_BUCKET_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: hta-config
+                  key: gcs-bucket-name
+            # Canary-specific: add version label for logging/tracing
+            - name: DEPLOYMENT_VERSION
+              value: "canary"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hta-api-canary
+  namespace: hta-platform
+  labels:
+    app: hta-api-canary
+    app.kubernetes.io/name: hta-api
+    app.kubernetes.io/version: canary
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: hta-api-canary

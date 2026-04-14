@@ -5,11 +5,17 @@ namespace: hta-platform
 
 resources:
   - ../../base
+  # Uncomment for canary deployments:
+  # - api-canary-deployment.yaml
+  # - canary-httproute.yaml
 
 # Image tags - update these during deployment
 images:
   - name: gcr.io/PROJECT_ID/hta-api
     newName: gcr.io/YOUR_PROJECT_ID/hta-api
+    newTag: latest
+  - name: gcr.io/PROJECT_ID/hta-web
+    newName: gcr.io/YOUR_PROJECT_ID/hta-web
     newTag: latest
   - name: gcr.io/PROJECT_ID/hta-worker
     newName: gcr.io/YOUR_PROJECT_ID/hta-worker

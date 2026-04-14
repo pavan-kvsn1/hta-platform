@@ -13,8 +13,9 @@ resources:
   - web-hta-deployment.yaml
   - web-hta-service.yaml
   - worker-deployment.yaml
-  - ingress.yaml
+  - gateway.yaml  # GKE Gateway API (replaces ingress.yaml)
   - hpa.yaml
+  # - ingress.yaml  # DEPRECATED: Use gateway.yaml instead
 
 commonLabels:
   app.kubernetes.io/part-of: hta-platform
