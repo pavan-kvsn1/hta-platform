@@ -21,7 +21,7 @@
 | **Phase 6** | Deployment | ✅ Complete | 100% | Argo CD + Rollouts + GitHub Actions |
 | **Phase 14** | Docker | ✅ Complete | 100% | All Dockerfiles + compose files |
 | **Phase 15** | CI/CD | ✅ Complete | 100% | 23,363 lines GitHub Actions |
-| **Phase 16** | Testing | 🟡 Partial | 15% | 149 tests / ~1000 needed |
+| **Phase 16** | Testing | 🟡 Partial | 27% | 235 tests / 865 in hta-calibration |
 
 ### Code vs Test Coverage
 
@@ -32,19 +32,31 @@
 │                                                              │
 │  Feature Code:  ████████████████████████████████████  95%   │
 │  Infrastructure: ████████████████████████████████████  100%  │
-│  Test Coverage:  █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  15%   │
+│  Test Coverage:  ██████████░░░░░░░░░░░░░░░░░░░░░░░░░  27%   │
 │                                                              │
-│  ⚠️  BLOCKER: Test coverage too low for production          │
+│  ⚠️  Test migration in progress: 235/865 tests (27%)        │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Test Migration Progress (2026-04-14)
+
+| Completed | Tests | Status |
+|-----------|-------|--------|
+| Shared package tests | 74 | ✅ Cache, rate-limiter, CORS |
+| API integration tests | 98 | ✅ Auth, certificates, customer, notifications, workflows, instruments |
+| E2E journey tests | 37 | ✅ Certificate, reviewer, customer, admin flows |
+| Visual regression tests | 12 | ✅ Chromatic setup with 12 snapshots |
+| API unit tests | 5 | ✅ Health endpoint |
+| Web-HTA unit tests | 9 | ✅ Button component |
+
 ### Next Steps
 
-1. **P0 - Testing:** Write API integration tests (~50 tests, 2 days)
-2. **P0 - Testing:** Write auth middleware tests (~20 tests, 1 day)
-3. **P1 - Testing:** Write certificate route tests (~80 tests, 3 days)
-4. **P1 - Testing:** Write E2E critical path tests (~30 tests, 2 days)
+1. **P1 - Unit Tests:** Migrate component tests (~80 tests)
+2. **P1 - Integration Tests:** Migrate database query tests (~50 tests)
+3. **P1 - E2E Tests:** Migrate remaining journey tests (~100 tests)
+4. **P2 - Unit Tests:** Migrate hooks, utils, stores (~120 tests)
+5. **P3 - Eval Tests:** Migrate accessibility and visual eval tests (~147 tests)
 
 > **Architecture Decision (2026-04-14):** Changed from Cloud Run to **GKE Standard** for better control over networking, traffic management, and cost predictability. Traffic splitting uses **GKE Gateway API** (not Istio) for simplicity and zero sidecar overhead. Deployments via **Argo CD** (GitOps) with **Argo Rollouts** for automated canary releases. Argo CD protected by **IAP** (Google login) at `argocd.hta-calibration.com`.
 **Estimated Effort:** 3-4 weeks
@@ -2868,19 +2880,59 @@ Enable Turbo remote caching for faster CI:
 
 ## 16. Testing Strategy
 
-> **Status:** 🟡 PARTIAL (15% coverage)
+> **Status:** 🟡 PARTIAL (27% coverage)
+> **Last Updated:** 2026-04-14
 > 
 > | Component | Status | Tests | Coverage |
 > |-----------|--------|-------|----------|
-> | Test Infrastructure | ✅ | - | Vitest, Playwright, MSW configured |
-> | API Tests | 🟡 | 5 | Health endpoint only (6,881 lines untested) |
-> | Worker Tests | 🟡 | 6 | Email job only (417 lines untested) |
-> | Web-HTA Tests | 🟡 | 138 | Components + stores (272 files, ~15% covered) |
-> | E2E Tests | 🟡 | 1 | Skeleton journey (full journeys needed) |
-> | **TOTAL** | 🟡 | **~149** | ~15% of codebase |
+> | Test Infrastructure | ✅ | - | Vitest, Playwright, MSW, Chromatic configured |
+> | Shared Package Tests | ✅ | 74 | Cache, rate-limiter, CORS utilities |
+> | API Integration Tests | ✅ | 98 | Auth, certificates, customer, notifications, workflows, instruments |
+> | API Unit Tests | 🟡 | 5 | Health endpoint only |
+> | Web-HTA Unit Tests | 🟡 | 9 | Button component |
+> | E2E Journey Tests | ✅ | 49 | Certificate, reviewer, customer, admin flows + visual regression |
+> | **TOTAL** | 🟡 | **235** | 27% of hta-calibration |
 > 
-> **Gap Analysis:** ~10,000+ lines of production code with only ~149 tests.
-> Target: Match hta-calibration's ~1,000 tests for parity.
+> **Gap Analysis:** hta-calibration has 865 tests, hta-platform has 235 tests (27% parity).
+> Target: Match hta-calibration's test coverage for production readiness.
+
+### 16.0.1 Test Count Comparison (2026-04-14)
+
+| Category | hta-calibration | hta-platform | Gap | Coverage |
+|----------|-----------------|--------------|-----|----------|
+| Unit Tests | 302 | 88 | 214 | 29% |
+| Integration Tests | 197 | 98 | 99 | 50% |
+| E2E Tests | 219 | 49 | 170 | 22% |
+| Evals/Other | 147 | 0 | 147 | 0% |
+| **Total** | **865** | **235** | **630** | **27%** |
+
+### 16.0.2 hta-platform Test Locations
+
+| Location | Tests | Description |
+|----------|-------|-------------|
+| `packages/shared/tests/` | 74 | Cache (34), rate-limiter (26), CORS (14) |
+| `apps/api/tests/integration/` | 98 | Auth (16), certificates (20), customer (20), notifications (15), workflows (18), instruments (25) |
+| `apps/api/tests/unit/` | 5 | Health endpoint |
+| `apps/web-hta/tests/unit/` | 9 | Button component |
+| `apps/web-hta/e2e/journeys/` | 37 | Certificate flow, reviewer flow, customer flow, admin authorization |
+| `apps/web-hta/e2e/` | 12 | Visual regression tests (Chromatic) |
+| **Total** | **235** | |
+
+### 16.0.3 Remaining Tests to Migrate
+
+| Category | Source Location | Tests | Priority |
+|----------|-----------------|-------|----------|
+| Unit - Components | `tests/unit/components/` | ~80 | P1 |
+| Unit - Hooks | `tests/unit/hooks/` | ~40 | P2 |
+| Unit - Utils | `tests/unit/utils/` | ~50 | P2 |
+| Unit - Stores | `tests/unit/stores/` | ~30 | P2 |
+| Integration - DB | `tests/integration/database/` | ~50 | P1 |
+| Integration - API | `tests/integration/api/` | ~50 | P1 |
+| E2E - Journeys | `tests/e2e/journeys/` | ~100 | P1 |
+| E2E - Pages | `tests/e2e/pages/` | ~40 | P2 |
+| Evals - Accessibility | `tests/evals/` | ~80 | P3 |
+| Evals - Visual | `tests/evals/` | ~67 | P3 |
+| **Total Remaining** | | **~630** | |
 
 ### 16.0 Test Migration Overview
 
