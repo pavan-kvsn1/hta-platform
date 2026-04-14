@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hta-config
+  namespace: hta-platform
+  labels:
+    app.kubernetes.io/name: hta-platform
+data:
+  # CORS configuration
+  cors-origins: "https://hta.example.com,https://www.hta.example.com"
+
+  # GCS bucket for certificate images
+  gcs-bucket-name: "hta-certificates-prod"
+
+  # Email configuration
+  email-from: "HTA Calibration <noreply@htacalibration.com>"
+
+  # Logging level
+  log-level: "info"

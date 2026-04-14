@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hta-worker
+  namespace: hta-platform
+  labels:
+    app: hta-worker
+    app.kubernetes.io/name: hta-worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hta-worker
+  template:
+    metadata:
+      labels:
+        app: hta-worker
+        app.kubernetes.io/name: hta-worker
+    spec:
+      serviceAccountName: hta-worker
+      containers:
+        - name: worker
+          image: gcr.io/PROJECT_ID/hta-worker:latest
+          imagePullPolicy: Always
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: hta-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: hta-secrets
+                  key: redis-url
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hta-secrets
+                  key: resend-api-key
+            - name: EMAIL_FROM
+              valueFrom:
+                configMapKeyRef:
+                  name: hta-config
+                  key: email-from
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          # No liveness/readiness probes - worker is not an HTTP server
+          # Use startup probe to ensure worker is running
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "pgrep -f 'node dist/index.js' > /dev/null"
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hta-worker
+  namespace: hta-platform
+  annotations:
+    iam.gke.io/gcp-service-account: hta-worker@PROJECT_ID.iam.gserviceaccount.com

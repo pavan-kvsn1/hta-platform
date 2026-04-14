@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hta-api
+  namespace: hta-platform
+  labels:
+    app: hta-api
+    app.kubernetes.io/name: hta-api
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: hta-api
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hta-api
+  namespace: hta-platform
+  annotations:
+    # Workload Identity for GCS access
+    iam.gke.io/gcp-service-account: hta-api@PROJECT_ID.iam.gserviceaccount.com

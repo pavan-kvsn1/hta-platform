@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hta-platform
+  labels:
+    app.kubernetes.io/name: hta-platform
+    app.kubernetes.io/managed-by: kubectl

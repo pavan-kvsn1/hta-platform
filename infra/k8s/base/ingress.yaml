@@ -1,0 +1,83 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hta-ingress
+  namespace: hta-platform
+  labels:
+    app.kubernetes.io/name: hta-platform
+  annotations:
+    # GKE Ingress annotations
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "hta-platform-ip"
+
+    # SSL/TLS
+    networking.gke.io/managed-certificates: "hta-certificate"
+
+    # Health check configuration
+    cloud.google.com/backend-config: '{"default": "hta-backend-config"}'
+
+    # Security headers (via BackendConfig)
+    # See backend-config.yaml for details
+spec:
+  rules:
+    # API routes
+    - host: api.hta.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hta-api
+                port:
+                  number: 80
+
+    # Alternative: Route /api/* to API service on same domain
+    # - host: hta.example.com
+    #   http:
+    #     paths:
+    #       - path: /api
+    #         pathType: Prefix
+    #         backend:
+    #           service:
+    #             name: hta-api
+    #             port:
+    #               number: 80
+    #       - path: /
+    #         pathType: Prefix
+    #         backend:
+    #           service:
+    #             name: hta-web  # Frontend service
+    #             port:
+    #               number: 80
+---
+# Managed Certificate for HTTPS
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: hta-certificate
+  namespace: hta-platform
+spec:
+  domains:
+    - api.hta.example.com
+    - hta.example.com
+---
+# Backend configuration for health checks and security
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: hta-backend-config
+  namespace: hta-platform
+spec:
+  healthCheck:
+    checkIntervalSec: 30
+    timeoutSec: 10
+    healthyThreshold: 1
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /health
+    port: 8080
+  securityPolicy:
+    name: "hta-security-policy"  # Cloud Armor policy (create separately)
+  connectionDraining:
+    drainingTimeoutSec: 30
