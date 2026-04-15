@@ -7,8 +7,12 @@
  * Migrated from hta-calibration/tests/e2e/fixtures/test-utils.ts
  */
 
-import { Page, expect } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { TEST_USERS } from './test-data'
+
+// Use a generic Page type that's compatible with both @playwright/test and @chromatic-com/playwright
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Page = any
 
 type UserRole = keyof typeof TEST_USERS
 

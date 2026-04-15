@@ -38,12 +38,12 @@ interface MasterInstrumentJson {
   model: string | { ind?: string; sen?: string }
   asset_no: string
   instrument_sl_no: string | { ind?: string; sen?: string }
-  usage?: string
-  calibrated_at?: string
-  report_no?: string
-  next_due_on?: string
-  range?: Array<{ referencedoc?: string; range?: string }>
-  remarks?: string
+  usage?: string | null
+  calibrated_at?: string | null
+  report_no?: string | null
+  next_due_on?: string | null
+  range?: Array<{ referencedoc?: string; range?: string }> | null
+  remarks?: string | null
 }
 
 // Helper to serialize composite values (e.g., { ind: "X", sen: "Y" } -> "Ind: X / Sen: Y")
@@ -57,7 +57,7 @@ function serializeCompositeValue(value: string | { ind?: string; sen?: string } 
 }
 
 // Parse date from MM/DD/YYYY format
-function parseDate(dateStr: string | undefined): Date | null {
+function parseDate(dateStr: string | null | undefined): Date | null {
   if (!dateStr) return null
   const parts = dateStr.split('/')
   if (parts.length !== 3) return null
@@ -364,7 +364,7 @@ async function main() {
               calibratedAtLocation: instrument.calibrated_at || null,
               reportNo: instrument.report_no || null,
               calibrationDueDate: parseDate(instrument.next_due_on),
-              rangeData: instrument.range ? JSON.stringify(instrument.range) : null,
+              rangeData: instrument.range && instrument.range.length > 0 ? instrument.range : undefined,
               remarks: instrument.remarks || null,
               isActive: true,
               importedFromJson: true,

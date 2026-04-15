@@ -20,19 +20,23 @@
 import { test, takeSnapshot } from '@chromatic-com/playwright'
 import { loginAsEngineer, loginAsAdmin, loginAsCustomer, waitForPageStable, maskDynamicContent } from './fixtures/test-utils'
 
+// Helper to work around type incompatibility between @playwright/test Page and @chromatic-com/playwright Page
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const snapshot = (page: any, name: string, testInfo: any) => takeSnapshot(page, name, testInfo)
+
 test.describe('Visual Regression - Public Pages', () => {
   test('login page visual snapshot', async ({ page }, testInfo) => {
     await page.goto('/login')
     await waitForPageStable(page)
 
-    await takeSnapshot(page, 'login-page', testInfo)
+    await snapshot(page, 'login-page', testInfo)
   })
 
   test('customer login page visual snapshot', async ({ page }, testInfo) => {
     await page.goto('/customer/login')
     await waitForPageStable(page)
 
-    await takeSnapshot(page, 'customer-login-page', testInfo)
+    await snapshot(page, 'customer-login-page', testInfo)
   })
 })
 
@@ -45,7 +49,7 @@ test.describe('Visual Regression - Engineer Dashboard', () => {
     await waitForPageStable(page)
     await maskDynamicContent(page)
 
-    await takeSnapshot(page, 'engineer-dashboard', testInfo)
+    await snapshot(page, 'engineer-dashboard', testInfo)
   })
 
   test('new certificate form visual snapshot', async ({ page }, testInfo) => {
@@ -53,7 +57,7 @@ test.describe('Visual Regression - Engineer Dashboard', () => {
     await waitForPageStable(page)
     await maskDynamicContent(page)
 
-    await takeSnapshot(page, 'new-certificate-form', testInfo)
+    await snapshot(page, 'new-certificate-form', testInfo)
   })
 })
 
@@ -67,7 +71,7 @@ test.describe('Visual Regression - Admin Dashboard', () => {
     await waitForPageStable(page)
     await maskDynamicContent(page)
 
-    await takeSnapshot(page, 'admin-dashboard', testInfo)
+    await snapshot(page, 'admin-dashboard', testInfo)
   })
 })
 
@@ -80,7 +84,7 @@ test.describe('Visual Regression - Customer Portal', () => {
     await waitForPageStable(page)
     await maskDynamicContent(page)
 
-    await takeSnapshot(page, 'customer-dashboard', testInfo)
+    await snapshot(page, 'customer-dashboard', testInfo)
   })
 })
 
@@ -90,7 +94,7 @@ test.describe('Visual Regression - Responsive Design', () => {
     await page.goto('/login')
     await waitForPageStable(page)
 
-    await takeSnapshot(page, 'login-page-mobile', testInfo)
+    await snapshot(page, 'login-page-mobile', testInfo)
   })
 
   test('login page tablet view', async ({ page }, testInfo) => {
@@ -98,7 +102,7 @@ test.describe('Visual Regression - Responsive Design', () => {
     await page.goto('/login')
     await waitForPageStable(page)
 
-    await takeSnapshot(page, 'login-page-tablet', testInfo)
+    await snapshot(page, 'login-page-tablet', testInfo)
   })
 })
 
@@ -110,7 +114,7 @@ test.describe('Visual Regression - Component States', () => {
     await page.click('button[type="submit"]')
     await page.waitForTimeout(500)
 
-    await takeSnapshot(page, 'login-form-validation-error', testInfo)
+    await snapshot(page, 'login-form-validation-error', testInfo)
   })
 
   test('login form with invalid credentials error', async ({ page }, testInfo) => {
@@ -122,7 +126,7 @@ test.describe('Visual Regression - Component States', () => {
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(1000)
 
-    await takeSnapshot(page, 'login-form-invalid-credentials', testInfo)
+    await snapshot(page, 'login-form-invalid-credentials', testInfo)
   })
 })
 
@@ -136,6 +140,6 @@ test.describe('Visual Regression - Certificate Views', () => {
     await waitForPageStable(page)
     await maskDynamicContent(page)
 
-    await takeSnapshot(page, 'certificate-list', testInfo)
+    await snapshot(page, 'certificate-list', testInfo)
   })
 })

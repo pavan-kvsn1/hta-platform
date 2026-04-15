@@ -13,6 +13,7 @@ export const REFRESH_TOKEN_CONFIG = {
 
 // Types
 export interface RefreshTokenPayload {
+  tenantId: string
   userId?: string
   customerId?: string
   userType: 'STAFF' | 'CUSTOMER'
@@ -60,6 +61,7 @@ export async function createRefreshToken(
 
   await prisma.refreshToken.create({
     data: {
+      tenantId: payload.tenantId,
       token: hashedToken,
       userId: payload.userId,
       customerId: payload.customerId,
@@ -149,6 +151,7 @@ export async function rotateRefreshToken(
     // Create new token
     const created = await tx.refreshToken.create({
       data: {
+        tenantId: payload.tenantId,
         token: newHashedToken,
         userId: payload.userId,
         customerId: payload.customerId,
