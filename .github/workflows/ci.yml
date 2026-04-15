@@ -60,8 +60,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
-        run: pnpm --filter @hta/database db:generate
+      - name: Generate Prisma Clients
+        run: |
+          pnpm --filter @hta/database db:generate
+          pnpm --filter @hta/web-tenant-template db:generate
 
       - name: Lint
         run: pnpm turbo run lint
@@ -91,8 +93,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
-        run: pnpm --filter @hta/database db:generate
+      - name: Generate Prisma Clients
+        run: |
+          pnpm --filter @hta/database db:generate
+          pnpm --filter @hta/web-tenant-template db:generate
 
       - name: Run unit tests
         run: pnpm turbo run test:unit
@@ -149,6 +153,7 @@ jobs:
       - name: Setup database
         run: |
           pnpm --filter @hta/database db:generate
+          pnpm --filter @hta/web-tenant-template db:generate
           pnpm --filter @hta/database db:push
         env:
           DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
@@ -194,3 +199,106 @@ jobs:
       - name: Build Docker image (dry run)
         run: |
           docker build -f ${{ matrix.dockerfile }} -t hta-${{ matrix.app }}:test .
+
+  # ===========================================================================
+  # E2E TESTS (Sharded for parallelism)
+  # ===========================================================================
+  e2e-tests:
+    name: E2E Tests (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3]
+        shardTotal: [3]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hta_test
+          POSTGRES_PASSWORD: hta_test_password
+          POSTGRES_DB: hta_calibration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hta_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @hta/database db:generate
+          pnpm --filter @hta/web db:generate
+
+      - name: Setup and seed database
+        run: |
+          pnpm --filter @hta/web db:push
+          pnpm --filter @hta/web db:seed
+        env:
+          DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @hta/web exec playwright install chromium --with-deps
+
+      - name: Install Playwright browser dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @hta/web exec playwright install-deps chromium
+
+      - name: Create auth directory
+        run: mkdir -p apps/web-hta/e2e/.auth
+
+      - name: Build web app
+        run: pnpm --filter @hta/web build
+        env:
+          DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
+
+      - name: Run E2E tests (sharded)
+        run: |
+          pnpm --filter @hta/web exec playwright test \
+            --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        env:
+          DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
+          NEXTAUTH_SECRET: test-secret-for-ci
+          NEXTAUTH_URL: http://localhost:3000
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-shard-${{ matrix.shardIndex }}
+          path: apps/web-hta/playwright-report/
+          retention-days: 7
+
+      - name: Upload test screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots-shard-${{ matrix.shardIndex }}
+          path: apps/web-hta/test-results/
+          retention-days: 7
