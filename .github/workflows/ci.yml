@@ -238,6 +238,16 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -287,6 +297,26 @@ jobs:
         run: pnpm --filter @hta/web build
         env:
           DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+
+      - name: Build API server
+        run: pnpm --filter @hta/api build
+
+      - name: Start API server
+        run: |
+          pnpm --filter @hta/api start &
+          # Wait for API to be ready
+          for i in {1..30}; do
+            curl -s http://localhost:4000/health && break
+            sleep 1
+          done
+        env:
+          DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
+          JWT_SECRET: test-secret-for-ci
+          AUTH_SECRET: test-secret-for-ci
+          REDIS_URL: redis://localhost:6379
+          PORT: 4000
+          CORS_ORIGINS: http://localhost:3000
 
       - name: Run E2E tests (sharded)
         run: |
@@ -295,7 +325,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
           NEXTAUTH_SECRET: test-secret-for-ci
+          AUTH_SECRET: test-secret-for-ci
+          JWT_SECRET: test-secret-for-ci
           NEXTAUTH_URL: http://localhost:3000
+          NEXT_PUBLIC_API_URL: http://localhost:4000
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
