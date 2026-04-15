@@ -11,9 +11,9 @@ import type {
   NotificationTemplate,
   CreateNotificationParams,
   GetNotificationsParams,
-} from './types.js'
+} from './types'
 
-export * from './types.js'
+export * from './types'
 
 // Notification templates for generating title and message
 const notificationTemplates: Record<NotificationType, NotificationTemplate> = {

@@ -15,7 +15,7 @@ import {
   createMemoryCheck,
   createHttpCheck,
   type HealthCheck,
-} from '../src/health/index.js'
+} from '../src/health'
 
 describe('createHealthChecker', () => {
   beforeEach(() => {

@@ -4,4 +4,4 @@
  * Provides integrations for alerting services.
  */
 
-export * from './pagerduty.js'
+export * from './pagerduty'

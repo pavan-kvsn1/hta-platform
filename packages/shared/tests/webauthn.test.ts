@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock logger
-vi.mock('../src/logger/index.js', () => ({
+vi.mock('../src/logger', () => ({
   createLogger: () => ({
     info: vi.fn(),
     warn: vi.fn(),
@@ -24,7 +24,7 @@ import {
   startAuthentication,
   isWebAuthnConfigured,
   getWebAuthnConfig,
-} from '../src/auth/webauthn.js'
+} from '../src/auth/webauthn'
 
 describe('WebAuthn Authentication', () => {
   const originalEnv = process.env

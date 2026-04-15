@@ -46,7 +46,7 @@ import {
   gauge,
   set,
   metrics,
-} from '../src/metrics/index.js'
+} from '../src/metrics'
 
 describe('Metrics', () => {
   beforeEach(() => {

@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock logger
-vi.mock('../src/logger/index.js', () => ({
+vi.mock('../src/logger', () => ({
   createLogger: () => ({
     info: vi.fn(),
     warn: vi.fn(),
@@ -27,7 +27,7 @@ import {
   hashBackupCode,
   verifyBackupCode,
   isTOTPConfigured,
-} from '../src/auth/totp.js'
+} from '../src/auth/totp'
 
 describe('TOTP Authentication', () => {
   describe('generateSecret', () => {

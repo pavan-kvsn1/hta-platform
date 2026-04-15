@@ -5,7 +5,7 @@
  * Supports GCP Memorystore and standalone Redis.
  */
 
-import { CacheProvider } from '../types.js'
+import { CacheProvider } from '../types'
 
 // Dynamic import to avoid requiring redis in development
 let Redis: typeof import('ioredis').default | null = null

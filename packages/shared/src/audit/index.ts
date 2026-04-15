@@ -5,9 +5,9 @@
  */
 
 import { prisma, Prisma } from '@hta/database'
-import type { AuditEvent, AuditAction, EntityType, ActorType } from './types.js'
+import type { AuditEvent, AuditAction, EntityType, ActorType } from './types'
 
-export type { AuditEvent, AuditAction, EntityType, ActorType } from './types.js'
+export type { AuditEvent, AuditAction, EntityType, ActorType } from './types'
 
 /**
  * Log an audit event to the database

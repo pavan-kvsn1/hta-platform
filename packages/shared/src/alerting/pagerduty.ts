@@ -11,7 +11,7 @@
  *   await resolvePagerDutyAlert('db-connection-api')
  */
 
-import { createLogger } from '../logger/index.js'
+import { createLogger } from '../logger'
 
 const logger = createLogger('pagerduty')
 

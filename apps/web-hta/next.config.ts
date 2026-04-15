@@ -39,14 +39,20 @@ const nextConfig: NextConfig = {
   },
 
   // Proxy API requests to the standalone API service
+  // Exclude /api/auth/* which are handled by Next.js (NextAuth)
   async rewrites() {
     const apiUrl = process.env.API_URL || 'http://localhost:4000'
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
-      },
-    ]
+    return {
+      beforeFiles: [],
+      afterFiles: [
+        {
+          // Proxy all /api/* EXCEPT /api/auth/* to the API server
+          source: '/api/:path((?!auth).*)',
+          destination: `${apiUrl}/api/:path*`,
+        },
+      ],
+      fallback: [],
+    }
   },
 }
 

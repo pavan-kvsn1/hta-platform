@@ -16,7 +16,7 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 // Mock logger
-vi.mock('../src/logger/index.js', () => ({
+vi.mock('../src/logger', () => ({
   createLogger: () => ({
     info: vi.fn(),
     warn: vi.fn(),
@@ -32,7 +32,7 @@ import {
   alertOnHealthFailure,
   alertOnHighErrorRate,
   alertOnHighLatency,
-} from '../src/alerting/pagerduty.js'
+} from '../src/alerting/pagerduty'
 
 describe('PagerDuty Integration', () => {
   const originalEnv = process.env

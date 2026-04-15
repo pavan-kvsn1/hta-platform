@@ -6,8 +6,8 @@
  */
 
 import { randomBytes } from 'crypto'
-import { createLogger } from '../logger/index.js'
-import type { RotationConfig, RotationResult } from './types.js'
+import { createLogger } from '../logger'
+import type { RotationConfig, RotationResult } from './types'
 
 const logger = createLogger('secrets:rotation')
 
