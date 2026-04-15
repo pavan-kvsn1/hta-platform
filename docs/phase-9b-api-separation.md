@@ -4939,7 +4939,22 @@ terraform apply
 
 ## 20. Secrets Infrastructure
 
+**Status:** ✅ Fully Implemented
+
+### Implementation Status
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Secret Manager terraform | ✅ Implemented | `terraform/modules/secrets/` |
+| Production secrets config | ✅ Implemented | `terraform/environments/production/main.tf` |
+| K8s secrets template | ✅ Implemented | `infra/k8s/base/secrets.yaml` |
+| Secrets access module | ✅ Implemented | `packages/shared/src/secrets/access.ts` |
+| Secret rotation module | ✅ Implemented | `packages/shared/src/secrets/rotation.ts` |
+| Local dev setup script | ✅ Implemented | `scripts/setup-local-secrets.sh` |
+
 ### 20.1 Secret Manager Organization
+
+> **Implementation:** `terraform/environments/production/main.tf` (module "secrets" block)
 
 ```
 projects/hta-calibration-prod/secrets/
@@ -4962,6 +4977,8 @@ projects/hta-calibration-prod/secrets/
 ```
 
 ### 20.2 Terraform Secret Resources
+
+> **Implementation:** `terraform/modules/secrets/main.tf`, `terraform/modules/secrets/variables.tf`
 
 ```hcl
 # terraform/modules/secrets/main.tf
@@ -5051,6 +5068,8 @@ resource "google_secret_manager_secret" "worker" {
 
 ### 20.3 Per-Service IAM Bindings
 
+> **Implementation:** `terraform/modules/secrets/main.tf` (IAM bindings via `accessors` variable)
+
 ```hcl
 # terraform/modules/secrets/iam.tf
 
@@ -5107,6 +5126,8 @@ resource "google_secret_manager_secret_iam_member" "worker_access" {
 ```
 
 ### 20.4 Cloud Run Secret Mounting
+
+> **Implementation:** `infra/k8s/base/secrets.yaml` (K8s), GKE workloads use Workload Identity
 
 ```hcl
 # terraform/modules/services/main.tf
@@ -5169,6 +5190,8 @@ resource "google_cloud_run_v2_service" "api" {
 
 ### 20.5 Secret Rotation
 
+> **Implementation:** `packages/shared/src/secrets/rotation.ts`
+
 ```typescript
 // packages/shared/src/secrets/rotation.ts
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager'
@@ -5221,25 +5244,54 @@ export async function rotateJwtSecret(projectId: string) {
 
 ### 20.6 Local Development Secrets
 
-```bash
-# scripts/setup-local-secrets.sh
-#!/bin/bash
+> **Implementation:** `scripts/setup-local-secrets.sh`
 
-# Create .env.local from Secret Manager (for local dev)
-gcloud secrets versions access latest --secret="hta-common-database-url" > /dev/null 2>&1
-if [ $? -eq 0 ]; then
-  echo "# Auto-generated from Secret Manager" > .env.local
-  
-  echo "DATABASE_URL=$(gcloud secrets versions access latest --secret='hta-common-database-url')" >> .env.local
-  echo "REDIS_URL=$(gcloud secrets versions access latest --secret='hta-common-redis-url')" >> .env.local
-  echo "NEXTAUTH_SECRET=$(gcloud secrets versions access latest --secret='hta-web-nextauth-secret')" >> .env.local
-  
-  echo "✅ .env.local created from Secret Manager"
-else
-  echo "⚠️  Not authenticated to GCP, using default local values"
-  cp .env.example .env.local
-fi
+```bash
+# Setup local secrets (auto-detects GCP auth)
+./scripts/setup-local-secrets.sh
+
+# Force GCP mode (fetch from Secret Manager)
+./scripts/setup-local-secrets.sh --gcp
+
+# Force local mode (generate random secrets)
+./scripts/setup-local-secrets.sh --local
+
+# Setup specific app only
+./scripts/setup-local-secrets.sh --app web-hta
 ```
+
+The script creates `.env.local` files for:
+- `apps/web-hta/` - DATABASE_URL, NEXTAUTH_SECRET, RESEND_API_KEY
+- `apps/api/` - DATABASE_URL, REDIS_URL, JWT_SECRET, ENCRYPTION_KEY
+- `apps/worker/` - DATABASE_URL, REDIS_URL, RESEND_API_KEY
+
+### 20.7 Secrets API Reference
+
+> **Implementation:** `packages/shared/src/secrets/access.ts`, `packages/shared/src/secrets/rotation.ts`
+
+```typescript
+import { getSecret, rotateSecret, generators } from '@hta/shared/secrets'
+
+// Access secrets (falls back to env vars in development)
+const dbUrl = await getSecret('database-url')
+
+// Access with metadata
+const { value, metadata } = await getSecretWithMetadata('jwt-secret')
+
+// Rotate a secret
+const result = await rotateSecret('jwt-secret', generators.base64(64))
+
+// Rotate common secrets (JWT, encryption, NextAuth)
+const results = await rotateCommonSecrets()
+
+// Check if secret exists
+const exists = await secretExists('my-secret')
+```
+
+**Built-in Generators:**
+- `generators.base64(bytes)` - Base64 encoded random bytes
+- `generators.hex(bytes)` - Hex encoded random bytes
+- `generators.alphanumeric(length)` - Alphanumeric string
 
 ---
 
