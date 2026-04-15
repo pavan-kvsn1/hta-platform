@@ -36,9 +36,14 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/bcryptjs": "^2.4.6",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "eslint": "^10.2.0",
     "pino-pretty": "^11.0.0",
     "typescript": "^5.5.0",
+    "typescript-eslint": "^8.58.2",
     "vitest": "^2.1.0"
   }
 }

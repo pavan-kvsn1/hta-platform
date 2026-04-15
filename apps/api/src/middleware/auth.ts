@@ -24,23 +24,18 @@ export async function requireAuth(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  try {
-    const decoded = await request.jwtVerify<JWTPayload>()
+  const decoded = await request.jwtVerify<JWTPayload>()
 
-    // Verify tenant matches
-    if (decoded.tenantId !== request.tenantId) {
-      return reply.status(403).send({
-        error: 'Forbidden',
-        message: 'Token tenant does not match request tenant',
-      })
-    }
-
-    // Attach user to request
-    request.user = decoded
-  } catch (err) {
-    // Let the error handler deal with JWT errors
-    throw err
+  // Verify tenant matches
+  if (decoded.tenantId !== request.tenantId) {
+    return reply.status(403).send({
+      error: 'Forbidden',
+      message: 'Token tenant does not match request tenant',
+    })
   }
+
+  // Attach user to request
+  request.user = decoded
 }
 
 /**

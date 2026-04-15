@@ -305,7 +305,7 @@ export async function finishAuthentication(
 /**
  * Parse attestation object (simplified - handles packed format)
  */
-function parseAttestationObject(attestationObject: Buffer): {
+function parseAttestationObject(_attestationObject: Buffer): {
   authData: { counter: number; flags: number }
   publicKey: Buffer | null
 } {

@@ -135,7 +135,7 @@ export function generateImageStorageKey(
   const random = Math.random().toString(36).substring(2, 8)
   const ext = getImageExtension(originalFileName, variant)
 
-  let contextPath = ''
+  let contextPath: string
   switch (imageType) {
     case 'UUC':
       contextPath = 'uuc'

@@ -73,7 +73,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const normalizedEmail = email.toLowerCase().trim()
     const tenantId = request.tenantId
 
-    let userData: JWTSignPayload | null = null
+    let userData: JWTSignPayload
     let userId: string | undefined
     let customerId: string | undefined
 

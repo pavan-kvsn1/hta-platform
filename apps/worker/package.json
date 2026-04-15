@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc && tsc-alias",
     "start": "node dist/index.js",
-    "lint": "echo 'No eslint configured'",
+    "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
@@ -15,17 +15,22 @@
   },
   "dependencies": {
     "@hta/database": "workspace:*",
-    "@hta/shared": "workspace:*",
     "@hta/emails": "workspace:*",
+    "@hta/shared": "workspace:*",
     "bullmq": "^5.0.0",
     "ioredis": "^5.4.0",
     "resend": "^4.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "eslint": "^10.2.0",
     "tsc-alias": "^1.8.0",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0",
+    "typescript-eslint": "^8.58.2",
     "vitest": "^2.1.0"
   }
 }
