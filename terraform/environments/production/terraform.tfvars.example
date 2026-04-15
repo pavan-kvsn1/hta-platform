@@ -48,3 +48,12 @@ iap_authorized_members = [
   # Add more team members:
   # "user:teammate@gmail.com",
 ]
+
+# Disaster Recovery
+enable_dr_replica = true
+dr_replica_region = "us-west1"  # Different from primary region
+
+# Monitoring
+monitoring_notification_channels = []  # Add notification channel IDs
+enable_pagerduty      = false
+pagerduty_service_key = ""  # PagerDuty integration key if enabled

@@ -72,3 +72,10 @@ variable "latency_slo_ms" {
   type        = number
   default     = 200
 }
+
+# Disaster Recovery
+variable "enable_replica_monitoring" {
+  description = "Enable monitoring alerts for database replica"
+  type        = bool
+  default     = false
+}

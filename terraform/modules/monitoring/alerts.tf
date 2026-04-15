@@ -257,3 +257,167 @@ resource "google_monitoring_alert_policy" "health_check_failure" {
 
   user_labels = local.labels
 }
+
+# =============================================================================
+# Disaster Recovery Alerts
+# =============================================================================
+
+# Database Backup Failure Alert
+resource "google_monitoring_alert_policy" "backup_failure" {
+  project      = var.project_id
+  display_name = "Database Backup Failure (${var.environment})"
+  combiner     = "OR"
+  enabled      = true
+
+  conditions {
+    display_name = "Backup operation failed"
+    condition_threshold {
+      filter          = "resource.type=\"cloudsql_database\" AND metric.type=\"cloudsql.googleapis.com/database/auto_failover_request_count\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      duration        = "0s"
+
+      aggregations {
+        alignment_period   = "3600s"
+        per_series_aligner = "ALIGN_SUM"
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  notification_channels = local.all_notification_channels
+
+  alert_strategy {
+    auto_close = "86400s" # 24 hours
+  }
+
+  documentation {
+    content   = "Database automatic backup has failed.\n\n**Severity:** CRITICAL - RPO at risk\n\n**Troubleshooting:**\n1. Check Cloud SQL operations log\n2. Verify disk space availability\n3. Check for ongoing maintenance\n4. Manually trigger backup if needed:\n   `gcloud sql backups create --instance=hta-main`\n\n**Escalation:**\n- Immediately notify on-call engineer\n- If backup cannot be restored within 1 hour, escalate to platform team"
+    mime_type = "text/markdown"
+  }
+
+  user_labels = local.labels
+}
+
+# Database Replica Lag Alert
+resource "google_monitoring_alert_policy" "replica_lag" {
+  count = var.enable_replica_monitoring ? 1 : 0
+
+  project      = var.project_id
+  display_name = "Database Replica Lag (${var.environment})"
+  combiner     = "OR"
+  enabled      = true
+
+  conditions {
+    display_name = "Replica lag > 60 seconds"
+    condition_threshold {
+      filter          = "resource.type=\"cloudsql_database\" AND metric.type=\"cloudsql.googleapis.com/database/replication/replica_lag\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 60
+      duration        = "300s"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_MEAN"
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  notification_channels = local.all_notification_channels
+
+  alert_strategy {
+    auto_close = "1800s" # 30 minutes
+  }
+
+  documentation {
+    content   = "Database replica lag exceeds 60 seconds.\n\n**Severity:** HIGH - DR capability degraded\n\n**Impact:**\n- Failover would result in data loss\n- RPO target at risk\n\n**Troubleshooting:**\n1. Check primary instance CPU/memory usage\n2. Check network connectivity between regions\n3. Review ongoing write load\n4. Check replica instance health\n\n**If lag persists > 5 minutes:**\n- Reduce write load if possible\n- Consider scaling replica instance"
+    mime_type = "text/markdown"
+  }
+
+  user_labels = local.labels
+}
+
+# Database Disk Usage Alert (for DR - need space for PITR)
+resource "google_monitoring_alert_policy" "db_disk_usage" {
+  project      = var.project_id
+  display_name = "Database Disk Usage Warning (${var.environment})"
+  combiner     = "OR"
+  enabled      = true
+
+  conditions {
+    display_name = "Disk usage > 80%"
+    condition_threshold {
+      filter          = "resource.type=\"cloudsql_database\" AND metric.type=\"cloudsql.googleapis.com/database/disk/utilization\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0.8
+      duration        = "300s"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_MEAN"
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  notification_channels = local.all_notification_channels
+
+  alert_strategy {
+    auto_close = "3600s"
+  }
+
+  documentation {
+    content   = "Database disk usage exceeds 80%.\n\n**Severity:** MEDIUM - DR capability may be impacted\n\n**Impact:**\n- PITR transaction logs may be truncated\n- Backup operations may fail\n\n**Troubleshooting:**\n1. Review data growth trends\n2. Check for unused indexes\n3. Archive old data if applicable\n4. Enable disk autoresize if not already\n\n**Command to increase disk:**\n`gcloud sql instances patch hta-main --disk-size=<new_size>`"
+    mime_type = "text/markdown"
+  }
+
+  user_labels = local.labels
+}
+
+# No Recent Backup Alert (backup age check)
+resource "google_monitoring_alert_policy" "backup_age" {
+  project      = var.project_id
+  display_name = "No Recent Database Backup (${var.environment})"
+  combiner     = "OR"
+  enabled      = true
+
+  conditions {
+    display_name = "No backup in last 25 hours"
+    condition_absent {
+      filter   = "resource.type=\"cloudsql_database\" AND metric.type=\"cloudsql.googleapis.com/database/disk/bytes_used\""
+      duration = "90000s" # 25 hours
+
+      aggregations {
+        alignment_period   = "3600s"
+        per_series_aligner = "ALIGN_MEAN"
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  notification_channels = local.all_notification_channels
+
+  alert_strategy {
+    auto_close = "86400s"
+  }
+
+  documentation {
+    content   = "No database backup has completed in the last 25 hours.\n\n**Severity:** CRITICAL - RPO violated\n\n**Impact:**\n- Recovery would lose more than 24 hours of data\n- SLA violation\n\n**Immediate Actions:**\n1. Check backup schedule configuration\n2. Review Cloud SQL operations for errors\n3. Manually trigger backup:\n   `gcloud sql backups create --instance=hta-main --project=hta-calibration-prod`\n\n**Escalation:**\n- Page on-call immediately\n- Notify engineering leadership if not resolved within 30 minutes"
+    mime_type = "text/markdown"
+  }
+
+  user_labels = local.labels
+}

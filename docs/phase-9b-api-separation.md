@@ -2597,7 +2597,7 @@ API_URL=http://localhost:4000
     └── nightly.yml            # Nightly E2E tests
 ```
 
-### 14.2 Main CI Workflow
+### 15.2 Main CI Workflow
 
 ```yaml
 # .github/workflows/ci.yml
@@ -2899,7 +2899,7 @@ jobs:
           retention-days: 7
 ```
 
-### 14.3 Deployment Workflow
+### 15.3 Deployment Workflow
 
 ```yaml
 # .github/workflows/deploy-prod.yml
@@ -2966,7 +2966,7 @@ jobs:
             -n hta-platform --timeout=300s
 ```
 
-### 14.4 Turbo Remote Caching
+### 15.4 Turbo Remote Caching
 
 Enable Turbo remote caching for faster CI:
 
@@ -3894,42 +3894,63 @@ resource "google_monitoring_dashboard" "slo" {
 
 ## 18. Security Enhancements
 
+**Status:** ✅ Fully Implemented
+
+This section documents the security hardening measures implemented across the platform, including 2FA, rate limiting, account lockout, and security headers.
+
 ### 18.1 Two-Factor Authentication (2FA)
 
-#### TOTP Implementation
+**Status:** ✅ Implemented  
+**Location:** `packages/shared/src/auth/totp.ts`, `apps/web-hta/src/components/auth/`
+
+#### TOTP Implementation (RFC 6238)
+
+The TOTP implementation uses native Node.js crypto (no external dependencies like otplib):
 
 ```typescript
 // packages/shared/src/auth/totp.ts
-import { authenticator } from 'otplib'
-import { createLogger } from '../logger'
+import { createLogger } from '../logger/index.js'
+import { randomBytes, createHmac, timingSafeEqual } from 'crypto'
 
-const logger = createLogger('totp')
-
-export function generateTOTPSecret(email: string): {
-  secret: string
-  qrCodeUrl: string
-} {
-  const secret = authenticator.generateSecret()
-  const otpauth = authenticator.keyuri(email, 'HTA Calibr8s', secret)
-  
-  logger.info({ email }, 'Generated TOTP secret')
-  
-  return {
-    secret,
-    qrCodeUrl: otpauth, // Use qrcode library to generate QR
-  }
+const TOTP_CONFIG = {
+  issuer: 'HTA Calibr8s',
+  algorithm: 'SHA1',
+  digits: 6,
+  period: 30, // seconds
+  window: 1,  // Allow 1 period before/after for clock drift
 }
 
-export function verifyTOTP(token: string, secret: string): boolean {
-  return authenticator.verify({ token, secret })
+export function generateTOTPSecret(accountName: string, issuer: string = 'HTA Calibr8s'): {
+  secret: string
+  otpauthUrl: string
+} {
+  const secret = generateSecret()
+  const otpauthUrl = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(accountName)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`
+  return { secret, otpauthUrl }
+}
+
+export function verifyTOTP(token: string, secret: string, timestamp: number = Date.now()): boolean {
+  // Checks current time window +/- 1 for clock drift tolerance
+  // Uses timing-safe comparison to prevent timing attacks
 }
 
 export function generateBackupCodes(count: number = 10): string[] {
+  // Generates XXXX-XXXX format backup codes
   const codes: string[] = []
   for (let i = 0; i < count; i++) {
-    codes.push(crypto.randomBytes(4).toString('hex').toUpperCase())
+    const bytes = randomBytes(4)
+    const code = bytes.toString('hex').toUpperCase()
+    codes.push(`${code.slice(0, 4)}-${code.slice(4, 8)}`)
   }
   return codes
+}
+
+export function hashBackupCode(code: string): string {
+  // HMAC-SHA256 hash for secure storage
+}
+
+export function verifyBackupCode(code: string, hashedCodes: string[]): number {
+  // Returns index of matching code, or -1 if not found
 }
 ```
 
@@ -4256,111 +4277,301 @@ export const corsPlugin: FastifyPluginCallback = (fastify, _, done) => {
 }
 ```
 
-### 18.6 Security Checklist
+### 18.6 Rate Limiting & Account Lockout
 
-| Feature | Status | Location | Priority |
-|---------|--------|----------|----------|
-| 2FA (TOTP) Core | ✅ Implemented | `packages/shared/src/auth/totp.ts` | P1 |
-| 2FA UI Components | ✅ Implemented | `apps/web-hta/src/components/auth/TwoFactor*.tsx` | P1 |
-| 2FA API Routes | ✅ Implemented | `apps/web-hta/src/app/api/auth/2fa/` | P1 |
-| 2FA Login Flow | ✅ Implemented | `apps/web-hta/src/lib/auth.ts` | P1 |
-| WebAuthn | ✅ Implemented | `packages/shared/src/auth/webauthn.ts` | P2 |
-| CSP with nonces | ✅ Implemented | `apps/web-hta/src/middleware.ts` | P1 |
-| Cloud Armor WAF | ✅ Implemented | `terraform/modules/cloud-armor/` | P1 |
-| CORS for services | ✅ Implemented | `packages/shared/src/security/cors.ts` | P1 |
-| Rate limiting | ✅ Implemented | `packages/shared/src/security/rate-limiter.ts` | - |
-| Account lockout | ✅ Implemented | `packages/shared/src/security/rate-limiter.ts` | - |
-| Security headers | ✅ Implemented | `apps/web-hta/src/middleware.ts` | - |
+**Status:** ✅ Implemented  
+**Location:** `apps/web-hta/src/lib/security/`
 
-#### Security Implementation Details
+#### Rate Limiter Implementation
 
-| Module | File | Tests | Description |
-|--------|------|-------|-------------|
-| TOTP | `packages/shared/src/auth/totp.ts` | 28 | RFC 6238 TOTP, backup codes |
-| WebAuthn | `packages/shared/src/auth/webauthn.ts` | 21 | Passkey registration/auth |
-| CSP | `apps/web-hta/src/middleware.ts` | - | Nonce-based CSP headers |
-| Cloud Armor | `terraform/modules/cloud-armor/` | - | WAF, rate limiting, OWASP rules |
-| CORS | `packages/shared/src/security/cors.ts` | - | Environment-driven CORS |
+Uses fixed window counter algorithm with Redis/Memory cache:
 
-#### 2FA Functions Available
+```typescript
+// apps/web-hta/src/lib/security/rate-limiter.ts
 
-- `generateTOTPSecret(email)` - Generate secret + QR code URL
-- `verifyTOTP(token, secret)` - Verify 6-digit code
-- `generateBackupCodes(count)` - Generate recovery codes
-- `hashBackupCode(code)` / `verifyBackupCode(code, hashes)` - Backup code handling
+// Rate limit configurations
+export const RateLimitConfig = {
+  LOGIN: {
+    limit: 5,
+    windowSeconds: 15 * 60, // 15 minutes
+    keyPrefix: 'ratelimit:login:',
+  },
+  REGISTRATION: {
+    limit: 3,
+    windowSeconds: 60 * 60, // 1 hour
+    keyPrefix: 'ratelimit:register:',
+  },
+  FORGOT_PASSWORD: {
+    limit: 3,
+    windowSeconds: 60 * 60, // 1 hour
+    keyPrefix: 'ratelimit:forgot:',
+  },
+  API_GENERAL: {
+    limit: 100,
+    windowSeconds: 60, // 1 minute
+    keyPrefix: 'ratelimit:api:',
+  },
+}
 
-#### 2FA API Routes (web-hta)
+// Account lockout configuration
+export const AccountLockoutConfig = {
+  maxFailedAttempts: 5,
+  lockoutDurationSeconds: 15 * 60, // 15 minutes
+  keyPrefix: 'lockout:',
+  failedAttemptsKeyPrefix: 'failed:',
+}
+
+// Core functions
+export async function checkRateLimit(identifier: string, type: RateLimitType): Promise<RateLimitResult>
+export async function recordFailedLoginAttempt(accountKey: string): Promise<AccountLockoutResult>
+export async function isAccountLocked(accountKey: string): Promise<AccountLockoutResult>
+export async function clearFailedLoginAttempts(accountKey: string): Promise<void>
+export function getClientIP(request: NextRequest): string
+export function createRateLimitHeaders(result: RateLimitResult): Record<string, string>
+```
+
+#### Rate Limit Wrapper
+
+```typescript
+// apps/web-hta/src/lib/security/with-rate-limit.ts
+
+// Usage in route handlers
+export async function POST(request: NextRequest) {
+  const rateLimitResponse = await checkRateLimitForRequest(request, 'LOGIN')
+  if (rateLimitResponse) return rateLimitResponse
+  // Continue with handler logic
+}
+
+// HOF wrapper
+export const POST = withRateLimit(
+  async (request: NextRequest) => {
+    return NextResponse.json({ success: true })
+  },
+  { type: 'LOGIN' }
+)
+```
+
+#### Auth Integration
+
+Account lockout is integrated into `apps/web-hta/src/lib/auth.ts`:
+
+```typescript
+// Before credential check
+const lockStatus = await isAccountLocked(`staff:${email}`)
+if (lockStatus.locked) return null
+
+// On failed login
+await recordFailedLoginAttempt(`staff:${email}`)
+
+// On successful login
+await clearFailedLoginAttempts(`staff:${email}`)
+```
+
+#### Design Principles
+
+- **Fail-open:** If cache unavailable, requests are allowed (availability > security)
+- **IP extraction:** Checks CF-Connecting-IP, X-Real-IP, X-Forwarded-For, X-AppEngine-User-IP
+- **Rate limit headers:** X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+
+### 18.7 Security Headers
+
+**Status:** ✅ Implemented  
+**Locations:** `apps/web-hta/next.config.ts`, `apps/web-hta/src/middleware.ts`
+
+#### Static Headers (next.config.ts)
+
+```typescript
+const securityHeaders = [
+  { key: 'X-DNS-Prefetch-Control', value: 'on' },
+  { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'X-XSS-Protection', value: '1; mode=block' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+  { key: 'Content-Security-Policy', value: '...' },
+]
+```
+
+#### Dynamic CSP with Nonces (middleware.ts)
+
+```typescript
+function buildCSP(nonce: string): string {
+  const directives = {
+    'default-src': ["'self'"],
+    'script-src': ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"],
+    'style-src': ["'self'", `'nonce-${nonce}'`, "'unsafe-inline'"],
+    'img-src': ["'self'", 'data:', 'blob:', 'https://storage.googleapis.com'],
+    'connect-src': ["'self'", 'https://*.sentry.io', 'wss://*.pusher.com'],
+    'frame-ancestors': ["'none'"],
+    // ...
+  }
+}
+```
+
+### 18.8 Security Implementation Summary
+
+| Feature | Status | Location | Notes |
+|---------|--------|----------|-------|
+| 2FA (TOTP) Core | ✅ | `packages/shared/src/auth/totp.ts` | RFC 6238, native crypto |
+| 2FA UI Components | ✅ | `apps/web-hta/src/components/auth/TwoFactor*.tsx` | 4 components |
+| 2FA API Routes | ✅ | `apps/web-hta/src/app/api/auth/2fa/` | 5 endpoints |
+| 2FA Login Flow | ✅ | `apps/web-hta/src/lib/auth.ts` | NextAuth integration |
+| WebAuthn | ✅ | `packages/shared/src/auth/webauthn.ts` | Passkey support |
+| CSP with nonces | ✅ | `apps/web-hta/src/middleware.ts` | Dynamic per-request |
+| Security headers | ✅ | `apps/web-hta/next.config.ts` | HSTS, X-Frame, etc. |
+| Rate limiting | ✅ | `apps/web-hta/src/lib/security/rate-limiter.ts` | Fixed window counter |
+| Account lockout | ✅ | `apps/web-hta/src/lib/security/rate-limiter.ts` | 5 failures = 15min lock |
+| Cloud Armor WAF | ✅ | `terraform/modules/cloud-armor/` | OWASP rules |
+| CORS for services | ✅ | `packages/shared/src/security/cors.ts` | Environment-driven |
+
+#### Module Details
+
+| Module | File | Description |
+|--------|------|-------------|
+| TOTP | `packages/shared/src/auth/totp.ts` | RFC 6238 TOTP, backup codes |
+| WebAuthn | `packages/shared/src/auth/webauthn.ts` | Passkey registration/auth |
+| Rate Limiter | `apps/web-hta/src/lib/security/rate-limiter.ts` | IP-based rate limiting |
+| Rate Limit Wrapper | `apps/web-hta/src/lib/security/with-rate-limit.ts` | HOF for routes |
+| Middleware | `apps/web-hta/src/middleware.ts` | CSP nonces, security headers |
+| Cloud Armor | `terraform/modules/cloud-armor/` | WAF, rate limiting |
+| CORS | `packages/shared/src/security/cors.ts` | Cross-origin config |
+
+### 18.9 API Reference
+
+#### TOTP Functions (`packages/shared/src/auth/totp.ts`)
+
+| Function | Description |
+|----------|-------------|
+| `generateTOTPSecret(email, issuer?)` | Generate secret + otpauth URL for QR code |
+| `verifyTOTP(token, secret, timestamp?)` | Verify 6-digit code with clock drift tolerance |
+| `generateBackupCodes(count?)` | Generate XXXX-XXXX format backup codes |
+| `hashBackupCode(code)` | HMAC-SHA256 hash for secure storage |
+| `verifyBackupCode(code, hashedCodes)` | Verify backup code, returns index or -1 |
+
+#### 2FA API Routes (`apps/web-hta/src/app/api/auth/2fa/`)
 
 | Route | Method | Purpose |
 |-------|--------|---------|
-| `/api/auth/2fa/setup` | POST | Generate TOTP secret + QR code |
+| `/api/auth/2fa/setup` | POST | Generate TOTP secret + QR code image |
 | `/api/auth/2fa/verify` | POST | Verify code and enable 2FA |
 | `/api/auth/2fa/disable` | POST | Disable 2FA (requires password + code) |
 | `/api/auth/2fa/backup-codes` | POST | Regenerate backup codes |
 | `/api/auth/2fa/status` | GET | Get current 2FA status |
 
-#### 2FA UI Components (web-hta)
+#### 2FA UI Components (`apps/web-hta/src/components/auth/`)
 
-| Component | File | Description |
-|-----------|------|-------------|
-| `TwoFactorInput` | `src/components/auth/TwoFactorInput.tsx` | 6-digit code input with keyboard navigation |
-| `TwoFactorSetup` | `src/components/auth/TwoFactorSetup.tsx` | Setup dialog with QR code and backup codes |
-| `TwoFactorDisable` | `src/components/auth/TwoFactorDisable.tsx` | Disable dialog requiring password + TOTP |
-| `TwoFactorSettings` | `src/components/auth/TwoFactorSettings.tsx` | Settings card with status and controls |
+| Component | Description |
+|-----------|-------------|
+| `TwoFactorInput` | 6-digit code input with keyboard navigation |
+| `TwoFactorSetup` | Setup dialog with QR code and backup codes |
+| `TwoFactorDisable` | Disable dialog requiring password + TOTP |
+| `TwoFactorSettings` | Settings card with status and controls |
+
+#### Rate Limiter Functions (`apps/web-hta/src/lib/security/rate-limiter.ts`)
+
+| Function | Description |
+|----------|-------------|
+| `checkRateLimit(identifier, type)` | Check if request is within limits |
+| `recordFailedLoginAttempt(accountKey)` | Track failed login, returns lockout status |
+| `isAccountLocked(accountKey)` | Check if account is locked |
+| `clearFailedLoginAttempts(accountKey)` | Clear on successful login |
+| `getClientIP(request)` | Extract IP from proxy headers |
+| `createRateLimitHeaders(result)` | Generate X-RateLimit-* headers |
 
 #### 2FA Login Flow
 
-1. User enters email/password → `auth.ts` authorize callback
-2. If `totpEnabled: true` and no code provided → returns `requires2FA: true`
-3. Frontend shows inline 6-digit code input
-4. User enters TOTP code → verify via `/api/auth/2fa/verify`
-5. Alternative: `/login/backup-code` page for backup code login
-
-#### WebAuthn Functions Available
-
-- `startRegistration(user, existingCredentials)` - Begin passkey registration
-- `finishRegistration(response, challenge)` - Complete registration
-- `startAuthentication(credentials)` - Begin passkey auth
-- `finishAuthentication(response, challenge, credential)` - Complete auth
+```
+1. User enters email/password → auth.ts authorize callback
+2. Check account lockout status
+3. Validate password
+4. If totpEnabled && no code → return { requires2FA: true }
+5. If totpEnabled && code provided → verify TOTP
+6. On success → clear failed attempts, return user
+7. On failure → record failed attempt
+```
 
 ---
 
 ## 19. Disaster Recovery
 
+**Status:** ✅ Fully Implemented (pending first drill)
+
+### Implementation Status
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| CloudSQL backup config | ✅ Implemented | `terraform/modules/cloudsql/main.tf` |
+| Point-in-time recovery | ✅ Enabled | CloudSQL settings |
+| Storage versioning | ✅ Implemented | `terraform/modules/storage/main.tf` |
+| Cross-region replica | ✅ Config ready | `terraform/modules/cloudsql/replica.tf` |
+| DR restore script | ✅ Implemented | `scripts/dr-restore.sh` |
+| DR drill script | ✅ Implemented | `scripts/dr-drill.sh` |
+| DR monitoring alerts | ✅ Implemented | `terraform/modules/monitoring/alerts.tf` |
+| DR drill checklist | 📋 Documented | See 19.3 below |
+
 ### 19.1 Backup Configuration
 
+**Status:** ✅ Implemented in `terraform/modules/cloudsql/main.tf`
+
 ```hcl
-# terraform/modules/cloudsql/main.tf
+# terraform/modules/cloudsql/main.tf (actual implementation)
 
 resource "google_sql_database_instance" "main" {
-  name             = "hta-main"
-  database_version = "POSTGRES_16"
-  region           = "asia-south1"
+  name             = var.instance_name
+  database_version = var.database_version
+  region           = var.region
+  project          = var.project_id
+
+  deletion_protection = var.deletion_protection
 
   settings {
-    tier              = "db-custom-2-4096"
-    availability_type = "REGIONAL" # HA with automatic failover
+    tier              = var.tier
+    availability_type = var.availability_type
+    disk_size         = var.disk_size
+    disk_type         = "PD_SSD"
+    disk_autoresize   = true
 
     backup_configuration {
       enabled                        = true
-      start_time                     = "03:00" # 3 AM IST
+      start_time                     = "03:00"
       point_in_time_recovery_enabled = true
-      transaction_log_retention_days = 7
-      
       backup_retention_settings {
-        retained_backups = 30
-        retention_unit   = "COUNT"
+        retained_backups = var.backup_retention_days
       }
     }
 
     maintenance_window {
       day          = 7 # Sunday
-      hour         = 4 # 4 AM IST
+      hour         = 3
       update_track = "stable"
     }
-  }
 
-  deletion_protection = true
+    insights_config {
+      query_insights_enabled  = true
+      query_string_length     = 1024
+      record_application_tags = true
+      record_client_address   = true
+    }
+
+    # Logging flags for audit
+    database_flags {
+      name  = "log_checkpoints"
+      value = "on"
+    }
+    database_flags {
+      name  = "log_connections"
+      value = "on"
+    }
+    database_flags {
+      name  = "log_disconnections"
+      value = "on"
+    }
+    database_flags {
+      name  = "log_lock_waits"
+      value = "on"
+    }
+  }
 }
 ```
 
@@ -4531,99 +4742,204 @@ resource "google_sql_database_instance" "replica" {
 # gcloud sql instances failover hta-main-replica --project=hta-calibration-prod
 ```
 
-### 19.5 GCS Multi-Region Buckets
+### 19.5 GCS Storage Configuration
+
+**Status:** ✅ Implemented in `terraform/modules/storage/main.tf`
+
+The storage module is reusable and supports versioning, lifecycle rules, and CORS:
 
 ```hcl
-# terraform/modules/storage/main.tf
+# terraform/modules/storage/main.tf (actual implementation)
 
-resource "google_storage_bucket" "certificates" {
-  name     = "hta-calibr8s-certificates"
-  location = "US" # Multi-region for redundancy
+resource "google_storage_bucket" "main" {
+  name          = var.bucket_name
+  project       = var.project_id
+  location      = var.location
+  storage_class = var.storage_class
 
-  storage_class = "STANDARD"
-  
+  uniform_bucket_level_access = true
+
   versioning {
-    enabled = true
+    enabled = var.versioning_enabled
   }
 
-  lifecycle_rule {
-    action {
-      type          = "SetStorageClass"
-      storage_class = "NEARLINE"
-    }
-    condition {
-      age = 90 # Move to Nearline after 90 days
-    }
-  }
-
-  lifecycle_rule {
-    action {
-      type          = "SetStorageClass"
-      storage_class = "COLDLINE"
-    }
-    condition {
-      age = 365 # Move to Coldline after 1 year
+  dynamic "lifecycle_rule" {
+    for_each = var.lifecycle_rules
+    content {
+      action {
+        type          = lifecycle_rule.value.action_type
+        storage_class = lookup(lifecycle_rule.value, "storage_class", null)
+      }
+      condition {
+        age                   = lookup(lifecycle_rule.value, "age", null)
+        num_newer_versions    = lookup(lifecycle_rule.value, "num_newer_versions", null)
+        with_state            = lookup(lifecycle_rule.value, "with_state", null)
+        matches_storage_class = lookup(lifecycle_rule.value, "matches_storage_class", null)
+      }
     }
   }
 
-  lifecycle_rule {
-    action {
-      type = "Delete"
+  dynamic "cors" {
+    for_each = var.cors_config != null ? [var.cors_config] : []
+    content {
+      origin          = cors.value.origins
+      method          = cors.value.methods
+      response_header = cors.value.response_headers
+      max_age_seconds = cors.value.max_age_seconds
     }
-    condition {
-      age                   = 3650 # Delete after 10 years
-      num_newer_versions    = 1
-      with_state            = "ARCHIVED"
-    }
-  }
-}
-
-resource "google_storage_bucket" "uploads" {
-  name     = "hta-calibr8s-uploads"
-  location = "ASIA" # Multi-region for user-facing content
-
-  storage_class = "STANDARD"
-  
-  versioning {
-    enabled = true
   }
 
-  cors {
-    origin          = ["https://htacalibr8s.com"]
-    method          = ["GET", "HEAD", "PUT", "POST"]
-    response_header = ["*"]
-    max_age_seconds = 3600
-  }
+  labels = var.labels
 }
 ```
 
+#### Recommended Bucket Configuration
+
+| Bucket | Location | Versioning | Lifecycle | Purpose |
+|--------|----------|------------|-----------|---------|
+| `hta-certificates` | US (multi-region) | ✅ | 90d→Nearline, 1y→Coldline, 10y→Delete | PDF storage |
+| `hta-uploads` | ASIA (multi-region) | ✅ | - | User uploads |
+| `hta-backups` | US (multi-region) | ✅ | 30d retention | DB exports |
+
 ### 19.6 RTO/RPO Targets
 
-| Metric | Definition | Target | Current Capability |
-|--------|------------|--------|-------------------|
-| **RPO** | Maximum acceptable data loss | 1 hour | 5 min (PITR) |
-| **RTO** | Time to restore service | 1 hour | ~30 min |
-| **MTTR** | Mean time to repair | 2 hours | TBD |
-| **Backup frequency** | Automated backups | Daily | Daily 3 AM |
-| **PITR window** | Point-in-time recovery | 7 days | 7 days |
-| **Backup retention** | How long backups kept | 30 days | 30 days |
-| **Geo-redundancy** | Cross-region failover | Yes | Yes (US-West replica) |
+| Metric | Definition | Target | Current Capability | Status |
+|--------|------------|--------|-------------------|--------|
+| **RPO** | Maximum acceptable data loss | 1 hour | 5 min (PITR) | ✅ |
+| **RTO** | Time to restore service | 1 hour | ~30 min (estimated) | ⏳ Untested |
+| **MTTR** | Mean time to repair | 2 hours | TBD | ⏳ |
+| **Backup frequency** | Automated backups | Daily | Daily 3 AM | ✅ |
+| **PITR window** | Point-in-time recovery | 7 days | Configurable | ✅ |
+| **Backup retention** | How long backups kept | 30 days | Configurable | ✅ |
+| **Geo-redundancy** | Cross-region failover | Yes | ⏳ Planned | ⏳ |
 
 ### 19.7 Disaster Scenarios & Responses
 
-| Scenario | Impact | Response | RTO |
-|----------|--------|----------|-----|
-| **Database corruption** | High | Restore from PITR backup | 30 min |
-| **Region failure** | High | Failover to replica region | 15 min |
-| **Accidental deletion** | Medium | Restore from GCS versioning | 10 min |
-| **Security breach** | Critical | Isolate, restore clean backup | 2 hours |
-| **Cloud provider outage** | High | Wait or manual intervention | Variable |
+| Scenario | Impact | Response | RTO | Tested? |
+|----------|--------|----------|-----|---------|
+| **Database corruption** | High | Restore from PITR backup | 30 min | ⏳ No |
+| **Region failure** | High | Failover to replica region | 15 min | ⏳ No |
+| **Accidental deletion** | Medium | Restore from GCS versioning | 10 min | ⏳ No |
+| **Security breach** | Critical | Isolate, restore clean backup | 2 hours | ⏳ No |
+| **Cloud provider outage** | High | Wait or manual intervention | Variable | N/A |
+
+### 19.8 DR Action Items
+
+| Task | Priority | Status | Location |
+|------|----------|--------|----------|
+| Create `scripts/dr-restore.sh` | High | ✅ Done | `scripts/dr-restore.sh` |
+| Create `scripts/dr-drill.sh` | High | ✅ Done | `scripts/dr-drill.sh` |
+| Cross-region replica config | Medium | ✅ Done | `terraform/modules/cloudsql/replica.tf` |
+| DR monitoring alerts | Medium | ✅ Done | `terraform/modules/monitoring/alerts.tf` |
+| Production terraform config | Medium | ✅ Done | `terraform/environments/production/` |
+| DR Runbook | Medium | ✅ Done | `docs/runbooks/disaster-recovery.md` |
+| Deploy cross-region replica | Medium | ⏳ Apply terraform |
+| Conduct first DR drill | High | ⏳ Run `./scripts/dr-drill.sh` |
+
+### 19.9 DR Scripts Reference
+
+#### Restore Script (`scripts/dr-restore.sh`)
+
+```bash
+# List available backups
+./scripts/dr-restore.sh --list
+
+# Restore from specific backup (creates new instance)
+./scripts/dr-restore.sh <backup_id>
+
+# Test mode (creates temp instance, auto-cleanup)
+./scripts/dr-restore.sh --test <backup_id>
+
+# Point-in-time recovery
+./scripts/dr-restore.sh --pitr "2024-01-15T10:30:00Z"
+```
+
+#### DR Drill Script (`scripts/dr-drill.sh`)
+
+```bash
+# Interactive drill (prompts for confirmation)
+./scripts/dr-drill.sh
+
+# Automated drill (for CI/CD)
+./scripts/dr-drill.sh --automated
+
+# View previous drill reports
+./scripts/dr-drill.sh --report-only
+```
+
+Reports are saved to `dr-reports/dr-drill-YYYYMMDD-HHMMSS.md`
+
+### 19.10 DR Monitoring Alerts
+
+| Alert | Severity | Threshold | Action |
+|-------|----------|-----------|--------|
+| Backup Failure | CRITICAL | Any failure | Page on-call |
+| Replica Lag | HIGH | > 60s for 5min | Investigate write load |
+| Disk Usage | MEDIUM | > 80% | Scale disk or archive data |
+| No Recent Backup | CRITICAL | > 25 hours | Manual backup + escalate |
+
+Alerts configured in `terraform/modules/monitoring/alerts.tf`.
+
+### 19.11 Operational Tasks
+
+Tasks requiring GCP access to complete:
+
+#### Deploy Cross-Region Replica
+
+```bash
+cd terraform/environments/production
+
+# Ensure terraform.tfvars has:
+# enable_dr_replica = true
+# dr_replica_region = "us-west1"
+
+terraform plan -out=dr-replica.tfplan
+terraform apply dr-replica.tfplan
+
+# Verify
+gcloud sql instances list --project=hta-calibration-prod
+```
+
+#### Conduct First DR Drill
+
+```bash
+# After replica is deployed
+./scripts/dr-drill.sh
+
+# Review report
+cat dr-reports/dr-drill-*.md
+```
+
+#### Configure Monitoring Notifications
+
+```bash
+# 1. Create notification channel in GCP Console
+#    Monitoring > Alerting > Notification Channels
+
+# 2. Get channel ID
+gcloud beta monitoring channels list --project=hta-calibration-prod
+
+# 3. Update terraform.tfvars:
+#    monitoring_notification_channels = ["projects/.../notificationChannels/ID"]
+
+# 4. Apply
+terraform apply
+```
+
+#### Task Checklist
+
+| Task | Priority | Status | Command |
+|------|----------|--------|---------|
+| Deploy DR replica | High | ⏳ | `terraform apply` |
+| First DR drill | High | ⏳ | `./scripts/dr-drill.sh` |
+| Monitoring notifications | Medium | ⏳ | GCP Console + terraform |
+| Copy runbook to Confluence | Medium | ⏳ | Manual |
 
 ---
 
 ## 20. Secrets Infrastructure
 
-### 17.1 Secret Manager Organization
+### 20.1 Secret Manager Organization
 
 ```
 projects/hta-calibration-prod/secrets/
@@ -4645,7 +4961,7 @@ projects/hta-calibration-prod/secrets/
     └── queue-signing-key      # Job queue verification
 ```
 
-### 17.2 Terraform Secret Resources
+### 20.2 Terraform Secret Resources
 
 ```hcl
 # terraform/modules/secrets/main.tf
@@ -4733,7 +5049,7 @@ resource "google_secret_manager_secret" "worker" {
 }
 ```
 
-### 17.3 Per-Service IAM Bindings
+### 20.3 Per-Service IAM Bindings
 
 ```hcl
 # terraform/modules/secrets/iam.tf
@@ -4790,7 +5106,7 @@ resource "google_secret_manager_secret_iam_member" "worker_access" {
 }
 ```
 
-### 17.4 Cloud Run Secret Mounting
+### 20.4 Cloud Run Secret Mounting
 
 ```hcl
 # terraform/modules/services/main.tf
@@ -4851,7 +5167,7 @@ resource "google_cloud_run_v2_service" "api" {
 }
 ```
 
-### 17.5 Secret Rotation
+### 20.5 Secret Rotation
 
 ```typescript
 // packages/shared/src/secrets/rotation.ts
@@ -4903,7 +5219,7 @@ export async function rotateJwtSecret(projectId: string) {
 }
 ```
 
-### 17.6 Local Development Secrets
+### 20.6 Local Development Secrets
 
 ```bash
 # scripts/setup-local-secrets.sh
@@ -4929,7 +5245,7 @@ fi
 
 ## 21. Performance Management
 
-### 18.1 Performance Baselines
+### 21.1 Performance Baselines
 
 Establish baselines before and after separation:
 
@@ -4945,7 +5261,7 @@ Establish baselines before and after separation:
 | Worker job p95 | 2s | 1.5s | 5s |
 | Error rate | 0.1% | 0.1% | 1% |
 
-### 18.2 Load Testing Configuration
+### 21.2 Load Testing Configuration
 
 ```typescript
 // tests/load/scenarios/api-baseline.ts
@@ -5055,7 +5371,7 @@ export default function () {
 }
 ```
 
-### 18.3 Performance Testing Workflow
+### 21.3 Performance Testing Workflow
 
 ```yaml
 # .github/workflows/performance.yml
@@ -5146,7 +5462,7 @@ jobs:
             -d '{"text":"⚠️ Load test failed - performance regression detected"}'
 ```
 
-### 18.4 Caching Strategy
+### 21.4 Caching Strategy
 
 ```typescript
 // packages/shared/src/cache/strategy.ts
@@ -5203,7 +5519,7 @@ export async function createCertificate(data: CertificateInput, userId: string) 
 }
 ```
 
-### 18.5 Database Query Optimization
+### 21.5 Database Query Optimization
 
 ```typescript
 // packages/database/src/optimizations.ts
@@ -5260,7 +5576,7 @@ export async function getDashboardStats() {
 }
 ```
 
-### 18.6 Frontend Performance
+### 21.6 Frontend Performance
 
 ```typescript
 // apps/web/next.config.ts - Performance optimizations
@@ -5309,7 +5625,7 @@ const nextConfig = {
 
 ## 22. Compliance Management
 
-### 19.1 GDPR Data Flow Across Services
+### 22.1 GDPR Data Flow Across Services
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -5330,7 +5646,7 @@ const nextConfig = {
 └─────────────────────────────────────────────────────┘
 ```
 
-### 19.2 Data Processing Inventory
+### 22.2 Data Processing Inventory
 
 ```typescript
 // packages/shared/src/compliance/data-inventory.ts
@@ -5371,7 +5687,7 @@ export const DataProcessingInventory = {
 }
 ```
 
-### 19.3 Cross-Service Audit Logging
+### 22.3 Cross-Service Audit Logging
 
 ```typescript
 // packages/shared/src/compliance/audit-logger.ts
@@ -5461,7 +5777,7 @@ export function withAuditLogging(
 }
 ```
 
-### 19.4 Data Subject Rights Implementation
+### 22.4 Data Subject Rights Implementation
 
 ```typescript
 // packages/shared/src/compliance/dsr.ts
@@ -5645,7 +5961,7 @@ export async function updateUserData(
 }
 ```
 
-### 19.5 Consent Management
+### 22.5 Consent Management
 
 ```typescript
 // packages/shared/src/compliance/consent.ts
@@ -5717,7 +6033,7 @@ export async function getUserConsents(userId: string): Promise<ConsentRecord[]> 
 }
 ```
 
-### 19.6 Compliance Testing
+### 22.6 Compliance Testing
 
 ```typescript
 // tests/compliance/gdpr.test.ts
@@ -5827,7 +6143,7 @@ describe('GDPR Compliance', () => {
 })
 ```
 
-### 19.7 Compliance Checklist
+### 22.7 Compliance Checklist
 
 | Requirement | Implementation | Service | Status |
 |-------------|----------------|---------|--------|

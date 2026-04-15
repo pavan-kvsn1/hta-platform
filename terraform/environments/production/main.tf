@@ -145,13 +145,17 @@ module "cloudsql" {
 
   availability_type     = "REGIONAL"
   deletion_protection   = true
-  backup_retention_days = 7
+  backup_retention_days = 30
 
   vpc_network_id = google_compute_network.main.id
 
   database_name     = var.database_name
   database_user     = var.database_user
   database_password = var.database_password
+
+  # Cross-region replica for DR
+  enable_replica = var.enable_dr_replica
+  replica_region = var.dr_replica_region
 
   depends_on = [google_service_networking_connection.private_services]
 }
@@ -399,4 +403,35 @@ module "iap" {
 
   # Who can access Argo CD (Google account emails)
   authorized_members = var.iap_authorized_members
+}
+
+# =============================================================================
+# Monitoring & Alerting
+# =============================================================================
+
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project_id  = var.project_id
+  environment = var.environment
+
+  services = ["web", "api", "worker"]
+
+  # Thresholds
+  error_rate_threshold    = 0.05  # 5%
+  latency_threshold_ms    = 500
+  db_connection_threshold = 80
+  queue_depth_threshold   = 100
+
+  # SLO targets
+  availability_slo = 99.9
+  latency_slo_ms   = 200
+
+  # DR monitoring
+  enable_replica_monitoring = var.enable_dr_replica
+
+  # Notifications (configure via tfvars)
+  notification_channels = var.monitoring_notification_channels
+  enable_pagerduty      = var.enable_pagerduty
+  pagerduty_service_key = var.pagerduty_service_key
 }

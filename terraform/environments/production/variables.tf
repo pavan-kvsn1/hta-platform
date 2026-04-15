@@ -90,6 +90,19 @@ variable "database_password" {
   sensitive   = true
 }
 
+# Disaster Recovery
+variable "enable_dr_replica" {
+  description = "Enable cross-region read replica for DR"
+  type        = bool
+  default     = true
+}
+
+variable "dr_replica_region" {
+  description = "Region for DR replica (should differ from primary)"
+  type        = string
+  default     = "us-west1"
+}
+
 # Redis
 variable "redis_tier" {
   description = "Redis tier (BASIC or STANDARD_HA)"
@@ -139,4 +152,24 @@ variable "iap_support_email" {
 variable "iap_authorized_members" {
   description = "List of members authorized to access Argo CD (e.g., user:you@gmail.com)"
   type        = list(string)
+}
+
+# Monitoring
+variable "monitoring_notification_channels" {
+  description = "List of notification channel IDs for alerts"
+  type        = list(string)
+  default     = []
+}
+
+variable "enable_pagerduty" {
+  description = "Enable PagerDuty integration for alerts"
+  type        = bool
+  default     = false
+}
+
+variable "pagerduty_service_key" {
+  description = "PagerDuty service integration key"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

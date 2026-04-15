@@ -69,3 +69,31 @@ variable "database_password" {
   type        = string
   sensitive   = true
 }
+
+# =============================================================================
+# Replica Configuration
+# =============================================================================
+
+variable "enable_replica" {
+  description = "Enable cross-region read replica for DR"
+  type        = bool
+  default     = false
+}
+
+variable "replica_region" {
+  description = "Region for the read replica (should differ from primary)"
+  type        = string
+  default     = "us-west1"
+}
+
+variable "replica_tier" {
+  description = "Machine tier for replica (defaults to same as primary)"
+  type        = string
+  default     = null
+}
+
+variable "replica_vpc_network_id" {
+  description = "VPC network ID for replica (defaults to same as primary)"
+  type        = string
+  default     = null
+}
