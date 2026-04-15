@@ -114,9 +114,12 @@ export async function loginAsAdmin(page: Page) {
 }
 
 export async function loginAsCustomer(page: Page) {
+  // Clear any existing session to ensure we login as customer
+  await page.context().clearCookies()
   await login(page, 'customer', {
     loginPath: '/customer/login',
     expectedUrlPattern: /customer\/dashboard/,
+    skipIfAuthenticated: false, // Force fresh login
   })
   await expect(page).toHaveURL(/customer\/dashboard/)
 }

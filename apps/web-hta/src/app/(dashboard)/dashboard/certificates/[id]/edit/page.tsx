@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { SectionUnlockRequest } from '@/components/engineer/SectionUnlockRequest'
 import { ConflictResolutionDialog } from '@/components/certificates'
+import { apiFetch } from '@/lib/api-client'
 
 const SECTIONS: { id: string; label: string; showWhenNotDraft?: boolean }[] = [
   { id: 'summary', label: 'Summary' },
@@ -484,7 +485,7 @@ export default function EditCertificatePage() {
       }
 
       try {
-        const response = await fetch(`/api/certificates/${certificateId}/unlock-requests`)
+        const response = await apiFetch(`/api/certificates/${certificateId}/unlock-requests`)
         if (response.ok) {
           const data = await response.json()
           setUnlockedSections(data.unlockedSections?.all || [])
@@ -526,7 +527,7 @@ export default function EditCertificatePage() {
         setIsLoading(true)
         setLoadError(null)
 
-        const response = await fetch(`/api/certificates/${certificateId}`)
+        const response = await apiFetch(`/api/certificates/${certificateId}`)
 
         if (!response.ok) {
           if (response.status === 404) {

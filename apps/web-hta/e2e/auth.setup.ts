@@ -16,41 +16,60 @@ const STORAGE_STATE_DIR = 'e2e/.auth'
 setup.describe.configure({ mode: 'serial' })
 
 setup('authenticate as engineer', async ({ page }) => {
-  await page.goto('/login')
-  await page.locator('input[type="email"], input[name="email"]').fill(TEST_USERS.engineer.email)
-  await page.locator('input[type="password"], input[name="password"]').fill(TEST_USERS.engineer.password)
-  await page.locator('button[type="submit"]').click()
-  await expect(page).toHaveURL(/dashboard/, { timeout: 15000 })
+  await page.goto('/login', { waitUntil: 'networkidle' })
 
+  await page.getByLabel('Email Address').fill(TEST_USERS.engineer.email)
+  await page.getByLabel('Password').fill(TEST_USERS.engineer.password)
+  await page.getByRole('button', { name: 'Sign In' }).click()
+
+  await page.waitForURL(/dashboard/, { timeout: 30000 })
   await page.context().storageState({ path: `${STORAGE_STATE_DIR}/engineer.json` })
 })
 
 setup('authenticate as reviewer', async ({ page }) => {
   await page.goto('/login')
-  await page.locator('input[type="email"], input[name="email"]').fill(TEST_USERS.reviewer.email)
-  await page.locator('input[type="password"], input[name="password"]').fill(TEST_USERS.reviewer.password)
-  await page.locator('button[type="submit"]').click()
-  await expect(page).toHaveURL(/dashboard|admin/, { timeout: 15000 })
+
+  // Wait for form to be fully hydrated
+  await page.getByLabel('Email Address').waitFor({ state: 'visible' })
+
+  await page.getByLabel('Email Address').fill(TEST_USERS.reviewer.email)
+  await page.getByLabel('Password').fill(TEST_USERS.reviewer.password)
+  await page.getByRole('button', { name: 'Sign In' }).click()
+
+  // Wait for redirect - use waitForURL for more reliable redirect handling
+  await page.waitForURL(/dashboard|admin/, { timeout: 20000 })
 
   await page.context().storageState({ path: `${STORAGE_STATE_DIR}/reviewer.json` })
 })
 
 setup('authenticate as admin', async ({ page }) => {
   await page.goto('/login')
-  await page.locator('input[type="email"], input[name="email"]').fill(TEST_USERS.admin.email)
-  await page.locator('input[type="password"], input[name="password"]').fill(TEST_USERS.admin.password)
-  await page.locator('button[type="submit"]').click()
-  await expect(page).toHaveURL(/admin|dashboard/, { timeout: 15000 })
+
+  // Wait for form to be fully hydrated
+  await page.getByLabel('Email Address').waitFor({ state: 'visible' })
+
+  await page.getByLabel('Email Address').fill(TEST_USERS.admin.email)
+  await page.getByLabel('Password').fill(TEST_USERS.admin.password)
+  await page.getByRole('button', { name: 'Sign In' }).click()
+
+  // Wait for redirect - use waitForURL for more reliable redirect handling
+  await page.waitForURL(/admin|dashboard/, { timeout: 20000 })
 
   await page.context().storageState({ path: `${STORAGE_STATE_DIR}/admin.json` })
 })
 
 setup('authenticate as customer', async ({ page }) => {
   await page.goto('/customer/login')
-  await page.locator('input[type="email"], input[name="email"]').fill(TEST_USERS.customer.email)
-  await page.locator('input[type="password"], input[name="password"]').fill(TEST_USERS.customer.password)
-  await page.locator('button[type="submit"]').click()
-  await expect(page).toHaveURL(/customer\/dashboard/, { timeout: 15000 })
+
+  // Wait for form to be fully hydrated
+  await page.getByLabel('Email Address').waitFor({ state: 'visible' })
+
+  await page.getByLabel('Email Address').fill(TEST_USERS.customer.email)
+  await page.getByLabel('Password').fill(TEST_USERS.customer.password)
+  await page.getByRole('button', { name: 'Sign In' }).click()
+
+  // Wait for redirect - use waitForURL for more reliable redirect handling
+  await page.waitForURL(/customer\/dashboard/, { timeout: 20000 })
 
   await page.context().storageState({ path: `${STORAGE_STATE_DIR}/customer.json` })
 })

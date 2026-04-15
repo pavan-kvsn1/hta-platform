@@ -24,14 +24,17 @@ test.describe('Customer Review Flow', () => {
   })
 
   test('customer can login successfully', async ({ page }) => {
-    await page.goto('/customer/login')
+    await page.goto('/customer/login', { waitUntil: 'networkidle' })
 
-    await page.fill('input[type="email"], input[name="email"]', TEST_USERS.customer.email)
-    await page.fill('input[type="password"], input[name="password"]', TEST_USERS.customer.password)
-    await page.click('button[type="submit"]')
+    // Wait for form to be hydrated
+    await page.getByLabel('Email Address').waitFor({ state: 'visible' })
 
-    // Should redirect to customer dashboard
-    await expect(page).toHaveURL(/customer\/dashboard/, { timeout: 10000 })
+    await page.getByLabel('Email Address').fill(TEST_USERS.customer.email)
+    await page.getByLabel('Password').fill(TEST_USERS.customer.password)
+    await page.getByRole('button', { name: 'Sign In' }).click()
+
+    // Should redirect to customer dashboard (wait longer for login + redirect)
+    await page.waitForURL(/customer\/dashboard/, { timeout: 30000 })
   })
 
   test('customer rejects invalid credentials', async ({ page }) => {
@@ -233,13 +236,14 @@ test.describe('Customer Review Flow', () => {
     test('can logout from customer portal', async ({ page }) => {
       await page.goto('/customer/dashboard')
 
-      // Look for logout button
-      const logoutButton = page.locator('button:has-text("Logout"), button:has-text("Sign out"), a:has-text("Logout")')
+      // Look for logout/sign out button
+      const logoutButton = page.getByRole('button', { name: /sign out|logout/i })
       const hasLogoutButton = await logoutButton.first().isVisible({ timeout: 5000 }).catch(() => false)
 
       if (hasLogoutButton) {
         await logoutButton.first().click()
-        await expect(page).toHaveURL(/customer\/login|login/, { timeout: 10000 })
+        // Wait for logout to process and redirect
+        await page.waitForURL(/customer\/login|login/, { timeout: 15000 })
       } else {
         // Try finding logout via user menu
         const userMenu = page.locator('[aria-label*="user"], [aria-label*="account"]')

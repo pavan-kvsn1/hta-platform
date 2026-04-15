@@ -85,7 +85,12 @@ export default defineConfig({
     {
       name: 'chromium',
       testMatch: /visual-regression\.spec\.ts/,
-      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        // Use engineer storage state as base - individual tests override as needed
+        storageState: `${STORAGE_STATE_DIR}/engineer.json`,
+      },
     },
 
     // === UNAUTHENTICATED TESTS ===

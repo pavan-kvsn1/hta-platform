@@ -29,6 +29,18 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   transpilePackages: ['@hta/ui', '@hta/shared', '@hta/database'],
 
+  webpack: (config) => {
+    // Handle .js extension resolution for TypeScript files in monorepo packages
+    // This is needed because @hta/shared uses .js extensions for ESM compatibility
+    // but the actual files are .ts
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+      '.mjs': ['.mts', '.mjs'],
+      '.cjs': ['.cts', '.cjs'],
+    }
+    return config
+  },
+
   async headers() {
     return [
       {
