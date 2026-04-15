@@ -46,7 +46,7 @@ export default defineConfig({
     // === AUTHENTICATED PROJECTS: Use stored sessions ===
     {
       name: 'engineer-tests',
-      testMatch: /journeys\/(01|02|03|06)-.*\.spec\.ts/,
+      testMatch: /journeys\/certificate-flow\.spec\.ts/,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
@@ -55,7 +55,7 @@ export default defineConfig({
     },
     {
       name: 'reviewer-tests',
-      testMatch: /journeys\/(04)-.*\.spec\.ts/,
+      testMatch: /journeys\/reviewer-flow\.spec\.ts/,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
@@ -64,7 +64,7 @@ export default defineConfig({
     },
     {
       name: 'admin-tests',
-      testMatch: /journeys\/(05|10)-.*\.spec\.ts/,
+      testMatch: /journeys\/admin-authorization\.spec\.ts/,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
@@ -73,7 +73,7 @@ export default defineConfig({
     },
     {
       name: 'customer-tests',
-      testMatch: /journeys\/(07|08|09)-.*\.spec\.ts/,
+      testMatch: /journeys\/customer-flow\.spec\.ts/,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
@@ -81,26 +81,35 @@ export default defineConfig({
       },
     },
 
+    // === VISUAL REGRESSION TESTS ===
+    {
+      name: 'chromium',
+      testMatch: /visual-regression\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+
     // === UNAUTHENTICATED TESTS ===
     {
       name: 'public-tests',
-      testMatch: /pages\/login\.spec\.ts/,
+      testMatch: /pages\/.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
 
     // === CROSS-BROWSER (optional) ===
     {
       name: 'firefox',
-      testMatch: /pages\/login\.spec\.ts/,
+      testMatch: /pages\/.*\.spec\.ts/,
       use: { ...devices['Desktop Firefox'] },
     },
   ],
 
-  // Run local dev server before tests
-  webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-  },
+  // Run local dev server before tests (skip if server already running on port 3000)
+  webServer: process.env.SKIP_WEB_SERVER
+    ? undefined
+    : {
+        command: 'pnpm dev',
+        url: 'http://localhost:3000',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120000,
+      },
 })
