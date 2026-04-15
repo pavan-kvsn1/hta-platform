@@ -68,7 +68,7 @@ describe('Authentication Integration', () => {
         name: 'Find Me User',
       })
 
-      const user = await prisma.user.findUnique({
+      const user = await prisma.user.findFirst({
         where: { email: 'findme@example.com' },
       })
 
@@ -92,7 +92,7 @@ describe('Authentication Integration', () => {
       expect(activeUser).toBeNull()
 
       // But user exists when not filtering by isActive
-      const anyUser = await prisma.user.findUnique({
+      const anyUser = await prisma.user.findFirst({
         where: { email: 'inactive@example.com' },
       })
       expect(anyUser).toBeDefined()

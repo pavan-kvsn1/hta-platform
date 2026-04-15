@@ -211,12 +211,12 @@ describe('Customer Portal API Integration', () => {
 
       const accountWithUsers = await prisma.customerAccount.findUnique({
         where: { id: account.id },
-        include: { customerUsers: true },
+        include: { users: true },
       })
 
-      expect(accountWithUsers?.customerUsers).toHaveLength(2)
-      expect(accountWithUsers?.customerUsers.map(u => u.name)).toContain('User One')
-      expect(accountWithUsers?.customerUsers.map(u => u.name)).toContain('User Two')
+      expect(accountWithUsers?.users).toHaveLength(2)
+      expect(accountWithUsers?.users.map(u => u.name)).toContain('User One')
+      expect(accountWithUsers?.users.map(u => u.name)).toContain('User Two')
     })
 
     it('should link customer account to admin', async () => {
@@ -261,7 +261,7 @@ describe('Customer Portal API Integration', () => {
         name: 'Specific User',
       })
 
-      const user = await prisma.customerUser.findUnique({
+      const user = await prisma.customerUser.findFirst({
         where: { email: 'specific@customer.com' },
       })
 
@@ -318,6 +318,8 @@ describe('Customer Portal API Integration', () => {
         data: {
           token: 'download-token-123',
           certificateId: cert.id,
+          customerEmail: 'customer@test.com',
+          customerName: 'Test Customer',
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
         },
       })
@@ -336,6 +338,8 @@ describe('Customer Portal API Integration', () => {
         data: {
           token: 'valid-download-token',
           certificateId: cert.id,
+          customerEmail: 'customer@test.com',
+          customerName: 'Test Customer',
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         },
       })

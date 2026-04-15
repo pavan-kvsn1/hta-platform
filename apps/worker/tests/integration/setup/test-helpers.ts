@@ -151,16 +151,23 @@ export async function createUserNotification(overrides: {
   read: boolean
   createdAt: Date
 }> {
-  const notification = await prisma.notification.create({
+  let notification = await prisma.notification.create({
     data: {
       user: { connect: { id: overrides.userId } },
       type: overrides.type || 'INFO',
       title: overrides.title || 'Test Notification',
       message: overrides.message || 'This is a test notification',
       read: overrides.read ?? false,
-      ...(overrides.createdAt && { createdAt: overrides.createdAt }),
     },
   })
+
+  // Backdate createdAt if specified (Prisma @default(now()) overrides on create)
+  if (overrides.createdAt) {
+    notification = await prisma.notification.update({
+      where: { id: notification.id },
+      data: { createdAt: overrides.createdAt },
+    })
+  }
 
   return {
     id: notification.id,
@@ -186,16 +193,23 @@ export async function createCustomerNotification(overrides: {
   read: boolean
   createdAt: Date
 }> {
-  const notification = await prisma.notification.create({
+  let notification = await prisma.notification.create({
     data: {
       customer: { connect: { id: overrides.customerId } },
       type: overrides.type || 'INFO',
       title: overrides.title || 'Test Notification',
       message: overrides.message || 'This is a test notification',
       read: overrides.read ?? false,
-      ...(overrides.createdAt && { createdAt: overrides.createdAt }),
     },
   })
+
+  // Backdate createdAt if specified (Prisma @default(now()) overrides on create)
+  if (overrides.createdAt) {
+    notification = await prisma.notification.update({
+      where: { id: notification.id },
+      data: { createdAt: overrides.createdAt },
+    })
+  }
 
   return {
     id: notification.id,
@@ -207,12 +221,32 @@ export async function createCustomerNotification(overrides: {
 
 /**
  * Clean all test data
+ * Deletion order matters due to foreign key constraints.
+ * Delete child tables before parent tables.
  */
 export async function cleanupTestData(): Promise<void> {
   await prisma.$transaction([
+    // Calibration data (must delete before Certificate/Parameter)
+    prisma.calibrationResult.deleteMany(),
+    prisma.certificateMasterInstrument.deleteMany(),
+    prisma.parameter.deleteMany(),
+    // Certificate lifecycle
+    prisma.certificateRevision.deleteMany(),
+    prisma.downloadToken.deleteMany(),
+    // Notification references Certificate, User, CustomerUser
     prisma.notification.deleteMany(),
+    // Audit logs
+    prisma.auditLog.deleteMany(),
+    // Certificate references User (createdById, lastModifiedById)
+    prisma.certificate.deleteMany(),
+    // Auth tokens
     prisma.passwordResetToken.deleteMany(),
+    // Instruments reference User
+    prisma.masterInstrument.deleteMany(),
+    // Customer tables
     prisma.customerUser.deleteMany(),
+    prisma.customerAccount.deleteMany(),
+    // User references Tenant
     prisma.user.deleteMany(),
   ])
 }
