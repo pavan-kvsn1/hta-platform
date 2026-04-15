@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "test:integration": "echo 'No integration tests in web-hta yet'",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:visual": "playwright test e2e/visual-regression.spec.ts --project=chromium",
