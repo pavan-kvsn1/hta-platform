@@ -14,7 +14,7 @@ import {
   Plus,
   MessageSquare,
   AlertTriangle,
-  User,
+  User as _User,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import type { Feedback, CertificateEvent } from './AdminCertificateClient'
@@ -274,7 +274,7 @@ const INCLUDED_EVENTS = [
 export function AdminHistorySection({
   feedbacks,
   events,
-  currentRevision,
+  currentRevision: _currentRevision,
   className,
 }: AdminHistorySectionProps) {
   const [isExpanded, setIsExpanded] = useState(true)

@@ -17,7 +17,7 @@ import {
   RotateCcw,
   Inbox,
   Users,
-  XCircle,
+  XCircle as _XCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -135,7 +135,7 @@ function formatHours(hours: number): string {
 }
 
 // Calculate percentage
-function percentage(value: number, total: number): string {
+function _percentage(value: number, total: number): string {
   if (total === 0) return '0%'
   return `${Math.round((value / total) * 100)}%`
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, Fragment, useCallback } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -190,11 +190,6 @@ export default function AnalyticsPage() {
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([])
   const [engineers, setEngineers] = useState<{ id: string; name: string }[]>([])
 
-  useEffect(() => {
-    fetchAnalytics()
-    fetchFilterOptions()
-  }, [timePeriod, customer, engineer])
-
   const fetchFilterOptions = async () => {
     try {
       const [customersRes, engineersRes] = await Promise.all([
@@ -216,7 +211,7 @@ export default function AnalyticsPage() {
     }
   }
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setLoading(true)
     setError(null)
 
@@ -240,7 +235,12 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [timePeriod, customer, engineer])
+
+  useEffect(() => {
+    fetchAnalytics()
+    fetchFilterOptions()
+  }, [fetchAnalytics])
 
   const toggleRow = (id: string) => {
     setExpandedRows((prev) => {

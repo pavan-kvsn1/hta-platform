@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Input as _Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -41,7 +41,7 @@ import {
   UserPlus,
   Building2,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn as _cn } from '@/lib/utils'
 
 interface Registration {
   id: string
@@ -79,7 +79,7 @@ export default function RegistrationsPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
 
-  const fetchRegistrations = async (page = 1, status = statusFilter) => {
+  const fetchRegistrations = useCallback(async (page = 1, status = statusFilter) => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -98,11 +98,11 @@ export default function RegistrationsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [statusFilter])
 
   useEffect(() => {
     fetchRegistrations()
-  }, [])
+  }, [fetchRegistrations])
 
   const handleStatusChange = (value: string) => {
     setStatusFilter(value)

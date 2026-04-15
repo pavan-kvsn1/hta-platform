@@ -11,12 +11,12 @@ import {
   RotateCcw,
   Loader2,
   X,
-  Clock,
+  Clock as _Clock,
   FileEdit,
   Send,
   AlertCircle,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn as _cn } from '@/lib/utils'
 import type { CertificateData, CustomerData, Signature } from './CustomerCertReviewClient'
 
 interface CustomerApprovalActionsProps {
@@ -47,7 +47,7 @@ export function CustomerApprovalActions({
   // Status checks
   const isRevisionRequired = certificate.status === 'REVISION_REQUIRED'
   const isCustomerRevisionRequired = certificate.status === 'CUSTOMER_REVISION_REQUIRED'
-  const isPendingApproval = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
+  const _isPendingApproval = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
   const isApproved = ['APPROVED', 'PENDING_ADMIN_AUTHORIZATION', 'PENDING_ADMIN_APPROVAL', 'AUTHORIZED'].includes(certificate.status)
 
   // Check if customer already signed

@@ -50,7 +50,7 @@ export function ReviewerApproveModal({
   onClose,
   certificateId: _certificateId,
   certificateNumber,
-  uucDescription,
+  uucDescription: _uucDescription,
   customerName,
   customerEmail,
   onApprove,

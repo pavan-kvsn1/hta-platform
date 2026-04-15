@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ShieldCheck, CheckCircle, ChevronDown, ChevronRight, User, Mail, Send } from 'lucide-react'
+import { ShieldCheck, CheckCircle, ChevronDown, ChevronRight, User, Mail, Send as _Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

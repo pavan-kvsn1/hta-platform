@@ -14,7 +14,7 @@ import {
   Calendar,
   Building2,
   CheckCircle,
-  Loader2,
+  Loader2 as _Loader2,
   ChevronLeft,
   LogOut,
   FileEdit,

@@ -8,7 +8,7 @@
 
 // Prisma types imported for type definitions only
 import { prisma } from '@/lib/prisma'
-import { Job, JobWorker } from '../types'
+import { JobWorker } from '../types'
 
 /**
  * Process single notification

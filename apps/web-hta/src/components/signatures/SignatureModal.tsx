@@ -41,7 +41,7 @@ export default function SignatureModal({
   collectEvidence = true,
 }: SignatureModalProps) {
   const signatureRef = useRef<TypedSignatureHandle>(null)
-  const [hasSignature, setHasSignature] = useState(false)
+  const [_hasSignature, setHasSignature] = useState(false)
   const [signerName, setSignerName] = useState(defaultName)
   const [localError, setLocalError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)

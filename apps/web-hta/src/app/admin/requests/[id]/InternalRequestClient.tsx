@@ -64,7 +64,7 @@ export function InternalRequestClient({
   request,
   certificate,
   assignee,
-  reviewer,
+  reviewer: _reviewer,
   feedbacks,
   events,
   currentlyUnlockedSections,

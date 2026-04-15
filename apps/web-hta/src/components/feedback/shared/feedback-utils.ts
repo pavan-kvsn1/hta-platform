@@ -5,7 +5,7 @@ import {
   XCircle,
   PenLine,
   Send,
-  User,
+  User as _User,
   FileText,
   Target,
   Wrench,

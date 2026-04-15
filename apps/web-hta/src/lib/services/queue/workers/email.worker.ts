@@ -13,7 +13,7 @@
 
 import { Resend } from 'resend'
 import { render } from '@react-email/components'
-import { Job, JobWorker } from '../types'
+import { JobWorker } from '../types'
 
 // React Email Templates
 import {

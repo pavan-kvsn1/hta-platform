@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -69,7 +69,7 @@ export default function CustomerRequestsPage() {
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [page, setPage] = useState(1)
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -90,13 +90,13 @@ export default function CustomerRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [statusFilter, typeFilter, page])
 
   useEffect(() => {
     fetchRequests()
-  }, [statusFilter, typeFilter, page])
+  }, [fetchRequests])
 
-  const getTypeIcon = (type: string) => {
+  const _getTypeIcon = (type: string) => {
     switch (type) {
       case 'USER_ADDITION':
         return <UserPlus className="h-4 w-4" />

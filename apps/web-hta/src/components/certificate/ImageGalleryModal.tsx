@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import {
   X,
   Loader2,
@@ -151,15 +152,17 @@ export function ImageGalleryModal({
 
                 {/* Image */}
                 {selectedImage && (
-                  <div className="relative max-h-full max-w-full">
-                    <img
+                  <div className="relative max-h-full max-w-full" style={{ width: '100%', height: '50vh' }}>
+                    <Image
                       src={selectedImage.optimizedUrl || selectedImage.originalUrl || ''}
                       alt={selectedImage.fileName}
+                      fill
                       className={cn(
-                        'max-h-[50vh] max-w-full object-contain rounded-lg shadow-lg transition-transform',
+                        'object-contain rounded-lg shadow-lg transition-transform',
                         isZoomed && 'scale-150 cursor-zoom-out'
                       )}
                       onClick={() => setIsZoomed(!isZoomed)}
+                      unoptimized
                     />
 
                     {/* Image Actions */}
@@ -209,17 +212,19 @@ export function ImageGalleryModal({
                         type="button"
                         onClick={() => setSelectedIndex(index)}
                         className={cn(
-                          'flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all',
+                          'relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all',
                           selectedIndex === index
                             ? 'border-primary ring-2 ring-primary/30'
                             : 'border-slate-200 hover:border-slate-400'
                         )}
                       >
                         {image.thumbnailUrl || image.optimizedUrl ? (
-                          <img
+                          <Image
                             src={image.thumbnailUrl || image.optimizedUrl || ''}
                             alt={image.fileName}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
+                            unoptimized
                           />
                         ) : (
                           <div className="w-full h-full bg-slate-100 flex items-center justify-center">

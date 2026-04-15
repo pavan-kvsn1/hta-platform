@@ -246,7 +246,7 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
     const { instruments } = get()
     const descriptions = new Set<string>()
 
-    let filtered = filterByParameterGroup(instruments, category, parameterGroup)
+    const filtered = filterByParameterGroup(instruments, category, parameterGroup)
 
     filtered.forEach(inst => {
       if (inst.instrument_desc) {

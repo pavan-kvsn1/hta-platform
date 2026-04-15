@@ -54,7 +54,7 @@ export function TokenApprovalActions({
   // Status checks
   const isRevisionRequired = certificate.status === 'REVISION_REQUIRED'
   const isCustomerRevisionRequired = certificate.status === 'CUSTOMER_REVISION_REQUIRED'
-  const isPendingApproval = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
+  const _isPendingApproval = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
   const isApproved = ['APPROVED', 'PENDING_ADMIN_AUTHORIZATION', 'PENDING_ADMIN_APPROVAL', 'AUTHORIZED'].includes(certificate.status)
 
   // Check if customer already signed

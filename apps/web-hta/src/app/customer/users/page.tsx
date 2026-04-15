@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -105,7 +105,7 @@ export default function UsersPage() {
   // Get current user's name for signature
   const currentUserName = teamData?.users.find(u => u.id === teamData.currentUserId)?.name || ''
 
-  const fetchTeamData = async () => {
+  const fetchTeamData = useCallback(async () => {
     try {
       const res = await fetch('/api/customer/team')
       if (!res.ok) {
@@ -122,11 +122,11 @@ export default function UsersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
 
   useEffect(() => {
     fetchTeamData()
-  }, [])
+  }, [fetchTeamData])
 
   const resetAddUserForm = () => {
     setAddUserOpen(false)

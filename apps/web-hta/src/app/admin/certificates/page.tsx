@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -108,7 +108,7 @@ function AdminCertificatesContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchInput, setSearchInput] = useState('')
 
-  const fetchCertificates = async (page = 1) => {
+  const fetchCertificates = useCallback(async (page = 1) => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -135,11 +135,11 @@ function AdminCertificatesContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [statusFilter, searchQuery])
 
   useEffect(() => {
     fetchCertificates()
-  }, [statusFilter, searchQuery])
+  }, [statusFilter, searchQuery, fetchCertificates])
 
   const handleSearch = () => {
     setSearchQuery(searchInput)

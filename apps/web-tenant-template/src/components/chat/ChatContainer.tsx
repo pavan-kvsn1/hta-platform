@@ -33,8 +33,8 @@ interface ChatContainerProps {
 
 export function ChatContainer({
   threadId,
-  certificateId,
-  threadType,
+  certificateId: _certificateId,
+  threadType: _threadType,
   className,
 }: ChatContainerProps) {
   const { data: session } = useSession()

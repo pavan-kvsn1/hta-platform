@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -25,7 +25,7 @@ import {
   Plus,
   Search,
   Users,
-  Shield,
+  Shield as _Shield,
   UserCog,
   Loader2,
   ChevronLeft,
@@ -72,7 +72,7 @@ export function UserListClient() {
   const [activeFilter, setActiveFilter] = useState('true')
   const [page, setPage] = useState(1)
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -93,17 +93,16 @@ export function UserListClient() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [search, roleFilter, activeFilter, page])
 
   useEffect(() => {
     fetchUsers()
-  }, [roleFilter, activeFilter, page])
+  }, [fetchUsers])
 
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       setPage(1)
-      fetchUsers()
     }, 300)
     return () => clearTimeout(timer)
   }, [search])

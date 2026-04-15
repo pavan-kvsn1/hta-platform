@@ -30,7 +30,7 @@ interface CustomerCertReviewClientProps {
   sentAt: string | null
 }
 
-function formatDate(dateString: string | null): string {
+function _formatDate(dateString: string | null): string {
   if (!dateString) return '-'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-IN', {
@@ -120,7 +120,7 @@ export function CustomerCertReviewClient({
   certificate,
   customer,
   signatures,
-  chatThreadId,
+  chatThreadId: _chatThreadId,
   headerData,
   expiresAt,
   sentAt,

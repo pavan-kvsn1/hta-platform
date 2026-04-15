@@ -1,4 +1,3 @@
-import type { Prisma } from '@hta/database'
 import { prisma } from '@/lib/prisma'
 import { enqueue } from '@/lib/services/queue'
 

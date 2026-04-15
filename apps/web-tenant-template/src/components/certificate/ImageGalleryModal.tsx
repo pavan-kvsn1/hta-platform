@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import {
   X,
   Loader2,
@@ -151,15 +152,18 @@ export function ImageGalleryModal({
 
                 {/* Image */}
                 {selectedImage && (
-                  <div className="relative max-h-full max-w-full">
-                    <img
+                  <div className="relative max-h-full max-w-full w-[80vw] h-[50vh]">
+                    <Image
                       src={selectedImage.optimizedUrl || selectedImage.originalUrl || ''}
                       alt={selectedImage.fileName}
+                      fill
+                      sizes="80vw"
                       className={cn(
-                        'max-h-[50vh] max-w-full object-contain rounded-lg shadow-lg transition-transform',
+                        'object-contain rounded-lg shadow-lg transition-transform cursor-pointer',
                         isZoomed && 'scale-150 cursor-zoom-out'
                       )}
                       onClick={() => setIsZoomed(!isZoomed)}
+                      unoptimized
                     />
 
                     {/* Image Actions */}
@@ -216,11 +220,16 @@ export function ImageGalleryModal({
                         )}
                       >
                         {image.thumbnailUrl || image.optimizedUrl ? (
-                          <img
-                            src={image.thumbnailUrl || image.optimizedUrl || ''}
-                            alt={image.fileName}
-                            className="w-full h-full object-cover"
-                          />
+                          <div className="relative w-full h-full">
+                            <Image
+                              src={image.thumbnailUrl || image.optimizedUrl || ''}
+                              alt={image.fileName}
+                              fill
+                              sizes="64px"
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
                         ) : (
                           <div className="w-full h-full bg-slate-100 flex items-center justify-center">
                             <ImageIcon className="size-6 text-slate-300" />

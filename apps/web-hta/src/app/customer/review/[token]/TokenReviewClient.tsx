@@ -134,7 +134,7 @@ export function TokenReviewClient({
   certificate,
   customer,
   signatures,
-  chatThreadId,
+  chatThreadId: _chatThreadId,
   headerData,
   expiresAt,
   sentAt,

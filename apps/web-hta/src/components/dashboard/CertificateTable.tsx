@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Edit, FileText, Search, Filter, X, Eye, Send, Download } from 'lucide-react'
+import { Edit, FileText as _FileText, Search, Filter, X, Eye, Send as _Send, Download } from 'lucide-react'
 
 export interface CertificateListItem {
   id: string

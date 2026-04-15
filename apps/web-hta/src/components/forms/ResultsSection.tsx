@@ -17,7 +17,7 @@ import {
   Parameter,
   CalibrationResult,
   ACCURACY_TYPE_CONFIG,
-  AccuracyType,
+  AccuracyType as _AccuracyType,
 } from '@/lib/stores/certificate-store'
 import { cn } from '@/lib/utils'
 import { useCertificateImages } from '@/lib/hooks/useCertificateImages'
@@ -283,7 +283,7 @@ function calculateDisplayLimit(
 }
 
 // Format limit for display
-function formatLimit(limit: number | null, unit: string): string {
+function _formatLimit(limit: number | null, _unit: string): string {
   if (limit === null) return '—'
   return `±${Math.round(limit * 1000) / 1000}`
 }
@@ -309,7 +309,7 @@ function ResultsTable({
   onResultChange,
   onPointCountChange,
   onParameterUpdate,
-  certificateId,
+  certificateId: _certificateId,
   getReadingImages,
   onOpenImageModal,
   disabled = false,
@@ -348,9 +348,22 @@ function ResultsTable({
   // Count operating range violations
   const operatingRangeViolations = useMemo(() => {
     let count = 0
+    const opMin = parseFloat(parameter.operatingMin)
+    const opMax = parseFloat(parameter.operatingMax)
+
+    // If operating range is not defined, no violations possible
+    if (isNaN(opMin) && isNaN(opMax)) return 0
+
     parameter.results.forEach(result => {
-      const validation = validateOperatingRange(result.standardReading)
-      if (!validation.isValid) count++
+      const value = result.standardReading
+      if (!value || value.trim() === '') return
+
+      const numValue = parseFloat(value)
+      if (isNaN(numValue)) return
+
+      if ((!isNaN(opMin) && numValue < opMin) || (!isNaN(opMax) && numValue > opMax)) {
+        count++
+      }
     })
     return count
   }, [parameter])
@@ -395,7 +408,7 @@ function ResultsTable({
 
   // Get default precision for the parameter
   const defaultPrecision = useMemo(() => getDefaultPrecision(parameter), [parameter])
-  const defaultStep = getStepFromPrecision(defaultPrecision)
+  const _defaultStep = getStepFromPrecision(defaultPrecision)
 
   const handleInputChange = (
     resultIndex: number,

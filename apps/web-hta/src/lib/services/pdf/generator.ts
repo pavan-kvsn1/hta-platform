@@ -12,7 +12,7 @@ import { PDFSignatureData, SigningMetadata, parseUserAgent } from '@/components/
 import { safeJsonParse } from '@/lib/utils/safe-json'
 
 // Binary search bounds for multiplier
-const MIN_MULTIPLIER = 0.75
+const _MIN_MULTIPLIER = 0.75
 const MAX_MULTIPLIER = 1.47
 const MULTIPLIER_STEP = 0.02
 
@@ -305,6 +305,7 @@ export async function generateSignedPDF(certificateId: string): Promise<Buffer> 
       spacingMultiplier: multiplier,
       signatures,
     })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stream = await pdfRenderer.pdf(element as any).toBuffer()
     return streamToBuffer(stream)
   }

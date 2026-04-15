@@ -9,7 +9,7 @@ import {
   Building2,
   Image as ImageIcon,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn as _cn } from '@/lib/utils'
 import { CollapsibleSection } from '@/components/certificate/CollapsibleSection'
 import { InfoField } from '@/components/certificate/InfoField'
 import { SignatureStatusCard } from '@/components/certificate/SignatureStatusCard'
@@ -182,7 +182,7 @@ export function CustomerCertificateContent({
     })
   }
 
-  const formatDateTime = (dateStr: string | null) => {
+  const _formatDateTime = (dateStr: string | null) => {
     if (!dateStr) return '-'
     return new Date(dateStr).toLocaleDateString('en-GB', {
       day: '2-digit',

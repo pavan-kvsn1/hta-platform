@@ -16,7 +16,7 @@ export interface SignatureStatusCardProps {
  */
 export function SignatureStatusCard({
   title,
-  icon: Icon,
+  icon: _Icon,
   signature,
   isYours,
 }: SignatureStatusCardProps) {

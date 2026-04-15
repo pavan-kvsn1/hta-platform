@@ -3,13 +3,13 @@
 import { useState } from 'react'
 import {
   AlertCircle,
-  CheckCircle,
+  CheckCircle as _CheckCircle,
   User,
   Shield,
   Building2,
   Image as ImageIcon,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn as _cn } from '@/lib/utils'
 import { CollapsibleSection } from '@/components/certificate/CollapsibleSection'
 import { InfoField } from '@/components/certificate/InfoField'
 import { SignatureStatusCard } from '@/components/certificate/SignatureStatusCard'

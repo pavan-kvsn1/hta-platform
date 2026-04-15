@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import {
   X,
   Loader2,
@@ -137,10 +138,13 @@ export function ReadingImagesViewModal({
           <div className="flex-1 relative rounded-xl overflow-hidden bg-slate-100">
             {image.optimizedUrl || image.thumbnailUrl ? (
               <>
-                <img
+                <Image
                   src={image.optimizedUrl || image.thumbnailUrl || ''}
                   alt={title}
-                  className="w-full h-full object-contain"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 80vw"
+                  className="object-contain"
+                  unoptimized
                 />
                 {/* Download button */}
                 {image.originalUrl && (

@@ -14,7 +14,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "test": "echo 'No tests yet'",
-    "test:unit": "echo 'No unit tests in database package'",
+    "test:unit": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

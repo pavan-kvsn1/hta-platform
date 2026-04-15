@@ -12,7 +12,7 @@ import { prisma } from '@/lib/prisma'
 import { generateTOTPSecret, generateBackupCodes, hashBackupCode } from '@hta/shared/auth'
 import QRCode from 'qrcode'
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Get authenticated session
     const session = await auth()

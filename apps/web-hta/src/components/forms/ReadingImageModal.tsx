@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import Image from 'next/image'
 import {
   X,
   Camera,
-  Upload,
+  Upload as _Upload,
   Loader2,
   Image as ImageIcon,
   Trash2,
@@ -200,10 +201,12 @@ export function ReadingImageModal({
         {image ? (
           <div className="flex-1 relative rounded-xl overflow-hidden bg-slate-100 group">
             {image.thumbnailUrl || image.optimizedUrl ? (
-              <img
+              <Image
                 src={image.optimizedUrl || image.thumbnailUrl || ''}
                 alt={title}
-                className="w-full h-full object-contain"
+                fill
+                className="object-contain"
+                unoptimized
               />
             ) : isProcessing || image.isProcessing ? (
               <div className="w-full h-full flex items-center justify-center">

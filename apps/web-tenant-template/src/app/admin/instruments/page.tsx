@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -99,7 +99,7 @@ export default function InstrumentsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchInput, setSearchInput] = useState('')
 
-  const fetchInstruments = async (page = 1) => {
+  const fetchInstruments = useCallback(async (page = 1) => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -129,11 +129,11 @@ export default function InstrumentsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [categoryFilter, statusFilter, searchQuery])
 
   useEffect(() => {
     fetchInstruments()
-  }, [categoryFilter, statusFilter, searchQuery])
+  }, [fetchInstruments])
 
   const handleSearch = () => {
     setSearchQuery(searchInput)

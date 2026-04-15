@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -47,9 +47,9 @@ import {
   Phone,
   MapPin,
   UserCog,
-  Clock,
-  CheckCircle,
-  AlertCircle,
+  Clock as _Clock,
+  CheckCircle as _CheckCircle,
+  AlertCircle as _AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format, formatDistanceToNow } from 'date-fns'
@@ -141,7 +141,7 @@ export default function CustomerDetailPage({
     assignedAdminId: '',
   })
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [accountRes, adminsRes] = await Promise.all([
         fetch(`/api/admin/customers/${id}`),
@@ -173,11 +173,11 @@ export default function CustomerDetailPage({
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     fetchData()
-  }, [id])
+  }, [fetchData])
 
   const handleSave = async () => {
     setError('')
@@ -244,9 +244,9 @@ export default function CustomerDetailPage({
   }
 
   // Compute stats
-  const activeUsers = users.filter((u) => u.isActive).length
-  const pendingUsers = users.filter((u) => !u.isActive).length
-  const inProgressCerts = recentCertificates.filter(
+  const _activeUsers = users.filter((u) => u.isActive).length
+  const _pendingUsers = users.filter((u) => !u.isActive).length
+  const _inProgressCerts = recentCertificates.filter(
     (c) => c.status !== 'CUSTOMER_APPROVED' && c.status !== 'REJECTED'
   ).length
 

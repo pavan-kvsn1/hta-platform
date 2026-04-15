@@ -89,7 +89,7 @@ export function calculateReviewerMetrics(
   if (reviewedCerts.length === 0) return null
 
   // Split by period for comparison
-  const currentPeriodCerts = reviewedCerts.filter(c => {
+  const _currentPeriodCerts = reviewedCerts.filter(c => {
     const firstEvent = c.events[0]
     return firstEvent && new Date(firstEvent.createdAt) >= periodStart
   })
@@ -332,7 +332,7 @@ export function calculateEngineerMetrics(
   if (createdCerts.length === 0) return null
 
   // Split by period for comparison
-  const currentPeriodCerts = createdCerts.filter(c => {
+  const _currentPeriodCerts = createdCerts.filter(c => {
     const firstEvent = c.events[0]
     return firstEvent && new Date(firstEvent.createdAt) >= periodStart
   })

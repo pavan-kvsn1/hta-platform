@@ -72,7 +72,7 @@ export function ReviewerPageClient({
   certificate,
   assignee,
   feedbacks,
-  chatThreadId,
+  chatThreadId: _chatThreadId,
   headerData,
   userRole,
   customerFeedback,
@@ -82,7 +82,7 @@ export function ReviewerPageClient({
 
   // Determine back link based on user role
   const backLink = userRole === 'ADMIN' ? '/admin/certificates' : '/dashboard/reviewer'
-  const [isApproving, setIsApproving] = useState(false)
+  const [_isApproving, setIsApproving] = useState(false)
   const [isRequestingRevision, setIsRequestingRevision] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -720,7 +720,7 @@ export function ReviewerPageClient({
                 </div>
 
                 <div className="space-y-3">
-                  {sectionFeedbackEntries.map((entry, index) => {
+                  {sectionFeedbackEntries.map((entry, _index) => {
                     const availableSections = getAvailableSections(entry.id)
                     const currentSection = REVISION_SECTIONS.find(s => s.id === entry.section)
 

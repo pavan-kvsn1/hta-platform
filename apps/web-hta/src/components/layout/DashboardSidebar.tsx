@@ -51,7 +51,7 @@ export function DashboardSidebar({
           const data = await res.json()
           setUnreadCount(data.count)
         }
-      } catch {}
+      } catch { /* intentionally empty */ }
     }
     fetchCount()
     const interval = setInterval(fetchCount, 30000)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -71,7 +71,7 @@ export default function CustomerInstrumentsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchInput, setSearchInput] = useState('')
 
-  const fetchInstruments = async (page = 1) => {
+  const fetchInstruments = useCallback(async (page = 1) => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -95,11 +95,11 @@ export default function CustomerInstrumentsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchQuery])
 
   useEffect(() => {
     fetchInstruments()
-  }, [searchQuery])
+  }, [searchQuery, fetchInstruments])
 
   const handleSearch = () => {
     setSearchQuery(searchInput)

@@ -68,7 +68,7 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
   }, [formData.certificateNumber, isNewCertificate, checkCertificateNumber, lastCheckedNumber])
 
   // Get today's date in YYYY-MM-DD format for min date validation
-  const today = new Date().toISOString().split('T')[0]
+  const _today = new Date().toISOString().split('T')[0]
 
   // Format the due date for display
   const formatDate = (dateString: string) => {

@@ -88,7 +88,7 @@ function calculateTAT(submittedAt: Date | null): { hours: number; status: 'ok' |
   return { hours, status: 'ok' }
 }
 
-function formatTAT(hours: number): string {
+function _formatTAT(hours: number): string {
   if (hours < 24) {
     return `${hours}h`
   }

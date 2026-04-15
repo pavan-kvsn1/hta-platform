@@ -57,7 +57,7 @@ interface FinalizeSectionProps {
 export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectionProps) {
   const router = useRouter()
   const { data: session } = useSession()
-  const { formData, isSaving, certificateId, saveDraft, setEngineerNotes, setFormField, clearSectionResponses } = useCertificateStore()
+  const { formData, isSaving, certificateId, saveDraft, setEngineerNotes: _setEngineerNotes, setFormField, clearSectionResponses } = useCertificateStore()
   const [showPDFPreview, setShowPDFPreview] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)

@@ -64,7 +64,7 @@ export default function CustomerDownloadPage() {
         }
 
         setData(result)
-      } catch (err) {
+      } catch (_err) {
         setError('Failed to connect to server')
       } finally {
         setLoading(false)
@@ -106,7 +106,7 @@ export default function CustomerDownloadPage() {
         const refreshResult = await refreshResponse.json()
         setData(refreshResult)
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to download certificate')
     } finally {
       setDownloading(false)

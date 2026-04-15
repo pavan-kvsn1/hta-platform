@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useCallback } from 'react'
 import Link from 'next/link'
 import {
   ChevronDown,
@@ -148,11 +148,7 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
     record: true,
   })
 
-  useEffect(() => {
-    fetchInstrument()
-  }, [id])
-
-  const fetchInstrument = async () => {
+  const fetchInstrument = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/instruments/${id}`)
       if (!response.ok) {
@@ -168,7 +164,11 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    fetchInstrument()
+  }, [fetchInstrument])
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))

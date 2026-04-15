@@ -149,7 +149,7 @@ export function SectionUnlockRequest({ certificateId, certificateStatus }: Secti
   }
 
   const pendingRequests = requests.filter((r) => r.status === 'PENDING')
-  const processedRequests = requests.filter((r) => r.status !== 'PENDING')
+  const _processedRequests = requests.filter((r) => r.status !== 'PENDING')
   const hasPendingRequest = pendingRequests.length > 0
 
   const getStatusIcon = (status: string) => {

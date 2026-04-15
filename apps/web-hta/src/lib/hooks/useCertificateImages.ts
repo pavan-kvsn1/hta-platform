@@ -171,33 +171,29 @@ export function useCertificateImages({
       formData.append('file', file)
       formData.append('metadata', JSON.stringify(metadata))
 
-      try {
-        const response = await fetch(`/api/certificates/${certId}/images`, {
-          method: 'POST',
-          body: formData,
-        })
+      const response = await fetch(`/api/certificates/${certId}/images`, {
+        method: 'POST',
+        body: formData,
+      })
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          const errorMsg = errorData.details
-            ? `${errorData.error}: ${errorData.details}`
-            : errorData.error || 'Failed to upload image'
-          throw new Error(errorMsg)
-        }
-
-        const data = await response.json()
-        const newImage: CertificateImage = {
-          ...data.image,
-          isProcessing: true, // Mark as processing until thumbnails are ready
-        }
-
-        // Add to local state immediately
-        setImages((prev) => [...prev, newImage])
-
-        return newImage
-      } catch (err) {
-        throw err
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMsg = errorData.details
+          ? `${errorData.error}: ${errorData.details}`
+          : errorData.error || 'Failed to upload image'
+        throw new Error(errorMsg)
       }
+
+      const data = await response.json()
+      const newImage: CertificateImage = {
+        ...data.image,
+        isProcessing: true, // Mark as processing until thumbnails are ready
+      }
+
+      // Add to local state immediately
+      setImages((prev) => [...prev, newImage])
+
+      return newImage
     },
     []
   )
@@ -238,23 +234,19 @@ export function useCertificateImages({
     async (imageId: string): Promise<boolean> => {
       if (!certificateId) return false
 
-      try {
-        const response = await fetch(
-          `/api/certificates/${certificateId}/images/${imageId}`,
-          { method: 'DELETE' }
-        )
+      const response = await fetch(
+        `/api/certificates/${certificateId}/images/${imageId}`,
+        { method: 'DELETE' }
+      )
 
-        if (!response.ok) {
-          throw new Error('Failed to delete image')
-        }
-
-        // Remove from local state
-        setImages((prev) => prev.filter((img) => img.id !== imageId))
-
-        return true
-      } catch (err) {
-        throw err
+      if (!response.ok) {
+        throw new Error('Failed to delete image')
       }
+
+      // Remove from local state
+      setImages((prev) => prev.filter((img) => img.id !== imageId))
+
+      return true
     },
     [certificateId]
   )
@@ -264,31 +256,27 @@ export function useCertificateImages({
     async (imageId: string, caption: string): Promise<boolean> => {
       if (!certificateId) return false
 
-      try {
-        const response = await fetch(
-          `/api/certificates/${certificateId}/images/${imageId}`,
-          {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ caption }),
-          }
-        )
-
-        if (!response.ok) {
-          throw new Error('Failed to update caption')
+      const response = await fetch(
+        `/api/certificates/${certificateId}/images/${imageId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caption }),
         }
+      )
 
-        // Update local state
-        setImages((prev) =>
-          prev.map((img) =>
-            img.id === imageId ? { ...img, caption } : img
-          )
-        )
-
-        return true
-      } catch (err) {
-        throw err
+      if (!response.ok) {
+        throw new Error('Failed to update caption')
       }
+
+      // Update local state
+      setImages((prev) =>
+        prev.map((img) =>
+          img.id === imageId ? { ...img, caption } : img
+        )
+      )
+
+      return true
     },
     [certificateId]
   )

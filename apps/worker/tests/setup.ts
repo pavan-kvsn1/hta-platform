@@ -4,6 +4,7 @@
  * Configures the test environment for worker tests including:
  * - Mock Redis connection
  * - Mock job processors
+ * - Mock database (Prisma)
  * - Global test helpers
  */
 
@@ -14,6 +15,7 @@ process.env.NODE_ENV = 'test'
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 process.env.REDIS_URL = 'redis://localhost:6379'
 process.env.RESEND_API_KEY = 'test-resend-key'
+process.env.EMAIL_FROM = 'HTA Test <test@htacalibration.com>'
 
 // Mock BullMQ
 vi.mock('bullmq', () => ({
@@ -32,9 +34,50 @@ vi.mock('bullmq', () => ({
 vi.mock('resend', () => ({
   Resend: vi.fn().mockImplementation(() => ({
     emails: {
-      send: vi.fn().mockResolvedValue({ data: { id: 'test-email-id' } }),
+      send: vi.fn().mockResolvedValue({ data: { id: 'test-email-id' }, error: null }),
     },
   })),
+}))
+
+// Mock @hta/database
+vi.mock('@hta/database', () => ({
+  prisma: {
+    passwordResetToken: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    notification: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      create: vi.fn().mockResolvedValue({ id: 'test-notification-id' }),
+    },
+    certificateImage: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+  },
+}))
+
+// Mock @hta/emails
+vi.mock('@hta/emails', () => ({
+  renderEmail: vi.fn().mockResolvedValue({
+    html: '<html><body>Test email</body></html>',
+    subject: 'Test Subject',
+  }),
+}))
+
+// Mock @hta/shared/notifications
+vi.mock('@hta/shared/notifications', () => ({
+  createNotification: vi.fn().mockResolvedValue({
+    id: 'test-notification-id',
+    userId: null,
+    customerId: null,
+    type: 'CERTIFICATE_APPROVED',
+    title: 'Test',
+    message: 'Test message',
+    read: false,
+    readAt: null,
+    certificateId: null,
+    data: null,
+    createdAt: new Date(),
+  }),
 }))
 
 beforeAll(async () => {

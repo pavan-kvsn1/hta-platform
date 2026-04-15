@@ -32,10 +32,10 @@ const USABLE_HEIGHT = PAGE_HEIGHT - PAGE_PADDING_TOP - PAGE_PADDING_BOTTOM
 // Spacing adjustment limits
 const MIN_SPACING_MULTIPLIER = 0.75 // 25% compression max
 const MAX_SPACING_MULTIPLIER = 2.00 // 100% expansion max (to fill page completely)
-const COMPRESSION_THRESHOLD = 0.25 // Can compress if overflow ≤ 25% of adjustable spacing
+const _COMPRESSION_THRESHOLD = 0.25 // Can compress if overflow ≤ 25% of adjustable spacing
 
 // Minimum sections per page (excluding header/footer)
-const MIN_SECTIONS_PER_PAGE = 3
+const _MIN_SECTIONS_PER_PAGE = 3
 
 // ============================================================================
 // TYPES
@@ -119,7 +119,7 @@ export function estimateGroupBHeight(): number {
  */
 export function estimateCalibrationTableHeight(
   resultsCount: number,
-  parameterName: string
+  _parameterName: string
 ): number {
   // Header rows: ~32px (2 rows with reduced padding)
   // Sub-header row: ~14px
@@ -262,13 +262,13 @@ export function generateSections(data: CertificateFormData): Section[] {
 function calculateSpacingStrategy(
   totalHeight: number,
   usableHeight: number,
-  adjustableSpacing: number
+  _adjustableSpacing: number
 ): { multiplier: number; strategy: 'expand' | 'compress' | 'multi-page' } {
   // Calculate min possible height (with max compression)
   const minPossibleHeight = totalHeight * MIN_SPACING_MULTIPLIER
 
   // Calculate max possible height (with max expansion)
-  const maxPossibleHeight = totalHeight * MAX_SPACING_MULTIPLIER
+  const _maxPossibleHeight = totalHeight * MAX_SPACING_MULTIPLIER
 
   // Check if we can fit on one page at all (even with max compression)
   if (minPossibleHeight > usableHeight) {

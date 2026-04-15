@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { ArrowLeft, Loader2, Users, FileText, Clock } from 'lucide-react'
+import { ArrowLeft, Loader2, Users, FileText, Clock as _Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserTATMetrics } from '@/components/admin/UserTATMetrics'
 

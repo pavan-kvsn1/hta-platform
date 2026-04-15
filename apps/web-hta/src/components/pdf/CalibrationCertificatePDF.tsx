@@ -42,7 +42,6 @@ import { HTA_WATERMARK_BASE64 } from './watermark-base64'
 import {
   formatDateDDMMYYYY,
   padSerialNumber,
-  formatCompoundSerial,
   getPrecisionFromLeastCount,
   formatWithPrecision,
   getConclusionText,
@@ -52,7 +51,6 @@ import {
   VALIDITY_STATEMENT,
   CUSTOMER_ACKNOWLEDGMENT_TEXT,
   PDFSignatureData,
-  SigningMetadata,
 } from './pdf-utils'
 
 // Format ISO date string to readable format: "09 Feb 2026, 14:30 IST"
@@ -979,12 +977,12 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
         {/* SECTION G: CALIBRATION DATA TABLES (per parameter) */}
         {/* Reordered based on layout plan for optimal page distribution */}
         {/* ================================================================ */}
-        {parametersToRender.map((param, paramIdx) => {
+        {parametersToRender.map((param, _paramIdx) => {
           const precision = getPrecisionFromLeastCount(param.leastCountValue)
           const rangeStr = param.rangeMin && param.rangeMax
             ? `${param.rangeMin} to ${param.rangeMax} ${param.parameterUnit}`
             : ''
-          const middleRowIdx = Math.floor(param.results.length / 2)
+          const _middleRowIdx = Math.floor(param.results.length / 2)
           const sectionId = `cal-table-${param.id}`
           const needsBreak = shouldBreakBefore(sectionId, layoutPlan)
 
@@ -1125,7 +1123,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
 
           {data.masterInstruments
             .filter(m => m.masterInstrumentId)
-            .map((master, idx) => (
+            .map((master, _idx) => (
               <View key={master.id} style={styles.masterTable}>
                 {/* Row 1: Inst. Description / Make */}
                 <View style={[styles.masterRow, { minHeight: dynamicHeight(14) }]}>

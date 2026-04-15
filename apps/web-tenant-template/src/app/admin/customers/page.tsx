@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
+  AlertCircle as _AlertCircle,
   Bell,
   Eye,
   Crown,
@@ -65,7 +65,7 @@ export default function CustomersPage() {
   const [page, setPage] = useState(1)
   const [totalPendingRequests, setTotalPendingRequests] = useState(0)
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -91,17 +91,16 @@ export default function CustomersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [search, activeFilter, page])
 
   useEffect(() => {
     fetchAccounts()
-  }, [activeFilter, page])
+  }, [fetchAccounts])
 
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       setPage(1)
-      fetchAccounts()
     }, 300)
     return () => clearTimeout(timer)
   }, [search])

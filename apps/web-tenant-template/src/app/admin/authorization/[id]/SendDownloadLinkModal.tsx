@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -60,7 +60,22 @@ export function SendDownloadLinkModal({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<{ downloadUrl: string } | null>(null)
   const [history, setHistory] = useState<DownloadTokenHistory[]>([])
-  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [_loadingHistory, setLoadingHistory] = useState(false)
+
+  const loadHistory = useCallback(async () => {
+    setLoadingHistory(true)
+    try {
+      const response = await fetch(`/api/admin/certificates/${certificateId}/send-download-link`)
+      if (response.ok) {
+        const data = await response.json()
+        setHistory(data.tokens || [])
+      }
+    } catch (_err) {
+      console.error('Failed to load history:', _err)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }, [certificateId])
 
   // Load history when modal opens
   useEffect(() => {
@@ -73,22 +88,7 @@ export function SendDownloadLinkModal({
       setError(null)
       setSuccess(null)
     }
-  }, [isOpen, initialCustomerEmail, initialCustomerName])
-
-  const loadHistory = async () => {
-    setLoadingHistory(true)
-    try {
-      const response = await fetch(`/api/admin/certificates/${certificateId}/send-download-link`)
-      if (response.ok) {
-        const data = await response.json()
-        setHistory(data.tokens || [])
-      }
-    } catch (err) {
-      console.error('Failed to load history:', err)
-    } finally {
-      setLoadingHistory(false)
-    }
-  }
+  }, [isOpen, initialCustomerEmail, initialCustomerName, loadHistory])
 
   const handleSend = async () => {
     if (!customerEmail.trim() || !customerName.trim()) {

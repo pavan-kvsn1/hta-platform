@@ -70,9 +70,16 @@ export const defaultTheme: ThemeTokens = {
 }
 
 /**
+ * Deep partial type for theme overrides
+ */
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P]
+}
+
+/**
  * Create a theme by merging overrides with defaults
  */
-export function createTheme(overrides: Partial<ThemeTokens>): ThemeTokens {
+export function createTheme(overrides: DeepPartial<ThemeTokens>): ThemeTokens {
   return {
     colors: { ...defaultTheme.colors, ...overrides.colors },
     fonts: { ...defaultTheme.fonts, ...overrides.fonts },
@@ -84,7 +91,7 @@ export function createTheme(overrides: Partial<ThemeTokens>): ThemeTokens {
 /**
  * Pre-defined tenant themes
  */
-export const tenantThemes: Record<string, Partial<ThemeTokens>> = {
+export const tenantThemes: Record<string, DeepPartial<ThemeTokens>> = {
   hta: {}, // Uses default theme
 }
 

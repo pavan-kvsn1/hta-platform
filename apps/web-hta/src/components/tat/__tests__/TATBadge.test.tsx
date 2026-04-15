@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { TATBadge, calculateTAT, formatHours } from '../TATBadge'
-import type { TATStatus, TATInfo } from '../TATBadge'
+import type { TATStatus as _TATStatus, TATInfo as _TATInfo } from '../TATBadge'
 
 // Test the exports from index.ts
 import * as TATExports from '../index'
@@ -72,7 +72,7 @@ describe('calculateTAT', () => {
   })
 
   it('returns warning status when elapsed time is between 75% and 100% of target', () => {
-    const createdAt = new Date('2024-01-13T00:00:00Z') // 60 hours ago (but test with 40h elapsed)
+    const _createdAt = new Date('2024-01-13T00:00:00Z') // 60 hours ago (but test with 40h elapsed)
     vi.setSystemTime(new Date('2024-01-15T16:00:00Z')) // 40 hours from 1/14 00:00
     const testCreatedAt = new Date('2024-01-14T00:00:00Z')
     const result = calculateTAT(testCreatedAt, null, 48)

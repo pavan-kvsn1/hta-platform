@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { FileDown, Loader2, AlertCircle } from 'lucide-react'
-import { useCertificateStore, CertificateFormData } from '@/lib/stores/certificate-store'
+import { useCertificateStore } from '@/lib/stores/certificate-store'
 
 interface PDFPreviewSectionProps {
   showPreview?: boolean

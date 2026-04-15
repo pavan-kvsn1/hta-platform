@@ -11,7 +11,7 @@ import { CertificateFormData } from '@/lib/stores/certificate-store'
 import { PDFSignatureData } from './pdf-utils'
 
 // Binary search bounds for multiplier
-const MIN_MULTIPLIER = 0.75
+const _MIN_MULTIPLIER = 0.75
 const MAX_MULTIPLIER = 1.47 // Cap at 50% expansion
 const MULTIPLIER_STEP = 0.02
 
@@ -77,6 +77,7 @@ export async function generatePDFWithOptimalSpacing(
     spacingMultiplier: 1.0,
     signatures,
   })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pass1Blob = await (pdfRenderer.pdf(pass1Element as any).toBlob())
   iterations++
   console.log('Pass 1: PDF generated, size:', pass1Blob.size)
@@ -104,6 +105,7 @@ export async function generatePDFWithOptimalSpacing(
       spacingMultiplier: mid,
       signatures,
     })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const testBlob = await (pdfRenderer.pdf(testElement as any).toBlob())
     iterations++
 
@@ -148,5 +150,6 @@ export async function generatePDFSimple(
     signatures,
   })
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return await (pdfRenderer.pdf(element as any).toBlob())
 }

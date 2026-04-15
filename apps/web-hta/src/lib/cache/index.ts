@@ -17,7 +17,7 @@
  * ```
  */
 
-import { CacheProvider, CacheOptions, CacheConfig, CacheKeys, CacheTTL } from './types'
+import { CacheProvider, CacheOptions, CacheConfig, CacheKeys as _CacheKeys, CacheTTL as _CacheTTL } from './types'
 import { getMemoryCacheProvider } from './providers/memory'
 
 // Re-export types and constants

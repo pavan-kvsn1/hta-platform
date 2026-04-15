@@ -9,7 +9,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { Job, JobWorker } from '../types'
+import { JobWorker } from '../types'
 
 /**
  * Process realtime publish

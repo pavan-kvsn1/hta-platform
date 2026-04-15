@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
@@ -118,11 +118,7 @@ export default function CustomerInstrumentDetailPage({
   const [certificates, setCertificates] = useState<CertificateUsage[]>([])
   const [totalCertificates, setTotalCertificates] = useState(0)
 
-  useEffect(() => {
-    fetchInstrument()
-  }, [id])
-
-  const fetchInstrument = async () => {
+  const fetchInstrument = useCallback(async () => {
     try {
       const response = await fetch(`/api/customer/instruments/${id}`)
       if (!response.ok) {
@@ -140,7 +136,11 @@ export default function CustomerInstrumentDetailPage({
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    fetchInstrument()
+  }, [fetchInstrument])
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-'

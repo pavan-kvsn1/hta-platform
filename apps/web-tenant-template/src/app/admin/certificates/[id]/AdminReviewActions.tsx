@@ -35,7 +35,7 @@ export function AdminReviewActions({
   const router = useRouter()
 
   // Action states
-  const [isApproving, setIsApproving] = useState(false)
+  const [_isApproving, setIsApproving] = useState(false)
   const [isRequestingRevision, setIsRequestingRevision] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
   const [error, setError] = useState<string | null>(null)

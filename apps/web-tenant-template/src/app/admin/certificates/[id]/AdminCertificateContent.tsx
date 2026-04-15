@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { AlertCircle, CheckCircle, Image as ImageIcon } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn as _cn } from '@/lib/utils'
 import { CollapsibleSection } from '@/components/certificate/CollapsibleSection'
 import { InfoField } from '@/components/certificate/InfoField'
 import { MasterInstrumentsTable } from '@/components/certificate/MasterInstrumentsTable'
@@ -24,7 +24,7 @@ interface AdminCertificateContentProps {
 
 export function AdminCertificateContent({
   certificate,
-  assignee,
+  assignee: _assignee,
 }: AdminCertificateContentProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     section1: true,

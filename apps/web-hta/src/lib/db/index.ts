@@ -5,7 +5,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
-import { createTenantClient, createContextAwareClient, TenantPrismaClient, ContextAwarePrismaClient } from './tenant-client'
+import { createTenantClient, TenantPrismaClient } from './tenant-client'
 export { withTenantContext, getCurrentTenantId } from './tenant-context'
 
 // Global base Prisma client (singleton)

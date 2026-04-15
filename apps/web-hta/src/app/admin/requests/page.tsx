@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -232,7 +232,7 @@ export default function AdminRequestsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -253,11 +253,11 @@ export default function AdminRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [statusFilter, typeFilter, page])
 
   useEffect(() => {
     fetchRequests()
-  }, [statusFilter, typeFilter, page])
+  }, [statusFilter, typeFilter, page, fetchRequests])
 
   // Client-side search filtering
   const filteredRequests = useMemo(() => {

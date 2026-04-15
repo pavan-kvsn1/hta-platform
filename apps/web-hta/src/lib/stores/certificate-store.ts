@@ -186,7 +186,7 @@ interface CertificateStore {
 
 const generateId = () => Math.random().toString(36).substring(2, 9)
 
-const createDefaultBin = (): ParameterBin => ({
+const _createDefaultBin = (): ParameterBin => ({
   id: generateId(),
   binMin: '',
   binMax: '',

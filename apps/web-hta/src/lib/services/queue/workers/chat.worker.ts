@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { Job, JobWorker, JobPayloads } from '../types'
+import { JobWorker } from '../types'
 import { createNotification } from '../../notifications'
 
 /**

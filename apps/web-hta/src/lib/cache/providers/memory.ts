@@ -5,7 +5,7 @@
  * Uses a Map with TTL support and automatic cleanup.
  */
 
-import { CacheProvider, CachedEntry } from '../types'
+import { CacheProvider, CachedEntry as _CachedEntry } from '../types'
 
 interface MemoryEntry<T> {
   value: T

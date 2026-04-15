@@ -92,7 +92,7 @@ export function SectionFeedback({ feedbacks, sectionId, className, currentUserNa
     setIsEditing(true)
   }
 
-  const handleStartNewResponse = () => {
+  const _handleStartNewResponse = () => {
     setEditText('')
     setIsEditing(true)
   }

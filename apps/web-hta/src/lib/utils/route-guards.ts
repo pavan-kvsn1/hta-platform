@@ -6,7 +6,7 @@
  */
 
 import { redirect } from 'next/navigation'
-import { auth, isMasterAdmin, isWorkerAdmin, isAdmin, canReviewCertificate } from '@/lib/auth'
+import { auth, isMasterAdmin, isAdmin, canReviewCertificate } from '@/lib/auth'
 
 type SessionUser = {
   id: string

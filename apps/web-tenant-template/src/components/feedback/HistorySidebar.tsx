@@ -253,7 +253,7 @@ export function HistorySidebar({
 
   const engineerCount = engineerFeedbacks.filter(f => f.feedbackType === 'REVISION_REQUEST').length
   const customerCount = customerEvents.filter(e => e.eventType === 'CUSTOMER_REVISION_REQUESTED').length
-  const totalCount = engineerCount + customerCount
+  const _totalCount = engineerCount + customerCount
 
   const hasEngineerData = engineerFeedbacks.length > 0
   const hasCustomerData = customerEvents.length > 0

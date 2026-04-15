@@ -11,7 +11,6 @@ import {
   getClientIP,
   createRateLimitHeaders,
   RateLimitType,
-  RateLimitConfig,
 } from './rate-limiter'
 
 export interface RateLimitOptions {
@@ -140,7 +139,7 @@ export function withRateLimit<T extends NextRequest>(
  * ```
  */
 export function createRateLimitedHandler(
-  config: {
+  _config: {
     limit: number
     windowSeconds: number
     keyPrefix: string

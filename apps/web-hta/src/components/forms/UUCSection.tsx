@@ -224,7 +224,7 @@ function ParameterCard({
   }
 
   // Validate if a bin value is within operating range
-  const validateBinValue = (value: string, type: 'min' | 'max'): { isValid: boolean; message: string | null } => {
+  const validateBinValue = (value: string, _type: 'min' | 'max'): { isValid: boolean; message: string | null } => {
     if (!value) return { isValid: true, message: null }
 
     const numValue = parseFloat(value)

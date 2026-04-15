@@ -43,7 +43,7 @@ export function AdminCertificateClient({
   reviewer,
   feedbacks,
   events,
-  chatThreadIds,
+  chatThreadIds: _chatThreadIds,
   headerData,
   reviewers,
 }: AdminCertificateClientProps) {

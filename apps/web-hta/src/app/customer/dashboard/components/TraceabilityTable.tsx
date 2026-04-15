@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Download, ChevronDown, ChevronRight, AlertCircle, Microscope } from 'lucide-react'
+import { Search, Download, ChevronDown, ChevronRight, AlertCircle as _AlertCircle, Microscope } from 'lucide-react'
 
 export interface MasterInstrumentItem {
   id: string

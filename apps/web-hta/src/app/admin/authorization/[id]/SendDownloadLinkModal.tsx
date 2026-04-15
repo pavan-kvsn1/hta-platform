@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -60,22 +60,9 @@ export function SendDownloadLinkModal({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<{ downloadUrl: string } | null>(null)
   const [history, setHistory] = useState<DownloadTokenHistory[]>([])
-  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [_loadingHistory, setLoadingHistory] = useState(false)
 
-  // Load history when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      loadHistory()
-      // Reset form state
-      setCustomerEmail(initialCustomerEmail || '')
-      setCustomerName(initialCustomerName || '')
-      setCcAdmin(false)
-      setError(null)
-      setSuccess(null)
-    }
-  }, [isOpen, initialCustomerEmail, initialCustomerName])
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     setLoadingHistory(true)
     try {
       const response = await fetch(`/api/admin/certificates/${certificateId}/send-download-link`)
@@ -88,7 +75,20 @@ export function SendDownloadLinkModal({
     } finally {
       setLoadingHistory(false)
     }
-  }
+  }, [certificateId])
+
+  // Load history when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadHistory()
+      // Reset form state
+      setCustomerEmail(initialCustomerEmail || '')
+      setCustomerName(initialCustomerName || '')
+      setCcAdmin(false)
+      setError(null)
+      setSuccess(null)
+    }
+  }, [isOpen, initialCustomerEmail, initialCustomerName, loadHistory])
 
   const handleSend = async () => {
     if (!customerEmail.trim() || !customerName.trim()) {
@@ -119,7 +119,7 @@ export function SendDownloadLinkModal({
 
       setSuccess({ downloadUrl: data.downloadUrl })
       loadHistory() // Refresh history
-    } catch (err) {
+    } catch {
       setError('An error occurred. Please try again.')
     } finally {
       setIsSending(false)

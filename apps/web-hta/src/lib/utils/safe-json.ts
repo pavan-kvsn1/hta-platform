@@ -6,7 +6,7 @@
  */
 
 // JSON value type (mirrors Prisma.JsonValue)
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+type _JsonValue = string | number | boolean | null | _JsonValue[] | { [key: string]: _JsonValue }
 
 /**
  * Safely parse a JSON field that may be either a string or native JSON

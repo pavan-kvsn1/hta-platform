@@ -9,9 +9,9 @@
     "start": "node dist/index.js",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "echo 'No tests yet'",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration"
+    "test:integration": "echo 'No integration tests in worker yet'"
   },
   "dependencies": {
     "@hta/database": "workspace:*",

@@ -94,10 +94,12 @@ describe('TOTP Authentication', () => {
 
     it('generates same code for same time window', () => {
       const secret = generateSecret()
-      const now = Date.now()
+      // Use a fixed time well within a 30-second window to avoid flakiness
+      const windowStart = Math.floor(Date.now() / 30000) * 30000
+      const timeInWindow = windowStart + 5000 // 5 seconds into the window
 
-      const code1 = generateTOTP(secret, now)
-      const code2 = generateTOTP(secret, now + 1000) // 1 second later
+      const code1 = generateTOTP(secret, timeInWindow)
+      const code2 = generateTOTP(secret, timeInWindow + 1000) // 1 second later, still in same window
 
       expect(code1).toBe(code2)
     })

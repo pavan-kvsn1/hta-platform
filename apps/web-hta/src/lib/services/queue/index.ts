@@ -144,6 +144,7 @@ export async function processJobs(limit = 10): Promise<{
 
     try {
       // Execute the worker
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await worker(job as any)
       await queue.completeJob(job.id)
       succeeded++

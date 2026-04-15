@@ -14,10 +14,10 @@ import {
 import { FormSection } from './FormSection'
 import { useCertificateStore, SelectedMasterInstrument, Parameter } from '@/lib/stores/certificate-store'
 import { ImageUploadGallery, GalleryImage } from './ImageUploadGallery'
-import { useCertificateImages, CertificateImage } from '@/lib/hooks/useCertificateImages'
+import { useCertificateImages, CertificateImage as _CertificateImage } from '@/lib/hooks/useCertificateImages'
 import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
 import {
-  MasterInstrument,
+  MasterInstrument as _MasterInstrument,
   InstrumentCategory,
   InstrumentStatus,
   getDisplayValue,

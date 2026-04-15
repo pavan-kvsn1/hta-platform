@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import Image from 'next/image'
 import {
   Camera,
   Upload,
@@ -171,10 +172,12 @@ export function ImageUploadGallery({
               className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-slate-200 group"
             >
               {image.thumbnailUrl ? (
-                <img
+                <Image
                   src={image.thumbnailUrl}
                   alt={image.fileName}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  unoptimized
                 />
               ) : (
                 <div className="w-full h-full bg-slate-100 flex items-center justify-center">
@@ -297,10 +300,12 @@ export function ImageUploadGallery({
               className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-50 group"
             >
               {image.thumbnailUrl ? (
-                <img
+                <Image
                   src={image.thumbnailUrl}
                   alt={image.fileName}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  unoptimized
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -368,11 +373,13 @@ export function ImageUploadGallery({
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
           onClick={() => setPreviewImage(null)}
         >
-          <div className="relative max-w-4xl max-h-full">
-            <img
+          <div className="relative max-w-4xl max-h-full" style={{ width: '100%', height: '80vh' }}>
+            <Image
               src={previewImage.optimizedUrl || previewImage.originalUrl || ''}
               alt={previewImage.fileName}
-              className="max-w-full max-h-[80vh] object-contain rounded-lg"
+              fill
+              className="object-contain rounded-lg"
+              unoptimized
             />
             <button
               type="button"

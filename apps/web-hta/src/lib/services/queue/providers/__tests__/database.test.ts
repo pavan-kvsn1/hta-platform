@@ -304,7 +304,7 @@ describe('DatabaseQueueService', () => {
         { status: 'processing', _count: { status: 2 } },
         { status: 'completed', _count: { status: 100 } },
         { status: 'failed', _count: { status: 3 } },
-      ] as any)
+      ] as unknown[])
 
       const counts = await service.getJobCounts()
 
@@ -321,7 +321,7 @@ describe('DatabaseQueueService', () => {
   describe('claimJobs', () => {
     it('claims pending jobs', async () => {
       vi.mocked(prisma.jobQueue.findMany)
-        .mockResolvedValueOnce([{ id: 'job-1' }, { id: 'job-2' }] as any)
+        .mockResolvedValueOnce([{ id: 'job-1' }, { id: 'job-2' }] as unknown[])
         .mockResolvedValueOnce([
           {
             id: 'job-1',
@@ -370,7 +370,7 @@ describe('DatabaseQueueService', () => {
 
   describe('completeJob', () => {
     it('marks job as completed', async () => {
-      vi.mocked(prisma.jobQueue.update).mockResolvedValue({} as any)
+      vi.mocked(prisma.jobQueue.update).mockResolvedValue({} as unknown)
 
       await service.completeJob('job-123')
 
@@ -390,8 +390,8 @@ describe('DatabaseQueueService', () => {
         id: 'job-123',
         attempts: 1,
         maxRetries: 3,
-      } as any)
-      vi.mocked(prisma.jobQueue.update).mockResolvedValue({} as any)
+      } as unknown)
+      vi.mocked(prisma.jobQueue.update).mockResolvedValue({} as unknown)
 
       await service.failJob('job-123', 'Worker error')
 
@@ -410,8 +410,8 @@ describe('DatabaseQueueService', () => {
         id: 'job-123',
         attempts: 3,
         maxRetries: 3,
-      } as any)
-      vi.mocked(prisma.jobQueue.update).mockResolvedValue({} as any)
+      } as unknown)
+      vi.mocked(prisma.jobQueue.update).mockResolvedValue({} as unknown)
 
       await service.failJob('job-123', 'Final failure')
 
@@ -463,8 +463,8 @@ describe('DatabaseQueueService', () => {
       vi.mocked(prisma.jobQueue.findMany).mockResolvedValue([
         { id: 'stuck-1', attempts: 1, maxRetries: 3 },
         { id: 'stuck-2', attempts: 2, maxRetries: 3 },
-      ] as any)
-      vi.mocked(prisma.jobQueue.update).mockResolvedValue({} as any)
+      ] as unknown[])
+      vi.mocked(prisma.jobQueue.update).mockResolvedValue({} as unknown)
 
       const count = await service.resetStuckJobs(30)
 
@@ -475,8 +475,8 @@ describe('DatabaseQueueService', () => {
     it('marks as failed when max retries reached', async () => {
       vi.mocked(prisma.jobQueue.findMany).mockResolvedValue([
         { id: 'stuck-1', attempts: 3, maxRetries: 3 },
-      ] as any)
-      vi.mocked(prisma.jobQueue.update).mockResolvedValue({} as any)
+      ] as unknown[])
+      vi.mocked(prisma.jobQueue.update).mockResolvedValue({} as unknown)
 
       const count = await service.resetStuckJobs()
 

@@ -79,7 +79,7 @@ export async function convertToJpeg(
   const quality = options.quality || DEFAULT_QUALITY
 
   const image = sharp(buffer)
-  const metadata = await image.metadata()
+  const _metadata = await image.metadata()
 
   // Resize if dimensions exceed max
   let resizedImage = image
@@ -251,7 +251,7 @@ export async function validateImage(
     }
 
     return { valid: true }
-  } catch (error) {
+  } catch {
     return {
       valid: false,
       error: 'Failed to read image. The file may be corrupted or in an unsupported format.',

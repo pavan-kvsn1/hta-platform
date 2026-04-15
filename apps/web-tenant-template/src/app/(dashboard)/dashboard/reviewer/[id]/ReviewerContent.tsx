@@ -94,7 +94,7 @@ interface CustomerFeedback {
 }
 
 // Section mapping for display
-const SECTION_LABELS: Record<string, string> = {
+const _SECTION_LABELS: Record<string, string> = {
   'summary': 'Summary',
   'uuc-details': 'UUC Details',
   'master-inst': 'Master Instruments',
@@ -147,7 +147,7 @@ interface ReviewerContentProps {
 
 export function ReviewerContent({
   certificate,
-  assignee,
+  assignee: _assignee,
   feedbacks,
   customerFeedback,
 }: ReviewerContentProps) {
@@ -269,7 +269,7 @@ export function ReviewerContent({
     })
   }
 
-  const formatDateTime = (dateStr: string) => {
+  const _formatDateTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -920,6 +920,7 @@ function SectionFeedbackChain({
 }
 
 // Feedback History Panel - Grouped by Revision (styled like FeedbackHistorySection)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function FeedbackHistoryPanel({
   feedbacks,
   customerFeedback,

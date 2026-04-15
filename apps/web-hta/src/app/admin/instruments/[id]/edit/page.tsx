@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, use } from 'react'
+import { useState, useEffect, useRef, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -192,11 +192,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
     validUntil: '',
   })
 
-  useEffect(() => {
-    fetchInstrument()
-  }, [id])
-
-  const fetchInstrument = async () => {
+  const fetchInstrument = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/instruments/${id}`)
       if (!response.ok) {
@@ -240,7 +236,11 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    fetchInstrument()
+  }, [id, fetchInstrument])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
