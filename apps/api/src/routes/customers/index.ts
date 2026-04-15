@@ -76,7 +76,7 @@ const customersRoutes: FastifyPluginAsync = async (fastify) => {
       return { users: [] }
     }
 
-    const accountIds = customerAccounts.map(a => a.id)
+    const accountIds = customerAccounts.map((a: (typeof customerAccounts)[number]) => a.id)
 
     // Build where clause for users
     const userWhere: Record<string, unknown> = {

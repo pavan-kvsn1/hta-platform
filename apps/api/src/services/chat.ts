@@ -229,7 +229,7 @@ export async function sendMessage(input: SendMessageInput): Promise<ChatMessageI
     content: message.content,
     createdAt: message.createdAt,
     readAt: message.readAt,
-    attachments: message.attachments.map((a) => ({
+    attachments: message.attachments.map((a: (typeof message.attachments)[number]) => ({
       id: a.id,
       fileName: a.fileName,
       fileType: a.mimeType,
@@ -272,7 +272,7 @@ export async function getMessages(
   const resultMessages = hasMore ? messages.slice(0, -1) : messages
 
   return {
-    messages: resultMessages.map((m) => ({
+    messages: resultMessages.map((m: (typeof resultMessages)[number]) => ({
       id: m.id,
       threadId: m.threadId,
       senderId: m.senderId || '',
@@ -281,7 +281,7 @@ export async function getMessages(
       content: m.content,
       createdAt: m.createdAt,
       readAt: m.readAt,
-      attachments: m.attachments.map((a) => ({
+      attachments: m.attachments.map((a: (typeof m.attachments)[number]) => ({
         id: a.id,
         fileName: a.fileName,
         fileType: a.mimeType,

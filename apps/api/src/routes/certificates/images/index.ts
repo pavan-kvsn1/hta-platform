@@ -7,7 +7,7 @@
 
 import { FastifyPluginAsync } from 'fastify'
 import { MultipartFile } from '@fastify/multipart'
-import { prisma } from '@hta/database'
+import { prisma, Prisma } from '@hta/database'
 import { requireAuth } from '../../../middleware/auth.js'
 import {
   getImageStorageProvider,
@@ -142,7 +142,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
     const storage = getImageStorageProvider()
 
     const imagesWithUrls = await Promise.all(
-      images.map(async (img) => {
+      images.map(async (img: (typeof images)[number]) => {
         let thumbnailUrl: string | null = null
         let optimizedUrl: string | null = null
         let originalUrl: string | null = null
@@ -282,7 +282,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      const pointExists = param.results.some(r => r.pointNumber === metadata!.pointNumber)
+      const pointExists = param.results.some((r: (typeof param.results)[number]) => r.pointNumber === metadata!.pointNumber)
       if (!pointExists) {
         return reply.status(400).send({
           error: `Point ${metadata.pointNumber} not found in parameter`,
@@ -337,7 +337,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     // Create database record
-    const image = await prisma.$transaction(async (tx) => {
+    const image = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Mark old image as superseded if exists
       let newVersion = 1
       if (existingImage) {
@@ -516,7 +516,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
         optimizedUrl,
         originalUrl,
         storageProvider: 'gcs',
-        previousVersions: image.supersedes.map((prev) => ({
+        previousVersions: image.supersedes.map((prev: (typeof image.supersedes)[number]) => ({
           id: prev.id,
           version: prev.version,
           uploadedAt: prev.uploadedAt.toISOString(),

@@ -54,7 +54,7 @@ const notificationRoutes: FastifyPluginAsync = async (fastify) => {
     ])
 
     return {
-      notifications: notifications.map((n) => ({
+      notifications: notifications.map((n: (typeof notifications)[number]) => ({
         id: n.id,
         type: n.type,
         title: n.title,

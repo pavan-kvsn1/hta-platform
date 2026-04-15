@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { prisma } from '@hta/database'
+import { prisma, Prisma } from '@hta/database'
 import { requireCustomer, optionalAuth } from '../../middleware/auth.js'
 import bcrypt from 'bcryptjs'
 
@@ -147,9 +147,9 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     ])
 
     // Process pending review data
-    const tokenCertIds = new Set(pendingTokens.map((t) => t.certificate.id))
+    const tokenCertIds = new Set(pendingTokens.map((t: (typeof pendingTokens)[number]) => t.certificate.id))
     const pending = [
-      ...pendingTokens.map((token) => {
+      ...pendingTokens.map((token: (typeof pendingTokens)[number]) => {
         let adminMessage: string | null = null
         if (token.certificate.events[0]) {
           const data = safeJsonParse<Record<string, string>>(token.certificate.events[0].eventData, {})
@@ -171,11 +171,11 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }),
       ...pendingCompanyMatch
-        .filter((cert) =>
+        .filter((cert: (typeof pendingCompanyMatch)[number]) =>
           !tokenCertIds.has(cert.id) &&
           cert.customerName?.toLowerCase() === companyNameLower
         )
-        .map((cert) => ({
+        .map((cert: (typeof pendingCompanyMatch)[number]) => ({
           id: cert.id,
           certificateNumber: cert.certificateNumber,
           uucDescription: cert.uucDescription,
@@ -193,10 +193,10 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Process awaiting response data
     const awaiting = awaitingCerts
-      .filter((cert) => cert.customerName?.toLowerCase() === companyNameLower)
-      .map((cert) => {
-        const customerEvent = cert.events.find((e) => e.eventType === 'CUSTOMER_REVISION_REQUESTED')
-        const adminEvent = cert.events.find((e) => e.eventType === 'ADMIN_REPLIED_TO_CUSTOMER')
+      .filter((cert: (typeof awaitingCerts)[number]) => cert.customerName?.toLowerCase() === companyNameLower)
+      .map((cert: (typeof awaitingCerts)[number]) => {
+        const customerEvent = cert.events.find((e: (typeof cert.events)[number]) => e.eventType === 'CUSTOMER_REVISION_REQUESTED')
+        const adminEvent = cert.events.find((e: (typeof cert.events)[number]) => e.eventType === 'ADMIN_REPLIED_TO_CUSTOMER')
 
         let customerFeedback: string | null = null
         let feedbackDate: string | null = null
@@ -234,8 +234,8 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
     // Process completed data
-    const completed = completedSignatures.map((sig) => {
-      const sigTypes = sig.certificate.signatures.map((s) => s.signerType)
+    const completed = completedSignatures.map((sig: (typeof completedSignatures)[number]) => {
+      const sigTypes = sig.certificate.signatures.map((s: (typeof sig.certificate.signatures)[number]) => s.signerType)
       return {
         id: sig.certificate.id,
         certificateNumber: sig.certificate.certificateNumber,
@@ -252,7 +252,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     // Process authorized data
-    const authorized = authorizedCerts.map((sig) => ({
+    const authorized = authorizedCerts.map((sig: (typeof authorizedCerts)[number]) => ({
       id: sig.certificate.id,
       certificateNumber: sig.certificate.certificateNumber,
       uucDescription: sig.certificate.uucDescription,
@@ -265,7 +265,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Process traceability data
     const filteredMasterInstruments = masterInstruments.filter(
-      (cmi) => cmi.certificate.customerName?.toLowerCase() === companyNameLower
+      (cmi: (typeof masterInstruments)[number]) => cmi.certificate.customerName?.toLowerCase() === companyNameLower
     )
 
     const instrumentMap = new Map<string, {
@@ -586,7 +586,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       },
       users: customerAccount.users,
       primaryPoc: customerAccount.primaryPoc,
-      pendingRequests: pendingRequests.map((req) => ({
+      pendingRequests: pendingRequests.map((req: (typeof pendingRequests)[number]) => ({
         id: req.id,
         type: req.type,
         data: JSON.parse(req.data),
@@ -731,7 +731,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
       const now = new Date()
 
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         // Create signature
         await tx.signature.create({
           data: {
@@ -813,7 +813,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
     const now = new Date()
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create signature
       await tx.signature.create({
         data: {
@@ -954,7 +954,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
       const now = new Date()
 
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         // Update certificate status
         await tx.certificate.update({
           where: { id: certificate.id },
@@ -1023,7 +1023,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
     const now = new Date()
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Update certificate status
       await tx.certificate.update({
         where: { id: tokenRecord.certificateId },
@@ -1417,10 +1417,10 @@ async function getFullCertificateData(certificateId: string) {
     orderBy: { signedAt: 'desc' },
   })
 
-  const assigneeSig = dbSignatures.find((s) => s.signerType === 'ASSIGNEE')
-  const reviewerSig = dbSignatures.find((s) => s.signerType === 'REVIEWER')
-  const adminSig = dbSignatures.find((s) => s.signerType === 'ADMIN')
-  const customerSig = dbSignatures.find((s) => s.signerType === 'CUSTOMER')
+  const assigneeSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'ASSIGNEE')
+  const reviewerSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'REVIEWER')
+  const adminSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'ADMIN')
+  const customerSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'CUSTOMER')
 
   const signatures = (assigneeSig || reviewerSig || adminSig || customerSig) ? {
     ...(assigneeSig ? {
@@ -1478,7 +1478,7 @@ async function getFullCertificateData(certificateId: string) {
     uucInstrumentId: certificate.uucInstrumentId || '',
     uucLocationName: certificate.uucLocationName || '',
     uucMachineName: certificate.uucMachineName || '',
-    parameters: certificate.parameters.map((param) => ({
+    parameters: certificate.parameters.map((param: (typeof certificate.parameters)[number]) => ({
       id: param.id,
       parameterName: param.parameterName || '',
       parameterUnit: param.parameterUnit || '',
@@ -1499,7 +1499,7 @@ async function getFullCertificateData(certificateId: string) {
       showAfterAdjustment: param.showAfterAdjustment || false,
       masterInstrumentId: param.masterInstrumentId ? parseInt(param.masterInstrumentId) : null,
       sopReference: param.sopReference || '',
-      results: param.results.map((result) => ({
+      results: param.results.map((result: (typeof param.results)[number]) => ({
         id: result.id,
         pointNumber: result.pointNumber,
         standardReading: result.standardReading || '',
@@ -1509,7 +1509,7 @@ async function getFullCertificateData(certificateId: string) {
         isOutOfLimit: result.isOutOfLimit || false,
       })),
     })),
-    masterInstruments: certificate.masterInstruments.map((mi) => ({
+    masterInstruments: certificate.masterInstruments.map((mi: (typeof certificate.masterInstruments)[number]) => ({
       id: mi.id,
       masterInstrumentId: parseInt(mi.masterInstrumentId) || 0,
       category: mi.category || '',

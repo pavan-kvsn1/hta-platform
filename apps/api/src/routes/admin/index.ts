@@ -80,7 +80,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const stats = await getCertificateStats(tenantId)
 
     return {
-      certificates: certificates.map((cert) => ({
+      certificates: certificates.map((cert: (typeof certificates)[number]) => ({
         id: cert.id,
         certificateNumber: cert.certificateNumber,
         status: cert.status,
@@ -213,7 +213,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Create customer user from registration
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create the customer user
       const customer = await tx.customerUser.create({
         data: {
@@ -311,7 +311,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       }),
     ])
 
-    const statusCounts = certificatesByStatus.reduce((acc, item) => {
+    const statusCounts = certificatesByStatus.reduce((acc: Record<string, number>, item: (typeof certificatesByStatus)[number]) => {
       acc[item.status] = item._count
       return acc
     }, {} as Record<string, number>)
@@ -409,7 +409,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     ])
 
     // Calculate status for each instrument
-    const instrumentsWithStatus = instruments.map(inst => {
+    const instrumentsWithStatus = instruments.map((inst: (typeof instruments)[number]) => {
       let instrumentStatus = 'VALID'
       let daysUntilExpiry = 999
 
@@ -598,7 +598,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Create new version in transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Mark current as not latest
       await tx.masterInstrument.update({
         where: { id: current.id },
@@ -766,19 +766,19 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         createdAt: account.createdAt.toISOString(),
         updatedAt: account.updatedAt.toISOString(),
       },
-      users: account.users.map((u) => ({
+      users: account.users.map((u: (typeof account.users)[number]) => ({
         ...u,
         activatedAt: u.activatedAt?.toISOString() || null,
         createdAt: u.createdAt.toISOString(),
       })),
-      pendingRequests: account.requests.map((r) => ({
+      pendingRequests: account.requests.map((r: (typeof account.requests)[number]) => ({
         id: r.id,
         type: r.type,
         data: safeJsonParse<Record<string, unknown>>(r.data, {}),
         requestedBy: r.requestedBy,
         createdAt: r.createdAt.toISOString(),
       })),
-      recentCertificates: recentCertificates.map((c) => ({
+      recentCertificates: recentCertificates.map((c: (typeof recentCertificates)[number]) => ({
         ...c,
         createdAt: c.createdAt.toISOString(),
       })),
@@ -948,7 +948,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     ])
 
     return {
-      requests: requests.map((r) => ({
+      requests: requests.map((r: (typeof requests)[number]) => ({
         id: r.id,
         type: r.type,
         status: r.status,
@@ -1163,7 +1163,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     ])
 
     return {
-      certificates: certificates.map((cert) => ({
+      certificates: certificates.map((cert: (typeof certificates)[number]) => ({
         id: cert.id,
         certificateNumber: cert.certificateNumber,
         customerName: cert.customerName,
@@ -1236,7 +1236,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Create admin signature and update certificate status in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Check for existing admin signature and remove it
       await tx.signature.deleteMany({
         where: { certificateId: id, signerType: 'ADMIN' },
@@ -1388,7 +1388,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     return {
-      admins: admins.map((admin) => ({
+      admins: admins.map((admin: (typeof admins)[number]) => ({
         id: admin.id,
         name: admin.name,
         email: admin.email,
@@ -1435,7 +1435,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const stats = {
       total: user._count.createdCertificates,
       byStatus: Object.fromEntries(
-        certificateStats.map((s) => [s.status, s._count])
+        certificateStats.map((s: (typeof certificateStats)[number]) => [s.status, s._count])
       ),
     }
 

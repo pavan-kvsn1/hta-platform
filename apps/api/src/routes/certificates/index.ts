@@ -496,7 +496,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Submit in transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const lastEvent = await tx.certificateEvent.findFirst({
         where: { certificateId: id },
         orderBy: { sequenceNumber: 'desc' },
@@ -646,7 +646,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     if (body.action === 'approve') {
       const newStatus = body.sendToCustomer ? 'PENDING_CUSTOMER_APPROVAL' : 'APPROVED'
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const lastEvent = await tx.certificateEvent.findFirst({
           where: { certificateId: id },
           orderBy: { sequenceNumber: 'desc' },
@@ -747,7 +747,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     if (body.action === 'request_revision') {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const lastEvent = await tx.certificateEvent.findFirst({
           where: { certificateId: id },
           orderBy: { sequenceNumber: 'desc' },
@@ -811,7 +811,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     if (body.action === 'reject') {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const lastEvent = await tx.certificateEvent.findFirst({
           where: { certificateId: id },
           orderBy: { sequenceNumber: 'desc' },
@@ -883,7 +883,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     const now = new Date()
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.certificate.update({
         where: { id },
         data: { status: 'REVISION_REQUIRED', updatedAt: now },
@@ -986,7 +986,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 days
     const token = crypto.randomUUID()
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Find or create customer
       let customer = await tx.customerUser.findUnique({
         where: { tenantId_email: { tenantId, email: body.customerEmail.toLowerCase() } },
@@ -1181,7 +1181,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     const now = new Date()
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const lastEvent = await tx.certificateEvent.findFirst({
         where: { certificateId: id },
         orderBy: { sequenceNumber: 'desc' },
@@ -1358,10 +1358,10 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       return signingEvidence.some(e => e.signatureId === signatureId || e.eventType === eventTypeMap[signerType])
     }
 
-    const assigneeSig = dbSignatures.find(s => s.signerType === 'ASSIGNEE')
-    const reviewerSig = dbSignatures.find(s => s.signerType === 'REVIEWER')
-    const adminSig = dbSignatures.find(s => s.signerType === 'ADMIN')
-    const customerSig = dbSignatures.find(s => s.signerType === 'CUSTOMER')
+    const assigneeSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'ASSIGNEE')
+    const reviewerSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'REVIEWER')
+    const adminSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'ADMIN')
+    const customerSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'CUSTOMER')
 
     const validAssigneeSig = assigneeSig && hasEvidenceForCurrentRevision(assigneeSig.id, 'ASSIGNEE') ? assigneeSig : null
     const validReviewerSig = reviewerSig && hasEvidenceForCurrentRevision(reviewerSig.id, 'REVIEWER') ? reviewerSig : null
@@ -1425,7 +1425,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       uucInstrumentId: certificate.uucInstrumentId || '',
       uucLocationName: certificate.uucLocationName || '',
       uucMachineName: certificate.uucMachineName || '',
-      parameters: certificate.parameters.map((param) => ({
+      parameters: certificate.parameters.map((param: (typeof certificate.parameters)[number]) => ({
         id: param.id,
         parameterName: param.parameterName || '',
         parameterUnit: param.parameterUnit || '',
@@ -1446,7 +1446,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         showAfterAdjustment: param.showAfterAdjustment || false,
         masterInstrumentId: param.masterInstrumentId ? parseInt(param.masterInstrumentId) : null,
         sopReference: param.sopReference || '',
-        results: param.results.map((result) => ({
+        results: param.results.map((result: (typeof param.results)[number]) => ({
           id: result.id,
           pointNumber: result.pointNumber,
           standardReading: result.standardReading || '',
@@ -1456,7 +1456,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           isOutOfLimit: result.isOutOfLimit || false,
         })),
       })),
-      masterInstruments: certificate.masterInstruments.map((mi) => ({
+      masterInstruments: certificate.masterInstruments.map((mi: (typeof certificate.masterInstruments)[number]) => ({
         id: mi.id,
         masterInstrumentId: parseInt(mi.masterInstrumentId) || 0,
         category: mi.category || '',
@@ -1588,7 +1588,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Perform the update in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Get next event sequence
       const lastEvent = await tx.certificateEvent.findFirst({
         where: { certificateId: id },
@@ -1722,13 +1722,13 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       select: { targetSection: true },
     })
 
-    const feedbackUnlockedSections = [...new Set(feedbacks.map(f => f.targetSection).filter(Boolean))] as string[]
+    const feedbackUnlockedSections = [...new Set(feedbacks.map((f: (typeof feedbacks)[number]) => f.targetSection).filter(Boolean))] as string[]
 
     // Get sections from approved unlock requests
     const approvedUnlockedSections: string[] = []
     unlockRequests
-      .filter(r => r.status === 'APPROVED')
-      .forEach(r => {
+      .filter((r: (typeof unlockRequests)[number]) => r.status === 'APPROVED')
+      .forEach((r: (typeof unlockRequests)[number]) => {
         const data = safeJsonParse<Record<string, unknown>>(r.data, {})
         if (data.sections && Array.isArray(data.sections)) {
           approvedUnlockedSections.push(...(data.sections as string[]))
@@ -1739,7 +1739,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     const allUnlockedSections = [...new Set([...feedbackUnlockedSections, ...approvedUnlockedSections])]
 
     return {
-      requests: unlockRequests.map((r) => ({
+      requests: unlockRequests.map((r: (typeof unlockRequests)[number]) => ({
         id: r.id,
         type: r.type,
         status: r.status,

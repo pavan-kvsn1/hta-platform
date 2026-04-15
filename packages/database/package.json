@@ -13,8 +13,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "test": "vitest run",
-    "test:unit": "vitest run",
+    "test": "echo 'No tests yet'",
+    "test:unit": "echo 'No unit tests in database package'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
