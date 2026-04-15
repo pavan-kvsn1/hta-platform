@@ -21,7 +21,7 @@
 | **Phase 6** | Deployment | ✅ Complete | 100% | Argo CD + Rollouts + GitHub Actions |
 | **Phase 14** | Docker | ✅ Complete | 100% | All Dockerfiles + compose files |
 | **Phase 15** | CI/CD | ✅ Complete | 100% | 23,363 lines GitHub Actions |
-| **Phase 16** | Testing | 🟡 Partial | 57% | 490 tests / 865 in hta-calibration |
+| **Phase 16** | Testing | 🟡 Partial | 61% | 528 tests / 865 in hta-calibration |
 
 ### Code vs Test Coverage
 
@@ -32,31 +32,30 @@
 │                                                              │
 │  Feature Code:  ████████████████████████████████████  95%   │
 │  Infrastructure: ████████████████████████████████████  100%  │
-│  Test Coverage:  ███████████████████░░░░░░░░░░░░░░░░  57%   │
+│  Test Coverage:  ████████████████████░░░░░░░░░░░░░░░  61%   │
 │                                                              │
-│  ⚠️  Test migration in progress: 490/865 tests (57%)        │
+│  ⚠️  Test migration in progress: 528/865 tests (61%)        │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Test Migration Progress (2026-04-14)
+### Test Migration Progress (2026-04-15)
 
 | Package | Tests | Status |
 |---------|-------|--------|
-| @hta/web (unit tests) | 174 | ✅ Certificate store, status, number, TAT, feedback |
+| @hta/web (unit tests) | 262 | ✅ Certificate, TAT, feedback, route-guards, refresh-token, signing |
 | @hta/web (component tests) | 79 | ✅ StatusBadge, TATBadge, Button, queue |
 | @hta/web (e2e) | 50 | ✅ Journey tests + Chromatic visual regression |
 | @hta/shared | 126 | ✅ Cache, rate-limiter, CORS, secrets, storage |
 | @hta/api | 5 | ✅ Health endpoint |
 | @hta/worker | 6 | ✅ Email job tests |
-| **Total** | **~490** | **57% coverage** |
+| **Total** | **528** | **61% coverage** |
 
 ### Next Steps
 
-1. **P1 - Component Tests:** Migrate more component tests (~50 remaining)
+1. **P1 - Component Tests:** Migrate more React component tests (~50 remaining)
 2. **P1 - E2E Tests:** Migrate remaining journey tests (~50 remaining)
-3. **P2 - Utils/Hooks Tests:** Migrate hooks and utility tests (~80 tests)
-4. **P3 - Eval Tests:** Migrate accessibility tests (~100 tests)
+3. **P2 - Eval Tests:** Migrate accessibility and visual eval tests (~100 tests)
 
 > **Architecture Decision (2026-04-14):** Changed from Cloud Run to **GKE Standard** for better control over networking, traffic management, and cost predictability. Traffic splitting uses **GKE Gateway API** (not Istio) for simplicity and zero sidecar overhead. Deployments via **Argo CD** (GitOps) with **Argo Rollouts** for automated canary releases. Argo CD protected by **IAP** (Google login) at `argocd.hta-calibration.com`.
 **Estimated Effort:** 3-4 weeks
