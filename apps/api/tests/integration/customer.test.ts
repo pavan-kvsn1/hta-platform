@@ -17,6 +17,7 @@ import {
   createCustomerAccount,
   createCustomerUser,
   createTestCertificate,
+  createTestTenant,
 } from './setup/fixtures'
 
 describe('Customer Portal API Integration', () => {
@@ -34,11 +35,11 @@ describe('Customer Portal API Integration', () => {
 
   describe('Customer Dashboard', () => {
     it('should retrieve pending certificates for customer', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
-      const account = await createCustomerAccount(prisma, {
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
+      const account = await createCustomerAccount(prisma, tenantId, {
         companyName: 'Test Company',
       })
-      await createCustomerUser(prisma, account.id)
+      await createCustomerUser(prisma, tenantId, account.id)
 
       // Create certificate for this customer's company
       await prisma.certificate.create({
@@ -48,6 +49,7 @@ describe('Customer Portal API Integration', () => {
           status: 'PENDING_CUSTOMER_APPROVAL',
           createdById: engineer.id,
           lastModifiedById: engineer.id,
+          tenantId,
         },
       })
 
@@ -61,7 +63,7 @@ describe('Customer Portal API Integration', () => {
     })
 
     it('should retrieve authorized certificates for customer', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
       const companyName = 'Authorized Test Company'
 
       // Create authorized certificates
@@ -73,6 +75,7 @@ describe('Customer Portal API Integration', () => {
           signedPdfPath: '/signed/001.pdf',
           createdById: engineer.id,
           lastModifiedById: engineer.id,
+          tenantId,
         },
       })
 
@@ -84,6 +87,7 @@ describe('Customer Portal API Integration', () => {
           signedPdfPath: '/signed/002.pdf',
           createdById: engineer.id,
           lastModifiedById: engineer.id,
+          tenantId,
         },
       })
 
@@ -98,7 +102,7 @@ describe('Customer Portal API Integration', () => {
     })
 
     it('should count certificates by status for dashboard', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
       const companyName = 'Dashboard Stats Company'
 
       // Create certificates in various statuses
@@ -109,6 +113,7 @@ describe('Customer Portal API Integration', () => {
           status: 'PENDING_CUSTOMER_APPROVAL',
           createdById: engineer.id,
           lastModifiedById: engineer.id,
+          tenantId,
         },
       })
 
@@ -119,6 +124,7 @@ describe('Customer Portal API Integration', () => {
           status: 'PENDING_ADMIN_AUTHORIZATION',
           createdById: engineer.id,
           lastModifiedById: engineer.id,
+          tenantId,
         },
       })
 
@@ -129,6 +135,7 @@ describe('Customer Portal API Integration', () => {
           status: 'AUTHORIZED',
           createdById: engineer.id,
           lastModifiedById: engineer.id,
+          tenantId,
         },
       })
 
@@ -152,8 +159,8 @@ describe('Customer Portal API Integration', () => {
 
   describe('Customer Certificate Review', () => {
     it('should allow customer to approve certificate', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'PENDING_CUSTOMER_APPROVAL',
       })
 
@@ -167,8 +174,8 @@ describe('Customer Portal API Integration', () => {
     })
 
     it('should allow customer to request revision', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'PENDING_CUSTOMER_APPROVAL',
       })
 
@@ -184,7 +191,8 @@ describe('Customer Portal API Integration', () => {
 
   describe('Customer Account Management', () => {
     it('should create customer account with company details', async () => {
-      const account = await createCustomerAccount(prisma, {
+      const tenant = await createTestTenant(prisma)
+      const account = await createCustomerAccount(prisma, tenant.id, {
         companyName: 'New Customer Corp',
         address: '456 Business Ave, Suite 100',
         contactEmail: 'contact@newcustomer.com',
@@ -196,9 +204,10 @@ describe('Customer Portal API Integration', () => {
     })
 
     it('should associate customer users with account', async () => {
-      const account = await createCustomerAccount(prisma)
-      const user1 = await createCustomerUser(prisma, account.id, { name: 'User One' })
-      const user2 = await createCustomerUser(prisma, account.id, { name: 'User Two' })
+      const tenant = await createTestTenant(prisma)
+      const account = await createCustomerAccount(prisma, tenant.id)
+      const user1 = await createCustomerUser(prisma, tenant.id, account.id, { name: 'User One' })
+      const user2 = await createCustomerUser(prisma, tenant.id, account.id, { name: 'User Two' })
 
       const accountWithUsers = await prisma.customerAccount.findUnique({
         where: { id: account.id },
@@ -211,8 +220,8 @@ describe('Customer Portal API Integration', () => {
     })
 
     it('should link customer account to admin', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
-      const account = await createCustomerAccount(prisma, {
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
+      const account = await createCustomerAccount(prisma, tenantId, {
         assignedAdminId: admin.id,
       })
 
@@ -228,13 +237,14 @@ describe('Customer Portal API Integration', () => {
 
   describe('Customer Team Management', () => {
     it('should list team members', async () => {
-      const account = await createCustomerAccount(prisma, {
+      const tenant = await createTestTenant(prisma)
+      const account = await createCustomerAccount(prisma, tenant.id, {
         companyName: 'Team Company',
       })
 
-      await createCustomerUser(prisma, account.id, { name: 'Member 1' })
-      await createCustomerUser(prisma, account.id, { name: 'Member 2' })
-      await createCustomerUser(prisma, account.id, { name: 'Member 3' })
+      await createCustomerUser(prisma, tenant.id, account.id, { name: 'Member 1' })
+      await createCustomerUser(prisma, tenant.id, account.id, { name: 'Member 2' })
+      await createCustomerUser(prisma, tenant.id, account.id, { name: 'Member 3' })
 
       const team = await prisma.customerUser.findMany({
         where: { customerAccountId: account.id },
@@ -244,8 +254,9 @@ describe('Customer Portal API Integration', () => {
     })
 
     it('should find customer user by email', async () => {
-      const account = await createCustomerAccount(prisma)
-      await createCustomerUser(prisma, account.id, {
+      const tenant = await createTestTenant(prisma)
+      const account = await createCustomerAccount(prisma, tenant.id)
+      await createCustomerUser(prisma, tenant.id, account.id, {
         email: 'specific@customer.com',
         name: 'Specific User',
       })
@@ -261,7 +272,7 @@ describe('Customer Portal API Integration', () => {
 
   describe('Traceability Data', () => {
     it('should retrieve master instruments used in customer certificates', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
       const companyName = 'Traceability Company'
 
       const cert = await prisma.certificate.create({
@@ -271,6 +282,7 @@ describe('Customer Portal API Integration', () => {
           status: 'AUTHORIZED',
           createdById: engineer.id,
           lastModifiedById: engineer.id,
+          tenantId,
         },
       })
 
@@ -297,8 +309,8 @@ describe('Customer Portal API Integration', () => {
 
   describe('Certificate Download', () => {
     it('should create download token for authorized certificate', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'AUTHORIZED',
       })
 
@@ -315,8 +327,8 @@ describe('Customer Portal API Integration', () => {
     })
 
     it('should find valid download token', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'AUTHORIZED',
       })
 

@@ -32,11 +32,11 @@ describe('Admin Authorization API Integration', () => {
 
   describe('Authorization List', () => {
     it('should list certificates pending admin authorization', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
-      await createTestCertificate(prisma, engineer.id, { status: 'PENDING_ADMIN_AUTHORIZATION' })
-      await createTestCertificate(prisma, engineer.id, { status: 'PENDING_ADMIN_AUTHORIZATION' })
-      await createTestCertificate(prisma, engineer.id, { status: 'DRAFT' })
+      await createTestCertificate(prisma, tenantId, engineer.id, { status: 'PENDING_ADMIN_AUTHORIZATION' })
+      await createTestCertificate(prisma, tenantId, engineer.id, { status: 'PENDING_ADMIN_AUTHORIZATION' })
+      await createTestCertificate(prisma, tenantId, engineer.id, { status: 'DRAFT' })
 
       const pendingAuth = await prisma.certificate.findMany({
         where: { status: 'PENDING_ADMIN_AUTHORIZATION' },
@@ -47,11 +47,11 @@ describe('Admin Authorization API Integration', () => {
     })
 
     it('should list both pending and authorized certificates', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
-      await createTestCertificate(prisma, engineer.id, { status: 'PENDING_ADMIN_AUTHORIZATION' })
-      await createTestCertificate(prisma, engineer.id, { status: 'AUTHORIZED' })
-      await createTestCertificate(prisma, engineer.id, { status: 'DRAFT' })
+      await createTestCertificate(prisma, tenantId, engineer.id, { status: 'PENDING_ADMIN_AUTHORIZATION' })
+      await createTestCertificate(prisma, tenantId, engineer.id, { status: 'AUTHORIZED' })
+      await createTestCertificate(prisma, tenantId, engineer.id, { status: 'DRAFT' })
 
       const authRelated = await prisma.certificate.findMany({
         where: {
@@ -63,10 +63,10 @@ describe('Admin Authorization API Integration', () => {
     })
 
     it('should paginate authorization list', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
       for (let i = 0; i < 5; i++) {
-        await createTestCertificate(prisma, engineer.id, { status: 'PENDING_ADMIN_AUTHORIZATION' })
+        await createTestCertificate(prisma, tenantId, engineer.id, { status: 'PENDING_ADMIN_AUTHORIZATION' })
         await new Promise((r) => setTimeout(r, 10))
       }
 
@@ -89,8 +89,8 @@ describe('Admin Authorization API Integration', () => {
     })
 
     it('should include creator details in authorization list', async () => {
-      const { engineer, admin } = await createEngineerWithAdmin(prisma)
-      await createTestCertificate(prisma, engineer.id, { status: 'PENDING_ADMIN_AUTHORIZATION' })
+      const { engineer, admin, tenantId } = await createEngineerWithAdmin(prisma)
+      await createTestCertificate(prisma, tenantId, engineer.id, { status: 'PENDING_ADMIN_AUTHORIZATION' })
 
       const certificates = await prisma.certificate.findMany({
         where: { status: 'PENDING_ADMIN_AUTHORIZATION' },
@@ -108,8 +108,8 @@ describe('Admin Authorization API Integration', () => {
 
   describe('Authorization Process', () => {
     it('should authorize a certificate', async () => {
-      const { engineer, admin } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, admin, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'PENDING_ADMIN_AUTHORIZATION',
       })
 
@@ -137,8 +137,8 @@ describe('Admin Authorization API Integration', () => {
     })
 
     it('should reject authorization and revert to revision required', async () => {
-      const { engineer, admin } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, admin, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'PENDING_ADMIN_AUTHORIZATION',
       })
 
@@ -153,8 +153,8 @@ describe('Admin Authorization API Integration', () => {
     })
 
     it('should create event when certificate is authorized', async () => {
-      const { engineer, admin } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, admin, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'PENDING_ADMIN_AUTHORIZATION',
       })
 
@@ -187,8 +187,8 @@ describe('Admin Authorization API Integration', () => {
 
   describe('Authorization Message/Note', () => {
     it('should add admin message to authorization', async () => {
-      const { engineer, admin } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, admin, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'PENDING_ADMIN_AUTHORIZATION',
       })
 
@@ -219,8 +219,8 @@ describe('Admin Authorization API Integration', () => {
 
   describe('Authorization Details', () => {
     it('should retrieve certificate details for authorization review', async () => {
-      const { engineer, admin } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, admin, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'PENDING_ADMIN_AUTHORIZATION',
         customerName: 'Test Corp',
         uucDescription: 'Digital Multimeter',
@@ -245,8 +245,8 @@ describe('Admin Authorization API Integration', () => {
     })
 
     it('should check signatures before authorization', async () => {
-      const { engineer, admin } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, admin, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'PENDING_ADMIN_AUTHORIZATION',
       })
 
@@ -285,8 +285,8 @@ describe('Admin Authorization API Integration', () => {
 
   describe('Authorized Certificate Access', () => {
     it('should store signed PDF path after authorization', async () => {
-      const { engineer, admin } = await createEngineerWithAdmin(prisma)
-      const cert = await createTestCertificate(prisma, engineer.id, {
+      const { engineer, admin, tenantId } = await createEngineerWithAdmin(prisma)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'PENDING_ADMIN_AUTHORIZATION',
       })
 
@@ -302,14 +302,14 @@ describe('Admin Authorization API Integration', () => {
     })
 
     it('should list authorized certificates with download info', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
-      await createTestCertificate(prisma, engineer.id, {
+      await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'AUTHORIZED',
         signedPdfPath: '/signed-pdfs/cert1.pdf',
       })
 
-      await createTestCertificate(prisma, engineer.id, {
+      await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'AUTHORIZED',
         signedPdfPath: '/signed-pdfs/cert2.pdf',
       })
@@ -330,10 +330,10 @@ describe('Admin Authorization API Integration', () => {
 
   describe('Authorization Filtering', () => {
     it('should filter authorized certificates by date range', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
-      const cert1 = await createTestCertificate(prisma, engineer.id, { status: 'AUTHORIZED' })
-      const cert2 = await createTestCertificate(prisma, engineer.id, { status: 'AUTHORIZED' })
+      const cert1 = await createTestCertificate(prisma, tenantId, engineer.id, { status: 'AUTHORIZED' })
+      const cert2 = await createTestCertificate(prisma, tenantId, engineer.id, { status: 'AUTHORIZED' })
 
       // Backdate one certificate
       await prisma.certificate.update({
@@ -359,13 +359,13 @@ describe('Admin Authorization API Integration', () => {
     })
 
     it('should filter by customer name', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
-      await createTestCertificate(prisma, engineer.id, {
+      await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'AUTHORIZED',
         customerName: 'ACME Corporation',
       })
-      await createTestCertificate(prisma, engineer.id, {
+      await createTestCertificate(prisma, tenantId, engineer.id, {
         status: 'AUTHORIZED',
         customerName: 'Test Industries',
       })

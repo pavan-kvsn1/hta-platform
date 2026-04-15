@@ -34,9 +34,9 @@ describe('Instruments API Integration', () => {
 
   describe('Master Instrument CRUD', () => {
     it('should create a master instrument', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
-      const instrument = await createMasterInstrument(prisma, admin.id, {
+      const instrument = await createMasterInstrument(prisma, tenantId, admin.id, {
         category: 'Electro-Technical',
         description: 'Digital Multimeter',
         make: 'Fluke',
@@ -49,11 +49,11 @@ describe('Instruments API Integration', () => {
     })
 
     it('should list all master instruments', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
-      await createMasterInstrument(prisma, admin.id, { description: 'Instrument 1' })
-      await createMasterInstrument(prisma, admin.id, { description: 'Instrument 2' })
-      await createMasterInstrument(prisma, admin.id, { description: 'Instrument 3' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { description: 'Instrument 1' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { description: 'Instrument 2' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { description: 'Instrument 3' })
 
       const instruments = await prisma.masterInstrument.findMany({
         where: { isLatest: true },
@@ -63,11 +63,11 @@ describe('Instruments API Integration', () => {
     })
 
     it('should filter instruments by category', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
-      await createMasterInstrument(prisma, admin.id, { category: 'Electro-Technical' })
-      await createMasterInstrument(prisma, admin.id, { category: 'Mechanical' })
-      await createMasterInstrument(prisma, admin.id, { category: 'Electro-Technical' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { category: 'Electro-Technical' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { category: 'Mechanical' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { category: 'Electro-Technical' })
 
       const electroTech = await prisma.masterInstrument.findMany({
         where: { category: 'Electro-Technical', isLatest: true },
@@ -77,11 +77,11 @@ describe('Instruments API Integration', () => {
     })
 
     it('should search instruments by description', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
-      await createMasterInstrument(prisma, admin.id, { description: 'Digital Multimeter' })
-      await createMasterInstrument(prisma, admin.id, { description: 'Pressure Gauge' })
-      await createMasterInstrument(prisma, admin.id, { description: 'Digital Thermometer' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { description: 'Digital Multimeter' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { description: 'Pressure Gauge' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { description: 'Digital Thermometer' })
 
       const results = await prisma.masterInstrument.findMany({
         where: {
@@ -94,9 +94,9 @@ describe('Instruments API Integration', () => {
     })
 
     it('should update master instrument via versioning', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
-      const instrument = await createMasterInstrument(prisma, admin.id, {
+      const instrument = await createMasterInstrument(prisma, tenantId, admin.id, {
         description: 'Original Description',
       })
 
@@ -113,6 +113,7 @@ describe('Instruments API Integration', () => {
           version: instrument.version + 1,
           isLatest: true,
           createdById: admin.id,
+          tenantId,
         },
       })
 
@@ -129,7 +130,7 @@ describe('Instruments API Integration', () => {
 
   describe('Instrument Versioning', () => {
     it('should maintain version history', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
       const instrumentId = randomUUID()
 
       // Create version 1
@@ -145,6 +146,7 @@ describe('Instruments API Integration', () => {
           version: 1,
           isLatest: false,
           createdById: admin.id,
+          tenantId,
         },
       })
 
@@ -161,6 +163,7 @@ describe('Instruments API Integration', () => {
           version: 2,
           isLatest: false,
           createdById: admin.id,
+          tenantId,
         },
       })
 
@@ -177,6 +180,7 @@ describe('Instruments API Integration', () => {
           version: 3,
           isLatest: true,
           createdById: admin.id,
+          tenantId,
         },
       })
 
@@ -192,7 +196,7 @@ describe('Instruments API Integration', () => {
     })
 
     it('should only return latest version by default', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
       const instrumentId = randomUUID()
 
       await prisma.masterInstrument.create({
@@ -207,6 +211,7 @@ describe('Instruments API Integration', () => {
           version: 1,
           isLatest: false,
           createdById: admin.id,
+          tenantId,
         },
       })
 
@@ -222,6 +227,7 @@ describe('Instruments API Integration', () => {
           version: 2,
           isLatest: true,
           createdById: admin.id,
+          tenantId,
         },
       })
 
@@ -236,13 +242,13 @@ describe('Instruments API Integration', () => {
 
   describe('Instrument-Certificate Association', () => {
     it('should link instrument to certificate', async () => {
-      const { engineer, admin } = await createEngineerWithAdmin(prisma)
+      const { engineer, admin, tenantId } = await createEngineerWithAdmin(prisma)
 
-      const instrument = await createMasterInstrument(prisma, admin.id, {
+      const instrument = await createMasterInstrument(prisma, tenantId, admin.id, {
         description: 'Reference Standard',
       })
 
-      const cert = await createTestCertificate(prisma, engineer.id)
+      const cert = await createTestCertificate(prisma, tenantId, engineer.id)
 
       await prisma.certificateMasterInstrument.create({
         data: {
@@ -263,12 +269,12 @@ describe('Instruments API Integration', () => {
     })
 
     it('should list certificates using an instrument', async () => {
-      const { engineer, admin } = await createEngineerWithAdmin(prisma)
+      const { engineer, admin, tenantId } = await createEngineerWithAdmin(prisma)
 
-      const instrument = await createMasterInstrument(prisma, admin.id)
+      const instrument = await createMasterInstrument(prisma, tenantId, admin.id)
 
-      const cert1 = await createTestCertificate(prisma, engineer.id)
-      const cert2 = await createTestCertificate(prisma, engineer.id)
+      const cert1 = await createTestCertificate(prisma, tenantId, engineer.id)
+      const cert2 = await createTestCertificate(prisma, tenantId, engineer.id)
 
       await prisma.certificateMasterInstrument.create({
         data: {
@@ -299,7 +305,7 @@ describe('Instruments API Integration', () => {
 
   describe('Instrument Calibration Tracking', () => {
     it('should track calibration due dates', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
       const futureDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days
       const pastDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // 30 days ago
@@ -317,6 +323,7 @@ describe('Instruments API Integration', () => {
           version: 1,
           isLatest: true,
           createdById: admin.id,
+          tenantId,
         },
       })
 
@@ -333,6 +340,7 @@ describe('Instruments API Integration', () => {
           version: 1,
           isLatest: true,
           createdById: admin.id,
+          tenantId,
         },
       })
 
@@ -348,7 +356,7 @@ describe('Instruments API Integration', () => {
     })
 
     it('should find instruments due for calibration soon', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
       const soon = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
       const later = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days
@@ -366,6 +374,7 @@ describe('Instruments API Integration', () => {
           version: 1,
           isLatest: true,
           createdById: admin.id,
+          tenantId,
         },
       })
 
@@ -382,6 +391,7 @@ describe('Instruments API Integration', () => {
           version: 1,
           isLatest: true,
           createdById: admin.id,
+          tenantId,
         },
       })
 
@@ -401,14 +411,14 @@ describe('Instruments API Integration', () => {
 
   describe('Instrument Export', () => {
     it('should export instrument data', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
-      await createMasterInstrument(prisma, admin.id, {
+      await createMasterInstrument(prisma, tenantId, admin.id, {
         description: 'Export Test 1',
         serialNumber: 'SN001',
       })
 
-      await createMasterInstrument(prisma, admin.id, {
+      await createMasterInstrument(prisma, tenantId, admin.id, {
         description: 'Export Test 2',
         serialNumber: 'SN002',
       })
@@ -435,10 +445,10 @@ describe('Instruments API Integration', () => {
 
   describe('Instrument Pagination', () => {
     it('should paginate instrument list', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
       for (let i = 0; i < 10; i++) {
-        await createMasterInstrument(prisma, admin.id, {
+        await createMasterInstrument(prisma, tenantId, admin.id, {
           description: `Instrument ${i + 1}`,
         })
       }
@@ -462,10 +472,10 @@ describe('Instruments API Integration', () => {
     })
 
     it('should return total count for pagination', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
       for (let i = 0; i < 7; i++) {
-        await createMasterInstrument(prisma, admin.id)
+        await createMasterInstrument(prisma, tenantId, admin.id)
       }
 
       const total = await prisma.masterInstrument.count({
@@ -478,12 +488,12 @@ describe('Instruments API Integration', () => {
 
   describe('Instrument Categories', () => {
     it('should list unique categories', async () => {
-      const { admin } = await createEngineerWithAdmin(prisma)
+      const { admin, tenantId } = await createEngineerWithAdmin(prisma)
 
-      await createMasterInstrument(prisma, admin.id, { category: 'Electro-Technical' })
-      await createMasterInstrument(prisma, admin.id, { category: 'Mechanical' })
-      await createMasterInstrument(prisma, admin.id, { category: 'Thermal' })
-      await createMasterInstrument(prisma, admin.id, { category: 'Electro-Technical' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { category: 'Electro-Technical' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { category: 'Mechanical' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { category: 'Thermal' })
+      await createMasterInstrument(prisma, tenantId, admin.id, { category: 'Electro-Technical' })
 
       const categories = await prisma.masterInstrument.findMany({
         where: { isLatest: true },

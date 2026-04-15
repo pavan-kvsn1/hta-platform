@@ -18,6 +18,7 @@ import {
   createEngineerWithAdmin,
   createCustomerAccount,
   createCustomerUser,
+  createTestTenant,
   TEST_PASSWORD,
 } from './setup/fixtures'
 
@@ -113,8 +114,9 @@ describe('Authentication Integration', () => {
       const password = 'customerPass123'
       const passwordHash = bcrypt.hashSync(password, 10)
 
-      const account = await createCustomerAccount(prisma)
-      const customer = await createCustomerUser(prisma, account.id, {
+      const tenant = await createTestTenant(prisma)
+      const account = await createCustomerAccount(prisma, tenant.id)
+      const customer = await createCustomerUser(prisma, tenant.id, account.id, {
         email: 'customer@company.com',
         passwordHash,
       })
@@ -124,10 +126,11 @@ describe('Authentication Integration', () => {
     })
 
     it('should link customer to company account', async () => {
-      const account = await createCustomerAccount(prisma, {
+      const tenant = await createTestTenant(prisma)
+      const account = await createCustomerAccount(prisma, tenant.id, {
         companyName: 'Test Corp',
       })
-      const customer = await createCustomerUser(prisma, account.id)
+      const customer = await createCustomerUser(prisma, tenant.id, account.id)
 
       const customerWithAccount = await prisma.customerUser.findUnique({
         where: { id: customer.id },
@@ -166,26 +169,31 @@ describe('Authentication Integration', () => {
     })
 
     it('should list engineers under an admin', async () => {
+      const tenant = await createTestTenant(prisma)
       const admin = await createTestUser(prisma, {
         name: 'Department Admin',
         role: 'ADMIN',
         isAdmin: true,
+        tenantId: tenant.id,
       })
 
       await createTestUser(prisma, {
         name: 'Engineer 1',
         role: 'ENGINEER',
         assignedAdminId: admin.id,
+        tenantId: tenant.id,
       })
       await createTestUser(prisma, {
         name: 'Engineer 2',
         role: 'ENGINEER',
         assignedAdminId: admin.id,
+        tenantId: tenant.id,
       })
       await createTestUser(prisma, {
         name: 'Other Engineer',
         role: 'ENGINEER',
         assignedAdminId: null,
+        tenantId: tenant.id,
       })
 
       const adminWithEngineers = await prisma.user.findUnique({

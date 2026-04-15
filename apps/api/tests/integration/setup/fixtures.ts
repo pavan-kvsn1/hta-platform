@@ -20,6 +20,31 @@ type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0
 const DEFAULT_PASSWORD_HASH = bcrypt.hashSync('test123', 10)
 
 /**
+ * Create a test tenant
+ */
+export async function createTestTenant(
+  client: PrismaClient | TransactionClient = prisma,
+  overrides: Partial<{
+    slug: string
+    name: string
+    domain: string | null
+    isActive: boolean
+  }> = {}
+) {
+  const slug = overrides.slug || `test-tenant-${randomUUID().slice(0, 8)}`
+  const defaults = {
+    slug,
+    name: overrides.name || 'Test Tenant',
+    domain: overrides.domain ?? null,
+    isActive: overrides.isActive ?? true,
+  }
+
+  return client.tenant.create({
+    data: defaults,
+  })
+}
+
+/**
  * Create a test user
  */
 export async function createTestUser(
@@ -32,8 +57,16 @@ export async function createTestUser(
     isActive: boolean
     passwordHash: string
     assignedAdminId: string | null
+    tenantId: string
   }> = {}
 ) {
+  // Create tenant if not provided
+  let tenantId = overrides.tenantId
+  if (!tenantId) {
+    const tenant = await createTestTenant(client)
+    tenantId = tenant.id
+  }
+
   const defaults = {
     email: `user-${randomUUID()}@test.com`,
     name: 'Test User',
@@ -45,27 +78,38 @@ export async function createTestUser(
   }
 
   return client.user.create({
-    data: { ...defaults, ...overrides },
+    data: { ...defaults, ...overrides, tenantId },
   })
 }
 
 /**
  * Create an engineer with an assigned Admin/Reviewer
  */
-export async function createEngineerWithAdmin(client: PrismaClient | TransactionClient = prisma) {
+export async function createEngineerWithAdmin(
+  client: PrismaClient | TransactionClient = prisma,
+  tenantId?: string
+) {
+  // Create shared tenant if not provided
+  if (!tenantId) {
+    const tenant = await createTestTenant(client)
+    tenantId = tenant.id
+  }
+
   const admin = await createTestUser(client, {
     name: 'Test Admin',
     role: 'ADMIN',
     isAdmin: true,
+    tenantId,
   })
 
   const engineer = await createTestUser(client, {
     name: 'Test Engineer',
     role: 'ENGINEER',
     assignedAdminId: admin.id,
+    tenantId,
   })
 
-  return { engineer, admin }
+  return { engineer, admin, tenantId }
 }
 
 /**
@@ -73,6 +117,7 @@ export async function createEngineerWithAdmin(client: PrismaClient | Transaction
  */
 export async function createCustomerAccount(
   client: PrismaClient | TransactionClient = prisma,
+  tenantId: string,
   overrides: Partial<{
     companyName: string
     address: string
@@ -88,7 +133,7 @@ export async function createCustomerAccount(
   }
 
   return client.customerAccount.create({
-    data: { ...defaults, ...overrides },
+    data: { ...defaults, ...overrides, tenantId },
   })
 }
 
@@ -97,6 +142,7 @@ export async function createCustomerAccount(
  */
 export async function createCustomerUser(
   client: PrismaClient | TransactionClient = prisma,
+  tenantId: string,
   customerAccountId: string,
   overrides: Partial<{
     email: string
@@ -115,6 +161,7 @@ export async function createCustomerUser(
       ...defaults,
       ...overrides,
       customerAccountId,
+      tenantId,
     },
   })
 }
@@ -124,6 +171,7 @@ export async function createCustomerUser(
  */
 export async function createTestCertificate(
   client: PrismaClient | TransactionClient = prisma,
+  tenantId: string,
   createdById: string,
   overrides: Partial<{
     certificateNumber: string
@@ -156,6 +204,7 @@ export async function createTestCertificate(
     data: {
       ...defaults,
       ...overrides,
+      tenantId,
       createdById,
       lastModifiedById: createdById,
     },
@@ -255,6 +304,7 @@ export async function createTestNotification(
  */
 export async function createMasterInstrument(
   client: PrismaClient | TransactionClient = prisma,
+  tenantId: string,
   createdById: string,
   overrides: Partial<{
     category: string
@@ -283,6 +333,7 @@ export async function createMasterInstrument(
     data: {
       ...defaults,
       ...overrides,
+      tenantId,
       createdById,
     },
   })
@@ -292,24 +343,30 @@ export async function createMasterInstrument(
  * Create a complete test scenario with all related entities
  */
 export async function createFullTestScenario(client: PrismaClient | TransactionClient = prisma) {
+  // Create tenant first
+  const tenant = await createTestTenant(client)
+  const tenantId = tenant.id
+
   // Create users
-  const { engineer, admin } = await createEngineerWithAdmin(client)
+  const { engineer, admin } = await createEngineerWithAdmin(client, tenantId)
 
   // Create customer
-  const customerAccount = await createCustomerAccount(client, {
+  const customerAccount = await createCustomerAccount(client, tenantId, {
     assignedAdminId: admin.id,
   })
-  const customerUser = await createCustomerUser(client, customerAccount.id)
+  const customerUser = await createCustomerUser(client, tenantId, customerAccount.id)
 
   // Create certificate with parameters
-  const certificate = await createTestCertificate(client, engineer.id, { status: 'PENDING_REVIEW' })
+  const certificate = await createTestCertificate(client, tenantId, engineer.id, { status: 'PENDING_REVIEW' })
   const parameter = await createTestParameter(client, certificate.id)
   const results = await createCalibrationResults(client, parameter.id)
 
   // Create instrument
-  const instrument = await createMasterInstrument(client, engineer.id)
+  const instrument = await createMasterInstrument(client, tenantId, engineer.id)
 
   return {
+    tenant,
+    tenantId,
     engineer,
     admin,
     customerAccount,

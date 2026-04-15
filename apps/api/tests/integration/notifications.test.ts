@@ -33,8 +33,8 @@ describe('Notification API Integration', () => {
 
   describe('Notification CRUD Operations', () => {
     it('should create a notification', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
-      const certificate = await createTestCertificate(prisma, engineer.id)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
+      const certificate = await createTestCertificate(prisma, tenantId, engineer.id)
 
       const notification = await createTestNotification(prisma, engineer.id, certificate.id, {
         type: 'CERTIFICATE_APPROVED',
@@ -49,8 +49,8 @@ describe('Notification API Integration', () => {
     })
 
     it('should retrieve notifications for a user', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
-      const certificate = await createTestCertificate(prisma, engineer.id)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
+      const certificate = await createTestCertificate(prisma, tenantId, engineer.id)
 
       await createTestNotification(prisma, engineer.id, certificate.id, {
         type: 'CERTIFICATE_APPROVED',
@@ -70,7 +70,7 @@ describe('Notification API Integration', () => {
     })
 
     it('should mark notification as read', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
       const notification = await createTestNotification(prisma, engineer.id, null)
 
       expect(notification.read).toBe(false)
@@ -84,7 +84,7 @@ describe('Notification API Integration', () => {
     })
 
     it('should filter unread notifications', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
       await createTestNotification(prisma, engineer.id, null, { read: false })
       await createTestNotification(prisma, engineer.id, null, { read: true })
@@ -101,7 +101,7 @@ describe('Notification API Integration', () => {
     })
 
     it('should count unread notifications', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
       await createTestNotification(prisma, engineer.id, null, { read: false })
       await createTestNotification(prisma, engineer.id, null, { read: false })
@@ -118,7 +118,7 @@ describe('Notification API Integration', () => {
     })
 
     it('should paginate notifications', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
       // Create 5 notifications
       for (let i = 0; i < 5; i++) {
@@ -152,8 +152,8 @@ describe('Notification API Integration', () => {
 
   describe('Notification Associations', () => {
     it('should associate notification with certificate', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
-      const certificate = await createTestCertificate(prisma, engineer.id)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
+      const certificate = await createTestCertificate(prisma, tenantId, engineer.id)
 
       const notification = await createTestNotification(prisma, engineer.id, certificate.id)
 
@@ -167,7 +167,7 @@ describe('Notification API Integration', () => {
     })
 
     it('should allow notification without certificate', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
       const notification = await createTestNotification(prisma, engineer.id, null, {
         type: 'SYSTEM_ANNOUNCEMENT',
@@ -180,7 +180,7 @@ describe('Notification API Integration', () => {
 
   describe('Notification Deletion', () => {
     it('should delete notification', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
       const notification = await createTestNotification(prisma, engineer.id, null)
 
       await prisma.notification.delete({
@@ -195,7 +195,7 @@ describe('Notification API Integration', () => {
     })
 
     it('should delete all notifications for a user', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
       await createTestNotification(prisma, engineer.id, null)
       await createTestNotification(prisma, engineer.id, null)
 
@@ -212,7 +212,7 @@ describe('Notification API Integration', () => {
 
   describe('Bulk Notification Operations', () => {
     it('should mark all notifications as read', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
       await createTestNotification(prisma, engineer.id, null, { read: false })
       await createTestNotification(prisma, engineer.id, null, { read: false })
@@ -231,7 +231,7 @@ describe('Notification API Integration', () => {
     })
 
     it('should delete old read notifications', async () => {
-      const { engineer } = await createEngineerWithAdmin(prisma)
+      const { engineer, tenantId } = await createEngineerWithAdmin(prisma)
 
       // Create old read notification
       const oldNotification = await createTestNotification(prisma, engineer.id, null, {
