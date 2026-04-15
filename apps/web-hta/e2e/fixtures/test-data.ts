@@ -8,19 +8,19 @@
 // Test user credentials (must match seeded data in prisma/seed.ts)
 export const TEST_USERS = {
   engineer: {
-    email: 'engineer@htacalibration.com',
+    email: 'kiran@htaipl.com',
     password: 'engineer123',
-    name: 'Test Engineer',
+    name: 'Kiran Kumar',
   },
   reviewer: {
-    email: 'reviewer@htacalibration.com',
-    password: 'reviewer123',
-    name: 'Test Reviewer',
+    email: 'rajesh@htaipl.com',
+    password: 'engineer123',
+    name: 'Rajesh Sharma',
   },
   admin: {
-    email: 'admin@htacalibration.com',
+    email: 'admin@htaipl.com',
     password: 'admin123',
-    name: 'Test Admin',
+    name: 'MASTER Admin',
   },
   customer: {
     email: 'customer@example.com',
