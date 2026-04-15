@@ -223,32 +223,33 @@ export async function createCustomerNotification(overrides: {
  * Clean all test data
  * Deletion order matters due to foreign key constraints.
  * Delete child tables before parent tables.
+ * Uses interactive transaction to guarantee sequential execution.
  */
 export async function cleanupTestData(): Promise<void> {
-  await prisma.$transaction([
+  await prisma.$transaction(async (tx) => {
     // Calibration data (must delete before Certificate/Parameter)
-    prisma.calibrationResult.deleteMany(),
-    prisma.certificateMasterInstrument.deleteMany(),
-    prisma.parameter.deleteMany(),
+    await tx.calibrationResult.deleteMany()
+    await tx.certificateMasterInstrument.deleteMany()
+    await tx.parameter.deleteMany()
     // Certificate lifecycle
-    prisma.certificateRevision.deleteMany(),
-    prisma.downloadToken.deleteMany(),
+    await tx.certificateRevision.deleteMany()
+    await tx.downloadToken.deleteMany()
     // Notification references Certificate, User, CustomerUser
-    prisma.notification.deleteMany(),
+    await tx.notification.deleteMany()
     // Audit logs
-    prisma.auditLog.deleteMany(),
+    await tx.auditLog.deleteMany()
     // Certificate references User (createdById, lastModifiedById)
-    prisma.certificate.deleteMany(),
+    await tx.certificate.deleteMany()
     // Auth tokens
-    prisma.passwordResetToken.deleteMany(),
+    await tx.passwordResetToken.deleteMany()
     // Instruments reference User
-    prisma.masterInstrument.deleteMany(),
+    await tx.masterInstrument.deleteMany()
     // Customer tables
-    prisma.customerUser.deleteMany(),
-    prisma.customerAccount.deleteMany(),
+    await tx.customerUser.deleteMany()
+    await tx.customerAccount.deleteMany()
     // User references Tenant
-    prisma.user.deleteMany(),
-  ])
+    await tx.user.deleteMany()
+  })
 }
 
 // Re-export prisma
