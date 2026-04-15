@@ -5,8 +5,8 @@
  * Falls back to environment variables in development.
  */
 
-import { createLogger } from '../logger'
-import type { SecretMetadata, SecretAccessOptions } from './types'
+import { createLogger } from '../logger/index.js'
+import type { SecretMetadata, SecretAccessOptions } from './types.js'
 
 const logger = createLogger('secrets')
 

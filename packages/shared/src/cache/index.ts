@@ -5,11 +5,11 @@
  * Automatically selects the appropriate provider based on environment.
  */
 
-import type { CacheProvider, CacheOptions, CacheConfig } from './types'
-import { getMemoryCacheProvider } from './providers/memory'
+import type { CacheProvider, CacheOptions, CacheConfig } from './types.js'
+import { getMemoryCacheProvider } from './providers/memory.js'
 
-export { CacheKeys, CacheTTL } from './types'
-export type { CacheProvider, CacheOptions, CacheConfig } from './types'
+export { CacheKeys, CacheTTL } from './types.js'
+export type { CacheProvider, CacheOptions, CacheConfig } from './types.js'
 
 const DEBUG_CACHE = process.env.NODE_ENV === 'development'
 

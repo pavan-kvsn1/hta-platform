@@ -11,67 +11,67 @@ import type {
   NotificationTemplate,
   CreateNotificationParams,
   GetNotificationsParams,
-} from './types'
+} from './types.js'
 
-export * from './types'
+export * from './types.js'
 
 // Notification templates for generating title and message
 const notificationTemplates: Record<NotificationType, NotificationTemplate> = {
   REVISION_REQUESTED: {
     title: 'Revision Requested',
-    message: (data) => `${data.reviewerName || 'Reviewer'} requested revision on ${data.certificateNumber}`,
+    message: (data: Record<string, string>) => `${data.reviewerName || 'Reviewer'} requested revision on ${data.certificateNumber}`,
   },
   CERTIFICATE_APPROVED: {
     title: 'Certificate Approved',
-    message: (data) => `Your certificate ${data.certificateNumber} has been approved`,
+    message: (data: Record<string, string>) => `Your certificate ${data.certificateNumber} has been approved`,
   },
   SENT_TO_CUSTOMER: {
     title: 'Sent to Customer',
-    message: (data) => `Certificate ${data.certificateNumber} has been sent to customer`,
+    message: (data: Record<string, string>) => `Certificate ${data.certificateNumber} has been sent to customer`,
   },
   CERTIFICATE_FINALIZED: {
     title: 'Certificate Finalized',
-    message: (data) => `Customer approved certificate ${data.certificateNumber}`,
+    message: (data: Record<string, string>) => `Customer approved certificate ${data.certificateNumber}`,
   },
   SUBMITTED_FOR_REVIEW: {
     title: 'Certificate Submitted',
-    message: (data) => `${data.assigneeName || 'Engineer'} submitted ${data.certificateNumber} for review`,
+    message: (data: Record<string, string>) => `${data.assigneeName || 'Engineer'} submitted ${data.certificateNumber} for review`,
   },
   ENGINEER_RESPONDED: {
     title: 'Assignee Responded',
-    message: (data) => `${data.assigneeName || 'Engineer'} responded to revision request on ${data.certificateNumber}`,
+    message: (data: Record<string, string>) => `${data.assigneeName || 'Engineer'} responded to revision request on ${data.certificateNumber}`,
   },
   CUSTOMER_REVISION_REQUEST: {
     title: 'Customer Revision Request',
-    message: (data) => `Customer requested revision on ${data.certificateNumber}`,
+    message: (data: Record<string, string>) => `Customer requested revision on ${data.certificateNumber}`,
   },
   CUSTOMER_APPROVED: {
     title: 'Customer Approved',
-    message: (data) => `Customer approved certificate ${data.certificateNumber}`,
+    message: (data: Record<string, string>) => `Customer approved certificate ${data.certificateNumber}`,
   },
   CERTIFICATE_READY: {
     title: 'Certificate Ready for Review',
-    message: (data) => `Certificate ${data.certificateNumber} is ready for your review`,
+    message: (data: Record<string, string>) => `Certificate ${data.certificateNumber} is ready for your review`,
   },
   REVIEWER_REPLIED: {
     title: 'Response to Your Feedback',
-    message: (data) => `HTA has responded to your feedback on ${data.certificateNumber}`,
+    message: (data: Record<string, string>) => `HTA has responded to your feedback on ${data.certificateNumber}`,
   },
   NEW_CHAT_MESSAGE: {
     title: 'New Message',
-    message: (data) => `${data.senderName || 'Someone'} sent a message on ${data.certificateNumber}`,
+    message: (data: Record<string, string>) => `${data.senderName || 'Someone'} sent a message on ${data.certificateNumber}`,
   },
   REGISTRATION_SUBMITTED: {
     title: 'New Registration Request',
-    message: (data) => `${data.name} (${data.email}) registered for ${data.companyName}`,
+    message: (data: Record<string, string>) => `${data.name} (${data.email}) registered for ${data.companyName}`,
   },
   REGISTRATION_APPROVED: {
     title: 'Registration Approved',
-    message: (data) => `Your account for ${data.companyName} has been approved. You can now login.`,
+    message: (data: Record<string, string>) => `Your account for ${data.companyName} has been approved. You can now login.`,
   },
   REGISTRATION_REJECTED: {
     title: 'Registration Update',
-    message: (data) => `Your registration was not approved. Reason: ${data.reason || 'Not specified'}`,
+    message: (data: Record<string, string>) => `Your registration was not approved. Reason: ${data.reason || 'Not specified'}`,
   },
 }
 

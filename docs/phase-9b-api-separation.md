@@ -21,276 +21,7 @@
 | **Phase 6** | Deployment | ✅ Complete | 100% | Argo CD + Rollouts + GitHub Actions |
 | **Phase 14** | Docker | ✅ Complete | 100% | All Dockerfiles + compose files |
 | **Phase 15** | CI/CD | ✅ Complete | 100% | 23,363 lines GitHub Actions |
-| **Phase 16** | Testing | ✅ Complete | 152% | 1698 / 1115 tests (exceeds target) |
-
-### Code vs Test Coverage
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    IMPLEMENTATION STATUS                     │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Feature Code:  ████████████████████████████████████  95%   │
-│  Infrastructure: ████████████████████████████████████  100%  │
-│  Test Coverage:  ████████████████████████████████████  152%  │
-│                                                              │
-│  ✅ Test migration complete: 1698/1115 tests (152%)          │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Test Migration Progress (2026-04-15)
-
-**hta-platform current tests: 1722** ✅ Exceeds original target by 54%!
-| Package | Tests | Status |
-|---------|-------|--------|
-| @hta/web (unit tests) | 966 | ✅ Complete |
-| @hta/web-tenant-template | 134 | ✅ Complete |
-| @hta/shared | 272 | ✅ Complete |
-| @hta/database | 11 | ✅ Complete |
-| @hta/ui | 38 | ✅ Complete |
-| @hta/emails | 30 | ✅ Complete |
-| @hta/worker | 46 | ✅ Complete |
-| @hta/api | 103 | ✅ Complete |
-| @hta/api (integration) | 98 | ✅ Complete |
-| **Total** | **1698** | ✅ |
-
-**hta-calibration total tests: 1115** (all migrated + significant additional coverage)
-
----
-
-## Detailed Test Comparison
-
-### ✅ MIGRATED TESTS (1214 tests)
-
-#### @hta/web Unit Tests (1088 tests)
-
-| hta-calibration Source | hta-platform Target | Tests | Status |
-|------------------------|---------------------|-------|--------|
-| `src/lib/__tests__/certificate-number.test.ts` | `tests/unit/certificate-number.test.ts` | 12 | ✅ |
-| `src/lib/__tests__/certificate-status.test.ts` | `tests/unit/certificate-status.test.ts` | 30 | ✅ |
-| `src/lib/__tests__/refresh-token.test.ts` | `tests/unit/refresh-token.test.ts` | 26 | ✅ |
-| `src/lib/__tests__/route-guards.test.ts` | `tests/unit/route-guards.test.ts` | 38 | ✅ |
-| `src/lib/__tests__/signing-evidence.test.ts` | `tests/unit/signing-evidence.test.ts` | 9 | ✅ |
-| `src/lib/__tests__/tat-calculator.test.ts` | `tests/unit/tat-calculator.test.ts` | 29 | ✅ |
-| `src/lib/stores/__tests__/certificate-store.test.ts` | `tests/unit/certificate-store.test.ts` | 46 | ✅ |
-| `src/components/__tests__/feedback-utils.test.ts` | `tests/unit/feedback-utils.test.ts` | 62 | ✅ |
-| `src/components/__tests__/Button.test.tsx` | `tests/unit/button.test.tsx` | 9 | ✅ |
-| `tests/unit/cache.test.ts` | `tests/unit/cache.test.ts` | 33 | ✅ |
-| `tests/unit/cache-invalidation.test.ts` | `tests/unit/cache-invalidation.test.ts` | 30 | ✅ |
-| `tests/unit/change-detection.test.ts` | `tests/unit/change-detection.test.ts` | 25 | ✅ |
-| `tests/unit/cors.test.ts` | `tests/unit/cors.test.ts` | 21 | ✅ |
-| `tests/unit/rate-limiter.test.ts` | `tests/unit/rate-limiter.test.ts` | 26 | ✅ |
-| `tests/unit/with-rate-limit.test.ts` | `tests/unit/with-rate-limit.test.ts` | 13 | ✅ |
-| `src/lib/services/queue/__tests__/queue.test.ts` | `tests/unit/queue.test.ts` | 17 | ✅ |
-| `src/components/__tests__/StatusBadge.test.tsx` | `tests/unit/status-badge.test.ts` | 22 | ✅ |
-| `src/components/__tests__/TATBadge.test.tsx` | `tests/unit/tat-badge.test.ts` | 24 | ✅ |
-| `src/components/__tests__/TypedSignature.test.tsx` | `tests/unit/typed-signature.test.ts` | 24 | ✅ |
-| `src/components/__tests__/ViewToggleButton.test.tsx` | `tests/unit/view-toggle-button.test.ts` | 15 | ✅ |
-| `src/components/__tests__/FeedbackTimeline.test.tsx` | `tests/unit/feedback-timeline.test.ts` | 30 | ✅ |
-| `src/app/api/__tests__/health.test.ts` | `tests/unit/health-api.test.ts` | 17 | ✅ |
-| `src/app/api/__tests__/signing.test.ts` | `tests/unit/review-api.test.ts` | 31 | ✅ |
-| *(new)* | `tests/unit/notification-service.test.ts` | 25 | ✅ |
-| `src/app/api/__tests__/admin-certificates.test.ts` | `tests/unit/admin-certificates-api.test.ts` | 6 | ✅ |
-| `src/app/api/__tests__/admin-users.test.ts` | `tests/unit/admin-users-api.test.ts` | 15 | ✅ |
-| `src/app/api/__tests__/auth-refresh.test.ts` | `tests/unit/auth-refresh-api.test.ts` | 11 | ✅ |
-| `src/app/api/__tests__/certificates.test.ts` | `tests/unit/certificates-api.test.ts` | 6 | ✅ |
-| `src/app/api/__tests__/chat.test.ts` | `tests/unit/chat-api.test.ts` | 11 | ✅ |
-| `src/app/api/__tests__/customer-approve.test.ts` | `tests/unit/customer-approve-api.test.ts` | 23 | ✅ |
-| `src/app/api/__tests__/customer-dashboard.test.ts` | `tests/unit/customer-dashboard-api.test.ts` | 12 | ✅ |
-| `src/app/api/__tests__/instruments.test.ts` | `tests/unit/instruments-api.test.ts` | 9 | ✅ |
-| `src/app/api/__tests__/notifications.test.ts` | `tests/unit/notifications-api.test.ts` | 5 | ✅ |
-| `src/app/api/__tests__/submit.test.ts` | `tests/unit/submit-api.test.ts` | 21 | ✅ |
-| `src/app/api/__tests__/workflows.test.ts` | `tests/unit/workflows-api.test.ts` | 10 | ✅ |
-| `src/app/api/__tests__/internal-requests.test.ts` | `tests/unit/internal-requests-api.test.ts` | 14 | ✅ |
-| `tests/unit/cache-index.test.ts` | `tests/unit/cached-functions.test.ts` | 16 | ✅ |
-| `src/lib/services/queue/providers/__tests__/database.test.ts` | `tests/unit/database-queue-provider.test.ts` | 23 | ✅ |
-| `src/components/__tests__/FeedbackItem.test.tsx` | `tests/unit/feedback-item.test.ts` | 42 | ✅ |
-
-#### @hta/shared Tests (272 tests)
-
-| Test File | Tests | Description | Status |
-|-----------|-------|-------------|--------|
-| `packages/shared/tests/secrets.test.ts` | 23 | Secret generation, access patterns, rotation | ✅ |
-| `packages/shared/tests/storage.test.ts` | 29 | GCS storage operations, signed URLs | ✅ |
-| `packages/shared/tests/cache.test.ts` | 34 | Redis/memory cache, get/set/delete/incr | ✅ |
-| `packages/shared/tests/cors.test.ts` | 14 | CORS configuration, allowed origins | ✅ |
-| `packages/shared/tests/rate-limiter.test.ts` | 26 | Rate limiting, account lockout, fail-open | ✅ |
-| `packages/shared/tests/totp.test.ts` | 28 | TOTP generation, verification, time windows | ✅ |
-| `packages/shared/tests/webauthn.test.ts` | 21 | WebAuthn registration, authentication | ✅ |
-| `packages/shared/tests/metrics.test.ts` | 26 | Prometheus metrics, counters, histograms | ✅ |
-| `packages/shared/tests/health.test.ts` | 26 | Health checks, liveness, readiness | ✅ |
-| `packages/shared/tests/pagerduty.test.ts` | 19 | PagerDuty alerting, incident creation | ✅ |
-| `packages/shared/tests/sentry.test.ts` | 26 | Sentry initialization, error capture | ✅ |
-
-#### @hta/database Tests (11 tests)
-
-| Test File | Tests | Description | Status |
-|-----------|-------|-------------|--------|
-| `packages/database/tests/tenant-context.test.ts` | 8 | Tenant context isolation, withTenant(), nested contexts | ✅ |
-| `packages/database/tests/index.test.ts` | 3 | Prisma client exports, namespace utilities | ✅ |
-
-**Test Coverage:**
-- `getTenantContext()` - Returns undefined when no context set
-- `withTenant()` - Runs callbacks with tenant context, handles async
-- Nested context switches - Properly isolates nested tenant calls
-- Error propagation - Errors bubble up correctly from callbacks
-
-#### @hta/ui Tests (38 tests)
-
-| Test File | Tests | Description | Status |
-|-----------|-------|-------------|--------|
-| `packages/ui/src/__tests__/components.test.ts` | 19 | cn() utility, statusVariants, getStatusClasses() | ✅ |
-| `packages/ui/src/__tests__/themes.test.ts` | 19 | Theme tokens, createTheme(), tenantThemes | ✅ |
-
-**Test Coverage:**
-- `cn()` - Class merging, Tailwind conflict resolution, conditional classes
-- `statusVariants` - All certificate status mappings
-- `getStatusClasses()` - Status-to-class conversion, case insensitivity
-- `defaultTheme` - All required color, font, radius, shadow tokens
-- `createTheme()` - Deep partial overrides, immutability
-- `getTheme()` - Tenant theme resolution, fallback to default
-
-#### @hta/emails Tests (30 tests)
-
-| Test File | Tests | Description | Status |
-|-----------|-------|-------------|--------|
-| `packages/emails/tests/render.test.ts` | 20 | Email template rendering, subject generation | ✅ |
-| `packages/emails/tests/index.test.ts` | 10 | Package exports, component availability | ✅ |
-
-**Test Coverage:**
-- `getEmailSubject()` - All 6 email types with various props
-- `renderEmail()` - Template rendering for all email types
-- Error handling - Unknown template type errors
-- Exports - Layout, Button components, all templates
-
-#### @hta/worker Tests (46 tests)
-
-| Test File | Tests | Description | Status |
-|-----------|-------|-------------|--------|
-| `apps/worker/tests/unit/email.test.ts` | 20 | Email job processor, all 6 email types, error handling | ✅ |
-| `apps/worker/tests/unit/notifications.test.ts` | 12 | Notification creation, batch processing, error handling | ✅ |
-| `apps/worker/tests/unit/cleanup.test.ts` | 14 | Token cleanup, notification cleanup, scheduled tasks | ✅ |
-
-**Test Coverage:**
-- **Email Processor:**
-  - `password-reset` - Reset email with expiry
-  - `staff-activation` - New staff welcome email
-  - `certificate-submitted` - Submission notification
-  - `certificate-reviewed` - Approval/rejection with notes
-  - `customer-approval` - Customer notification
-  - `customer-review` - Review request
-  - Error handling - Unknown type, Resend errors, rendering errors
-
-- **Notification Processor:**
-  - `create-notification` - User/customer notifications
-  - `batch-notifications` - Multiple notifications, partial failure handling
-  - Error propagation - Re-throws from createNotification
-
-- **Cleanup Processor:**
-  - `expired-tokens` - Delete old password reset tokens
-  - `old-notifications` - Delete old notifications (read/all)
-  - `orphaned-files` - Find referenced images, dry run mode
-  - `runScheduledCleanup()` - Combined cleanup task
-
-#### @hta/api Tests (5 tests)
-
-| Test File | Tests | Description | Status |
-|-----------|-------|-------------|--------|
-| `apps/api/tests/unit/health.test.ts` | 5 | Health endpoint, liveness, readiness | ✅ |
-
----
-
-### Package Test Summary
-
-| Package | Unit Tests | Integration Tests | Total | Status |
-|---------|------------|-------------------|-------|--------|
-| @hta/shared | 272 | - | 272 | ✅ |
-| @hta/database | 11 | - | 11 | ✅ |
-| @hta/ui | 38 | - | 38 | ✅ |
-| @hta/emails | 30 | - | 30 | ✅ |
-| @hta/worker | 46 | - | 46 | ✅ |
-| @hta/api | 5 | 98* | 103 | ✅ |
-| @hta/web | 966 | - | 966 | ✅ |
-| @hta/web-tenant-template | 134 | - | 134 | ✅ |
-| **Total** | **1502** | **98** | **1600** | ✅ |
-
-*Integration tests require PostgreSQL service (run in CI with docker containers)
-
-#### @hta/web-tenant-template Tests (134 tests)
-
-| Test File | Tests | Description | Status |
-|-----------|-------|-------------|--------|
-| `tests/unit/certificate-status.test.ts` | 37 | Status constants, transitions, terminal states | ✅ |
-| `tests/unit/safe-json.test.ts` | 25 | JSON parsing for SQLite/PostgreSQL compatibility | ✅ |
-| `tests/unit/tat-calculator.test.ts` | 18 | TAT calculation, aggregation, weekly comparison | ✅ |
-| `tests/unit/change-detection.test.ts` | 29 | Certificate change detection, summaries | ✅ |
-| `tests/unit/thresholds.test.ts` | 15 | Business logic thresholds validation | ✅ |
-| `tests/unit/utils.test.ts` | 10 | cn() utility, Tailwind class merging | ✅ |
-
-#### @hta/web Additional Tests (126 new tests)
-
-| Test File | Tests | Description | Status |
-|-----------|-------|-------------|--------|
-| `tests/unit/safe-json.test.ts` | 25 | JSON parsing for SQLite/PostgreSQL compatibility | ✅ |
-| `tests/unit/master-instruments.test.ts` | 67 | Instrument type guards, status, capabilities | ✅ |
-| `tests/unit/consent-text.test.ts` | 13 | Signing consent constants validation | ✅ |
-| `tests/unit/thresholds.test.ts` | 21 | TAT thresholds, performance metrics | ✅ |
-
----
-
-### ❌ NOT YET MIGRATED (141 tests remaining)
-
-#### API Route Tests (80 tests) - Priority: HIGH
-
-| hta-calibration File | Tests | Notes |
-|---------------------|-------|-------|
-| `src/app/api/__tests__/customer.test.ts` | 8 | Customer management |
-| `src/app/api/__tests__/internal-requests.test.ts` | 12 | Internal request handling |
-| `src/app/api/__tests__/workflows.test.ts` | 10 | Workflow management |
-| `tests/unit/cache-index.test.ts` | 29 | Cache indexing |
-| `src/lib/services/queue/providers/__tests__/database.test.ts` | 21 | Queue database provider |
-
-#### Component Tests (61 tests) - Priority: MEDIUM
-
-| hta-calibration File | Tests | Notes |
-|---------------------|-------|-------|
-| `src/components/__tests__/FeedbackItem.test.tsx` | 25 | Feedback item rendering |
-| `src/components/dashboard/__tests__/StatusBadge.test.tsx` | 18 | Dashboard status badge (different from migrated) |
-| `src/components/tat/__tests__/TATBadge.test.tsx` | 18 | TAT badge variations (partial) |
-
-#### Eval Tests (optional) - Priority: LOW
-
-| hta-calibration File | Tests | Notes |
-|---------------------|-------|-------|
-| `tests/evals/accessibility.eval.ts` | 33 | WCAG compliance checks |
-| `tests/evals/business-logic.eval.ts` | 34 | Business rule validation |
-| `tests/evals/pdf-quality.eval.ts` | 18 | PDF generation quality |
-| `tests/evals/performance.eval.ts` | 26 | Performance benchmarks |
-| `tests/evals/security.eval.ts` | 36 | Security vulnerability checks |
-
----
-
-### Next Steps (Prioritized)
-
-1. **P1 - API Route Tests (~80 tests)**
-   - Focus on remaining API validation logic
-   - customer.test.ts, workflows.test.ts, internal-requests.test.ts
-   - cache-index.test.ts, database provider tests
-
-2. **P2 - Component Tests (~61 tests)**
-   - React component rendering tests
-   - FeedbackItem, dashboard StatusBadge, TAT variations
-   - May require testing-library setup
-
-3. **P3 - Eval Tests (optional)**
-   - Quality assurance tests
-   - Can run separately as acceptance criteria
-   - Lower priority for MVP
-
-> **Architecture Decision (2026-04-14):** Changed from Cloud Run to **GKE Standard** for better control over networking, traffic management, and cost predictability. Traffic splitting uses **GKE Gateway API** (not Istio) for simplicity and zero sidecar overhead. Deployments via **Argo CD** (GitOps) with **Argo Rollouts** for automated canary releases. Argo CD protected by **IAP** (Google login) at `argocd.hta-calibration.com`.
-**Estimated Effort:** 3-4 weeks
-**Risk Level:** High
+| **Phase 16** | Testing | ✅ Complete | 164% | 1830 / 1115 tests (exceeds target) |
 
 ---
 
@@ -3110,42 +2841,53 @@ Enable Turbo remote caching for faster CI:
 
 ## 16. Testing Strategy
 
-> **Status:** ✅ COMPLETE (109% coverage)
+> **Status:** ✅ COMPLETE (164% coverage)
 > **Last Updated:** 2026-04-15
 > 
 > | Component | Status | Tests | Description |
 > |-----------|--------|-------|-------------|
 > | Test Infrastructure | ✅ | - | Vitest, Playwright, MSW configured |
-> | Shared Package Tests | ✅ | 126 | Cache, rate-limiter, CORS, secrets, storage |
+> | Shared Package Tests | ✅ | 272 | Cache, rate-limiter, CORS, secrets, TOTP, WebAuthn, metrics, health, PagerDuty, Sentry |
 > | API Integration Tests | ✅ | 98 | Auth, certificates, customer, notifications, workflows, instruments |
 > | API Unit Tests | ✅ | 5 | Health endpoint |
-> | Worker Unit Tests | ✅ | 6 | Email job |
-> | Web-HTA Unit Tests | ✅ | 1,088 | Full coverage: API routes, components, utils, stores |
+> | Worker Unit Tests | ✅ | 46 | Email, notifications, cleanup jobs |
+> | Worker Integration Tests | ✅ | 8 | PostgreSQL cleanup operations |
+> | Web-HTA Unit Tests | ✅ | 966 | API routes, components, utils, stores |
+> | Web-HTA Integration Tests | ✅ | 62 | PostgreSQL: auth, certificates, customer portal, queue |
+> | Web-Tenant-Template Unit | ✅ | 134 | Certificate status, TAT, change detection |
+> | Web-Tenant-Template Integration | ✅ | 62 | PostgreSQL: same as web-hta |
 > | E2E Journey Tests | ✅ | 49 | Certificate, reviewer, customer, admin flows + visual regression |
-> | **TOTAL** | ✅ | **1,214** | **109% of hta-calibration baseline (1,115)** |
+> | **TOTAL** | ✅ | **1,830** | **164% of hta-calibration baseline (1,115)** |
 
 ### 16.0.1 Test Count Comparison (2026-04-15)
 
 | Category | hta-calibration | hta-platform | Status |
 |----------|-----------------|--------------|--------|
-| Unit Tests | 865 | 1,088 | ✅ 126% |
-| Integration Tests | 98 | 98 | ✅ 100% |
+| Unit Tests | 865 | 1,502 | ✅ 174% |
+| Integration Tests (API) | 98 | 98 | ✅ 100% |
+| Integration Tests (PostgreSQL) | 0 | 132 | ✅ NEW |
 | E2E Tests | 49 | 49 | ✅ 100% |
-| Shared Package | 103 | 126 | ✅ 122% |
-| **Total** | **1,115** | **1,214** | ✅ **109%** |
+| Shared Package | 103 | 272 | ✅ 264% |
+| **Total** | **1,115** | **1,830** | ✅ **164%** |
 
 ### 16.0.2 hta-platform Test Locations
 
 | Location | Files | Tests | Description |
 |----------|-------|-------|-------------|
-| `packages/shared/tests/` | 5 | 126 | Cache (34), rate-limiter (33), CORS (14), secrets (23), storage (30) |
-| `apps/api/tests/integration/` | 7 | 98 | Auth (13), certificates (16), customer (13), notifications (12), workflows (15), instruments (15), admin (14) |
+| `packages/shared/tests/` | 11 | 272 | Cache, rate-limiter, CORS, secrets, TOTP, WebAuthn, metrics, health, PagerDuty, Sentry |
+| `packages/database/tests/` | 2 | 11 | Tenant context, Prisma exports |
+| `packages/ui/tests/` | 2 | 38 | Components, themes |
+| `packages/emails/tests/` | 2 | 30 | Email rendering, exports |
+| `apps/api/tests/integration/` | 7 | 98 | Auth, certificates, customer, notifications, workflows, instruments, admin |
 | `apps/api/tests/unit/` | 1 | 5 | Health endpoint |
-| `apps/worker/tests/unit/` | 1 | 6 | Email job |
-| `apps/web-hta/tests/unit/` | 38 | 851 | API routes, utilities, services, components |
-| `apps/web-hta/src/**/__tests__/` | 5 | 129 | StatusBadge, TATBadge, queue, certificate-store |
+| `apps/worker/tests/unit/` | 3 | 46 | Email, notifications, cleanup jobs |
+| `apps/worker/tests/integration/` | 1 | 8 | PostgreSQL cleanup operations |
+| `apps/web-hta/tests/unit/` | 38 | 966 | API routes, utilities, services, components |
+| `apps/web-hta/tests/integration/` | 5 | 62 | PostgreSQL: auth, certificates, customer portal, queue, smoke |
+| `apps/web-tenant-template/tests/unit/` | 6 | 134 | Certificate status, TAT, change detection, thresholds |
+| `apps/web-tenant-template/tests/integration/` | 5 | 62 | PostgreSQL: same as web-hta |
 | `apps/web-hta/e2e/` | 5 | 49 | Journey flows + visual regression |
-| **Total** | **62** | **1,214** | |
+| **Total** | **88** | **1,830** | |
 
 ### 16.0.3 Web-HTA Unit Test Breakdown
 
@@ -3178,14 +2920,23 @@ All critical test categories from hta-calibration have been migrated:
 hta-platform/
 ├── apps/
 │   ├── web-hta/
-│   │   ├── tests/unit/            # 38 test files, 851 tests
-│   │   ├── src/**/__tests__/      # 5 test files, 129 tests (co-located)
+│   │   ├── tests/unit/            # 38 test files, 966 tests
+│   │   ├── tests/integration/     # 5 test files, 62 tests (PostgreSQL)
 │   │   └── e2e/                   # 5 spec files, 49 tests
+│   ├── web-tenant-template/
+│   │   ├── tests/unit/            # 6 test files, 134 tests
+│   │   └── tests/integration/     # 5 test files, 62 tests (PostgreSQL)
 │   ├── api/tests/
 │   │   ├── integration/           # 7 test files, 98 tests
 │   │   └── unit/                  # 1 test file, 5 tests
-│   └── worker/tests/unit/         # 1 test file, 6 tests
-├── packages/shared/tests/         # 5 test files, 126 tests
+│   └── worker/tests/
+│       ├── unit/                  # 3 test files, 46 tests
+│       └── integration/           # 1 test file, 8 tests (PostgreSQL)
+├── packages/
+│   ├── shared/tests/              # 11 test files, 272 tests
+│   ├── database/tests/            # 2 test files, 11 tests
+│   ├── ui/tests/                  # 2 test files, 38 tests
+│   └── emails/tests/              # 2 test files, 30 tests
 └── vitest.workspace.ts            # Workspace config
 ```
 
@@ -3214,9 +2965,10 @@ All tests use inline mock implementations to avoid external dependencies and ens
 
 ### 16.4 Integration Tests
 
-**Implemented:** 98 integration tests across 7 test files in `apps/api/tests/integration/`.
+**Implemented:** 230 integration tests across multiple packages.
 
-Coverage includes:
+#### API Integration Tests (98 tests)
+Located in `apps/api/tests/integration/`:
 - Auth flows (login, token refresh, session validation)
 - Certificate CRUD operations
 - Customer portal endpoints
@@ -3224,6 +2976,34 @@ Coverage includes:
 - Workflow state transitions
 - Instrument management
 - Admin authorization
+
+#### PostgreSQL Integration Tests (132 tests)
+These tests run against a real PostgreSQL database (port 5433) and verify Prisma operations work correctly with the schema.
+
+**@hta/web & @hta/web-tenant-template (62 tests each)**
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| `auth.test.ts` | 10 | User lookup, password reset tokens, audit logging |
+| `certificates.test.ts` | 18 | Certificate CRUD, workflow transitions, review feedback |
+| `customer-portal.test.ts` | 12 | Customer accounts, download tokens, registrations |
+| `queue-jobs.test.ts` | 10 | Job queue operations, status tracking |
+| `service-smoke.test.ts` | 8 | Service pattern validation (direct ID assignment) |
+
+**@hta/worker (8 tests)**
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| `cleanup-jobs.test.ts` | 8 | Token/notification cleanup against real DB |
+
+**Running PostgreSQL Integration Tests:**
+```bash
+# Start test database
+docker compose -f docker/docker-compose.test.yml up -d postgres-test
+
+# Run integration tests
+pnpm --filter @hta/web test:integration
+pnpm --filter @hta/web-tenant-template test:integration
+pnpm --filter @hta/worker test:integration
+```
 
 ### 16.5 E2E Tests (Playwright)
 
@@ -3253,13 +3033,21 @@ Coverage includes:
 ### 16.8 Test Commands
 
 ```bash
-# Run all tests across workspace
+# Run all unit tests across workspace
 pnpm test
 
-# Run specific package tests
+# Run specific package unit tests
 pnpm --filter @hta/web test
 pnpm --filter @hta/shared test
+pnpm --filter @hta/worker test:unit
+
+# Run API integration tests
 pnpm --filter @hta/api test:integration
+
+# Run PostgreSQL integration tests (requires running postgres-test container)
+pnpm --filter @hta/web test:integration
+pnpm --filter @hta/web-tenant-template test:integration
+pnpm --filter @hta/worker test:integration
 
 # Run E2E tests
 pnpm --filter @hta/web test:e2e

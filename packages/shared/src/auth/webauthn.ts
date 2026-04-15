@@ -21,7 +21,7 @@
  * on the client side for the actual WebAuthn API calls.
  */
 
-import { createLogger } from '../logger'
+import { createLogger } from '../logger/index.js'
 import { randomBytes, createHash, createVerify } from 'crypto'
 
 const logger = createLogger('webauthn')

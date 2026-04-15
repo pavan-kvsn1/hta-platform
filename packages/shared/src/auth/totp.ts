@@ -14,7 +14,7 @@
  *   const isValid = verifyTOTP(userCode, storedSecret)
  */
 
-import { createLogger } from '../logger'
+import { createLogger } from '../logger/index.js'
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto'
 
 const logger = createLogger('totp')

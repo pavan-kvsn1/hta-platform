@@ -16,11 +16,11 @@ export {
   type RateLimitType,
   type RateLimitResult,
   type AccountLockoutResult,
-} from './rate-limiter'
+} from './rate-limiter.js'
 
 export {
   getCorsConfig,
   isOriginAllowed,
   createCorsHeaders,
   type CorsConfig,
-} from './cors'
+} from './cors.js'

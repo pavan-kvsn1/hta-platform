@@ -10,6 +10,6 @@
  *   await rotateSecret('jwt-secret', () => generateRandomBytes(64))
  */
 
-export { getSecret, getSecretWithMetadata, secretExists } from './access'
-export { rotateSecret, disableOldVersions, scheduleRotation } from './rotation'
-export type { SecretMetadata, RotationConfig } from './types'
+export { getSecret, getSecretWithMetadata, secretExists } from './access.js'
+export { rotateSecret, disableOldVersions, scheduleRotation } from './rotation.js'
+export type { SecretMetadata, RotationConfig } from './types.js'
