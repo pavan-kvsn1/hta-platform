@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { Settings, User } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm'
+import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings'
 
 export default function DashboardSettingsPage() {
   const { data: session } = useSession()
@@ -46,6 +47,11 @@ export default function DashboardSettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Two-Factor Authentication */}
+      <div className="mb-6">
+        <TwoFactorSettings />
+      </div>
 
       {/* Password Change */}
       <ChangePasswordForm apiEndpoint="/api/auth/change-password" />

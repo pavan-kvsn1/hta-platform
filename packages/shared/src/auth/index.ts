@@ -8,6 +8,10 @@
 import bcrypt from 'bcryptjs'
 import { randomBytes } from 'crypto'
 
+// Re-export 2FA modules
+export * from './totp.js'
+export * from './webauthn.js'
+
 const SALT_ROUNDS = 12
 
 /**

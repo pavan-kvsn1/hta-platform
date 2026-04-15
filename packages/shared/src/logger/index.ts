@@ -2,6 +2,7 @@
  * @hta/shared - Structured Logger
  *
  * Uses Pino for JSON logging that integrates with GCP Cloud Logging.
+ * Automatically includes Sentry trace context for log correlation.
  *
  * Why structured logging?
  * - Searchable: Find all logs for a specific user or certificate
@@ -15,6 +16,7 @@
  */
 
 import pino from 'pino'
+import * as Sentry from '@sentry/node'
 
 // GCP Cloud Logging severity levels
 const GCP_SEVERITY = {
@@ -39,6 +41,23 @@ export const logger = pino({
       service: process.env.SERVICE_NAME || 'hta-platform',
       version: process.env.npm_package_version || '1.0.0',
     }),
+  },
+
+  // Include Sentry trace context for log correlation
+  mixin() {
+    try {
+      const span = Sentry.getActiveSpan()
+      if (span) {
+        const { traceId, spanId } = span.spanContext()
+        return {
+          trace_id: traceId,
+          span_id: spanId,
+        }
+      }
+    } catch {
+      // Sentry not initialized, skip trace context
+    }
+    return {}
   },
 
   messageKey: 'message',
@@ -72,6 +91,22 @@ export const createRequestLogger = (
     requestId,
     ...options,
   })
+}
+
+/**
+ * Log an error to both Pino and Sentry
+ */
+export function logError(
+  log: pino.Logger,
+  error: Error,
+  context?: Record<string, unknown>
+): void {
+  log.error({ err: error, ...context }, error.message)
+  try {
+    Sentry.captureException(error, { extra: context })
+  } catch {
+    // Sentry not initialized, skip
+  }
 }
 
 export type Logger = typeof logger

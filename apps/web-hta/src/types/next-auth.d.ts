@@ -9,10 +9,11 @@ declare module 'next-auth' {
       name: string
       role: string
       isAdmin?: boolean
-      adminType?: 'MASTER' | 'WORKER' | null  // NEW: Admin tier (null for non-admins)
+      adminType?: 'MASTER' | 'WORKER' | null  // Admin tier (null for non-admins)
       companyName?: string
       customerAccountId?: string
       isPrimaryPoc?: boolean  // For customer users: true if they are the primary POC
+      requires2FA?: boolean   // True if 2FA verification is pending
     }
   }
 
@@ -20,10 +21,11 @@ declare module 'next-auth' {
     id: string
     role: string
     isAdmin?: boolean
-    adminType?: 'MASTER' | 'WORKER' | null  // NEW: Admin tier
+    adminType?: 'MASTER' | 'WORKER' | null  // Admin tier
     companyName?: string
     customerAccountId?: string
     isPrimaryPoc?: boolean
+    requires2FA?: boolean
   }
 }
 
@@ -32,9 +34,10 @@ declare module 'next-auth/jwt' {
     id?: string
     role?: string
     isAdmin?: boolean
-    adminType?: 'MASTER' | 'WORKER' | null  // NEW: Admin tier
+    adminType?: 'MASTER' | 'WORKER' | null  // Admin tier
     companyName?: string
     customerAccountId?: string
     isPrimaryPoc?: boolean
+    requires2FA?: boolean
   }
 }

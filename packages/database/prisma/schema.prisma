@@ -86,6 +86,12 @@ model User {
   assignedAdmin                  User?                         @relation("EngineerToAdmin", fields: [assignedAdminId], references: [id])
   engineers                      User[]                        @relation("EngineerToAdmin")
 
+  // Two-Factor Authentication (2FA)
+  totpSecret                     String?                       // Encrypted TOTP secret
+  totpEnabled                    Boolean                       @default(false)
+  totpVerifiedAt                 DateTime?                     // When 2FA was first verified
+  backupCodes                    String[]                      // Hashed backup codes
+
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([tenantId, role])

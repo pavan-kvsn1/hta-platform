@@ -8,6 +8,7 @@ import {
   recordFailedLoginAttempt,
   clearFailedLoginAttempts,
 } from './security'
+import { verifyTOTP } from '@hta/shared/auth'
 
 // Determine if we're in production
 const isProduction = process.env.NODE_ENV === 'production'
@@ -44,6 +45,7 @@ const authConfig: NextAuthConfig = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        totpCode: { label: '2FA Code', type: 'text' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -62,6 +64,18 @@ const authConfig: NextAuthConfig = {
 
         const user = await prisma.user.findFirst({
           where: { email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            isAdmin: true,
+            adminType: true,
+            isActive: true,
+            passwordHash: true,
+            totpEnabled: true,
+            totpSecret: true,
+          },
         })
 
         if (!user || !user.isActive || !user.passwordHash) {
@@ -81,6 +95,33 @@ const authConfig: NextAuthConfig = {
           return null
         }
 
+        // Check if 2FA is enabled
+        if (user.totpEnabled && user.totpSecret) {
+          const totpCode = credentials.totpCode as string | undefined
+
+          if (!totpCode) {
+            // Password valid but 2FA required - return with flag
+            // The frontend will redirect to 2FA verification page
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              isAdmin: user.isAdmin,
+              adminType: user.adminType as 'MASTER' | 'WORKER' | null,
+              requires2FA: true,
+            }
+          }
+
+          // Verify TOTP code
+          const is2FAValid = verifyTOTP(totpCode, user.totpSecret)
+          if (!is2FAValid) {
+            // Invalid 2FA code - record as failed attempt
+            await recordFailedLoginAttempt(accountKey)
+            return null
+          }
+        }
+
         // Successful login - clear any failed attempts
         await clearFailedLoginAttempts(accountKey)
 
@@ -91,6 +132,7 @@ const authConfig: NextAuthConfig = {
           role: user.role,
           isAdmin: user.isAdmin,
           adminType: user.adminType as 'MASTER' | 'WORKER' | null,
+          requires2FA: false,
         }
       },
     }),
@@ -168,7 +210,7 @@ const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id
         token.role = user.role
@@ -187,6 +229,13 @@ const authConfig: NextAuthConfig = {
         if ('isPrimaryPoc' in user) {
           token.isPrimaryPoc = user.isPrimaryPoc
         }
+        if ('requires2FA' in user) {
+          token.requires2FA = user.requires2FA
+        }
+      }
+      // Allow clearing requires2FA flag after 2FA verification
+      if (trigger === 'update' && token.requires2FA) {
+        token.requires2FA = false
       }
       return token
     },
@@ -208,6 +257,9 @@ const authConfig: NextAuthConfig = {
         }
         if (token.isPrimaryPoc !== undefined) {
           session.user.isPrimaryPoc = token.isPrimaryPoc as boolean
+        }
+        if (token.requires2FA !== undefined) {
+          session.user.requires2FA = token.requires2FA as boolean
         }
       }
       return session

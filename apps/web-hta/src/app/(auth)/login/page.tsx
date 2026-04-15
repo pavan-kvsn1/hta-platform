@@ -18,6 +18,8 @@ function StaffLoginForm() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [totpCode, setTotpCode] = useState('')
+  const [requires2FA, setRequires2FA] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
   const [csrfToken, setCsrfToken] = useState<string | undefined>()
@@ -36,13 +38,30 @@ function StaffLoginForm() {
       const result = await signIn('staff-credentials', {
         email,
         password,
+        totpCode: requires2FA ? totpCode : undefined,
         redirect: false,
         csrfToken,
       })
 
       if (result?.error) {
-        setLoginError('Invalid email or password')
+        if (requires2FA) {
+          setLoginError('Invalid 2FA code')
+        } else {
+          setLoginError('Invalid email or password')
+        }
       } else if (result?.ok) {
+        // Check if 2FA is required by fetching session
+        const sessionRes = await fetch('/api/auth/session')
+        const session = await sessionRes.json()
+
+        if (session?.user?.requires2FA) {
+          // 2FA required - show code input
+          setRequires2FA(true)
+          setTotpCode('')
+          setIsLoading(false)
+          return
+        }
+
         // Issue refresh token after successful login
         try {
           await fetch('/api/auth/issue-refresh-token', {
@@ -59,6 +78,15 @@ function StaffLoginForm() {
       setLoginError('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Reset 2FA state when email changes
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value)
+    if (requires2FA) {
+      setRequires2FA(false)
+      setTotpCode('')
     }
   }
 
@@ -99,9 +127,9 @@ function StaffLoginForm() {
             type="email"
             placeholder="engineer@htaipl.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={handleEmailChange}
             required
-            disabled={isLoading}
+            disabled={isLoading || requires2FA}
             className="w-full"
           />
         </div>
@@ -123,18 +151,72 @@ function StaffLoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            disabled={isLoading}
+            disabled={isLoading || requires2FA}
             className="w-full"
           />
         </div>
 
+        {/* 2FA Code Input - shown when required */}
+        {requires2FA && (
+          <div className="space-y-2">
+            <Label htmlFor="totpCode">Two-Factor Authentication Code</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Enter the 6-digit code from your authenticator app
+            </p>
+            <Input
+              id="totpCode"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              placeholder="000000"
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+              required
+              disabled={isLoading}
+              className="w-full text-center text-2xl tracking-widest"
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">
+              Lost your authenticator?{' '}
+              <button
+                type="button"
+                onClick={() => router.push('/login/backup-code')}
+                className="text-primary hover:underline"
+              >
+                Use a backup code
+              </button>
+            </p>
+          </div>
+        )}
+
         <Button
           type="submit"
           className="w-full"
-          disabled={isLoading}
+          disabled={isLoading || (requires2FA && totpCode.length !== 6)}
         >
-          {isLoading ? 'Signing in...' : 'Sign In'}
+          {isLoading
+            ? 'Verifying...'
+            : requires2FA
+              ? 'Verify & Sign In'
+              : 'Sign In'
+          }
         </Button>
+
+        {requires2FA && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setRequires2FA(false)
+              setTotpCode('')
+              setPassword('')
+            }}
+          >
+            Back to Login
+          </Button>
+        )}
       </form>
 
       {/* Customer Login Link */}
