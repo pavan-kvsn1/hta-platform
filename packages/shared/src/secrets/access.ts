@@ -10,20 +10,31 @@ import type { SecretMetadata, SecretAccessOptions } from './types.js'
 
 const logger = createLogger('secrets')
 
-// Lazy-loaded Secret Manager client
-let secretManagerClient: any = null
+// Minimal interface for Secret Manager client methods we use
+interface SecretManagerClient {
+  accessSecretVersion(request: { name: string }): Promise<[{ payload?: { data?: Buffer | string }; name?: string; createTime?: { seconds: number }; state?: string }]>
+  getSecret(request: { name: string }): Promise<[unknown]>
+}
 
-async function getClient() {
-  if (!secretManagerClient) {
-    try {
-      const { SecretManagerServiceClient } = await import('@google-cloud/secret-manager')
-      secretManagerClient = new SecretManagerServiceClient()
-    } catch {
-      logger.warn('Secret Manager client not available, using environment variables')
-      return null
-    }
+// Lazy-loaded Secret Manager client
+let secretManagerClient: SecretManagerClient | null = null
+let clientLoadAttempted = false
+
+async function getClient(): Promise<SecretManagerClient | null> {
+  if (clientLoadAttempted) {
+    return secretManagerClient
   }
-  return secretManagerClient
+  clientLoadAttempted = true
+
+  try {
+    // Dynamic import to avoid bundling issues and allow graceful fallback
+    const module = await import('@google-cloud/secret-manager' as string)
+    secretManagerClient = new module.SecretManagerServiceClient() as SecretManagerClient
+    return secretManagerClient
+  } catch {
+    logger.warn('Secret Manager client not available, using environment variables')
+    return null
+  }
 }
 
 /**

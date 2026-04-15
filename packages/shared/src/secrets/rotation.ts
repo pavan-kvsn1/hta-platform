@@ -11,15 +11,32 @@ import type { RotationConfig, RotationResult } from './types.js'
 
 const logger = createLogger('secrets:rotation')
 
-// Lazy-loaded Secret Manager client
-let secretManagerClient: any = null
+// Minimal interface for Secret Manager client methods we use
+interface SecretManagerClient {
+  addSecretVersion(request: { parent: string; payload: { data: Buffer } }): Promise<[{ name?: string }]>
+  listSecretVersions(request: { parent: string }): Promise<[Array<{ name?: string; state?: string; createTime?: { seconds: number } }>]>
+  disableSecretVersion(request: { name: string }): Promise<[unknown]>
+}
 
-async function getClient() {
-  if (!secretManagerClient) {
-    const { SecretManagerServiceClient } = await import('@google-cloud/secret-manager')
-    secretManagerClient = new SecretManagerServiceClient()
+// Lazy-loaded Secret Manager client
+let secretManagerClient: SecretManagerClient | null = null
+let clientLoadAttempted = false
+
+async function getClient(): Promise<SecretManagerClient> {
+  if (clientLoadAttempted && secretManagerClient) {
+    return secretManagerClient
   }
-  return secretManagerClient
+  clientLoadAttempted = true
+
+  try {
+    // Dynamic import to avoid bundling issues
+    const module = await import('@google-cloud/secret-manager' as string)
+    secretManagerClient = new module.SecretManagerServiceClient() as SecretManagerClient
+    return secretManagerClient
+  } catch (error) {
+    logger.error({ error }, 'Failed to load Secret Manager client')
+    throw new Error('Secret Manager client required for rotation operations')
+  }
 }
 
 function getProjectId(): string {
@@ -131,9 +148,10 @@ export async function disableOldVersions(
   const disabledVersions: string[] = []
 
   for (const version of toDisable) {
+    if (!version.name) continue
     try {
       await client.disableSecretVersion({ name: version.name })
-      const versionName = version.name?.split('/').pop() || 'unknown'
+      const versionName = version.name.split('/').pop() || 'unknown'
       disabledVersions.push(versionName)
       logger.debug({ secretId, version: versionName }, 'Disabled old secret version')
     } catch (error) {
@@ -157,7 +175,7 @@ export async function disableOldVersions(
  * @returns Handler function for Cloud Functions/Cloud Run
  */
 export function scheduleRotation(configs: RotationConfig[]) {
-  return async (req?: any, res?: any) => {
+  return async (_req?: unknown, res?: { status: (code: number) => { json: (data: unknown) => void } }) => {
     const results: Record<string, RotationResult> = {}
 
     for (const config of configs) {

@@ -17,7 +17,9 @@
 import * as Sentry from '@sentry/node'
 
 // Profiling is optional (requires native build)
-let nodeProfilingIntegration: (() => Sentry.Integration) | undefined
+// Using ReturnType to infer the integration type from Sentry's built-in integrations
+type SentryIntegration = ReturnType<typeof Sentry.httpIntegration>
+let nodeProfilingIntegration: (() => SentryIntegration) | undefined
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   nodeProfilingIntegration = require('@sentry/profiling-node').nodeProfilingIntegration
