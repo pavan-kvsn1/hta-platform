@@ -6,13 +6,13 @@ variable "project_id" {
 variable "region" {
   description = "GCP region"
   type        = string
-  default     = "asia-south1"  # Mumbai - closest to India users
+  default     = "asia-south1"  # Mumbai - closest to India
 }
 
 variable "environment" {
   description = "Environment name"
   type        = string
-  default     = "production"
+  default     = "dev"
 }
 
 # Network
@@ -34,7 +34,7 @@ variable "services_cidr" {
   default     = "10.8.0.0/20"
 }
 
-# GKE
+# GKE (Cost-optimized defaults for dev)
 variable "gke_node_count" {
   description = "Number of nodes per zone"
   type        = number
@@ -44,38 +44,38 @@ variable "gke_node_count" {
 variable "gke_machine_type" {
   description = "GKE node machine type"
   type        = string
-  default     = "e2-standard-4"
+  default     = "e2-medium"  # 2 vCPU, 4GB RAM - sufficient for dev
 }
 
 variable "gke_disk_size_gb" {
   description = "GKE node disk size in GB"
   type        = number
-  default     = 50
+  default     = 30  # Smaller disk for dev
 }
 
 variable "gke_node_locations" {
-  description = "Zones for GKE nodes"
+  description = "Zones for GKE nodes (leave empty for single zone)"
   type        = list(string)
-  default     = []
+  default     = []  # Single zone for dev
 }
 
-# Cloud SQL
+# Cloud SQL (Cost-optimized defaults for dev)
 variable "cloudsql_tier" {
   description = "Cloud SQL machine tier"
   type        = string
-  default     = "db-custom-2-4096"
+  default     = "db-g1-small"  # Shared-core, 1.7GB RAM - ~$25/month
 }
 
 variable "cloudsql_disk_size" {
   description = "Cloud SQL disk size in GB"
   type        = number
-  default     = 20
+  default     = 10  # Start small, auto-resize enabled
 }
 
 variable "database_name" {
   description = "Database name"
   type        = string
-  default     = "hta_platform"
+  default     = "hta_platform_dev"
 }
 
 variable "database_user" {
@@ -90,30 +90,17 @@ variable "database_password" {
   sensitive   = true
 }
 
-# Disaster Recovery
-variable "enable_dr_replica" {
-  description = "Enable cross-region read replica for DR"
-  type        = bool
-  default     = true
-}
-
-variable "dr_replica_region" {
-  description = "Region for DR replica (should differ from primary)"
-  type        = string
-  default     = "us-west1"
-}
-
-# Redis
+# Redis (Cost-optimized defaults for dev)
 variable "redis_tier" {
   description = "Redis tier (BASIC or STANDARD_HA)"
   type        = string
-  default     = "STANDARD_HA"
+  default     = "BASIC"  # No HA for dev - ~$35/month
 }
 
 variable "redis_memory_size_gb" {
   description = "Redis memory size in GB"
   type        = number
-  default     = 1
+  default     = 1  # 1GB sufficient for dev
 }
 
 # Cloud Armor
@@ -127,14 +114,14 @@ variable "blocked_ip_ranges" {
 variable "cors_origins" {
   description = "Allowed CORS origins"
   type        = list(string)
-  default     = ["https://hta-platform.com"]
+  default     = ["https://dev.hta-calibration.com", "http://localhost:3000"]
 }
 
 # Kubernetes
 variable "k8s_namespace" {
   description = "Kubernetes namespace"
   type        = string
-  default     = "hta-platform"
+  default     = "hta-dev"
 }
 
 # GitHub
@@ -143,33 +130,9 @@ variable "github_repo" {
   type        = string
 }
 
-# IAP (Identity-Aware Proxy) for Argo CD
-variable "iap_support_email" {
-  description = "Support email for OAuth consent screen"
-  type        = string
-}
-
-variable "iap_authorized_members" {
-  description = "List of members authorized to access Argo CD (e.g., user:you@gmail.com)"
-  type        = list(string)
-}
-
 # Monitoring
 variable "monitoring_notification_channels" {
   description = "List of notification channel IDs for alerts"
   type        = list(string)
   default     = []
-}
-
-variable "enable_pagerduty" {
-  description = "Enable PagerDuty integration for alerts"
-  type        = bool
-  default     = false
-}
-
-variable "pagerduty_service_key" {
-  description = "PagerDuty service integration key"
-  type        = string
-  default     = ""
-  sensitive   = true
 }

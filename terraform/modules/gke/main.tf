@@ -97,9 +97,10 @@ resource "google_container_node_pool" "primary" {
   }
 
   node_config {
-    machine_type = var.machine_type
-    disk_size_gb = var.disk_size_gb
-    disk_type    = "pd-ssd"
+    machine_type    = var.machine_type
+    disk_size_gb    = var.disk_size_gb
+    disk_type       = "pd-ssd"
+    service_account = var.service_account
 
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"

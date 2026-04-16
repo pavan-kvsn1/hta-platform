@@ -1,5 +1,8 @@
 # =============================================================================
-# HTA Platform - Production Environment
+# HTA Platform - Development Environment
+# =============================================================================
+# Cost-optimized configuration for development/staging
+# Target: ~$50-70/month (half of production)
 # =============================================================================
 
 terraform {
@@ -18,7 +21,7 @@ terraform {
 
   backend "gcs" {
     bucket = "hta-platform-terraform-state"
-    prefix = "production"
+    prefix = "dev"
   }
 }
 
@@ -104,7 +107,7 @@ resource "google_service_networking_connection" "private_services" {
 }
 
 # =============================================================================
-# GKE Cluster
+# GKE Cluster (Cost-optimized: smaller nodes, single zone)
 # =============================================================================
 
 module "gke" {
@@ -121,18 +124,23 @@ module "gke" {
   pods_range_name     = "pods"
   services_range_name = "services"
 
-  min_node_count  = var.gke_node_count
-  max_node_count  = var.gke_node_count * 3  # Allow scaling to 3x
-  machine_type    = var.gke_machine_type
-  disk_size_gb    = var.gke_disk_size_gb
+  # Dev: smaller machines, fewer nodes
+  node_pool_name  = "default-pool"
+  min_node_count  = 1
+  max_node_count  = 3
+  machine_type    = var.gke_machine_type  # e2-medium for dev
+  disk_size_gb    = var.gke_disk_size_gb  # 30GB for dev
   node_locations  = var.gke_node_locations
   service_account = google_service_account.gke_nodes.email
+
+  # Dev: use REGULAR channel for stability
+  release_channel = "REGULAR"
 }
 
 # GKE Node Service Account
 resource "google_service_account" "gke_nodes" {
   account_id   = "${var.environment}-gke-nodes"
-  display_name = "GKE Node Service Account"
+  display_name = "GKE Node Service Account (${var.environment})"
   project      = var.project_id
 }
 
@@ -155,7 +163,7 @@ resource "google_project_iam_member" "gke_nodes_artifact_reader" {
 }
 
 # =============================================================================
-# Cloud SQL
+# Cloud SQL (Cost-optimized: smaller tier, no HA, shorter retention)
 # =============================================================================
 
 module "cloudsql" {
@@ -166,12 +174,13 @@ module "cloudsql" {
   instance_name = "${var.environment}-postgres"
 
   database_version = "POSTGRES_16"
-  tier             = var.cloudsql_tier
+  tier             = var.cloudsql_tier  # db-f1-micro or db-g1-small for dev
   disk_size        = var.cloudsql_disk_size
 
-  availability_type     = "REGIONAL"
-  deletion_protection   = true
-  backup_retention_days = 30
+  # Dev: No HA, shorter retention, allow deletion
+  availability_type     = "ZONAL"
+  deletion_protection   = false
+  backup_retention_days = 7
 
   vpc_network_id = google_compute_network.main.id
 
@@ -179,15 +188,14 @@ module "cloudsql" {
   database_user     = var.database_user
   database_password = var.database_password
 
-  # Cross-region replica for DR
-  enable_replica = var.enable_dr_replica
-  replica_region = var.dr_replica_region
+  # Dev: No cross-region replica
+  enable_replica = false
 
   depends_on = [google_service_networking_connection.private_services]
 }
 
 # =============================================================================
-# Redis
+# Redis (Cost-optimized: BASIC tier, smaller memory)
 # =============================================================================
 
 module "redis" {
@@ -197,8 +205,9 @@ module "redis" {
   region        = var.region
   instance_name = "${var.environment}-redis"
 
-  tier           = var.redis_tier
-  memory_size_gb = var.redis_memory_size_gb
+  # Dev: BASIC tier (no HA), smaller memory
+  tier           = "BASIC"
+  memory_size_gb = var.redis_memory_size_gb  # 1GB for dev
   vpc_network_id = google_compute_network.main.id
 
   auth_enabled            = true
@@ -212,7 +221,7 @@ module "redis" {
 }
 
 # =============================================================================
-# Cloud Armor + Static IP for GKE Ingress
+# Cloud Armor (Same security, different policy name)
 # =============================================================================
 
 module "cloud_armor" {
@@ -221,15 +230,12 @@ module "cloud_armor" {
   project_id  = var.project_id
   policy_name = "${var.environment}-security-policy"
 
-  # Rate limiting: 100 requests per minute per IP
+  # Same rate limiting as production
   rate_limit_requests_per_interval = 100
   rate_limit_interval_sec          = 60
 
-  # Enable OWASP rules (SQLi, XSS, LFI, RFI, RCE protection)
   enable_owasp_rules = true
-
-  # Optional: block specific IP ranges
-  blocked_ip_ranges = var.blocked_ip_ranges
+  blocked_ip_ranges  = var.blocked_ip_ranges
 }
 
 # =============================================================================
@@ -239,18 +245,19 @@ module "cloud_armor" {
 module "uploads_bucket" {
   source = "../../modules/storage"
 
-  project_id   = var.project_id
-  bucket_name  = "${var.project_id}-${var.environment}-uploads"
-  location     = var.region
+  project_id    = var.project_id
+  bucket_name   = "${var.project_id}-${var.environment}-uploads"
+  location      = var.region
   storage_class = "STANDARD"
 
   versioning_enabled = true
 
+  # Dev: shorter retention
   lifecycle_rules = [
     {
       action_type        = "Delete"
-      age                = 365
-      num_newer_versions = 3
+      age                = 90
+      num_newer_versions = 2
     }
   ]
 
@@ -317,19 +324,19 @@ module "secrets" {
 
 resource "google_service_account" "api" {
   account_id   = "${var.environment}-api"
-  display_name = "API Service Account"
+  display_name = "API Service Account (${var.environment})"
   project      = var.project_id
 }
 
 resource "google_service_account" "worker" {
   account_id   = "${var.environment}-worker"
-  display_name = "Worker Service Account"
+  display_name = "Worker Service Account (${var.environment})"
   project      = var.project_id
 }
 
 resource "google_service_account" "web" {
   account_id   = "${var.environment}-web"
-  display_name = "Web Service Account"
+  display_name = "Web Service Account (${var.environment})"
   project      = var.project_id
 }
 
@@ -353,7 +360,7 @@ resource "google_service_account_iam_member" "web_workload_identity" {
 }
 
 # =============================================================================
-# Artifact Registry
+# Artifact Registry (shared with production, or separate)
 # =============================================================================
 
 resource "google_artifact_registry_repository" "main" {
@@ -416,23 +423,7 @@ resource "google_project_iam_member" "github_actions_gke_developer" {
 }
 
 # =============================================================================
-# IAP for Argo CD
-# =============================================================================
-
-module "iap" {
-  source = "../../modules/iap"
-
-  project_id          = var.project_id
-  support_email       = var.iap_support_email
-  application_title   = "HTA Platform"
-  client_display_name = "Argo CD IAP Client"
-
-  # Who can access Argo CD (Google account emails)
-  authorized_members = var.iap_authorized_members
-}
-
-# =============================================================================
-# Monitoring & Alerting
+# Monitoring (Simplified for dev - no PagerDuty, basic alerts only)
 # =============================================================================
 
 module "monitoring" {
@@ -443,21 +434,21 @@ module "monitoring" {
 
   services = ["web", "api", "worker"]
 
-  # Thresholds
-  error_rate_threshold    = 0.05  # 5%
-  latency_threshold_ms    = 500
-  db_connection_threshold = 80
-  queue_depth_threshold   = 100
+  # Relaxed thresholds for dev
+  error_rate_threshold    = 0.10  # 10% (more lenient)
+  latency_threshold_ms    = 1000  # 1 second
+  db_connection_threshold = 90
+  queue_depth_threshold   = 200
 
-  # SLO targets
-  availability_slo = 99.9
-  latency_slo_ms   = 200
+  # Lower SLO targets for dev
+  availability_slo = 99.0
+  latency_slo_ms   = 500
 
-  # DR monitoring
-  enable_replica_monitoring = var.enable_dr_replica
+  # No DR monitoring in dev
+  enable_replica_monitoring = false
 
-  # Notifications (configure via tfvars)
+  # Basic notifications only
   notification_channels = var.monitoring_notification_channels
-  enable_pagerduty      = var.enable_pagerduty
-  pagerduty_service_key = var.pagerduty_service_key
+  enable_pagerduty      = false
+  pagerduty_service_key = ""
 }

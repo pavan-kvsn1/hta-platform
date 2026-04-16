@@ -1,0 +1,55 @@
+# =============================================================================
+# HTA Platform - Development Environment Configuration
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars to git (it's in .gitignore).
+# =============================================================================
+
+# GCP Project
+project_id = "hta-calibration-dev"
+region     = "asia-south1"  # Mumbai
+
+# Database credentials (generate strong password)
+database_password = "CHANGE_ME_use_strong_password_here"
+
+# GitHub repository for Workload Identity Federation
+github_repo = "your-username/hta-platform"
+
+# CORS origins (add your dev domains)
+cors_origins = [
+  "https://dev.hta-calibration.com",
+  "http://localhost:3000"
+]
+
+# Optional: Monitoring notification channels
+# Create these in GCP Console first, then add IDs here
+monitoring_notification_channels = []
+
+# =============================================================================
+# Optional Overrides (uncomment to customize)
+# =============================================================================
+
+# GKE Configuration (defaults are cost-optimized for dev)
+# gke_machine_type   = "e2-medium"   # 2 vCPU, 4GB RAM
+# gke_disk_size_gb   = 30
+# gke_node_locations = []            # Empty = single zone
+
+# Cloud SQL Configuration
+# cloudsql_tier      = "db-g1-small" # ~$25/month
+# cloudsql_disk_size = 10            # Auto-resize enabled
+
+# Redis Configuration
+# redis_memory_size_gb = 1           # 1GB sufficient for dev
+
+# Cloud Armor
+# blocked_ip_ranges = ["1.2.3.4/32"] # Block specific IPs
+
+# =============================================================================
+# Estimated Monthly Cost: ~$100 (~₹8,300)
+# =============================================================================
+# GKE (e2-medium x1):     ~$25
+# Cloud SQL (db-g1-small): ~$25
+# Redis (BASIC 1GB):       ~$35
+# Cloud NAT:               ~$5
+# GCS + Static IP:         ~$10
+# =============================================================================

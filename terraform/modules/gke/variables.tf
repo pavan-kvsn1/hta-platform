@@ -79,3 +79,8 @@ variable "max_node_count" {
   type        = number
   default     = 5
 }
+
+variable "service_account" {
+  description = "Service account email for GKE nodes"
+  type        = string
+}

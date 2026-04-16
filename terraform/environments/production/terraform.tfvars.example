@@ -1,59 +1,75 @@
 # =============================================================================
-# Production Environment Variables
+# HTA Platform - Production Environment Configuration
 # =============================================================================
-# Copy this file to terraform.tfvars and fill in the values
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars to git (it's in .gitignore).
+# =============================================================================
 
-project_id  = "your-gcp-project-id"
-region      = "us-central1"
+# GCP Project
+project_id  = "hta-calibration-prod"
+region      = "asia-south1"  # Mumbai - primary region for India
 environment = "production"
 
-# Network
+# Network (defaults are fine for most cases)
 subnet_cidr   = "10.0.0.0/20"
 pods_cidr     = "10.4.0.0/14"
 services_cidr = "10.8.0.0/20"
 
-# GKE
-gke_node_count   = 2
-gke_machine_type = "e2-standard-4"
+# GKE Configuration
+gke_node_count   = 1                # Start with 1, autoscaler handles scaling
+gke_machine_type = "e2-standard-4"  # 4 vCPU, 16GB RAM
 gke_disk_size_gb = 50
-gke_node_locations = ["us-central1-a", "us-central1-b"]
+gke_node_locations = ["asia-south1-a", "asia-south1-b"]  # Multi-zone HA
 
-# Cloud SQL
-cloudsql_tier      = "db-custom-2-4096"
-cloudsql_disk_size = 20
+# Cloud SQL Configuration
+cloudsql_tier      = "db-custom-2-4096"  # 2 vCPU, 4GB RAM
+cloudsql_disk_size = 50                  # 50GB as planned
 database_name      = "hta_platform"
 database_user      = "hta_app"
-database_password  = "CHANGE_ME_USE_STRONG_PASSWORD"
+database_password  = "CHANGE_ME_USE_VERY_STRONG_PASSWORD"
 
-# Redis
-redis_tier           = "STANDARD_HA"
+# Redis Configuration
+redis_tier           = "STANDARD_HA"  # HA for production
 redis_memory_size_gb = 1
 
 # Cloud Armor (optional - block specific IPs)
 blocked_ip_ranges = []  # e.g., ["1.2.3.4/32", "5.6.7.0/24"]
 
-# Storage
-cors_origins = ["https://app.hta-platform.com"]
+# Storage - CORS origins for production domains
+cors_origins = [
+  "https://app.hta-calibration.com",
+  "https://hta-calibration.com"
+]
 
-# Kubernetes
-k8s_namespace = "hta-platform"
+# Kubernetes namespace
+k8s_namespace = "hta-prod"
 
 # GitHub (for Workload Identity Federation)
-github_repo = "your-org/hta-platform"
+github_repo = "pavan-kvsn1/hta-platform"
 
-# IAP (Identity-Aware Proxy) for Argo CD
-iap_support_email = "your-email@gmail.com"
+# IAP (Identity-Aware Proxy) for Argo CD access
+iap_support_email = "admin@hta-calibration.com"
 iap_authorized_members = [
   "user:your-email@gmail.com",
-  # Add more team members:
+  # Add more team members who need Argo CD access:
   # "user:teammate@gmail.com",
 ]
 
 # Disaster Recovery
-enable_dr_replica = true
-dr_replica_region = "us-west1"  # Different from primary region
+enable_dr_replica = false        # Set to true when needed (~$30/month extra)
+dr_replica_region = "asia-south2"  # Delhi - secondary region
 
 # Monitoring
-monitoring_notification_channels = []  # Add notification channel IDs
+monitoring_notification_channels = []  # Add notification channel IDs from GCP Console
 enable_pagerduty      = false
 pagerduty_service_key = ""  # PagerDuty integration key if enabled
+
+# =============================================================================
+# Estimated Monthly Cost: ~$150 (~₹12,000)
+# =============================================================================
+# GKE (e2-standard-4 x1 + sustained use):  ~$50
+# Cloud SQL (db-custom-2-4096, 50GB):      ~$45
+# Redis (STANDARD_HA 1GB):                 ~$35
+# Cloud NAT:                               ~$5
+# GCS + Static IP + Cloud Armor:           ~$15
+# =============================================================================
