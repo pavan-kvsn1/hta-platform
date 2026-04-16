@@ -13,11 +13,18 @@
 name: GitOps Deploy
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/**"
-      - "packages/**"
+  # Disabled automatic deploy until infrastructure is ready
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "apps/**"
+  #     - "packages/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        default: "production"
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}

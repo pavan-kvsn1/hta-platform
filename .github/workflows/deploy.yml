@@ -1,14 +1,15 @@
 name: Deploy to GKE
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/api/**"
-      - "apps/worker/**"
-      - "apps/web-hta/**"
-      - "packages/**"
-      - "infra/k8s/**"
+  # Disabled automatic deploy until infrastructure is ready
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "apps/api/**"
+  #     - "apps/worker/**"
+  #     - "apps/web-hta/**"
+  #     - "packages/**"
+  #     - "infra/k8s/**"
   workflow_dispatch:
     inputs:
       environment:
