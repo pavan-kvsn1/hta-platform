@@ -107,8 +107,8 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [code-quality, changes]
-    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.packages == 'true'
+    needs: [code-quality]
+    # Removed path filter - always run integration tests for safety
 
     services:
       postgres:
