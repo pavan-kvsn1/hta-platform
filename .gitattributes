@@ -1,0 +1,1 @@
+apps/web-hta/reference_docs/**/*.pdf filter=lfs diff=lfs merge=lfs -text
