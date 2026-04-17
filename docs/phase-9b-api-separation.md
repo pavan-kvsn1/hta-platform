@@ -27,7 +27,7 @@
 | **Phase 23** | Rollback Plan | ✅ Complete | 100% | Scripts, runbooks, GitHub Actions |
 | **Phase 25** | Inter-Service Communication | ✅ Complete | 100% | HTTP proxy, BullMQ, tests |
 | **Phase 26** | Environment Management | 🔲 Planned | 0% | Dev + Prod (no staging) |
-| **Phase 27** | B2B2B Pricing Model | 🚧 In Progress | 20% | Schema + limits utility done |
+| **Phase 27** | B2B2B Pricing Model | 🚧 In Progress | 40% | Schema + limits + API enforcement |
 
 ---
 
@@ -7737,20 +7737,20 @@ Total: ₹48,969/mo
 ### 27.10 Implementation Checklist
 
 #### Phase 1: Schema & Basic Tracking
-- [ ] Add `TenantSubscription` model to schema
-- [ ] Add `TenantUsage` model to schema
-- [ ] Add `TenantInvoice` model to schema
+- [x] Add `TenantSubscription` model to schema
+- [x] Add `TenantUsage` model to schema
+- [x] Add `TenantInvoice` model to schema
 - [ ] Run migration
-- [ ] Seed HTA tenant with INTERNAL tier
+- [x] Seed HTA tenant with INTERNAL tier
 - [ ] Create default STARTER subscription for new tenants
 
 #### Phase 2: Limit Enforcement
-- [ ] Implement `checkLimit()` utility
-- [ ] Add limit check to certificate creation
-- [ ] Add limit check to staff user invite
+- [x] Implement `checkLimit()` utility
+- [x] Add limit check to certificate creation
+- [x] Add limit check to staff user invite
 - [ ] Add limit check to customer account creation
-- [ ] Add limit check to customer user invite
-- [ ] Add usage increment on resource creation
+- [x] Add limit check to customer user invite
+- [x] Add usage tracking on resource creation
 - [ ] Add usage decrement on resource deletion
 
 #### Phase 3: Admin Dashboard
