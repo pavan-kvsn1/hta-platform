@@ -3,6 +3,7 @@ import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma, Prisma } from '@hta/database'
 import { requireStaff, requireAuth, requireAdmin } from '../../middleware/auth.js'
+import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 import certificateImagesRoutes from './images/index.js'
 
 // Type for Prisma transaction client
@@ -158,6 +159,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     const body = createCertificateSchema.parse(request.body)
 
+    // Check subscription limit before creating
+    await enforceLimit(tenantId, 'certificates')
+
     // Create certificate with transaction
     const certificate = await prisma.$transaction(async (tx: TransactionClient) => {
       // Create the certificate
@@ -302,6 +306,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       return cert
+    })
+
+    // Update usage tracking (async, non-blocking)
+    updateUsageTracking(tenantId).catch(() => {
+      // Log error but don't fail the request
     })
 
     return {

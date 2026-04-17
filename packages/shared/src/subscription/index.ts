@@ -3,5 +3,5 @@
  * B2B2B Model: HTA -> Tenants -> Customers
  */
 
-export * from './limits'
-export * from './pricing'
+export * from './limits.js'
+export * from './pricing.js'

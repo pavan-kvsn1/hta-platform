@@ -3,7 +3,7 @@
  * All prices in paise (INR * 100)
  */
 
-import type { TenantTier } from './limits'
+import type { TenantTier } from './limits.js'
 
 // Base tier pricing (monthly, in paise)
 export const TIER_PRICES: Record<TenantTier, number> = {

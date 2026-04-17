@@ -9,3 +9,12 @@ export {
   type RefreshTokenResult,
   type ValidatedToken,
 } from './refresh-token.js'
+
+export {
+  getSubscription,
+  getCurrentUsage,
+  canCreate,
+  enforceLimit,
+  updateUsageTracking,
+  getSubscriptionStatus,
+} from './subscription.js'

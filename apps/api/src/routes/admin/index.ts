@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import crypto from 'crypto'
 import { prisma, Prisma } from '@hta/database'
 import { requireAdmin, requireMasterAdmin } from '../../middleware/auth.js'
+import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 
 // Helper to safely parse JSON
 function safeJsonParse<T>(value: unknown, defaultValue: T): T {
@@ -212,6 +213,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: 'Registration is not pending' })
     }
 
+    // Check subscription limit for customer users
+    await enforceLimit(request.tenantId, 'customerUsers')
+
     // Create customer user from registration
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create the customer user
@@ -239,6 +243,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
       return customer
     })
+
+    // Update usage tracking (async, non-blocking)
+    updateUsageTracking(request.tenantId).catch(() => {})
 
     return { success: true }
   })
@@ -1511,6 +1518,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: 'Invalid admin type. Must be MASTER or WORKER' })
     }
 
+    // Check subscription limit for staff users
+    await enforceLimit(tenantId, 'staffUsers')
+
     // Generate activation token
     const activationToken = crypto.randomUUID()
     const activationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
@@ -1538,6 +1548,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     // TODO: Send activation email via queue
+
+    // Update usage tracking (async, non-blocking)
+    updateUsageTracking(tenantId).catch(() => {})
 
     return {
       success: true,
@@ -1783,6 +1796,39 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     return { customers }
+  })
+
+  // ============================================================================
+  // SUBSCRIPTION
+  // ============================================================================
+
+  // GET /api/admin/subscription - Get subscription status and usage
+  fastify.get('/subscription', {
+    preHandler: [requireAdmin],
+  }, async (request) => {
+    const { getSubscriptionStatus } = await import('../../services/subscription.js')
+    const tenantId = request.tenantId
+
+    const status = await getSubscriptionStatus(tenantId)
+
+    if (!status) {
+      return {
+        hasSubscription: false,
+        message: 'No subscription found for this tenant',
+      }
+    }
+
+    return {
+      hasSubscription: true,
+      subscription: {
+        tier: status.tier,
+        status: status.status,
+        currentPeriodStart: status.currentPeriodStart.toISOString(),
+        currentPeriodEnd: status.currentPeriodEnd.toISOString(),
+        extraSeats: status.extraSeats,
+      },
+      usage: status.usage,
+    }
   })
 }
 
