@@ -1,15 +1,15 @@
 # Phase 9B: API Separation - Detailed Implementation Plan
 
-**Document Version:** 3.6
+**Document Version:** 3.7
 **Created:** 2026-04-13
-**Last Updated:** 2026-04-16 (Complete cost breakdown: ~$150/month all-in)
+**Last Updated:** 2026-04-17 (Phase 27 B2B2B pricing: schema + limits + admin UI)
 **Status:** ✅ Implementation Complete
 
 ---
 
 ## Implementation Status Summary
 
-> **Last Audited:** 2026-04-16
+> **Last Audited:** 2026-04-17
 
 | Phase | Section | Status | Completion | Notes |
 |-------|---------|--------|------------|-------|
@@ -27,7 +27,7 @@
 | **Phase 23** | Rollback Plan | ✅ Complete | 100% | Scripts, runbooks, GitHub Actions |
 | **Phase 25** | Inter-Service Communication | ✅ Complete | 100% | HTTP proxy, BullMQ, tests |
 | **Phase 26** | Environment Management | 🔲 Planned | 0% | Dev + Prod (no staging) |
-| **Phase 27** | B2B2B Pricing Model | 🚧 In Progress | 40% | Schema + limits + API enforcement |
+| **Phase 27** | B2B2B Pricing Model | 🚧 In Progress | 60% | Schema + limits + admin UI done; Platform admin & Razorpay deferred |
 
 ---
 
@@ -7748,17 +7748,17 @@ Total: ₹48,969/mo
 - [x] Implement `checkLimit()` utility
 - [x] Add limit check to certificate creation
 - [x] Add limit check to staff user invite
-- [ ] Add limit check to customer account creation
+- [x] ~~Add limit check to customer account creation~~ (N/A - created via web admin, not API)
 - [x] Add limit check to customer user invite
 - [x] Add usage tracking on resource creation
 - [x] Add usage decrement on resource deletion
 
 #### Phase 3: Admin Dashboard
-- [ ] Create subscription overview page
-- [ ] Create usage statistics page
-- [ ] Add upgrade request flow
-- [ ] Add seat purchase flow
-- [ ] Create invoice listing page
+- [x] Create subscription overview page (`/admin/subscription`)
+- [x] Create usage statistics page (integrated in subscription page)
+- [ ] Add upgrade request flow (deferred - needs Razorpay)
+- [ ] Add seat purchase flow (deferred - needs Razorpay)
+- [ ] Create invoice listing page (deferred - needs Razorpay)
 
 #### Phase 4: Platform Admin
 - [ ] Create tenant management dashboard
@@ -7789,3 +7789,4 @@ Total: ₹48,969/mo
 | 3.4 | 2026-04-16 | Added Section 26 (Environment Management): Dev + Production strategy (no staging), Kustomize overlays, CI/CD pipeline, GCP resource allocation, cost estimates, DNS configuration. Domain: hta-calibration.com. |
 | 3.5 | 2026-04-16 | Revised Section 26 for cost optimization: Single GKE Standard cluster, dual namespace isolation (hta-dev/hta-prod), shared Cloud SQL (50GB), shared Memorystore Redis (1GB, key prefix isolation), single load balancer. |
 | 3.6 | 2026-04-16 | Complete cost breakdown: Sustained Use pricing (not spot), added Cloud NAT, static IP, egress, backups, logging, Cloud Function. Added external services (Resend, Sentry). Storage projections for GCS images. Total: ~$150/month all-in. |
+| 3.7 | 2026-04-17 | Phase 27 B2B2B Pricing: Completed schema (TenantSubscription, TenantUsage), limit enforcement in API routes, admin subscription dashboard UI. Platform admin & Razorpay integration deferred. |

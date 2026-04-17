@@ -18,6 +18,7 @@ import {
   ChevronRight,
   ShieldCheck,
   BarChart3,
+  CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -99,6 +100,7 @@ export function AdminSidebar({
       badge: instrumentAlerts,
       masterOnly: false,
     },
+    { name: 'Subscription', href: '/admin/subscription', icon: CreditCard, badge: 0, masterOnly: true },
     { name: 'Settings', href: '/admin/settings', icon: Settings, badge: 0, masterOnly: true },
   ].filter(item => !item.masterOnly || isMaster)
 
