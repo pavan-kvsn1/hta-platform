@@ -1728,6 +1728,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       data: { isActive: false },
     })
 
+    // Update usage tracking (async, non-blocking)
+    updateUsageTracking(tenantId).catch(() => {})
+
     return { success: true, message: 'User deactivated successfully' }
   })
 

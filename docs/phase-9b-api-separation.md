@@ -7751,7 +7751,7 @@ Total: ₹48,969/mo
 - [ ] Add limit check to customer account creation
 - [x] Add limit check to customer user invite
 - [x] Add usage tracking on resource creation
-- [ ] Add usage decrement on resource deletion
+- [x] Add usage decrement on resource deletion
 
 #### Phase 3: Admin Dashboard
 - [ ] Create subscription overview page

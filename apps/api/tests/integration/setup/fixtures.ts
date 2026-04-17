@@ -340,6 +340,40 @@ export async function createMasterInstrument(
 }
 
 /**
+ * Create a subscription for a tenant
+ * Useful for testing limit enforcement
+ */
+export async function createTestSubscription(
+  client: PrismaClient | TransactionClient = prisma,
+  tenantId: string,
+  overrides: Partial<{
+    tier: 'STARTER' | 'GROWTH' | 'SCALE' | 'INTERNAL'
+    status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELLED' | 'SUSPENDED'
+    extraStaffSeats: number
+    extraCustomerAccounts: number
+    extraCustomerUserSeats: number
+  }> = {}
+) {
+  const now = new Date()
+  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+  const defaults = {
+    tier: 'INTERNAL' as const, // Internal tier has no limits - best for tests
+    status: 'ACTIVE' as const,
+    currentPeriodStart: now,
+    currentPeriodEnd: periodEnd,
+    basePriceInPaise: 0,
+    extraStaffSeats: 0,
+    extraCustomerAccounts: 0,
+    extraCustomerUserSeats: 0,
+  }
+
+  return client.tenantSubscription.create({
+    data: { ...defaults, ...overrides, tenantId },
+  })
+}
+
+/**
  * Create a complete test scenario with all related entities
  */
 export async function createFullTestScenario(client: PrismaClient | TransactionClient = prisma) {
