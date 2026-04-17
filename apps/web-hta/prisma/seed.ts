@@ -188,6 +188,53 @@ async function main() {
   const tenantId = tenant.id
 
   // ==================
+  // CREATE SUBSCRIPTION (INTERNAL tier for HTA)
+  // ==================
+  console.log('\n--- Creating Subscription ---')
+
+  const existingSubscription = await prisma.tenantSubscription.findUnique({
+    where: { tenantId },
+  })
+
+  if (!existingSubscription) {
+    const now = new Date()
+    const periodEnd = new Date(now.getFullYear() + 100, now.getMonth(), now.getDate()) // 100 years
+
+    await prisma.tenantSubscription.create({
+      data: {
+        tenantId,
+        tier: 'INTERNAL',
+        status: 'ACTIVE',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        basePriceInPaise: 0, // No charge for internal
+        extraStaffSeats: 0,
+        extraCustomerAccounts: 0,
+        extraCustomerUserSeats: 0,
+      },
+    })
+    console.log('Created INTERNAL subscription for HTA')
+
+    // Create initial usage tracking
+    await prisma.tenantUsage.create({
+      data: {
+        subscriptionId: (await prisma.tenantSubscription.findUnique({ where: { tenantId } }))!.id,
+        periodStart: now,
+        periodEnd: new Date(now.getFullYear(), now.getMonth() + 1, 1), // End of current month
+        certificatesIssued: 0,
+        staffUserCount: 0,
+        customerAccountCount: 0,
+        customerUserCount: 0,
+        apiCallCount: 0,
+        storageUsedMb: 0,
+      },
+    })
+    console.log('Created initial usage tracking record')
+  } else {
+    console.log(`Subscription already exists: ${existingSubscription.tier}`)
+  }
+
+  // ==================
   // CREATE ADMIN
   // ==================
   console.log('\n--- Creating Admin ---')

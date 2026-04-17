@@ -27,7 +27,7 @@
 | **Phase 23** | Rollback Plan | ✅ Complete | 100% | Scripts, runbooks, GitHub Actions |
 | **Phase 25** | Inter-Service Communication | ✅ Complete | 100% | HTTP proxy, BullMQ, tests |
 | **Phase 26** | Environment Management | 🔲 Planned | 0% | Dev + Prod (no staging) |
-| **Phase 27** | B2B2B Pricing Model | 🔲 Planned | 0% | Tenant tiers, usage tracking |
+| **Phase 27** | B2B2B Pricing Model | 🚧 In Progress | 20% | Schema + limits utility done |
 
 ---
 
