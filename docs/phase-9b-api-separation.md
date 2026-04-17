@@ -1,15 +1,15 @@
 # Phase 9B: API Separation - Detailed Implementation Plan
 
-**Document Version:** 3.2
+**Document Version:** 3.6
 **Created:** 2026-04-13
-**Last Updated:** 2026-04-15 (2FA UI implementation complete)
+**Last Updated:** 2026-04-16 (Complete cost breakdown: ~$150/month all-in)
 **Status:** ✅ Implementation Complete
 
 ---
 
 ## Implementation Status Summary
 
-> **Last Audited:** 2026-04-14
+> **Last Audited:** 2026-04-16
 
 | Phase | Section | Status | Completion | Notes |
 |-------|---------|--------|------------|-------|
@@ -21,7 +21,13 @@
 | **Phase 6** | Deployment | ✅ Complete | 100% | Argo CD + Rollouts + GitHub Actions |
 | **Phase 14** | Docker | ✅ Complete | 100% | All Dockerfiles + compose files |
 | **Phase 15** | CI/CD | ✅ Complete | 100% | 23,363 lines GitHub Actions |
-| **Phase 16** | Testing | ✅ Complete | 164% | 1830 / 1115 tests (exceeds target) |
+| **Phase 16** | Testing | ✅ Complete | 171% | 1,909 / 1,115 tests (exceeds target) |
+| **Phase 21** | Performance Management | ✅ Complete | 100% | k6 load tests, cache strategies |
+| **Phase 22** | Compliance Management | ✅ Complete | 100% | GDPR, DSR, consent management |
+| **Phase 23** | Rollback Plan | ✅ Complete | 100% | Scripts, runbooks, GitHub Actions |
+| **Phase 25** | Inter-Service Communication | ✅ Complete | 100% | HTTP proxy, BullMQ, tests |
+| **Phase 26** | Environment Management | 🔲 Planned | 0% | Dev + Prod (no staging) |
+| **Phase 27** | B2B2B Pricing Model | 🔲 Planned | 0% | Tenant tiers, usage tracking |
 
 ---
 
@@ -51,6 +57,9 @@
 22. [Compliance Management](#22-compliance-management)
 23. [Rollback Plan](#23-rollback-plan)
 24. [Post-Migration Checklist](#24-post-migration-checklist)
+25. [Inter-Service Communication](#25-inter-service-communication)
+26. [Environment Management](#26-environment-management)
+27. [B2B2B Pricing & Subscription Model](#27-b2b2b-pricing--subscription-model)
 
 ---
 
@@ -2841,34 +2850,38 @@ Enable Turbo remote caching for faster CI:
 
 ## 16. Testing Strategy
 
-> **Status:** ✅ COMPLETE (164% coverage)
-> **Last Updated:** 2026-04-15
+> **Status:** ✅ COMPLETE (171% coverage)
+> **Last Updated:** 2026-04-16
 > 
 > | Component | Status | Tests | Description |
 > |-----------|--------|-------|-------------|
-> | Test Infrastructure | ✅ | - | Vitest, Playwright, MSW configured |
+> | Test Infrastructure | ✅ | - | Vitest, Playwright, k6, MSW configured |
 > | Shared Package Tests | ✅ | 272 | Cache, rate-limiter, CORS, secrets, TOTP, WebAuthn, metrics, health, PagerDuty, Sentry |
-> | API Integration Tests | ✅ | 98 | Auth, certificates, customer, notifications, workflows, instruments |
+> | API Integration Tests | ✅ | 110 | Auth, certificates, customer, notifications, workflows, instruments, **service-communication** |
 > | API Unit Tests | ✅ | 5 | Health endpoint |
 > | Worker Unit Tests | ✅ | 46 | Email, notifications, cleanup jobs |
-> | Worker Integration Tests | ✅ | 8 | PostgreSQL cleanup operations |
+> | Worker Integration Tests | ✅ | 23 | PostgreSQL cleanup, **BullMQ queue operations** |
 > | Web-HTA Unit Tests | ✅ | 966 | API routes, components, utils, stores |
-> | Web-HTA Integration Tests | ✅ | 62 | PostgreSQL: auth, certificates, customer portal, queue |
+> | Web-HTA Integration Tests | ✅ | 74 | PostgreSQL: auth, certificates, customer portal, queue, **database-queue** |
 > | Web-Tenant-Template Unit | ✅ | 134 | Certificate status, TAT, change detection |
 > | Web-Tenant-Template Integration | ✅ | 62 | PostgreSQL: same as web-hta |
 > | E2E Journey Tests | ✅ | 49 | Certificate, reviewer, customer, admin flows + visual regression |
-> | **TOTAL** | ✅ | **1,830** | **164% of hta-calibration baseline (1,115)** |
+> | Compliance Tests | ✅ | 45 | **GDPR, data inventory, consent management** |
+> | Load Tests | ✅ | 3 | **k6: api-baseline, spike-test, soak-test** |
+> | **TOTAL** | ✅ | **1,909** | **171% of hta-calibration baseline (1,115)** |
 
-### 16.0.1 Test Count Comparison (2026-04-15)
+### 16.0.1 Test Count Comparison (2026-04-16)
 
 | Category | hta-calibration | hta-platform | Status |
 |----------|-----------------|--------------|--------|
 | Unit Tests | 865 | 1,502 | ✅ 174% |
-| Integration Tests (API) | 98 | 98 | ✅ 100% |
-| Integration Tests (PostgreSQL) | 0 | 132 | ✅ NEW |
+| Integration Tests (API) | 98 | 110 | ✅ 112% |
+| Integration Tests (PostgreSQL/Redis) | 0 | 159 | ✅ NEW |
 | E2E Tests | 49 | 49 | ✅ 100% |
 | Shared Package | 103 | 272 | ✅ 264% |
-| **Total** | **1,115** | **1,830** | ✅ **164%** |
+| Compliance Tests | 0 | 45 | ✅ NEW |
+| Load Tests (k6 scenarios) | 0 | 3 | ✅ NEW |
+| **Total** | **1,115** | **1,909** | ✅ **171%** |
 
 ### 16.0.2 hta-platform Test Locations
 
@@ -2878,16 +2891,18 @@ Enable Turbo remote caching for faster CI:
 | `packages/database/tests/` | 2 | 11 | Tenant context, Prisma exports |
 | `packages/ui/tests/` | 2 | 38 | Components, themes |
 | `packages/emails/tests/` | 2 | 30 | Email rendering, exports |
-| `apps/api/tests/integration/` | 7 | 98 | Auth, certificates, customer, notifications, workflows, instruments, admin |
+| `apps/api/tests/integration/` | 8 | 110 | Auth, certificates, customer, notifications, workflows, instruments, admin, **service-communication** |
 | `apps/api/tests/unit/` | 1 | 5 | Health endpoint |
 | `apps/worker/tests/unit/` | 3 | 46 | Email, notifications, cleanup jobs |
-| `apps/worker/tests/integration/` | 1 | 8 | PostgreSQL cleanup operations |
+| `apps/worker/tests/integration/` | 2 | 23 | PostgreSQL cleanup, **BullMQ queue operations (Redis)** |
 | `apps/web-hta/tests/unit/` | 38 | 966 | API routes, utilities, services, components |
-| `apps/web-hta/tests/integration/` | 5 | 62 | PostgreSQL: auth, certificates, customer portal, queue, smoke |
+| `apps/web-hta/tests/integration/` | 6 | 74 | PostgreSQL: auth, certificates, customer portal, queue, smoke, **database-queue** |
 | `apps/web-tenant-template/tests/unit/` | 6 | 134 | Certificate status, TAT, change detection, thresholds |
 | `apps/web-tenant-template/tests/integration/` | 5 | 62 | PostgreSQL: same as web-hta |
 | `apps/web-hta/e2e/` | 5 | 49 | Journey flows + visual regression |
-| **Total** | **88** | **1,830** | |
+| `tests/compliance/` | 2 | 45 | **GDPR, data inventory, consent management** |
+| `tests/load/scenarios/` | 3 | 3 | **k6: api-baseline, spike-test, soak-test** |
+| **Total** | **96** | **1,909** | |
 
 ### 16.0.3 Web-HTA Unit Test Breakdown
 
@@ -3026,34 +3041,103 @@ pnpm --filter @hta/worker test:integration
 
 ### 16.7 Load Tests
 
-**Status:** k6 load test infrastructure configured but not actively used. Performance validated through:
-- Sentry performance monitoring in production
-- Response time assertions in integration tests
+> **Implemented**: `tests/load/scenarios/`
+> - Normal Load: `api-baseline.ts` (50 req/s, 5 min)
+> - Spike Test: `spike-test.ts` (10→200→50 req/s)
+> - Soak Test: `soak-test.ts` (30 req/s, 1 hour)
+
+**Location:** `tests/load/scenarios/`
+
+```bash
+# Install k6
+# macOS: brew install k6
+# Windows: choco install k6
+# Linux: see https://k6.io/docs/getting-started/installation/
+
+# Run normal load test
+k6 run tests/load/scenarios/api-baseline.ts
+
+# Run spike test
+k6 run tests/load/scenarios/spike-test.ts
+
+# Run soak test (1 hour)
+k6 run tests/load/scenarios/soak-test.ts
+
+# With custom options
+API_URL=https://api-staging.htacalibration.com \
+AUTH_TOKEN=xxx \
+k6 run tests/load/scenarios/api-baseline.ts
+```
+
+**Automated via GitHub Actions:** `.github/workflows/performance.yml`
+- Nightly runs at 2 AM UTC
+- Email alerts on failure via Resend
+- Results stored as artifacts for 30 days
 
 ### 16.8 Test Commands
 
+#### Root Level (Turborepo)
+
 ```bash
-# Run all unit tests across workspace
+# Run all tests
 pnpm test
 
-# Run specific package unit tests
-pnpm --filter @hta/web test
-pnpm --filter @hta/shared test
+# Run specific test types
+pnpm test:unit          # Unit tests only
+pnpm test:integration   # Integration tests only
+pnpm test:e2e           # E2E tests only
+```
+
+#### Per-App Commands
+
+```bash
+# Unit tests
+pnpm --filter @hta/api test:unit
+pnpm --filter @hta/web-hta test:unit
 pnpm --filter @hta/worker test:unit
+pnpm --filter @hta/shared test
 
-# Run API integration tests
+# Integration tests (requires running postgres-test container)
+docker compose -f docker/docker-compose.test.yml up -d postgres-test
 pnpm --filter @hta/api test:integration
-
-# Run PostgreSQL integration tests (requires running postgres-test container)
-pnpm --filter @hta/web test:integration
+pnpm --filter @hta/web-hta test:integration
 pnpm --filter @hta/web-tenant-template test:integration
 pnpm --filter @hta/worker test:integration
 
-# Run E2E tests
-pnpm --filter @hta/web test:e2e
+# E2E tests (Playwright)
+pnpm --filter @hta/web-hta test:e2e           # Run all E2E tests
+pnpm --filter @hta/web-hta test:e2e:ui        # Interactive UI mode
+pnpm --filter @hta/web-hta test:visual        # Visual regression only
 
-# Run with coverage
-pnpm test:coverage
+# E2E with specific role
+cd apps/web-hta
+pnpm playwright test --project=engineer-tests
+pnpm playwright test --project=admin-tests
+pnpm playwright test --project=customer-tests
+
+# Load tests
+k6 run tests/load/scenarios/api-baseline.ts
+k6 run tests/load/scenarios/spike-test.ts
+
+# Compliance tests
+pnpm vitest run tests/compliance/gdpr.test.ts
+pnpm vitest run tests/compliance/data-inventory.test.ts
+
+# Coverage report
+pnpm vitest --coverage
+```
+
+#### Environment Variables
+
+```bash
+# Skip starting dev server for E2E (if already running)
+SKIP_WEB_SERVER=true pnpm test:e2e
+
+# CI mode (more retries, video recording)
+CI=true pnpm test:e2e
+
+# Test database URL
+DATABASE_URL=postgresql://test:test@localhost:5433/hta_test pnpm test:integration
 ```
 
 ### 16.9 CI Test Matrix
@@ -5213,7 +5297,24 @@ const exists = await secretExists('my-secret')
 
 ## 21. Performance Management
 
+> **Status:** ✅ COMPLETE (100%)
+> 
+> | Component | Status | Location | Description |
+> |-----------|--------|----------|-------------|
+> | Performance baselines doc | ✅ | `docs/performance-baselines.md` | Target metrics, thresholds, measurement process |
+> | Load test - baseline | ✅ | `tests/load/scenarios/api-baseline.ts` | Normal load test (50 req/s, 5 min) |
+> | Load test - spike | ✅ | `tests/load/scenarios/spike-test.ts` | Spike resilience (10→200→50 req/s) |
+> | Load test - soak | ✅ | `tests/load/scenarios/soak-test.ts` | Extended stability (30 req/s, 1 hour) |
+> | Performance workflow | ✅ | `.github/workflows/performance.yml` | Nightly + manual k6 runs with alerting |
+> | Cache strategies | ✅ | `packages/shared/src/cache/strategy.ts` | CacheStrategies, buildCacheKey, InvalidationPatterns |
+> | Cache providers | ✅ | `packages/shared/src/cache/` | Memory + Redis with SWR support |
+> | DB optimizations | ✅ | `packages/database/src/optimizations.ts` | Pagination, batch loading, dashboard stats |
+> | Frontend perf | ✅ | `apps/web-hta/next.config.ts` | Image optimization, modular imports, bundle analyzer |
+> | Metrics collection | ✅ | `packages/shared/src/metrics/index.ts` | Sentry metrics API integration |
+
 ### 21.1 Performance Baselines
+
+> **Implementation:** ✅ `docs/performance-baselines.md` - Full baseline documentation with targets, thresholds, and measurement process.
 
 Establish baselines before and after separation:
 
@@ -5230,6 +5331,13 @@ Establish baselines before and after separation:
 | Error rate | 0.1% | 0.1% | 1% |
 
 ### 21.2 Load Testing Configuration
+
+> **Implementation:** ✅ Complete
+> - `tests/load/scenarios/api-baseline.ts` (8,029 bytes) - Normal load with custom metrics
+> - `tests/load/scenarios/spike-test.ts` (3,343 bytes) - Spike resilience testing
+> - `tests/load/scenarios/soak-test.ts` (4,430 bytes) - Extended stability testing
+> 
+> All scenarios include custom metrics (certificate_list_duration, certificate_create_duration), thresholds, and proper setup/teardown.
 
 ```typescript
 // tests/load/scenarios/api-baseline.ts
@@ -5341,6 +5449,14 @@ export default function () {
 
 ### 21.3 Performance Testing Workflow
 
+> **Implementation:** ✅ `.github/workflows/performance.yml` (8,500 bytes)
+> - Nightly runs at 2 AM UTC
+> - Manual trigger with scenario selection (normal_load, spike_test, soak_test)
+> - k6 setup and execution with auth token retrieval
+> - Results processing with GitHub step summary
+> - Email alerting on failures via Resend (uses existing infrastructure)
+> - Artifact upload for 30-day retention
+
 ```yaml
 # .github/workflows/performance.yml
 name: Performance Tests
@@ -5422,15 +5538,27 @@ jobs:
           path: results.json
           retention-days: 30
 
-      - name: Alert on regression
+      - name: Alert on failure (Email via Resend)
         if: failure()
         run: |
-          curl -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+          curl -X POST "https://api.resend.com/emails" \
+            -H "Authorization: Bearer ${{ secrets.RESEND_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"text":"⚠️ Load test failed - performance regression detected"}'
+            -d '{
+              "from": "HTA Platform <alerts@htacalibration.com>",
+              "to": ["${{ secrets.ALERT_EMAIL }}"],
+              "subject": "⚠️ Load Test Failed - Performance Regression",
+              "html": "<h2>Load Test Failed</h2><p>Performance regression detected.</p>"
+            }'
 ```
 
 ### 21.4 Caching Strategy
+
+> **Implementation:** ✅ Complete
+> - `packages/shared/src/cache/strategy.ts` - CacheStrategies with 8 predefined strategies (STATIC_REFERENCE, USER_DATA, LIST_DATA, DASHBOARD, SESSION, REALTIME, CONFIG, EXTERNAL_API)
+> - `packages/shared/src/cache/index.ts` (6,432 bytes) - Core cache with Memory + Redis providers, `cached()` and `cachedSWR()` helpers
+> - `packages/shared/src/cache/types.ts` (3,495 bytes) - CacheKeys patterns, CacheTTL presets
+> - Includes `buildCacheKey()` for consistent key generation and `InvalidationPatterns` for cache clearing
 
 ```typescript
 // packages/shared/src/cache/strategy.ts
@@ -5489,6 +5617,13 @@ export async function createCertificate(data: CertificateInput, userId: string) 
 
 ### 21.5 Database Query Optimization
 
+> **Implementation:** ✅ `packages/database/src/optimizations.ts`
+> - **Pagination:** `paginateCursor()`, `paginateOffset()`, `getCertificatesPaginated()` with proper typing
+> - **Batch Loading:** `batchLoadCertificates()`, `batchLoadUsers()`, `createBatchLoader()` for N+1 prevention
+> - **Dashboard Stats:** `getDashboardStats()`, `getDashboardStatsCached()`, `getUserWorkloadStats()` with raw SQL aggregation
+> - **Cache Integration:** `withQueryCache()` wrapper for cache-aware queries
+> - Exported from `packages/database/src/index.ts` with full TypeScript types
+
 ```typescript
 // packages/database/src/optimizations.ts
 
@@ -5546,12 +5681,33 @@ export async function getDashboardStats() {
 
 ### 21.6 Frontend Performance
 
+> **Implementation:** ✅ `apps/web-hta/next.config.ts` + `apps/web-tenant-template/next.config.ts`
+> - **Image Optimization:** AVIF/WebP formats, device/image sizes, 60s cache TTL
+> - **Bundle Optimization:** `optimizePackageImports` for lucide-react and radix-ui, `modularizeImports` for tree-shaking
+> - **Compression:** Enabled via `compress: true`
+> - **Bundle Analyzer:** Available with `ANALYZE=true` environment variable
+> - **React Strict Mode:** Enabled for development warnings
+> - Both web-hta and web-tenant-template have identical performance configs
+
 ```typescript
-// apps/web/next.config.ts - Performance optimizations
+// apps/web-hta/next.config.ts - Performance optimizations
 
 const nextConfig = {
-  // Enable SWC minification
-  swcMinify: true,
+  // Image optimization
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    minimumCacheTTL: 60,
+  },
+  
+  // Experimental features for performance
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+  },
+  
+  // Compression
+  compress: true,
   
   // Optimize images
   images: {
@@ -5593,6 +5749,13 @@ const nextConfig = {
 
 ## 22. Compliance Management
 
+> **Implementation Status**: All compliance management components implemented
+> - Data Processing Inventory: `packages/shared/src/compliance/data-inventory.ts`
+> - Compliance Audit Logger: `packages/shared/src/compliance/audit-logger.ts`
+> - Data Subject Rights: `packages/shared/src/compliance/dsr.ts`
+> - Consent Management: `packages/shared/src/compliance/consent.ts`
+> - Compliance Tests: `tests/compliance/gdpr.test.ts`, `tests/compliance/data-inventory.test.ts`
+
 ### 22.1 GDPR Data Flow Across Services
 
 ```
@@ -5615,6 +5778,13 @@ const nextConfig = {
 ```
 
 ### 22.2 Data Processing Inventory
+
+> **Implemented**: `packages/shared/src/compliance/data-inventory.ts`
+> - Full inventory of all data processing activities
+> - Legal basis documented (contract, legitimate interests, legal obligation)
+> - Retention periods aligned with ISO/IEC 17025 (10 years for certificates)
+> - Third-party processors documented (Resend, Sentry, GCP)
+> - Helper functions: `getActiveProcessingActivities()`, `getProcessingActivitiesByService()`, `getThirdPartyRecipients()`
 
 ```typescript
 // packages/shared/src/compliance/data-inventory.ts
@@ -5656,6 +5826,13 @@ export const DataProcessingInventory = {
 ```
 
 ### 22.3 Cross-Service Audit Logging
+
+> **Implemented**: `packages/shared/src/compliance/audit-logger.ts`
+> - Extended audit logging with PII tracking fields
+> - Logs to both structured logging (Cloud Logging) and database
+> - DSR-specific logging: `logDataExport()`, `logDataDeletion()`, `logDataRectification()`
+> - Consent change logging: `logConsentChange()`
+> - Query interface: `queryComplianceAuditLogs()`
 
 ```typescript
 // packages/shared/src/compliance/audit-logger.ts
@@ -5746,6 +5923,13 @@ export function withAuditLogging(
 ```
 
 ### 22.4 Data Subject Rights Implementation
+
+> **Implemented**: `packages/shared/src/compliance/dsr.ts`
+> - Right to Access: `exportCustomerUserData()`, `exportUserData()`
+> - Right to Erasure: `deleteCustomerUserData()` with regulatory hold support (ISO/IEC 17025)
+> - Right to Rectification: `rectifyCustomerUserData()`, `rectifyUserData()`
+> - Pseudonymization for users with regulatory holds (10-year certificate retention)
+> - Full deletion for users without regulatory holds
 
 ```typescript
 // packages/shared/src/compliance/dsr.ts
@@ -5931,6 +6115,13 @@ export async function updateUserData(
 
 ### 22.5 Consent Management
 
+> **Implemented**: `packages/shared/src/compliance/consent.ts`
+> - Consent types: essential_cookies, analytics, marketing_email, third_party_sharing, data_processing
+> - Core functions: `recordConsent()`, `checkConsent()`, `getUserConsents()`, `revokeAllConsents()`
+> - Version tracking with `CONSENT_VERSIONS` for policy updates
+> - Status summary: `getConsentStatus()` with renewal detection
+> - Processing validation: `validateConsentForProcessing()`
+
 ```typescript
 // packages/shared/src/compliance/consent.ts
 import { prisma } from '@hta/database'
@@ -6002,6 +6193,14 @@ export async function getUserConsents(userId: string): Promise<ConsentRecord[]> 
 ```
 
 ### 22.6 Compliance Testing
+
+> **Implemented**: `tests/compliance/gdpr.test.ts`, `tests/compliance/data-inventory.test.ts`
+> - Data Processing Inventory tests (structure validation, retention periods, legal basis)
+> - Consent Management tests (record, revoke, version tracking)
+> - Right to Access tests (data export)
+> - Right to Erasure tests (pseudonymization, full deletion)
+> - Right to Rectification tests (data updates)
+> - Audit Logging tests (event logging, query interface)
 
 ```typescript
 // tests/compliance/gdpr.test.ts
@@ -6135,7 +6334,19 @@ describe('GDPR Compliance', () => {
 
 ## 23. Rollback Plan
 
+> **Implementation Status**: All rollback components implemented
+> - Immediate Rollback Script: `scripts/rollback-immediate.sh`
+> - Full Rollback Script: `scripts/rollback-full.sh`
+> - Rollback Trigger Checker: `scripts/rollback-check.sh`
+> - GitHub Workflow: `.github/workflows/rollback.yml` (enhanced with canary, full, migrations)
+> - Runbook: `docs/runbooks/rollback.md`
+
 ### Immediate Rollback (< 5 minutes)
+
+> **Implemented**: `scripts/rollback-immediate.sh`
+> - Options: `--canary` (shift traffic), `--rollback` (undo deployment), `--scale-down` (scale canary to 0)
+> - Services: `api`, `worker`, `all`
+> - Automatic prerequisite checks and state verification
 
 1. Revert load balancer to route all traffic to monolith
 2. No code changes needed
@@ -6161,6 +6372,12 @@ kubectl scale deployment hta-api-canary --replicas=0 -n hta-platform
 
 ### Full Rollback (< 30 minutes)
 
+> **Implemented**: `scripts/rollback-full.sh`
+> - Options: `--migrate-rollback`, `--to-monolith`, `--revision <rev>`, `--dry-run`
+> - Creates state backup before rollback
+> - Confirmation prompt for safety
+> - Comprehensive verification steps
+
 1. Redeploy monolith with original code
 2. Revert database migrations (if any)
 3. Update DNS/routing
@@ -6181,6 +6398,11 @@ pnpm db:migrate:rollback
 - Rollback is safe - no data loss
 
 ### Rollback Triggers
+
+> **Implemented**: `scripts/rollback-check.sh`
+> - Automated health checks: pod health, deployment status, events, endpoints
+> - Optional `--auto-rollback` flag to trigger immediate rollback on failure
+> - Exit codes: 0 (healthy), 1 (rollback needed), 2 (check error)
 
 Initiate rollback if:
 - Error rate > 5% for 5 minutes
@@ -6243,6 +6465,1315 @@ Initiate rollback if:
 
 ---
 
+## 25. Inter-Service Communication
+
+> **Implementation Status**: Communication patterns established
+> - Web → API: HTTP Proxy via Next.js rewrites
+> - API → Worker: BullMQ (Redis) message queue
+> - Fallback: Database-backed JobQueue for simpler deployments
+> - Shared Database: All services use Prisma with PostgreSQL
+
+### 25.1 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    HTA Platform Service Communication                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│    ┌─────────────┐                                                          │
+│    │   Browser   │                                                          │
+│    └──────┬──────┘                                                          │
+│           │ HTTPS                                                           │
+│           ▼                                                                 │
+│    ┌─────────────┐         HTTP Proxy            ┌─────────────┐           │
+│    │    Web      │  ───────────────────────────▶ │    API      │           │
+│    │  (Next.js)  │    /api/* → API_URL/api/*     │  (Fastify)  │           │
+│    │  Port 3000  │                               │  Port 4000  │           │
+│    └─────────────┘                               └──────┬──────┘           │
+│           │                                             │                   │
+│           │                                             │ Enqueue Jobs      │
+│           │                                             ▼                   │
+│           │                                      ┌─────────────┐           │
+│           │                                      │    Redis    │           │
+│           │                                      │   BullMQ    │           │
+│           │                                      │  Port 6379  │           │
+│           │                                      └──────┬──────┘           │
+│           │                                             │ Process Jobs      │
+│           │                                             ▼                   │
+│           │                                      ┌─────────────┐           │
+│           │                                      │   Worker    │           │
+│           │                                      │  (BullMQ)   │           │
+│           │                                      └──────┬──────┘           │
+│           │                                             │                   │
+│           └───────────────────┬─────────────────────────┘                   │
+│                               │ Prisma                                      │
+│                               ▼                                             │
+│                        ┌─────────────┐                                      │
+│                        │ PostgreSQL  │                                      │
+│                        │  Port 5432  │                                      │
+│                        └─────────────┘                                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 25.2 Communication Patterns
+
+| From | To | Method | Implementation | File |
+|------|-----|--------|----------------|------|
+| Browser | Web | HTTPS | Direct request | - |
+| Web | API | HTTP Proxy | Next.js rewrites | `apps/web-hta/next.config.ts` |
+| API | Worker | Message Queue | BullMQ + Redis | `apps/worker/src/index.ts` |
+| API | Worker | Database Queue | JobQueue table (fallback) | `apps/web-hta/src/lib/services/queue/` |
+| All Services | Database | Direct | Prisma Client | `packages/database/` |
+
+### 25.3 Web → API Communication
+
+The Web service proxies all `/api/*` requests to the API service using Next.js rewrites:
+
+```typescript
+// apps/web-hta/next.config.ts
+async rewrites() {
+  const apiUrl = process.env.API_URL || 'http://localhost:4000'
+  return [
+    {
+      source: '/api/:path*',
+      destination: `${apiUrl}/api/:path*`,
+    },
+  ]
+}
+```
+
+**Environment Variables:**
+- `API_URL` - Internal API service URL (e.g., `http://hta-api:4000` in Kubernetes)
+- `NEXT_PUBLIC_API_URL` - Public API URL for client-side calls (if needed)
+
+### 25.4 API → Worker Communication
+
+Jobs are enqueued via BullMQ and processed by the Worker service:
+
+```typescript
+// API: Enqueue a job
+import { Queue } from 'bullmq'
+
+const emailQueue = new Queue('email', { connection: redis })
+await emailQueue.add('send-certificate', {
+  to: 'customer@example.com',
+  certificateId: 'cert-123',
+  tenantId: 'tenant-abc',
+})
+
+// Worker: Process jobs
+import { Worker } from 'bullmq'
+
+const emailWorker = new Worker('email', processEmailJob, {
+  connection: redis,
+  concurrency: 5,
+})
+```
+
+**Queue Names:**
+| Queue | Purpose | Concurrency | Rate Limit |
+|-------|---------|-------------|------------|
+| `email` | Certificate delivery, notifications | 5 | 10/sec |
+| `notifications` | In-app notifications, realtime events | 10 | - |
+| `cleanup` | Token cleanup, old data purge | 1 | - |
+
+### 25.5 Database-Backed Queue (Fallback)
+
+For environments without Redis, a database-backed queue is available:
+
+```typescript
+// apps/web-hta/src/lib/services/queue/index.ts
+import { enqueue, processJobs } from '@/lib/services/queue'
+
+// Enqueue
+await enqueue('notification:send', {
+  userId: '123',
+  type: 'CERTIFICATE_APPROVED',
+  title: 'Certificate Approved',
+})
+
+// Process (called via cron or API endpoint)
+await processJobs(10) // Process up to 10 jobs
+```
+
+**Configuration:**
+```bash
+QUEUE_PROVIDER=database  # or 'bullmq' for Redis
+```
+
+### 25.6 Service Discovery (Kubernetes)
+
+In GKE, services discover each other via Kubernetes DNS:
+
+```yaml
+# Internal service URLs
+API_URL: http://hta-api.hta-platform.svc.cluster.local:4000
+REDIS_URL: redis://redis.hta-platform.svc.cluster.local:6379
+DATABASE_URL: postgresql://user:pass@postgres.hta-platform.svc.cluster.local:5432/hta
+```
+
+### 25.7 Error Handling & Retries
+
+| Component | Retry Strategy | Max Retries | Backoff |
+|-----------|---------------|-------------|---------|
+| HTTP Proxy | None (pass-through) | 0 | - |
+| BullMQ Jobs | Exponential | 3 | 1s, 2s, 4s |
+| Database Queue | Linear | 3 | 30s |
+
+**Dead Letter Queue:**
+Failed jobs after max retries are moved to a failed state for manual review:
+
+```typescript
+// Check failed jobs
+const failedJobs = await emailQueue.getFailed()
+```
+
+### 25.8 Testing Inter-Service Communication
+
+> **Implemented**: Service communication tests
+> - `apps/worker/tests/integration/queue.test.ts` - BullMQ queue operations with real Redis
+> - `apps/api/tests/integration/service-communication.test.ts` - API → Worker job enqueueing
+> - `apps/web-hta/tests/integration/database-queue.test.ts` - Database queue fallback
+
+#### Test Files
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `apps/worker/tests/integration/queue.test.ts` | ~15 | BullMQ queue, rate limiting, retries |
+| `apps/api/tests/integration/service-communication.test.ts` | ~12 | Email, notification, cleanup job enqueueing |
+| `apps/web-hta/tests/integration/database-queue.test.ts` | ~12 | Database queue CRUD, retries, cleanup |
+
+#### Running Service Communication Tests
+
+```bash
+# Start infrastructure (Redis + PostgreSQL)
+docker compose -f docker-compose.infra.yml up -d
+
+# Run BullMQ integration tests (requires Redis)
+REDIS_URL=redis://localhost:6379 pnpm --filter @hta/worker test:integration
+
+# Run API service communication tests (requires Redis)
+REDIS_URL=redis://localhost:6379 pnpm --filter @hta/api test:integration
+
+# Run database queue tests (requires PostgreSQL)
+DATABASE_URL=postgresql://test:test@localhost:5433/hta_test \
+  pnpm --filter @hta/web-hta test:integration
+
+# Run all integration tests
+pnpm test:integration
+```
+
+#### Test Coverage
+
+| Communication Pattern | Unit Test | Integration Test |
+|----------------------|-----------|------------------|
+| Web → API (HTTP proxy) | Mocked fetch | E2E tests |
+| API → Worker (BullMQ) | Mocked Queue | Real Redis |
+| API → Worker (DB Queue) | Mocked Prisma | Real PostgreSQL |
+| Worker job processing | Mocked job | Real Redis |
+
+#### CI Configuration
+
+```yaml
+# In .github/workflows/test.yml
+integration-tests:
+  services:
+    redis:
+      image: redis:7-alpine
+      ports:
+        - 6379:6379
+    postgres:
+      image: postgres:15
+      env:
+        POSTGRES_PASSWORD: test
+      ports:
+        - 5433:5432
+  steps:
+    - run: pnpm test:integration
+      env:
+        REDIS_URL: redis://localhost:6379
+        DATABASE_URL: postgresql://postgres:test@localhost:5433/hta_test
+```
+
+### 25.9 Future Considerations
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Service Mesh (Istio) | Not implemented | Consider for mTLS, observability |
+| gRPC | Not implemented | Consider for high-throughput internal calls |
+| Event Sourcing | Not implemented | Consider for audit-heavy workflows |
+| Circuit Breaker | Not implemented | Consider if adding direct HTTP calls |
+
+---
+
+## 26. Environment Management
+
+> **Status:** 🔲 PLANNED
+> **Environments:** Dev + Production (no staging)
+> **Platform:** GKE Standard with Sustained Use Discount
+> **Queue:** Redis (Memorystore) + BullMQ
+> **Database:** Cloud SQL db-f1-micro, 50GB SSD
+> **Storage:** GCS (images) + Artifact Registry (Docker)
+> **Target Cost:** ~$150-175/month all-in (GCP + external services)
+> **Domain:** hta-calibration.com
+
+### 26.1 Environment Strategy
+
+For a small calibration certificate management application, a two-environment approach provides the right balance of safety and simplicity:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Environment Flow                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌──────────────┐      ┌──────────────┐      ┌──────────────┐             │
+│   │    Local     │      │     Dev      │      │  Production  │             │
+│   │   (Docker)   │ ───▶ │    (GKE)     │ ───▶ │    (GKE)     │             │
+│   └──────────────┘      └──────────────┘      └──────────────┘             │
+│                                                                             │
+│   localhost:3000        dev.hta-calibration.com   app.hta-calibration.com  │
+│                                                                             │
+│   • Unit tests          • Integration tests       • Canary deployment      │
+│   • Type checking       • Migration testing       • 10% → 100% traffic     │
+│   • Rapid iteration     • PR previews             • Auto-rollback          │
+│                         • Manual QA                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 26.2 Why No Staging Environment
+
+| Factor | Decision |
+|--------|----------|
+| **Canary deployments** | Already provides production testing with 10% traffic |
+| **Test coverage** | 171% coverage (1,909 tests) catches issues pre-deploy |
+| **Cost savings** | Avoids ~$150-300/month for extra GKE + Cloud SQL |
+| **Complexity** | Fewer environments = less maintenance overhead |
+| **Team size** | Small team doesn't need QA-specific environment |
+
+### 26.3 Environment Comparison
+
+| Aspect | Local | Dev | Production |
+|--------|-------|-----|------------|
+| **URL** | localhost:3000 | dev.hta-calibration.com | app.hta-calibration.com |
+| **Trigger** | Manual | Push to `dev/*`, PR preview | Push to `main`, git tag |
+| **GKE** | Docker Compose | Shared cluster (ns: `hta-dev`) | Shared cluster (ns: `hta-prod`) |
+| **Database** | Docker PostgreSQL | Cloud SQL → `hta_dev` db | Cloud SQL → `hta_prod` db |
+| **Queue** | Docker Redis | Memorystore (prefix: `dev:`) | Memorystore (prefix: `prod:`) |
+| **Storage** | Local filesystem | GCS `hta-dev-*` buckets | GCS `hta-prod-*` buckets |
+| **Secrets** | `.env` files | Secret Manager `dev-*` | Secret Manager `prod-*` |
+
+### 26.3.1 Cost Optimization Strategies
+
+| Strategy | Savings | Trade-off |
+|----------|---------|-----------|
+| **Sustained Use Discount** | ~20-30% auto | None (automatic after 25% usage) |
+| **Single GKE cluster** | ~$70/mo | Both envs share cluster (namespace isolation) |
+| **Shared Redis instance** | ~$35/mo | Both envs use same Redis (key prefix isolation) |
+| **Shared Cloud SQL** | ~$10/mo | Same instance, separate databases |
+| **db-f1-micro** | ~$90/mo vs larger | Shared CPU, enough for 5K certs/mo |
+
+#### Why Not Spot/Preemptible VMs?
+
+| Issue | Impact |
+|-------|--------|
+| Preempted anytime | 30-second warning, then killed |
+| Max 24-hour lifetime | Forced restart at least daily |
+| No availability guarantee | May not get instance during high demand |
+| **Verdict** | Not suitable for production web apps |
+
+**Spot VMs are for:** Batch processing, CI/CD runners, fault-tolerant workloads
+**Production should use:** On-demand with Sustained Use (auto ~20-30% off) or Committed Use Discounts
+
+### 26.4 GCP Resources (Single Cluster, Dual Namespace)
+
+> **Architecture:** Single GKE cluster with namespace isolation (`hta-dev` / `hta-prod`)
+> Shared infrastructure reduces costs while maintaining environment separation.
+
+| Resource | Spec | Shared/Separate |
+|----------|------|-----------------|
+| **GKE Cluster** | `hta-platform-cluster` (1 e2-medium node, sustained use) | Shared |
+| **Namespaces** | `hta-dev`, `hta-prod` | Separate |
+| **Cloud SQL** | `hta-db` (db-f1-micro, 50GB SSD) | Shared instance, separate databases |
+| **Memorystore Redis** | `hta-redis` (1GB Basic tier) | Shared instance, key prefix isolation |
+| **GCS Certificates** | `hta-dev-certificates`, `hta-prod-certificates` | Separate buckets |
+| **GCS Images** | `hta-dev-images`, `hta-prod-images` | Separate buckets |
+| **Secret Manager** | `dev-*`, `prod-*` prefixes | Separate secrets |
+| **Load Balancer** | Single with path/host routing | Shared |
+| **SSL Certificate** | Managed (wildcard `*.hta-calibration.com`) | Shared |
+| **Cloud Armor** | Basic WAF policy | Shared |
+
+#### 26.4.0 Redis Key Isolation
+
+Both environments share the Redis instance but use key prefixes for isolation:
+
+```typescript
+// Dev environment
+const devQueue = new Queue('dev:email', { connection: redis })
+const devCache = new Redis({ keyPrefix: 'dev:' })
+
+// Prod environment  
+const prodQueue = new Queue('prod:email', { connection: redis })
+const prodCache = new Redis({ keyPrefix: 'prod:' })
+```
+
+#### 26.4.1 Node Pool Configuration
+
+```yaml
+# Production node pool with sustained use discount (automatic)
+nodePool:
+  name: default-pool
+  machineType: e2-medium    # 2 vCPU, 4GB RAM
+  spot: false               # On-demand for reliability
+  initialNodeCount: 1
+  autoscaling:
+    minNodeCount: 1
+    maxNodeCount: 2         # Scale up only if needed
+  management:
+    autoRepair: true
+    autoUpgrade: true
+  # Sustained Use Discount: automatic ~20-30% off when running >25% of month
+```
+
+#### 26.4.2 Resource Allocation Per Namespace
+
+| Namespace | Pods | CPU Request | Memory Request |
+|-----------|------|-------------|----------------|
+| `hta-dev` | Web, API, Worker | 300m total | 768MB total |
+| `hta-prod` | Web, API, Worker | 600m total | 1.5GB total |
+| **Total** | 6 pods | 900m | 2.25GB |
+| **Node capacity** | - | 2000m | 4GB |
+| **Headroom** | - | 55% free | 44% free |
+
+### 26.5 Kubernetes Configuration
+
+#### 26.5.1 Kustomize Structure
+
+```
+infra/k8s/
+├── base/                          # Shared base manifests
+│   ├── api-deployment.yaml
+│   ├── worker-deployment.yaml
+│   ├── web-hta-deployment.yaml
+│   ├── gateway.yaml
+│   ├── secrets.yaml
+│   └── kustomization.yaml
+└── overlays/
+    ├── dev/                       # Dev-specific overrides
+    │   └── kustomization.yaml
+    └── production/                # Production-specific overrides
+        └── kustomization.yaml
+```
+
+#### 26.5.2 Dev Overlay Configuration
+
+```yaml
+# infra/k8s/overlays/dev/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hta-platform-dev
+
+resources:
+  - ../../base
+
+images:
+  - name: gcr.io/PROJECT_ID/hta-api
+    newName: asia-south1-docker.pkg.dev/PROJECT_ID/hta-platform/hta-api
+    newTag: dev-latest
+  - name: gcr.io/PROJECT_ID/hta-web
+    newName: asia-south1-docker.pkg.dev/PROJECT_ID/hta-platform/hta-web
+    newTag: dev-latest
+  - name: gcr.io/PROJECT_ID/hta-worker
+    newName: asia-south1-docker.pkg.dev/PROJECT_ID/hta-platform/hta-worker
+    newTag: dev-latest
+
+patches:
+  # Single replica for dev
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: hta-api
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: hta-worker
+
+  # Lower resource limits for dev
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+    target:
+      kind: Deployment
+      name: hta-api
+
+commonLabels:
+  environment: dev
+
+configMapGenerator:
+  - name: hta-env-config
+    behavior: merge
+    literals:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - SENTRY_ENVIRONMENT=dev
+```
+
+#### 26.5.3 Production Overlay Configuration
+
+```yaml
+# infra/k8s/overlays/production/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hta-platform
+
+resources:
+  - ../../base
+  - api-canary-deployment.yaml    # Canary for gradual rollout
+  - canary-httproute.yaml
+
+images:
+  - name: gcr.io/PROJECT_ID/hta-api
+    newName: asia-south1-docker.pkg.dev/PROJECT_ID/hta-platform/hta-api
+    newTag: latest
+  - name: gcr.io/PROJECT_ID/hta-web
+    newName: asia-south1-docker.pkg.dev/PROJECT_ID/hta-platform/hta-web
+    newTag: latest
+  - name: gcr.io/PROJECT_ID/hta-worker
+    newName: asia-south1-docker.pkg.dev/PROJECT_ID/hta-platform/hta-worker
+    newTag: latest
+
+patches:
+  # 3 replicas for production API
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Deployment
+      name: hta-api
+
+  # Higher resource limits for production
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "2000m"
+    target:
+      kind: Deployment
+      name: hta-api
+
+commonLabels:
+  environment: production
+
+configMapGenerator:
+  - name: hta-env-config
+    behavior: merge
+    literals:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - SENTRY_ENVIRONMENT=production
+```
+
+### 26.6 CI/CD Pipeline
+
+#### 26.6.1 Branch Strategy
+
+```
+main ─────────────────────────────────────────▶ Production
+  │
+  └── dev/* ──────────────────────────────────▶ Dev Environment
+        │
+        └── feature/* ────────────────────────▶ PR Preview (optional)
+```
+
+#### 26.6.2 Deployment Triggers
+
+| Branch/Event | Target | Process |
+|--------------|--------|---------|
+| Push to `dev/*` | Dev | Auto-deploy, run integration tests |
+| PR to `main` | Dev | Deploy preview, run E2E tests |
+| Push to `main` | Production | Canary deploy (10% → 50% → 100%) |
+| Git tag `v*` | Production | Full deploy with version tag |
+| Manual dispatch | Either | Select environment in workflow |
+
+#### 26.6.3 GitHub Actions Workflow
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy
+
+on:
+  push:
+    branches: [main, 'dev/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment'
+        required: true
+        type: choice
+        options: [dev, production]
+
+jobs:
+  determine-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      cluster: ${{ steps.env.outputs.cluster }}
+    steps:
+      - id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    needs: determine-environment
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to ${{ needs.determine-environment.outputs.environment }}
+        run: |
+          kubectl apply -k infra/k8s/overlays/${{ needs.determine-environment.outputs.environment }}
+```
+
+### 26.7 Environment Variables
+
+#### 26.7.1 Shared Variables (Both Environments)
+
+```bash
+# Authentication
+AUTH_SECRET=<from-secret-manager>
+NEXTAUTH_URL=https://${DOMAIN}
+
+# Email
+RESEND_API_KEY=<from-secret-manager>
+EMAIL_FROM=HTA Calibration <noreply@hta-calibration.com>
+
+# Storage
+STORAGE_PROVIDER=GCS
+GCS_PROJECT_ID=<project-id>
+```
+
+#### 26.7.2 Dev-Specific Variables
+
+```bash
+NODE_ENV=development
+LOG_LEVEL=debug
+SENTRY_ENVIRONMENT=dev
+
+# URLs
+API_URL=http://hta-api.hta-dev:4000
+NEXTAUTH_URL=https://dev.hta-calibration.com
+
+# Database (shared instance, dev database)
+DATABASE_URL=postgresql://user:pass@<CLOUD_SQL_IP>:5432/hta_dev
+DATABASE_POOL_SIZE=5
+
+# Redis (shared instance, dev prefix)
+REDIS_URL=redis://<MEMORYSTORE_IP>:6379
+REDIS_KEY_PREFIX=dev:
+BULLMQ_PREFIX=dev
+
+# Storage
+GCS_CERTIFICATES_BUCKET=hta-dev-certificates
+GCS_IMAGES_BUCKET=hta-dev-images
+```
+
+#### 26.7.3 Production-Specific Variables
+
+```bash
+NODE_ENV=production
+LOG_LEVEL=info
+SENTRY_ENVIRONMENT=production
+
+# URLs
+API_URL=http://hta-api.hta-prod:4000
+NEXTAUTH_URL=https://app.hta-calibration.com
+
+# Database (shared instance, prod database)
+DATABASE_URL=postgresql://user:pass@<CLOUD_SQL_IP>:5432/hta_prod
+DATABASE_POOL_SIZE=10
+
+# Redis (shared instance, prod prefix)
+REDIS_URL=redis://<MEMORYSTORE_IP>:6379
+REDIS_KEY_PREFIX=prod:
+BULLMQ_PREFIX=prod
+
+# Storage
+GCS_CERTIFICATES_BUCKET=hta-prod-certificates
+GCS_IMAGES_BUCKET=hta-prod-images
+```
+
+### 26.8 DNS Configuration
+
+| Record | Type | Value |
+|--------|------|-------|
+| `app.hta-calibration.com` | A | Production Load Balancer IP |
+| `dev.hta-calibration.com` | A | Dev Load Balancer IP |
+| `api.hta-calibration.com` | CNAME | `app.hta-calibration.com` (if needed) |
+
+### 26.9 Cost Estimate (Complete)
+
+#### 26.9.1 GCP Infrastructure Costs
+
+| Category | Resource | Spec | Monthly Cost |
+|----------|----------|------|--------------|
+| **Compute** | GKE Node | 1x e2-medium (sustained use) | ~$20 |
+| | GKE Management | Zonal cluster | Free |
+| **Database** | Cloud SQL | db-f1-micro, 50GB SSD | ~$17 |
+| | Automated Backups | 7-day retention | ~$2 |
+| **Cache** | Memorystore Redis | 1GB Basic tier | ~$35 |
+| **Load Balancing** | HTTP(S) LB | Forwarding rules + traffic | ~$18 |
+| **Storage** | GCS Images | ~360GB Year 1 | ~$7 |
+| | GCS PDFs | ~10GB Year 1 | ~$1 |
+| | Artifact Registry | ~20GB Docker images | ~$3 |
+| **Network** | Cloud NAT | Outbound internet access | ~$4 |
+| | Static IP | 1 external IP | ~$3 |
+| | Egress | ~15GB/month | ~$2 |
+| **Security** | Cloud Armor | Basic WAF policy | ~$5 |
+| | Secret Manager | ~10 secrets | ~$1 |
+| **Ops** | Cloud Logging | Ingestion >50GB free tier | ~$2 |
+| | Cloud Monitoring | Metrics (free tier) | ~$0 |
+| **Serverless** | Cloud Function | Image processing | ~$1 |
+| **DNS** | Cloud DNS | 1 zone | ~$1 |
+| | SSL Certificates | Managed | Free |
+| **GCP Subtotal** | | | **~$122/month** |
+
+#### 26.9.2 External Service Costs
+
+| Service | Purpose | Free Tier | Paid Tier | Your Need |
+|---------|---------|-----------|-----------|-----------|
+| **Resend** | Transactional email | 3K/month | $20/mo (50K) | Paid (~$20) |
+| **Sentry** | Error tracking | 5K errors/mo | $26/mo (100K) | Free tier likely |
+| **GitHub** | CI/CD, repo | Free (public) | $4/user (private) | Depends |
+| **External Subtotal** | | | | **~$20-50/month** |
+
+#### 26.9.3 Total Cost Summary
+
+| Category | Year 1 | Year 2 | Year 3 |
+|----------|--------|--------|--------|
+| GCP Infrastructure | ~$122 | ~$130 | ~$140 |
+| External Services | ~$25 | ~$25 | ~$45 |
+| **Total** | **~$147/month** | **~$155/month** | **~$185/month** |
+
+> Cost growth is primarily driven by GCS image storage (~$7/year increase)
+
+#### 26.9.4 Storage Growth Projection
+
+**Cloud SQL (Database):**
+
+| Timeframe | Tenants | Certs | DB Size | Within 50GB? |
+|-----------|---------|-------|---------|--------------|
+| Year 1 | 1 | 60K | ~6GB | ✅ |
+| Year 2 | 2-3 | 150K | ~15GB | ✅ |
+| Year 3 | 5 | 300K | ~30GB | ✅ |
+| Year 5 | 5-10 | 600K | ~50GB | ⚠️ Resize |
+
+**GCS (Certificate Images):**
+
+| Per Certificate | Size |
+|-----------------|------|
+| Original images (avg 5) | ~5MB |
+| Optimized versions (5) | ~1MB |
+| Thumbnails (5) | ~100KB |
+| **Total per cert** | **~6MB** |
+
+| Timeframe | Total Certs | Image Storage | GCS Cost |
+|-----------|-------------|---------------|----------|
+| Year 1 | 60K | ~360GB | ~$7/mo |
+| Year 2 | 120K | ~720GB | ~$14/mo |
+| Year 3 | 180K | ~1.1TB | ~$22/mo |
+| Year 5 | 300K | ~1.8TB | ~$36/mo |
+
+**Cost Optimization: GCS Lifecycle Policy**
+```yaml
+# Move images older than 1 year to Nearline (60% cheaper)
+lifecycle:
+  rule:
+    - action: { type: SetStorageClass, storageClass: NEARLINE }
+      condition: { age: 365 }
+```
+Savings: ~30-40% on total GCS costs after Year 2
+
+**Artifact Registry (Docker Images):**
+
+| Item | Size | Cost |
+|------|------|------|
+| 3 services × 10 versions | ~18GB | ~$3/mo |
+| Cleanup policy: keep last 10 | Auto-managed | - |
+
+#### 26.9.5 VM Pricing Options Comparison
+
+| Option | e2-medium Price | Commitment | Best For |
+|--------|-----------------|------------|----------|
+| On-demand | ~$25/mo | None | Short-term |
+| **Sustained Use** | **~$20/mo** | **Auto** | **Default choice** |
+| 1-Year CUD | ~$16/mo | 1 year | Stable workloads |
+| 3-Year CUD | ~$11/mo | 3 years | Long-term certain |
+| Spot (NOT recommended) | ~$8/mo | None | Batch jobs only |
+
+> **Recommendation:** Start with Sustained Use (automatic), consider 1-Year CUD after 6 months of stable usage.
+
+#### 26.9.6 Cost Scaling Path
+
+| Scale | Users | Certs/Month | Changes Needed | Est. Cost |
+|-------|-------|-------------|----------------|-----------|
+| Current | <100 | <5,000 | None | ~$150/mo |
+| Small | 100-500 | 5K-25K | Larger node (e2-standard-2) | ~$175/mo |
+| Medium | 500-1K | 25K-50K | 2 nodes, larger Redis | ~$250/mo |
+| Large | 1K+ | 50K+ | HA setup, dedicated SQL | ~$400+/mo |
+
+#### 26.9.7 Cost Optimization Checklist
+
+- [ ] Enable GCS lifecycle policies (Nearline after 1 year)
+- [ ] Set Artifact Registry cleanup policy (keep last 10 images)
+- [ ] Monitor Cloud Logging ingestion (stay under 50GB free)
+- [ ] Review Sustained Use → CUD after 6 months
+- [ ] Set up billing alerts at $150, $200, $250
+- [ ] Use committed use for Redis if stable (37% savings)
+
+### 26.10 Implementation Checklist
+
+#### GCP Infrastructure
+- [ ] Create GKE cluster (`hta-platform-cluster`) with e2-medium node pool
+- [ ] Create Cloud SQL instance (`hta-db`, db-f1-micro, 50GB) with `hta_dev` and `hta_prod` databases
+- [ ] Create Memorystore Redis instance (`hta-redis`, 1GB Basic tier)
+- [ ] Create GCS buckets (`hta-dev-certificates`, `hta-dev-images`, `hta-prod-certificates`, `hta-prod-images`)
+- [ ] Configure GCS lifecycle policies (move to Nearline after 1 year)
+- [ ] Create Artifact Registry repository (`hta-platform`)
+- [ ] Configure Artifact Registry cleanup policy (keep last 10 images)
+- [ ] Create Cloud NAT for outbound internet access
+- [ ] Reserve static external IP for load balancer
+- [ ] Configure secrets in Secret Manager (`dev-*`, `prod-*`)
+- [ ] Set up Cloud Armor WAF policy
+- [ ] Configure Cloud DNS zone for `hta-calibration.com`
+- [ ] Set up Cloud Function for image processing (optimize/thumbnail)
+- [ ] Configure billing alerts ($150, $200, $250)
+
+#### Kubernetes
+- [ ] Create namespaces (`hta-dev`, `hta-prod`)
+- [ ] Create `infra/k8s/overlays/dev/kustomization.yaml`
+- [ ] Update `infra/k8s/overlays/production/kustomization.yaml`
+- [ ] Configure Gateway/HTTPRoute for host-based routing
+- [ ] Set up resource quotas per namespace
+
+#### CI/CD
+- [ ] Update `.github/workflows/deploy.yml` for multi-environment
+- [ ] Configure GitHub environment secrets (dev, production)
+- [ ] Test deployment pipeline to dev namespace
+- [ ] Test deployment pipeline to prod namespace
+
+#### DNS & SSL
+- [ ] Configure `dev.hta-calibration.com` → Load Balancer IP
+- [ ] Configure `app.hta-calibration.com` → Load Balancer IP  
+- [ ] Provision managed SSL certificate (wildcard or multi-SAN)
+
+#### Validation
+- [ ] Verify namespace isolation (dev can't access prod)
+- [ ] Test database connection from both namespaces
+- [ ] Verify GCS bucket access per environment
+- [ ] Run E2E tests against dev environment
+- [ ] Document environment-specific runbooks
+
+---
+
+## 27. B2B2B Pricing & Subscription Model
+
+> **Status:** 🔲 Planned
+> 
+> This section defines the pricing strategy for the multi-tenant platform where HTA sells to Tenants (calibration labs), and Tenants serve their own Customers.
+
+### 27.1 Business Model Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         B2B2B PRICING MODEL                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────┐                                                        │
+│  │  HTA Platform   │  ◄── Platform Owner (You)                              │
+│  │    (Level 0)    │                                                        │
+│  └────────┬────────┘                                                        │
+│           │                                                                  │
+│           │ Sells subscriptions (₹2,999 - ₹11,999/mo)                       │
+│           ▼                                                                  │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │   Tenant A      │  │   Tenant B      │  │   Tenant C      │             │
+│  │ (Calibration    │  │ (Calibration    │  │ (Calibration    │             │
+│  │     Lab)        │  │     Lab)        │  │     Lab)        │             │
+│  │   Level 1       │  │   Level 1       │  │   Level 1       │             │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘             │
+│           │                    │                    │                       │
+│           │ Provides calibration services                                   │
+│           ▼                    ▼                    ▼                       │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐                │
+│  │ Customer     │     │ Customer     │     │ Customer     │                │
+│  │ Accounts     │     │ Accounts     │     │ Accounts     │                │
+│  │ (Companies)  │     │ (Factories)  │     │ (Mfg Units)  │                │
+│  │  Level 2     │     │  Level 2     │     │  Level 2     │                │
+│  └──────┬───────┘     └──────────────┘     └──────────────┘                │
+│         │                                                                   │
+│         │ Login to portal                                                   │
+│         ▼                                                                   │
+│  ┌──────────────┐                                                          │
+│  │ Customer     │                                                          │
+│  │ Users        │                                                          │
+│  │ (Individuals)│                                                          │
+│  │  Level 3     │                                                          │
+│  └──────────────┘                                                          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 27.2 Terminology
+
+| Term | Definition | Example |
+|------|------------|---------|
+| **Tenant** | Calibration laboratory using the platform | "HTA Calibr8s", "Precision Labs" |
+| **Staff User** | Tenant employee (engineer, reviewer, admin) | Lab technician who creates certificates |
+| **Customer Account** | Organization that receives calibration services | "ABC Manufacturing Pvt Ltd" |
+| **Customer User** | Individual login within a customer account | "john@abcmfg.com" - Quality Manager |
+| **Certificate** | Calibration certificate issued by tenant | Certificate #HTA-2026-0001 |
+
+### 27.3 HTA → Tenant Pricing (Level 1)
+
+#### Subscription Tiers
+
+| Tier | Monthly Price | Certificates/mo | Staff Users | Customer Accounts | Customer Users |
+|------|---------------|-----------------|-------------|-------------------|----------------|
+| **Starter** | ₹2,999 | 500 | 5 | 20 | 50 |
+| **Growth** | ₹5,999 | 5,000 | 15 | 100 | 300 |
+| **Scale** | ₹11,999 | Unlimited | Unlimited | Unlimited | Unlimited |
+| **HTA Internal** | N/A | Unlimited | Unlimited | Unlimited | Unlimited |
+
+#### Overage Charges
+
+| Resource | Rate | Billing |
+|----------|------|---------|
+| Additional Staff User | ₹50/seat/month | Prorated |
+| Additional Customer Account | ₹500/account/month | Prorated |
+| Additional Customer User | ₹100/seat/month | Prorated |
+| Additional Certificates | Not allowed | Must upgrade tier |
+
+#### Feature Comparison
+
+| Feature | Starter | Growth | Scale |
+|---------|---------|--------|-------|
+| Certificate Management | ✅ | ✅ | ✅ |
+| Customer Portal | ✅ | ✅ | ✅ |
+| Email Notifications | ✅ | ✅ | ✅ |
+| Basic Workflows | ✅ | ✅ | ✅ |
+| Custom Branding | ❌ | ✅ | ✅ |
+| API Access | ❌ | ✅ | ✅ |
+| Advanced Workflows | ❌ | ✅ | ✅ |
+| Priority Support | ❌ | ❌ | ✅ |
+| SLA Guarantee | ❌ | ❌ | ✅ (99.9%) |
+| Dedicated Account Manager | ❌ | ❌ | ✅ |
+
+### 27.4 Tenant → Customer Pricing (Level 2)
+
+Tenants have flexibility in how they monetize their customers. The platform supports but does not enforce these models:
+
+| Model | Description | Implementation |
+|-------|-------------|----------------|
+| **Included** | Portal access bundled with calibration fee | No separate charge, just provide login |
+| **Per-Certificate** | Charge per certificate delivery | Tenant invoices outside platform |
+| **Subscription** | Monthly portal access fee | Tenant manages billing externally |
+| **Pay-per-Download** | Free viewing, paid PDF download | Future: integrate payment gateway |
+
+> **Note:** In Phase 1, tenants handle customer billing externally. Platform tracks usage for tenant's reference.
+
+### 27.5 Usage Tracking Requirements
+
+#### What We Track
+
+| Metric | Purpose | Reset Period |
+|--------|---------|--------------|
+| `certificates_issued` | Enforce tier limits | Monthly |
+| `staff_user_count` | Enforce seat limits | Real-time |
+| `customer_account_count` | Enforce tier limits | Real-time |
+| `customer_user_count` | Enforce seat limits | Real-time |
+| `api_calls` | Future: usage-based billing | Monthly |
+| `storage_used_mb` | Future: storage limits | Real-time |
+
+#### Enforcement Behavior
+
+| Limit Type | When Exceeded | User Experience |
+|------------|---------------|-----------------|
+| Certificates | Block new certificate creation | "Monthly limit reached. Upgrade plan." |
+| Staff Users | Block new staff invites | "Staff seat limit reached. Add seats or upgrade." |
+| Customer Accounts | Block new customer creation | "Customer account limit reached." |
+| Customer Users | Block new customer user invites | "Customer user limit reached." |
+
+### 27.6 Database Schema Changes
+
+#### New Tables
+
+```prisma
+// Tenant subscription and billing
+model TenantSubscription {
+  id                String   @id @default(uuid())
+  tenantId          String   @unique
+  tier              TenantTier @default(STARTER)
+  
+  // Base limits from tier
+  certificateLimit  Int      // 500, 5000, or -1 for unlimited
+  staffUserLimit    Int      // 5, 15, or -1 for unlimited
+  customerAccountLimit Int   // 20, 100, or -1 for unlimited
+  customerUserLimit Int      // 50, 300, or -1 for unlimited
+  
+  // Additional purchased seats
+  extraStaffSeats       Int  @default(0)
+  extraCustomerAccounts Int  @default(0)
+  extraCustomerUsers    Int  @default(0)
+  
+  // Billing
+  billingCycleStart DateTime
+  billingCycleEnd   DateTime
+  monthlyPrice      Int      // In paise (₹2,999 = 299900)
+  
+  // Status
+  status            SubscriptionStatus @default(ACTIVE)
+  trialEndsAt       DateTime?
+  cancelledAt       DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  usageRecords      TenantUsage[]
+  
+  @@index([tenantId])
+  @@index([status])
+}
+
+enum TenantTier {
+  STARTER
+  GROWTH
+  SCALE
+  INTERNAL  // For HTA's own use
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  SUSPENDED
+}
+
+// Monthly usage tracking
+model TenantUsage {
+  id                    String   @id @default(uuid())
+  subscriptionId        String
+  
+  // Period
+  periodStart           DateTime
+  periodEnd             DateTime
+  
+  // Counters
+  certificatesIssued    Int      @default(0)
+  staffUserCount        Int      @default(0)
+  customerAccountCount  Int      @default(0)
+  customerUserCount     Int      @default(0)
+  apiCallCount          Int      @default(0)
+  storageUsedMb         Int      @default(0)
+  
+  // Snapshot at period end (for billing)
+  snapshotAt            DateTime?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  subscription          TenantSubscription @relation(fields: [subscriptionId], references: [id])
+  
+  @@unique([subscriptionId, periodStart])
+  @@index([subscriptionId])
+  @@index([periodStart])
+}
+
+// Billing history (for future Razorpay integration)
+model TenantInvoice {
+  id                String   @id @default(uuid())
+  tenantId          String
+  
+  // Invoice details
+  invoiceNumber     String   @unique
+  periodStart       DateTime
+  periodEnd         DateTime
+  
+  // Line items (JSON for flexibility)
+  lineItems         Json     // [{description, quantity, unitPrice, amount}]
+  
+  // Totals (in paise)
+  subtotal          Int
+  tax               Int      // GST 18%
+  total             Int
+  
+  // Payment
+  status            InvoiceStatus @default(DRAFT)
+  dueDate           DateTime
+  paidAt            DateTime?
+  paymentMethod     String?
+  paymentReference  String?  // Razorpay payment ID
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  
+  @@index([tenantId])
+  @@index([status])
+  @@index([invoiceNumber])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+```
+
+#### Tenant Model Updates
+
+```prisma
+model Tenant {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  domain    String?
+  settings  Json?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Existing relations
+  users             User[]
+  customerUsers     CustomerUser[]
+  customerAccounts  CustomerAccount[]
+  certificates      Certificate[]
+  masterInstruments MasterInstrument[]
+  
+  // New relations for billing
+  subscription      TenantSubscription?
+  invoices          TenantInvoice[]
+
+  @@index([slug])
+  @@index([domain])
+}
+```
+
+### 27.7 API Endpoints
+
+#### Subscription Management
+
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| GET | `/api/admin/subscription` | Get current subscription | Tenant Admin |
+| GET | `/api/admin/subscription/usage` | Get current usage stats | Tenant Admin |
+| POST | `/api/admin/subscription/upgrade` | Request tier upgrade | Tenant Admin |
+| POST | `/api/admin/subscription/seats` | Add extra seats | Tenant Admin |
+| GET | `/api/admin/invoices` | List invoices | Tenant Admin |
+| GET | `/api/admin/invoices/:id` | Get invoice details | Tenant Admin |
+
+#### Platform Admin (HTA Internal)
+
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| GET | `/api/platform/tenants` | List all tenants with usage | Platform Admin |
+| GET | `/api/platform/tenants/:id/subscription` | Get tenant subscription | Platform Admin |
+| PUT | `/api/platform/tenants/:id/subscription` | Update subscription | Platform Admin |
+| POST | `/api/platform/tenants/:id/invoice` | Generate invoice | Platform Admin |
+
+### 27.8 Limit Enforcement Logic
+
+```typescript
+// packages/shared/src/subscription/limits.ts
+
+import { TenantTier } from '@prisma/client'
+
+export const TIER_LIMITS: Record<TenantTier, TierLimits> = {
+  STARTER: {
+    certificates: 500,
+    staffUsers: 5,
+    customerAccounts: 20,
+    customerUsers: 50,
+    features: ['basic_workflows', 'customer_portal', 'email_notifications'],
+  },
+  GROWTH: {
+    certificates: 5000,
+    staffUsers: 15,
+    customerAccounts: 100,
+    customerUsers: 300,
+    features: ['basic_workflows', 'customer_portal', 'email_notifications', 
+               'custom_branding', 'api_access', 'advanced_workflows'],
+  },
+  SCALE: {
+    certificates: -1, // Unlimited
+    staffUsers: -1,
+    customerAccounts: -1,
+    customerUsers: -1,
+    features: ['all'],
+  },
+  INTERNAL: {
+    certificates: -1,
+    staffUsers: -1,
+    customerAccounts: -1,
+    customerUsers: -1,
+    features: ['all'],
+  },
+}
+
+export const OVERAGE_PRICES = {
+  staffUser: 5000,        // ₹50 in paise
+  customerAccount: 50000, // ₹500 in paise
+  customerUser: 10000,    // ₹100 in paise
+}
+
+export async function checkLimit(
+  tenantId: string,
+  resource: 'certificate' | 'staffUser' | 'customerAccount' | 'customerUser'
+): Promise<{ allowed: boolean; current: number; limit: number; message?: string }> {
+  const subscription = await getSubscription(tenantId)
+  const usage = await getCurrentUsage(tenantId)
+  
+  const limits = TIER_LIMITS[subscription.tier]
+  const extraSeats = getExtraSeats(subscription, resource)
+  
+  const limit = limits[resource] === -1 
+    ? Infinity 
+    : limits[resource] + extraSeats
+    
+  const current = usage[resource]
+  
+  if (current >= limit) {
+    return {
+      allowed: false,
+      current,
+      limit,
+      message: `${resource} limit reached (${current}/${limit}). Please upgrade or add seats.`
+    }
+  }
+  
+  return { allowed: true, current, limit }
+}
+```
+
+### 27.9 Example Billing Scenarios
+
+#### Scenario 1: Starter Lab
+
+```
+Base: Starter @ ₹2,999/mo
+- 5 staff users (included)
+- 20 customer accounts (included)
+- 50 customer users (included)
+- 500 certificates/mo (included)
+
+Add-ons:
+- +3 staff users @ ₹50 = ₹150
+- +5 customer accounts @ ₹500 = ₹2,500
+
+Subtotal: ₹5,649
+GST (18%): ₹1,017
+Total: ₹6,666/mo
+```
+
+#### Scenario 2: Growing Lab
+
+```
+Base: Growth @ ₹5,999/mo
+- 15 staff users (included)
+- 100 customer accounts (included)
+- 300 customer users (included)
+- 5,000 certificates/mo (included)
+
+Add-ons:
+- +10 staff users @ ₹50 = ₹500
+- +50 customer accounts @ ₹500 = ₹25,000
+- +100 customer users @ ₹100 = ₹10,000
+
+Subtotal: ₹41,499
+GST (18%): ₹7,470
+Total: ₹48,969/mo
+```
+
+### 27.10 Implementation Checklist
+
+#### Phase 1: Schema & Basic Tracking
+- [ ] Add `TenantSubscription` model to schema
+- [ ] Add `TenantUsage` model to schema
+- [ ] Add `TenantInvoice` model to schema
+- [ ] Run migration
+- [ ] Seed HTA tenant with INTERNAL tier
+- [ ] Create default STARTER subscription for new tenants
+
+#### Phase 2: Limit Enforcement
+- [ ] Implement `checkLimit()` utility
+- [ ] Add limit check to certificate creation
+- [ ] Add limit check to staff user invite
+- [ ] Add limit check to customer account creation
+- [ ] Add limit check to customer user invite
+- [ ] Add usage increment on resource creation
+- [ ] Add usage decrement on resource deletion
+
+#### Phase 3: Admin Dashboard
+- [ ] Create subscription overview page
+- [ ] Create usage statistics page
+- [ ] Add upgrade request flow
+- [ ] Add seat purchase flow
+- [ ] Create invoice listing page
+
+#### Phase 4: Platform Admin
+- [ ] Create tenant management dashboard
+- [ ] Add subscription management for tenants
+- [ ] Create invoice generation workflow
+- [ ] Add usage reporting/analytics
+
+#### Phase 5: Billing Integration (Future)
+- [ ] Integrate Razorpay for payments
+- [ ] Implement auto-invoice generation
+- [ ] Add payment reminders
+- [ ] Handle failed payments (suspend → cancel flow)
+
+---
+
 ## Document History
 
 | Version | Date | Changes |
@@ -6253,3 +7784,8 @@ Initiate rollback if:
 | 1.3 | 2026-04-13 | Added existing feature migration inventory (Phases 1-4), expanded shared packages migration, notification processing in Worker |
 | 1.4 | 2026-04-13 | Replaced OpenTelemetry with Sentry for monitoring (already configured) |
 | 1.5 | 2026-04-13 | Added new repo migration approach, Security Enhancements (Track C: 2FA, WebAuthn, CSP nonces, Cloud Armor WAF), Disaster Recovery (Track E: backup/restore, DR drills, cross-region replica) |
+| 1.6 | 2026-04-16 | Added Section 21 implementation (k6 load tests, cache strategies, performance baselines), Section 22 implementation (GDPR compliance, DSR, consent management), Section 23 implementation (rollback scripts, runbook), Section 25 (inter-service communication architecture with test scripts). Updated Section 16 with k6 load test commands. |
+| 3.3 | 2026-04-16 | Created actual inter-service communication test files: `queue.test.ts` (BullMQ integration), `service-communication.test.ts` (API→Worker), `database-queue.test.ts` (fallback queue). Updated Section 16 Testing Strategy with 1,909 tests (171% coverage), added compliance tests (45), load tests (3). Updated status summary with Phases 21-25. |
+| 3.4 | 2026-04-16 | Added Section 26 (Environment Management): Dev + Production strategy (no staging), Kustomize overlays, CI/CD pipeline, GCP resource allocation, cost estimates, DNS configuration. Domain: hta-calibration.com. |
+| 3.5 | 2026-04-16 | Revised Section 26 for cost optimization: Single GKE Standard cluster, dual namespace isolation (hta-dev/hta-prod), shared Cloud SQL (50GB), shared Memorystore Redis (1GB, key prefix isolation), single load balancer. |
+| 3.6 | 2026-04-16 | Complete cost breakdown: Sustained Use pricing (not spot), added Cloud NAT, static IP, egress, backups, logging, Cloud Function. Added external services (Resend, Sentry). Storage projections for GCS images. Total: ~$150/month all-in. |
