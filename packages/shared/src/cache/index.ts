@@ -11,6 +11,15 @@ import { getMemoryCacheProvider } from './providers/memory.js'
 export { CacheKeys, CacheTTL } from './types.js'
 export type { CacheProvider, CacheOptions, CacheConfig } from './types.js'
 
+// Cache strategies
+export {
+  CacheStrategies,
+  getCacheStrategy,
+  buildCacheKey,
+  InvalidationPatterns,
+} from './strategy.js'
+export type { CacheStrategy, CacheStrategyName } from './strategy.js'
+
 const DEBUG_CACHE = process.env.NODE_ENV === 'development'
 
 export function logCache(message: string, data?: Record<string, unknown>): void {
