@@ -193,7 +193,7 @@ function StaffLoginForm() {
         <Button
           type="submit"
           className="w-full"
-          disabled={isLoading || (requires2FA && totpCode.length !== 6)}
+          disabled={isLoading || !csrfToken || (requires2FA && totpCode.length !== 6)}
         >
           {isLoading
             ? 'Verifying...'

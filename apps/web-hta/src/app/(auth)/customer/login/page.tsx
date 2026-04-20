@@ -131,7 +131,7 @@ function CustomerLoginForm() {
         <Button
           type="submit"
           className="w-full"
-          disabled={isLoading}
+          disabled={isLoading || !csrfToken}
         >
           {isLoading ? 'Signing in...' : 'Sign In'}
         </Button>
