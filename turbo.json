@@ -27,7 +27,7 @@
     "test:integration": {
       "dependsOn": ["^build"],
       "inputs": ["src/**", "tests/integration/**"],
-      "env": ["DATABASE_URL"]
+      "env": ["DATABASE_URL", "REDIS_URL"]
     },
     "test:e2e": {
       "dependsOn": ["build"],

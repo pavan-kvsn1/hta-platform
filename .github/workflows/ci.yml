@@ -159,7 +159,8 @@ jobs:
           DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
 
       - name: Run integration tests
-        run: pnpm turbo run test:integration
+        # Run sequentially (--concurrency=1) to avoid race conditions on shared database
+        run: pnpm turbo run test:integration --concurrency=1
         env:
           DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
           REDIS_URL: redis://localhost:6379
