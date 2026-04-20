@@ -38,7 +38,7 @@ export async function setupTestDatabase(): Promise<void> {
   // Push schema
   try {
     console.log('📦 Pushing schema to PostgreSQL...')
-    execSync(`npx prisma db push --skip-generate`, {
+    execSync(`npx prisma db push --skip-generate --accept-data-loss`, {
       cwd: process.cwd().replace(/apps[\\\/]worker$/, 'packages/database'),
       env: { ...process.env, DATABASE_URL },
       stdio: 'pipe',

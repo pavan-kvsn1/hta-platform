@@ -267,11 +267,11 @@ export async function cleanupTestData(): Promise<void> {
     // Level 7: Other User-referencing tables
     await tx.masterInstrument.deleteMany()
 
-    // Level 8: Customer tables (reference Tenant)
-    await tx.customerUser.deleteMany()
-    await tx.customerAccount.deleteMany()
+    // Level 8: Customer tables (reference Tenant and CustomerAccount)
     await tx.customerRegistration.deleteMany()
     await tx.customerRequest.deleteMany()
+    await tx.customerUser.deleteMany()
+    await tx.customerAccount.deleteMany()
     await tx.allowedGoogleEmail.deleteMany()
 
     // Level 9: User (references Tenant)
