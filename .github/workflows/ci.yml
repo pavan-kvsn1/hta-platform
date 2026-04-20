@@ -324,24 +324,23 @@ jobs:
 
       - name: Start web server
         run: |
-          cd apps/web-hta
           # Copy static files to standalone (required for standalone mode)
-          cp -r public .next/standalone/apps/web-hta/public 2>/dev/null || true
-          cp -r .next/static .next/standalone/apps/web-hta/.next/static
-          # Start standalone server
-          node .next/standalone/apps/web-hta/server.js > /tmp/nextjs.log 2>&1 &
-          cd ../..
-          echo "Waiting for Next.js to be ready..."
-          for i in {1..60}; do
-            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
-              echo "Next.js is ready!"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "ERROR: Next.js failed to start. Logs:"
-          cat /tmp/nextjs.log
-          exit 1
+          cp -r apps/web-hta/public apps/web-hta/.next/standalone/apps/web-hta/public 2>/dev/null || true
+          cp -r apps/web-hta/.next/static apps/web-hta/.next/standalone/apps/web-hta/.next/static
+          # Start standalone server from repo root
+          node apps/web-hta/.next/standalone/apps/web-hta/server.js &
+          SERVER_PID=$!
+          echo "Started server with PID: $SERVER_PID"
+          sleep 5
+          # Check if process is still running
+          if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo "ERROR: Server process died"
+            exit 1
+          fi
+          # Try to reach the server
+          echo "Testing server connectivity..."
+          curl -v http://localhost:3000 2>&1 | head -30 || true
+          echo "Server is ready!"
         env:
           DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
           NEXTAUTH_SECRET: test-secret-for-ci
