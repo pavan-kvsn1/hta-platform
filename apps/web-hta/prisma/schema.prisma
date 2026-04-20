@@ -28,8 +28,92 @@ model Tenant {
   certificates      Certificate[]
   masterInstruments MasterInstrument[]
 
+  // Billing relations
+  subscription      TenantSubscription?
+
   @@index([slug])
   @@index([domain])
+}
+
+// ============================================================================
+// SUBSCRIPTION & BILLING MODELS
+// ============================================================================
+
+enum TenantTier {
+  STARTER   // ₹2,999/mo - 500 certs, 5 staff, 20 customers
+  GROWTH    // ₹5,999/mo - 5K certs, 15 staff, 100 customers
+  SCALE     // ₹11,999/mo - Unlimited
+  INTERNAL  // HTA's own tier - no billing
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  SUSPENDED
+}
+
+model TenantSubscription {
+  id        String   @id @default(uuid())
+  tenantId  String   @unique
+
+  // Plan details
+  tier      TenantTier @default(STARTER)
+  status    SubscriptionStatus @default(ACTIVE)
+
+  // Billing period
+  currentPeriodStart DateTime @default(now())
+  currentPeriodEnd   DateTime
+  trialEndsAt        DateTime?
+
+  // Pricing (in paise, INR * 100)
+  basePriceInPaise   Int @default(299900) // ₹2,999
+
+  // Extra seats purchased
+  extraStaffSeats          Int @default(0)
+  extraCustomerAccounts    Int @default(0)
+  extraCustomerUserSeats   Int @default(0)
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  usage     TenantUsage[]
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+model TenantUsage {
+  id                    String   @id @default(uuid())
+  subscriptionId        String
+
+  // Period
+  periodStart           DateTime
+  periodEnd             DateTime
+
+  // Counters
+  certificatesIssued    Int      @default(0)
+  staffUserCount        Int      @default(0)
+  customerAccountCount  Int      @default(0)
+  customerUserCount     Int      @default(0)
+  apiCallCount          Int      @default(0)
+  storageUsedMb         Int      @default(0)
+
+  // Snapshot at period end (for billing)
+  snapshotAt            DateTime?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  subscription          TenantSubscription @relation(fields: [subscriptionId], references: [id])
+
+  @@unique([subscriptionId, periodStart])
+  @@index([subscriptionId])
+  @@index([periodStart])
 }
 
 // ============================================================================
