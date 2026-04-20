@@ -7,28 +7,35 @@
  * Requires: Redis running on REDIS_URL (default: redis://localhost:6379)
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { Queue } from 'bullmq'
 import Redis from 'ioredis'
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
 
-describe('API → Worker Communication', () => {
+// Check Redis availability at module load time (before test collection)
+let isRedisAvailable = false
+try {
+  const testConnection = new Redis(REDIS_URL, {
+    connectTimeout: 2000,
+    lazyConnect: true,
+    maxRetriesPerRequest: 1,
+  })
+  await testConnection.connect()
+  await testConnection.ping()
+  await testConnection.quit()
+  isRedisAvailable = true
+} catch {
+  console.warn('[Service Communication] Redis not available, skipping tests')
+}
+
+describe.skipIf(!isRedisAvailable)('API → Worker Communication', () => {
   let connection: Redis
-  let isRedisAvailable = false
 
   beforeAll(async () => {
-    try {
-      connection = new Redis(REDIS_URL, {
-        maxRetriesPerRequest: null,
-        connectTimeout: 5000,
-      })
-      await connection.ping()
-      isRedisAvailable = true
-    } catch {
-      console.warn('[Service Communication] Redis not available, skipping tests')
-      isRedisAvailable = false
-    }
+    connection = new Redis(REDIS_URL, {
+      maxRetriesPerRequest: null,
+    })
   })
 
   afterAll(async () => {
@@ -41,7 +48,6 @@ describe('API → Worker Communication', () => {
     let emailQueue: Queue
 
     beforeAll(async () => {
-      if (!isRedisAvailable) return
       emailQueue = new Queue('email', { connection })
     })
 
@@ -58,7 +64,7 @@ describe('API → Worker Communication', () => {
       }
     })
 
-    it.skipIf(!isRedisAvailable)('should enqueue certificate delivery email', async () => {
+    it('should enqueue certificate delivery email', async () => {
       const jobData = {
         type: 'certificate-delivery' as const,
         to: 'customer@test.example.com',
@@ -86,7 +92,7 @@ describe('API → Worker Communication', () => {
       await job.remove()
     })
 
-    it.skipIf(!isRedisAvailable)('should enqueue password reset email', async () => {
+    it('should enqueue password reset email', async () => {
       const jobData = {
         type: 'password-reset' as const,
         to: 'user@test.example.com',
@@ -106,7 +112,7 @@ describe('API → Worker Communication', () => {
       await job.remove()
     })
 
-    it.skipIf(!isRedisAvailable)('should handle bulk email enqueueing', async () => {
+    it('should handle bulk email enqueueing', async () => {
       const emails = Array.from({ length: 10 }, (_, i) => ({
         name: `bulk-notification-${i}`,
         data: {
@@ -132,7 +138,6 @@ describe('API → Worker Communication', () => {
     let notificationQueue: Queue
 
     beforeAll(async () => {
-      if (!isRedisAvailable) return
       notificationQueue = new Queue('notifications', { connection })
     })
 
@@ -142,7 +147,7 @@ describe('API → Worker Communication', () => {
       }
     })
 
-    it.skipIf(!isRedisAvailable)('should enqueue certificate approval notification', async () => {
+    it('should enqueue certificate approval notification', async () => {
       const jobData = {
         type: 'CERTIFICATE_APPROVED',
         userId: 'test-user-123',
@@ -166,7 +171,7 @@ describe('API → Worker Communication', () => {
       await job.remove()
     })
 
-    it.skipIf(!isRedisAvailable)('should enqueue review feedback notification', async () => {
+    it('should enqueue review feedback notification', async () => {
       const jobData = {
         type: 'REVIEW_FEEDBACK_RECEIVED',
         userId: 'test-engineer-123',
@@ -189,7 +194,6 @@ describe('API → Worker Communication', () => {
     let cleanupQueue: Queue
 
     beforeAll(async () => {
-      if (!isRedisAvailable) return
       cleanupQueue = new Queue('cleanup', { connection })
     })
 
@@ -199,7 +203,7 @@ describe('API → Worker Communication', () => {
       }
     })
 
-    it.skipIf(!isRedisAvailable)('should enqueue token cleanup job', async () => {
+    it('should enqueue token cleanup job', async () => {
       const jobData = {
         type: 'expired-tokens',
         tenantId: 'test-tenant',
@@ -215,7 +219,7 @@ describe('API → Worker Communication', () => {
       await job.remove()
     })
 
-    it.skipIf(!isRedisAvailable)('should schedule recurring cleanup', async () => {
+    it('should schedule recurring cleanup', async () => {
       const job = await cleanupQueue.add(
         'scheduled-cleanup',
         { type: 'all', isTest: true },
@@ -240,12 +244,12 @@ describe('API → Worker Communication', () => {
   })
 
   describe('Queue Health Checks', () => {
-    it.skipIf(!isRedisAvailable)('should verify Redis connection', async () => {
+    it('should verify Redis connection', async () => {
       const pong = await connection.ping()
       expect(pong).toBe('PONG')
     })
 
-    it.skipIf(!isRedisAvailable)('should get queue metrics', async () => {
+    it('should get queue metrics', async () => {
       const emailQueue = new Queue('email', { connection })
 
       const counts = await emailQueue.getJobCounts()
@@ -257,7 +261,7 @@ describe('API → Worker Communication', () => {
       await emailQueue.close()
     })
 
-    it.skipIf(!isRedisAvailable)('should check if queues are paused', async () => {
+    it('should check if queues are paused', async () => {
       const emailQueue = new Queue('email', { connection })
       const notificationQueue = new Queue('notifications', { connection })
 

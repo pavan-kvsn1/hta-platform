@@ -116,7 +116,7 @@ describe('Certificate API Integration', () => {
 
       // Attempt to create another with same number
       await expect(
-        createTestCertificate(prisma, engineer.id, {
+        createTestCertificate(prisma, tenantId, engineer.id, {
           certificateNumber: certNumber,
         })
       ).rejects.toThrow()
