@@ -227,27 +227,54 @@ export async function createCustomerNotification(overrides: {
  */
 export async function cleanupTestData(): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    // Calibration data (must delete before Certificate/Parameter)
+    // Level 1: Deepest nested tables (no dependencies)
     await tx.calibrationResult.deleteMany()
+    await tx.chatAttachment.deleteMany()
+    await tx.tokenAccessLog.deleteMany()
+
+    // Level 2: Tables referencing Level 1 parents
     await tx.certificateMasterInstrument.deleteMany()
-    await tx.parameter.deleteMany()
-    // Certificate lifecycle
+    await tx.chatMessage.deleteMany()
+    await tx.reviewFeedback.deleteMany()
+
+    // Level 3: More certificate-related tables
+    await tx.chatThread.deleteMany()
+    await tx.certificateEvent.deleteMany()
     await tx.certificateRevision.deleteMany()
+    await tx.certificateImage.deleteMany()
+    await tx.uUCImage.deleteMany()
+    await tx.signature.deleteMany()
+    await tx.approvalToken.deleteMany()
+    await tx.openSignDocument.deleteMany()
+    await tx.signingEvidence.deleteMany()
     await tx.downloadToken.deleteMany()
-    // Notification references Certificate, User, CustomerUser
+    await tx.parameter.deleteMany()
+
+    // Level 4: Notification and audit (reference User/CustomerUser)
     await tx.notification.deleteMany()
-    // Audit logs
+    await tx.realtimeEvent.deleteMany()
+    await tx.internalRequest.deleteMany()
+    await tx.jobQueue.deleteMany()
     await tx.auditLog.deleteMany()
-    // Certificate references User (createdById, lastModifiedById)
+
+    // Level 5: Certificate (references User via createdById, lastModifiedById, reviewerId)
     await tx.certificate.deleteMany()
-    // Auth tokens
+
+    // Level 6: Auth tokens (reference User)
     await tx.passwordResetToken.deleteMany()
-    // Instruments reference User
+    await tx.refreshToken.deleteMany()
+
+    // Level 7: Other User-referencing tables
     await tx.masterInstrument.deleteMany()
-    // Customer tables
+
+    // Level 8: Customer tables (reference Tenant)
     await tx.customerUser.deleteMany()
     await tx.customerAccount.deleteMany()
-    // User references Tenant
+    await tx.customerRegistration.deleteMany()
+    await tx.customerRequest.deleteMany()
+    await tx.allowedGoogleEmail.deleteMany()
+
+    // Level 9: User (references Tenant)
     await tx.user.deleteMany()
   })
 }
