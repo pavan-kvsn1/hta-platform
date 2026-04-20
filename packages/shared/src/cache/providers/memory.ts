@@ -5,7 +5,7 @@
  * Uses a Map with TTL support and automatic cleanup.
  */
 
-import { CacheProvider } from '../types'
+import { CacheProvider } from '../types.js'
 
 interface MemoryEntry<T> {
   value: T

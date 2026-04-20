@@ -14,7 +14,7 @@
  * Fail-open design: If cache unavailable, requests are allowed through
  */
 
-import { cache } from '../cache'
+import { cache } from '../cache/index.js'
 
 export const RateLimitConfig = {
   LOGIN: {

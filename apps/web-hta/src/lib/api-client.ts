@@ -72,7 +72,7 @@ export async function apiFetch(
   }
 
   // Resolve URL - prepend API base for /api/ paths (except auth routes)
-  let url: string | URL = input
+  let url: RequestInfo | URL = input
   if (typeof input === 'string' && input.startsWith('/api/') && !input.startsWith('/api/auth/')) {
     url = `${API_BASE_URL}${input}`
   }

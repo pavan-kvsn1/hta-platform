@@ -5,21 +5,22 @@
  * Supports GCP Memorystore and standalone Redis.
  */
 
-import { CacheProvider } from '../types'
+import { CacheProvider } from '../types.js'
+import type { Redis as RedisType } from 'ioredis'
 
 // Dynamic import to avoid requiring redis in development
-let Redis: typeof import('ioredis').default | null = null
+let RedisClass: (new (options: object) => RedisType) | null = null
 
-async function getRedis() {
-  if (!Redis) {
+async function getRedisClass(): Promise<new (options: object) => RedisType> {
+  if (!RedisClass) {
     const ioredis = await import('ioredis')
-    Redis = ioredis.default
+    RedisClass = ioredis.default as unknown as new (options: object) => RedisType
   }
-  return Redis
+  return RedisClass
 }
 
 export class RedisCacheProvider implements CacheProvider {
-  private client: import('ioredis').default | null = null
+  private client: RedisType | null = null
   private config: {
     host: string
     port: number
@@ -41,21 +42,21 @@ export class RedisCacheProvider implements CacheProvider {
     this.config = config
   }
 
-  private async getClient(): Promise<import('ioredis').default> {
+  private async getClient(): Promise<RedisType> {
     if (this.client && this.connected) {
       return this.client
     }
 
-    const RedisClient = await getRedis()
+    const RedisConstructor = await getRedisClass()
 
-    this.client = new RedisClient({
+    this.client = new RedisConstructor({
       host: this.config.host,
       port: this.config.port,
       password: this.config.password,
       db: this.config.db || 0,
       keyPrefix: this.config.keyPrefix || '',
       tls: this.config.tls ? {} : undefined,
-      retryStrategy: (times) => {
+      retryStrategy: (times: number) => {
         if (times > 3) {
           console.error('[Redis] Max retries reached, giving up')
           return null

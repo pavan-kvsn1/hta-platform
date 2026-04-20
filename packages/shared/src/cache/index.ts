@@ -64,15 +64,16 @@ async function getCacheProvider(): Promise<CacheProvider> {
 
   if (config.provider === 'redis' && config.redis) {
     try {
-      const { getRedisCacheProvider } = await import('./providers/redis')
-      cacheProvider = getRedisCacheProvider(config.redis)
+      const { getRedisCacheProvider } = await import('./providers/redis.js')
+      const redisProvider = getRedisCacheProvider(config.redis)
 
-      const healthy = await cacheProvider.ping()
+      const healthy = await redisProvider.ping()
       if (!healthy) {
         console.warn('[Cache] Redis not healthy, falling back to memory cache')
         cacheProvider = getMemoryCacheProvider(config.memory)
       } else {
         console.log('[Cache] Using Redis provider')
+        cacheProvider = redisProvider
       }
     } catch {
       console.warn('[Cache] Failed to initialize Redis, falling back to memory cache')
@@ -83,7 +84,7 @@ async function getCacheProvider(): Promise<CacheProvider> {
     console.log('[Cache] Using memory provider')
   }
 
-  return cacheProvider
+  return cacheProvider!
 }
 
 export const cache = {

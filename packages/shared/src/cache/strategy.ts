@@ -38,6 +38,7 @@ export const CacheStrategies = {
   USER_DATA: {
     ttl: 300, // 5 minutes
     swr: 600, // Serve stale for 10m
+    tags: [],
     description: 'User-specific data that changes moderately',
   },
 
@@ -48,6 +49,7 @@ export const CacheStrategies = {
   LIST_DATA: {
     ttl: 60, // 1 minute
     swr: 120, // Serve stale for 2m
+    tags: [],
     description: 'List data with acceptable staleness',
   },
 
@@ -69,6 +71,7 @@ export const CacheStrategies = {
   SESSION: {
     ttl: 30, // 30 seconds
     swr: 60, // Serve stale for 1m
+    tags: [],
     description: 'Session-related data',
   },
 
@@ -79,6 +82,7 @@ export const CacheStrategies = {
   REALTIME: {
     ttl: 0,
     swr: 0,
+    tags: [],
     description: 'Data that must always be fresh',
   },
 
@@ -100,6 +104,7 @@ export const CacheStrategies = {
   EXTERNAL_API: {
     ttl: 300, // 5 minutes
     swr: 900, // Serve stale for 15m
+    tags: [],
     description: 'Cached external API responses',
   },
 } as const satisfies Record<string, CacheStrategy>
@@ -113,13 +118,18 @@ export function getCacheStrategy(
   name: CacheStrategyName,
   additionalTags?: string[]
 ): CacheStrategy {
-  const strategy = { ...CacheStrategies[name] }
+  const base = CacheStrategies[name]
+  const baseTags: string[] = base.tags ? [...base.tags] : []
+  const tags = additionalTags?.length
+    ? [...baseTags, ...additionalTags]
+    : baseTags
 
-  if (additionalTags?.length) {
-    strategy.tags = [...(strategy.tags || []), ...additionalTags]
+  return {
+    ttl: base.ttl,
+    swr: base.swr,
+    tags,
+    description: base.description,
   }
-
-  return strategy
 }
 
 /**
