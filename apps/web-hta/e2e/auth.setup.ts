@@ -16,7 +16,17 @@ const STORAGE_STATE_DIR = 'e2e/.auth'
 setup.describe.configure({ mode: 'serial' })
 
 setup('authenticate as engineer', async ({ page }) => {
-  await page.goto('/login', { waitUntil: 'networkidle' })
+  // Wait for page and CSRF token to load
+  const csrfPromise = page.waitForResponse(
+    (response) => response.url().includes('/api/auth/csrf'),
+    { timeout: 10000 }
+  ).catch(() => null)
+
+  await page.goto('/login')
+  await csrfPromise
+
+  // Wait for form to be fully hydrated
+  await page.getByLabel('Email Address').waitFor({ state: 'visible' })
 
   await page.getByLabel('Email Address').fill(TEST_USERS.engineer.email)
   await page.getByLabel('Password').fill(TEST_USERS.engineer.password)
