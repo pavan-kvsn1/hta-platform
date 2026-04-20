@@ -319,11 +319,27 @@ jobs:
           PORT: 4000
           CORS_ORIGINS: http://localhost:3000
 
+      - name: Start web server
+        run: |
+          pnpm --filter @hta/web start &
+          # Wait for Next.js to be ready
+          for i in {1..60}; do
+            curl -s http://localhost:3000 > /dev/null && break
+            sleep 2
+          done
+        env:
+          DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
+          NEXTAUTH_SECRET: test-secret-for-ci
+          AUTH_SECRET: test-secret-for-ci
+          NEXTAUTH_URL: http://localhost:3000
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+
       - name: Run E2E tests (sharded)
         run: |
           pnpm --filter @hta/web exec playwright test \
             --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
+          SKIP_WEB_SERVER: true
           DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
           NEXTAUTH_SECRET: test-secret-for-ci
           AUTH_SECRET: test-secret-for-ci
