@@ -324,7 +324,13 @@ jobs:
 
       - name: Start web server
         run: |
-          pnpm --filter @hta/web start > /tmp/nextjs.log 2>&1 &
+          cd apps/web-hta
+          # Copy static files to standalone (required for standalone mode)
+          cp -r public .next/standalone/apps/web-hta/public 2>/dev/null || true
+          cp -r .next/static .next/standalone/apps/web-hta/.next/static
+          # Start standalone server
+          node .next/standalone/apps/web-hta/server.js > /tmp/nextjs.log 2>&1 &
+          cd ../..
           echo "Waiting for Next.js to be ready..."
           for i in {1..60}; do
             if curl -sf http://localhost:3000 > /dev/null 2>&1; then
@@ -342,6 +348,8 @@ jobs:
           AUTH_SECRET: test-secret-for-ci
           NEXTAUTH_URL: http://localhost:3000
           NEXT_PUBLIC_API_URL: http://localhost:4000
+          PORT: 3000
+          HOSTNAME: 0.0.0.0
 
       - name: Run E2E tests (sharded)
         run: |
