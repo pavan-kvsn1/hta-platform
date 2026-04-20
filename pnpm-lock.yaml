@@ -84,9 +84,15 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^8.58.2
         version: 8.58.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
+      bullmq:
+        specifier: ^5.0.0
+        version: 5.73.5
       eslint:
         specifier: ^9.39.4
         version: 9.39.4(jiti@2.6.1)
+      ioredis:
+        specifier: ^5.4.0
+        version: 5.10.1
       tsc-alias:
         specifier: ^1.8.0
         version: 1.8.16
