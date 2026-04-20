@@ -40,3 +40,4 @@ pnpm-debug.log*
 # Auth sessions (E2E)
 apps/web-hta/e2e/.auth/*.json
 !apps/web-hta/e2e/.auth/.gitkeep
+.claude/

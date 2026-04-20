@@ -3,10 +3,20 @@ name: Rollback
 on:
   workflow_dispatch:
     inputs:
+      rollback_type:
+        description: "Type of rollback"
+        required: true
+        type: choice
+        default: "immediate"
+        options:
+          - immediate
+          - full
+          - canary-only
       service:
         description: "Service to rollback"
         required: true
         type: choice
+        default: "all"
         options:
           - api
           - worker
@@ -14,16 +24,135 @@ on:
       revision:
         description: "Revision to rollback to (leave empty for previous)"
         required: false
+      migrate_rollback:
+        description: "Also rollback database migrations (full rollback only)"
+        type: boolean
+        default: false
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
   GKE_ZONE: ${{ secrets.GKE_ZONE }}
+  NAMESPACE: hta-platform
 
 jobs:
-  rollback:
-    name: Rollback Deployment
+  pre-rollback-check:
+    name: Pre-Rollback Validation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      current_api_image: ${{ steps.current.outputs.api_image }}
+      current_worker_image: ${{ steps.current.outputs.worker_image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Record current state
+        id: current
+        run: |
+          echo "=== Recording Current State ==="
+          echo "api_image=$(kubectl -n $NAMESPACE get deployment hta-api -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo 'none')" >> $GITHUB_OUTPUT
+          echo "worker_image=$(kubectl -n $NAMESPACE get deployment hta-worker -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo 'none')" >> $GITHUB_OUTPUT
+
+          echo "Current Deployments:"
+          kubectl -n $NAMESPACE get deployments -o wide || true
+
+          echo ""
+          echo "Rollout History:"
+          kubectl -n $NAMESPACE rollout history deployment/hta-api 2>/dev/null || true
+          kubectl -n $NAMESPACE rollout history deployment/hta-worker 2>/dev/null || true
+
+  canary-traffic-shift:
+    name: Shift Canary Traffic
+    runs-on: ubuntu-latest
+    needs: pre-rollback-check
+    if: inputs.rollback_type == 'canary-only' || inputs.rollback_type == 'immediate'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Shift API canary traffic to 0%
+        if: inputs.service == 'api' || inputs.service == 'all'
+        run: |
+          if kubectl get httproute hta-api-canary -n $NAMESPACE &> /dev/null; then
+            echo "Shifting API canary traffic to 0%..."
+            kubectl patch httproute hta-api-canary -n $NAMESPACE --type=merge -p '
+            {
+              "spec": {
+                "rules": [{
+                  "backendRefs": [
+                    {"name": "hta-api-canary", "weight": 0},
+                    {"name": "hta-api", "weight": 100}
+                  ]
+                }]
+              }
+            }'
+            echo "API traffic shifted: 0% canary, 100% stable"
+          else
+            echo "HTTPRoute hta-api-canary not found, skipping"
+          fi
+
+      - name: Shift Worker canary traffic to 0%
+        if: inputs.service == 'worker' || inputs.service == 'all'
+        run: |
+          if kubectl get httproute hta-worker-canary -n $NAMESPACE &> /dev/null; then
+            echo "Shifting Worker canary traffic to 0%..."
+            kubectl patch httproute hta-worker-canary -n $NAMESPACE --type=merge -p '
+            {
+              "spec": {
+                "rules": [{
+                  "backendRefs": [
+                    {"name": "hta-worker-canary", "weight": 0},
+                    {"name": "hta-worker", "weight": 100}
+                  ]
+                }]
+              }
+            }'
+            echo "Worker traffic shifted: 0% canary, 100% stable"
+          else
+            echo "HTTPRoute hta-worker-canary not found, skipping"
+          fi
+
+      - name: Scale down canary deployments
+        run: |
+          if [ "${{ inputs.service }}" == "api" ] || [ "${{ inputs.service }}" == "all" ]; then
+            kubectl scale deployment hta-api-canary -n $NAMESPACE --replicas=0 2>/dev/null || true
+          fi
+          if [ "${{ inputs.service }}" == "worker" ] || [ "${{ inputs.service }}" == "all" ]; then
+            kubectl scale deployment hta-worker-canary -n $NAMESPACE --replicas=0 2>/dev/null || true
+          fi
+          echo "Canary deployments scaled down"
+
+  rollback-deployments:
+    name: Rollback Deployments
+    runs-on: ubuntu-latest
+    needs: [pre-rollback-check, canary-traffic-shift]
+    if: always() && inputs.rollback_type != 'canary-only' && needs.pre-rollback-check.result == 'success'
     permissions:
       contents: read
       id-token: write
@@ -43,35 +172,150 @@ jobs:
       - name: Rollback API
         if: inputs.service == 'api' || inputs.service == 'all'
         run: |
+          echo "Rolling back API deployment..."
           if [ -n "${{ inputs.revision }}" ]; then
-            kubectl -n hta-platform rollout undo deployment/hta-api --to-revision=${{ inputs.revision }}
+            kubectl -n $NAMESPACE rollout undo deployment/hta-api --to-revision=${{ inputs.revision }}
           else
-            kubectl -n hta-platform rollout undo deployment/hta-api
+            kubectl -n $NAMESPACE rollout undo deployment/hta-api
           fi
-          kubectl -n hta-platform rollout status deployment/hta-api --timeout=300s
+          kubectl -n $NAMESPACE rollout status deployment/hta-api --timeout=300s
+          echo "API rollback complete"
 
       - name: Rollback Worker
         if: inputs.service == 'worker' || inputs.service == 'all'
         run: |
+          echo "Rolling back Worker deployment..."
           if [ -n "${{ inputs.revision }}" ]; then
-            kubectl -n hta-platform rollout undo deployment/hta-worker --to-revision=${{ inputs.revision }}
+            kubectl -n $NAMESPACE rollout undo deployment/hta-worker --to-revision=${{ inputs.revision }}
           else
-            kubectl -n hta-platform rollout undo deployment/hta-worker
+            kubectl -n $NAMESPACE rollout undo deployment/hta-worker
           fi
-          kubectl -n hta-platform rollout status deployment/hta-worker --timeout=300s
+          kubectl -n $NAMESPACE rollout status deployment/hta-worker --timeout=300s
+          echo "Worker rollback complete"
+
+  rollback-migrations:
+    name: Rollback Migrations
+    runs-on: ubuntu-latest
+    needs: rollback-deployments
+    if: inputs.rollback_type == 'full' && inputs.migrate_rollback == true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Rollback migrations
+        run: |
+          echo "Rolling back database migrations..."
+          pnpm db:migrate:rollback || {
+            echo "Migration rollback failed or no migrations to rollback"
+            exit 0
+          }
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  post-rollback-verify:
+    name: Post-Rollback Verification
+    runs-on: ubuntu-latest
+    needs: [canary-traffic-shift, rollback-deployments, rollback-migrations]
+    if: always()
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
 
       - name: Verify rollback
         run: |
-          echo "=== Rollback Status ==="
-          kubectl -n hta-platform get deployments
+          echo "=== Rollback Verification ==="
+          echo ""
+          echo "=== Deployments ==="
+          kubectl -n $NAMESPACE get deployments -o wide
           echo ""
           echo "=== Pods ==="
-          kubectl -n hta-platform get pods
+          kubectl -n $NAMESPACE get pods
+          echo ""
+          echo "=== Services ==="
+          kubectl -n $NAMESPACE get services
+          echo ""
+          echo "=== HTTPRoutes ==="
+          kubectl -n $NAMESPACE get httproutes 2>/dev/null || echo "No HTTPRoutes found"
           echo ""
           echo "=== Rollout History ==="
           if [ "${{ inputs.service }}" == "api" ] || [ "${{ inputs.service }}" == "all" ]; then
-            kubectl -n hta-platform rollout history deployment/hta-api
+            kubectl -n $NAMESPACE rollout history deployment/hta-api
           fi
           if [ "${{ inputs.service }}" == "worker" ] || [ "${{ inputs.service }}" == "all" ]; then
-            kubectl -n hta-platform rollout history deployment/hta-worker
+            kubectl -n $NAMESPACE rollout history deployment/hta-worker
           fi
+
+      - name: Health check
+        run: |
+          echo "=== Health Check ==="
+          # Wait for pods to be ready
+          sleep 30
+
+          # Check pod readiness
+          READY_PODS=$(kubectl -n $NAMESPACE get pods -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}' | grep -c "True" || echo "0")
+          TOTAL_PODS=$(kubectl -n $NAMESPACE get pods --no-headers | wc -l)
+
+          echo "Ready pods: $READY_PODS / $TOTAL_PODS"
+
+          if [ "$READY_PODS" -lt "$TOTAL_PODS" ]; then
+            echo "Warning: Not all pods are ready"
+            kubectl -n $NAMESPACE get pods
+            exit 1
+          fi
+
+          echo "All pods are ready"
+
+      - name: Generate summary
+        run: |
+          echo "## Rollback Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Type:** ${{ inputs.rollback_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Service:** ${{ inputs.service }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Revision:** ${{ inputs.revision || 'Previous' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Migrate Rollback:** ${{ inputs.migrate_rollback }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Current State" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          kubectl -n $NAMESPACE get deployments >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  notify-on-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [post-rollback-verify]
+    if: failure()
+    steps:
+      - name: Send failure notification
+        run: |
+          curl -X POST "https://api.resend.com/emails" \
+            -H "Authorization: Bearer ${{ secrets.RESEND_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "from": "HTA Platform <alerts@htacalibration.com>",
+              "to": ["${{ secrets.ALERT_EMAIL }}"],
+              "subject": "Rollback Failed - HTA Platform",
+              "html": "<h2>Rollback Failed</h2><p>Rollback type: <strong>${{ inputs.rollback_type }}</strong></p><p>Service: <strong>${{ inputs.service }}</strong></p><p><a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">View Run Details</a></p>"
+            }'

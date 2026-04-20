@@ -27,7 +27,53 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: 'standalone',
-  transpilePackages: ['@hta/ui', '@hta/shared'],
+  transpilePackages: ['@hta/ui', '@hta/shared', '@hta/database'],
+
+  // Performance optimizations
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    minimumCacheTTL: 60,
+  },
+
+  // Experimental features for performance
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+  },
+
+  // Compression
+  compress: true,
+
+  // Reduce bundle size with modular imports
+  modularizeImports: {
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
+    },
+  },
+
+  webpack: (config, { isServer }) => {
+    // Handle .js extension resolution for TypeScript files in monorepo packages
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+      '.mjs': ['.mts', '.mjs'],
+      '.cjs': ['.cts', '.cjs'],
+    }
+
+    // Bundle analyzer (development only)
+    if (process.env.ANALYZE === 'true' && !isServer) {
+      const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
+      config.plugins.push(
+        new BundleAnalyzerPlugin({
+          analyzerMode: 'static',
+          reportFilename: '../bundle-report.html',
+          openAnalyzer: false,
+        })
+      )
+    }
+
+    return config
+  },
 
   async headers() {
     return [

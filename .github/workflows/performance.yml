@@ -1,0 +1,207 @@
+name: Performance Tests
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Nightly at 2 AM UTC
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Test scenario'
+        required: true
+        default: 'normal_load'
+        type: choice
+        options:
+          - normal_load
+          - spike_test
+          - soak_test
+      duration:
+        description: 'Test duration (e.g., 5m, 30m, 1h)'
+        required: false
+        default: '5m'
+
+env:
+  API_URL: ${{ vars.STAGING_API_URL || 'https://api-staging.htacalibration.com' }}
+
+jobs:
+  load-test:
+    name: Load Test - ${{ github.event.inputs.scenario || 'normal_load' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120 # 2 hours max for soak tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Get auth token
+        id: auth
+        run: |
+          TOKEN=$(curl -s -X POST "${{ env.API_URL }}/api/auth/token" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"${{ secrets.LOADTEST_EMAIL }}","password":"${{ secrets.LOADTEST_PASSWORD }}"}' \
+            | jq -r '.token // empty')
+
+          if [ -z "$TOKEN" ]; then
+            echo "Warning: Could not obtain auth token, running unauthenticated tests"
+            echo "token=" >> $GITHUB_OUTPUT
+          else
+            echo "token=$TOKEN" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine test scenario
+        id: scenario
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario || 'normal_load' }}"
+          DURATION="${{ github.event.inputs.duration || '5m' }}"
+
+          case $SCENARIO in
+            normal_load)
+              TEST_FILE="tests/load/scenarios/api-baseline.ts"
+              ;;
+            spike_test)
+              TEST_FILE="tests/load/scenarios/spike-test.ts"
+              ;;
+            soak_test)
+              TEST_FILE="tests/load/scenarios/soak-test.ts"
+              DURATION="${{ github.event.inputs.duration || '1h' }}"
+              ;;
+            *)
+              TEST_FILE="tests/load/scenarios/api-baseline.ts"
+              ;;
+          esac
+
+          echo "test_file=$TEST_FILE" >> $GITHUB_OUTPUT
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+
+      - name: Run load test
+        id: loadtest
+        continue-on-error: true
+        run: |
+          k6 run "${{ steps.scenario.outputs.test_file }}" \
+            --out json=results.json \
+            --summary-export=summary.json \
+            --duration "${{ steps.scenario.outputs.duration }}" \
+            2>&1 | tee test-output.txt
+        env:
+          API_URL: ${{ env.API_URL }}
+          AUTH_TOKEN: ${{ steps.auth.outputs.token }}
+
+      - name: Process results
+        id: results
+        run: |
+          # Extract metrics from summary
+          if [ -f summary.json ]; then
+            P50=$(jq -r '.metrics.http_req_duration.values["p(50)"] // 0' summary.json)
+            P95=$(jq -r '.metrics.http_req_duration.values["p(95)"] // 0' summary.json)
+            P99=$(jq -r '.metrics.http_req_duration.values["p(99)"] // 0' summary.json)
+            ERROR_RATE=$(jq -r '.metrics.http_req_failed.values.rate // 0' summary.json)
+            TOTAL_REQUESTS=$(jq -r '.metrics.http_reqs.values.count // 0' summary.json)
+
+            echo "p50=${P50}" >> $GITHUB_OUTPUT
+            echo "p95=${P95}" >> $GITHUB_OUTPUT
+            echo "p99=${P99}" >> $GITHUB_OUTPUT
+            echo "error_rate=${ERROR_RATE}" >> $GITHUB_OUTPUT
+            echo "total_requests=${TOTAL_REQUESTS}" >> $GITHUB_OUTPUT
+
+            # Check thresholds
+            PASSED=$(jq -r 'if .root_group.checks then "true" else "false" end' summary.json)
+            echo "passed=${PASSED}" >> $GITHUB_OUTPUT
+          else
+            echo "No summary.json found"
+            echo "passed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate summary
+        run: |
+          echo "## Load Test Results - ${{ github.event.inputs.scenario || 'normal_load' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Target:** ${{ env.API_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Duration:** ${{ steps.scenario.outputs.duration }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Latency Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value | Threshold |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|-----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| p50 | ${{ steps.results.outputs.p50 }}ms | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| p95 | ${{ steps.results.outputs.p95 }}ms | < 200ms |" >> $GITHUB_STEP_SUMMARY
+          echo "| p99 | ${{ steps.results.outputs.p99 }}ms | < 500ms |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Request Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value | Threshold |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|-----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Requests | ${{ steps.results.outputs.total_requests }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Error Rate | ${{ steps.results.outputs.error_rate }} | < 1% |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.loadtest.outcome }}" == "failure" ]; then
+            echo "### ❌ Test Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Some thresholds were not met. Check the logs for details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ Test Passed" >> $GITHUB_STEP_SUMMARY
+            echo "All thresholds met successfully." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-results-${{ github.run_id }}
+          path: |
+            results.json
+            summary.json
+            test-output.txt
+          retention-days: 30
+
+      - name: Alert on failure (Email via Resend)
+        if: steps.loadtest.outcome == 'failure' && github.event_name == 'schedule'
+        run: |
+          curl -X POST "https://api.resend.com/emails" \
+            -H "Authorization: Bearer ${{ secrets.RESEND_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "from": "HTA Platform <alerts@htacalibration.com>",
+              "to": ["${{ secrets.ALERT_EMAIL }}"],
+              "subject": "⚠️ Nightly Load Test Failed - Performance Regression",
+              "html": "<h2>Nightly Load Test Failed</h2><p>Performance regression detected in <strong>${{ github.event.inputs.scenario || 'normal_load' }}</strong></p><h3>Metrics</h3><ul><li>p95: ${{ steps.results.outputs.p95 }}ms (threshold: 200ms)</li><li>p99: ${{ steps.results.outputs.p99 }}ms (threshold: 500ms)</li><li>Error rate: ${{ steps.results.outputs.error_rate }}</li><li>Total requests: ${{ steps.results.outputs.total_requests }}</li></ul><p><a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">View Run Details</a></p>"
+            }'
+
+      - name: Fail job if thresholds not met
+        if: steps.loadtest.outcome == 'failure'
+        run: exit 1
+
+  compare-baseline:
+    name: Compare with Baseline
+    runs-on: ubuntu-latest
+    needs: load-test
+    if: always() && github.event_name == 'schedule'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download current results
+        uses: actions/download-artifact@v4
+        with:
+          name: load-test-results-${{ github.run_id }}
+          path: current
+
+      - name: Compare with previous results
+        run: |
+          # This is a placeholder for baseline comparison logic
+          # In a real implementation, you would:
+          # 1. Fetch previous results from storage (GCS, S3, etc.)
+          # 2. Compare metrics
+          # 3. Flag significant regressions
+
+          echo "## Baseline Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Baseline comparison not yet implemented." >> $GITHUB_STEP_SUMMARY
+          echo "Consider storing results in cloud storage for historical comparison." >> $GITHUB_STEP_SUMMARY
