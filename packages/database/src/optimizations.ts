@@ -212,24 +212,22 @@ export async function batchLoadCertificates(
       tenantId,
     },
     include: {
-      engineer: {
+      createdBy: {
         select: { id: true, name: true, email: true },
       },
       reviewer: {
         select: { id: true, name: true, email: true },
       },
-      authorizer: {
-        select: { id: true, name: true, email: true },
-      },
-      customerAccount: {
+      lastModifiedBy: {
         select: { id: true, name: true, email: true },
       },
       parameters: {
         orderBy: { sortOrder: 'asc' },
-      },
-      calibrationResults: {
-        orderBy: { createdAt: 'desc' },
-        take: 10,
+        include: {
+          calibrationResults: {
+            orderBy: { pointNumber: 'asc' },
+          },
+        },
       },
     },
   })
@@ -397,21 +395,17 @@ export async function getUserWorkloadStats(tenantId: string) {
 
 /**
  * Wrapper for queries that should use caching
- * Integrates with @hta/shared/cache
+ * Note: Caching should be applied at the API layer using @hta/shared/cache
+ * This is a pass-through that can be wrapped with caching at the call site
  */
 export async function withQueryCache<T>(
-  key: string,
+  _key: string,
   queryFn: () => Promise<T>,
-  ttlSeconds: number = 300
+  _ttlSeconds: number = 300
 ): Promise<T> {
-  // Dynamically import cache to avoid circular dependencies
-  try {
-    const shared = await import('@hta/shared')
-    return shared.cached(key, queryFn, { ttl: ttlSeconds })
-  } catch {
-    // If cache is not available, just run the query
-    return queryFn()
-  }
+  // Pass through - actual caching should be done at API layer
+  // to avoid circular dependency between @hta/database and @hta/shared
+  return queryFn()
 }
 
 /**
