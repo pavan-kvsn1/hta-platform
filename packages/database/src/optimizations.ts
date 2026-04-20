@@ -225,7 +225,7 @@ export async function batchLoadCertificates(
         select: { id: true, name: true, email: true },
       },
       parameters: {
-        orderBy: { order: 'asc' },
+        orderBy: { sortOrder: 'asc' },
       },
       calibrationResults: {
         orderBy: { createdAt: 'desc' },
@@ -406,8 +406,8 @@ export async function withQueryCache<T>(
 ): Promise<T> {
   // Dynamically import cache to avoid circular dependencies
   try {
-    const { cached } = await import('@hta/shared/cache')
-    return cached(key, queryFn, { ttl: ttlSeconds })
+    const shared = await import('@hta/shared')
+    return shared.cached(key, queryFn, { ttl: ttlSeconds })
   } catch {
     // If cache is not available, just run the query
     return queryFn()
