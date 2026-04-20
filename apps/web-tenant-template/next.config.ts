@@ -54,6 +54,8 @@ const nextConfig: NextConfig = {
 
   webpack: (config, { isServer }) => {
     // Handle .js extension resolution for TypeScript files in monorepo packages
+    // This is needed because @hta/shared uses .js extensions for ESM compatibility
+    // but the actual files are .ts
     config.resolve.extensionAlias = {
       '.js': ['.ts', '.tsx', '.js', '.jsx'],
       '.mjs': ['.mts', '.mjs'],
@@ -85,14 +87,20 @@ const nextConfig: NextConfig = {
   },
 
   // Proxy API requests to the standalone API service
+  // Exclude /api/auth/* which are handled by Next.js (NextAuth)
   async rewrites() {
     const apiUrl = process.env.API_URL || 'http://localhost:4000'
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
-      },
-    ]
+    return {
+      beforeFiles: [],
+      afterFiles: [
+        {
+          // Proxy all /api/* EXCEPT /api/auth/* to the API server
+          source: '/api/:path((?!auth).*)',
+          destination: `${apiUrl}/api/:path*`,
+        },
+      ],
+      fallback: [],
+    }
   },
 }
 
