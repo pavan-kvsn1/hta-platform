@@ -324,22 +324,20 @@ jobs:
 
       - name: Start web server
         run: |
-          # Copy static files to standalone (required for standalone mode)
-          cp -r apps/web-hta/public apps/web-hta/.next/standalone/apps/web-hta/public 2>/dev/null || true
-          cp -r apps/web-hta/.next/static apps/web-hta/.next/standalone/apps/web-hta/.next/static
-          # Start standalone server from repo root
+          # Create destination directories and copy static files (required for standalone mode)
+          mkdir -p apps/web-hta/.next/standalone/apps/web-hta/.next
+          mkdir -p apps/web-hta/.next/standalone/apps/web-hta/public
+          cp -r apps/web-hta/.next/static apps/web-hta/.next/standalone/apps/web-hta/.next/
+          cp -r apps/web-hta/public/* apps/web-hta/.next/standalone/apps/web-hta/public/ 2>/dev/null || true
+          # Verify files were copied
+          echo "Static files copied:"
+          ls -la apps/web-hta/.next/standalone/apps/web-hta/.next/static | head -5
+          # Start standalone server
           node apps/web-hta/.next/standalone/apps/web-hta/server.js &
           SERVER_PID=$!
-          echo "Started server with PID: $SERVER_PID"
-          sleep 5
-          # Check if process is still running
-          if ! kill -0 $SERVER_PID 2>/dev/null; then
-            echo "ERROR: Server process died"
-            exit 1
-          fi
-          # Try to reach the server
-          echo "Testing server connectivity..."
-          curl -v http://localhost:3000 2>&1 | head -30 || true
+          sleep 3
+          # Verify server is running and responding
+          curl -sf http://localhost:3000 > /dev/null || { echo "Server not responding"; exit 1; }
           echo "Server is ready!"
         env:
           DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
