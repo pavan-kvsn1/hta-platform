@@ -21,6 +21,7 @@ export default defineConfig({
     include: ['tests/integration/**/*.{test,spec}.{js,ts,jsx,tsx}'],
     exclude: ['node_modules'],
     testTimeout: 30000,
+    hookTimeout: 30000,
     // Run tests sequentially to avoid database conflicts
     sequence: {
       concurrent: false,
