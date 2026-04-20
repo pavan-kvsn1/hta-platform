@@ -224,7 +224,7 @@ export async function batchLoadCertificates(
       parameters: {
         orderBy: { sortOrder: 'asc' },
         include: {
-          calibrationResults: {
+          results: {
             orderBy: { pointNumber: 'asc' },
           },
         },
