@@ -338,10 +338,8 @@ jobs:
           sleep 5
           # Check process is alive
           ps -p $SERVER_PID || { echo "Server process died"; exit 1; }
-          # Use 127.0.0.1 explicitly (localhost might resolve to IPv6)
-          # Show verbose output for debugging, then verify it actually works
-          curl -v http://127.0.0.1:3000 2>&1 | head -30 || true
-          curl -sf http://127.0.0.1:3000 > /dev/null || { echo "Server not responding on 127.0.0.1:3000"; exit 1; }
+          # Health check using /api/auth/csrf (root path returns 404, but this endpoint always returns 200)
+          curl -sf http://127.0.0.1:3000/api/auth/csrf > /dev/null || { echo "Server not responding"; exit 1; }
           echo "Server is ready!"
         env:
           DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
