@@ -75,6 +75,8 @@ export async function apiFetch(
   let url: RequestInfo | URL = input
   if (typeof input === 'string' && input.startsWith('/api/') && !input.startsWith('/api/auth/')) {
     url = `${API_BASE_URL}${input}`
+    // Add tenant header for Fastify API calls
+    headers.set('X-Tenant-ID', 'hta-calibration')
   }
 
   return fetch(url, {
