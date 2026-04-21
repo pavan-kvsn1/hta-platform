@@ -18,9 +18,18 @@ setup.describe.configure({ mode: 'serial' })
 setup('authenticate as engineer', async ({ page }) => {
   // Capture console errors for debugging
   const consoleErrors: string[] = []
+  const failedRequests: string[] = []
+
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
       consoleErrors.push(msg.text())
+    }
+  })
+
+  // Track failed network requests (4xx, 5xx)
+  page.on('response', (response) => {
+    if (response.status() >= 400) {
+      failedRequests.push(`${response.status()} ${response.url()}`)
     }
   })
 
@@ -34,6 +43,9 @@ setup('authenticate as engineer', async ({ page }) => {
   const csrfResponse = await csrfPromise
 
   console.log('CSRF response received:', csrfResponse ? 'yes' : 'no')
+  if (failedRequests.length > 0) {
+    console.log('Failed requests so far:', failedRequests)
+  }
 
   // Wait for form to be fully hydrated with extended timeout
   try {
@@ -42,6 +54,7 @@ setup('authenticate as engineer', async ({ page }) => {
     // Debug: print page state on failure
     console.log('=== DEBUG: Form not found ===')
     console.log('Console errors:', consoleErrors)
+    console.log('Failed network requests:', failedRequests)
     console.log('Page URL:', page.url())
     console.log('Page content (first 2000 chars):', (await page.content()).slice(0, 2000))
     throw e

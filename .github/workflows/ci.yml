@@ -344,6 +344,12 @@ jobs:
           ps -p $SERVER_PID || { echo "Server process died"; exit 1; }
           # Health check using /api/auth/csrf (root path returns 404, but this endpoint always returns 200)
           curl -sf http://127.0.0.1:3000/api/auth/csrf > /dev/null || { echo "Server not responding"; exit 1; }
+          # Verify static JS files are accessible
+          echo "Checking static file serving..."
+          WEBPACK_FILE=$(ls apps/web-hta/.next/static/chunks/webpack-*.js 2>/dev/null | head -1 | xargs basename)
+          if [ -n "$WEBPACK_FILE" ]; then
+            curl -sf "http://127.0.0.1:3000/_next/static/chunks/$WEBPACK_FILE" > /dev/null && echo "Static JS files serving OK" || echo "WARNING: Static JS files not accessible"
+          fi
           echo "Server is ready!"
         env:
           DATABASE_URL: postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test
