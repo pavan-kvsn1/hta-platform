@@ -11,30 +11,33 @@ import {
 import { verifyTOTP } from '@hta/shared/auth'
 
 // Determine if we're in production
+// CI runs on HTTP, so we need non-secure cookies even in production mode
 const isProduction = process.env.NODE_ENV === 'production'
+const isCI = process.env.CI === 'true'
+const useSecureCookies = isProduction && !isCI
 
 // Cookie configuration based on environment
 const cookieOptions = {
   httpOnly: true,
   sameSite: 'lax' as const,
   path: '/',
-  secure: isProduction, // true in production (HTTPS), false in development (HTTP)
+  secure: useSecureCookies, // true in production (HTTPS), false in development/CI (HTTP)
 }
 
 const authConfig: NextAuthConfig = {
   trustHost: true,  // Required when behind load balancer/proxy
-  useSecureCookies: isProduction, // Secure cookies in production
+  useSecureCookies, // Secure cookies in production, but not in CI (HTTP)
   cookies: {
     csrfToken: {
-      name: isProduction ? '__Host-authjs.csrf-token' : 'authjs.csrf-token',
+      name: useSecureCookies ? '__Host-authjs.csrf-token' : 'authjs.csrf-token',
       options: cookieOptions,
     },
     callbackUrl: {
-      name: isProduction ? '__Secure-authjs.callback-url' : 'authjs.callback-url',
+      name: useSecureCookies ? '__Secure-authjs.callback-url' : 'authjs.callback-url',
       options: cookieOptions,
     },
     sessionToken: {
-      name: isProduction ? '__Secure-authjs.session-token' : 'authjs.session-token',
+      name: useSecureCookies ? '__Secure-authjs.session-token' : 'authjs.session-token',
       options: cookieOptions,
     },
   },

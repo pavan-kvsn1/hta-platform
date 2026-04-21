@@ -310,6 +310,7 @@ jobs:
           AUTH_SECRET: test-secret-for-ci
           JWT_SECRET: test-secret-for-ci
           NEXTAUTH_URL: http://localhost:3000
+          CI: true
 
       - name: Start API server
         run: |
