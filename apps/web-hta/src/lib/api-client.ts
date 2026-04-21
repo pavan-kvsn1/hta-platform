@@ -29,6 +29,9 @@ async function getAccessToken(): Promise<string | null> {
     })
 
     if (!response.ok) {
+      // Log token refresh failure for debugging
+      const errorBody = await response.text().catch(() => 'Unable to read error')
+      console.error(`Token refresh failed: ${response.status}`, errorBody)
       accessToken = null
       tokenExpiresAt = 0
       return null

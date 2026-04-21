@@ -52,6 +52,11 @@ export async function POST(request: NextRequest) {
     // Verify NextAuth session
     const session = await auth()
     if (!session?.user?.id) {
+      console.error('Token issue failed: No valid session', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+      })
       return NextResponse.json(
         { error: 'Unauthorized', message: 'Not authenticated' },
         { status: 401 }

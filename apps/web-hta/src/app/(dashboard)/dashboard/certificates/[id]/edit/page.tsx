@@ -530,12 +530,22 @@ export default function EditCertificatePage() {
         const response = await apiFetch(`/api/certificates/${certificateId}`)
 
         if (!response.ok) {
+          // Log detailed error for debugging
+          const errorBody = await response.text().catch(() => 'Unable to read error body')
+          console.error(`API Error: ${response.status} ${response.statusText}`, {
+            url: `/api/certificates/${certificateId}`,
+            status: response.status,
+            body: errorBody,
+          })
+
           if (response.status === 404) {
             setLoadError('Certificate not found')
           } else if (response.status === 403) {
             setLoadError('You do not have permission to edit this certificate')
+          } else if (response.status === 401) {
+            setLoadError(`Authentication failed (401): ${errorBody}`)
           } else {
-            setLoadError('Failed to load certificate')
+            setLoadError(`Failed to load certificate (${response.status}): ${errorBody}`)
           }
           return
         }
