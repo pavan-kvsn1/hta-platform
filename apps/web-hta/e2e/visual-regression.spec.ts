@@ -143,3 +143,4 @@ test.describe('Visual Regression - Certificate Views', () => {
     await snapshot(page, 'certificate-list', testInfo)
   })
 })
+
