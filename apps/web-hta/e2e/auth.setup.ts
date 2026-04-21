@@ -16,6 +16,14 @@ const STORAGE_STATE_DIR = 'e2e/.auth'
 setup.describe.configure({ mode: 'serial' })
 
 setup('authenticate as engineer', async ({ page }) => {
+  // Capture console errors for debugging
+  const consoleErrors: string[] = []
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      consoleErrors.push(msg.text())
+    }
+  })
+
   // Wait for page and CSRF token to load
   const csrfPromise = page.waitForResponse(
     (response) => response.url().includes('/api/auth/csrf'),
@@ -23,10 +31,21 @@ setup('authenticate as engineer', async ({ page }) => {
   ).catch(() => null)
 
   await page.goto('/login')
-  await csrfPromise
+  const csrfResponse = await csrfPromise
 
-  // Wait for form to be fully hydrated
-  await page.getByLabel('Email Address').waitFor({ state: 'visible' })
+  console.log('CSRF response received:', csrfResponse ? 'yes' : 'no')
+
+  // Wait for form to be fully hydrated with extended timeout
+  try {
+    await page.getByLabel('Email Address').waitFor({ state: 'visible', timeout: 15000 })
+  } catch (e) {
+    // Debug: print page state on failure
+    console.log('=== DEBUG: Form not found ===')
+    console.log('Console errors:', consoleErrors)
+    console.log('Page URL:', page.url())
+    console.log('Page content (first 2000 chars):', (await page.content()).slice(0, 2000))
+    throw e
+  }
 
   await page.getByLabel('Email Address').fill(TEST_USERS.engineer.email)
   await page.getByLabel('Password').fill(TEST_USERS.engineer.password)
