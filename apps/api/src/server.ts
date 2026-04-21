@@ -77,10 +77,15 @@ await server.register(multipart, {
 // MIDDLEWARE
 // =============================================================================
 
-// Tenant identification for all routes except health
+// Tenant identification for all routes except health and CORS preflight
 server.addHook('preHandler', async (request, reply) => {
   // Skip tenant check for health endpoints
   if (request.url.startsWith('/health')) {
+    return
+  }
+  // Skip tenant check for CORS preflight requests (OPTIONS)
+  // Preflight requests don't include custom headers like X-Tenant-ID
+  if (request.method === 'OPTIONS') {
     return
   }
   await tenantMiddleware(request, reply)
