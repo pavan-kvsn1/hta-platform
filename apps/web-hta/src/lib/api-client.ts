@@ -32,9 +32,6 @@ async function getAccessToken(): Promise<string | null> {
     })
 
     if (!response.ok) {
-      // Log token refresh failure for debugging
-      const errorBody = await response.text().catch(() => 'Unable to read error')
-      console.error(`Token refresh failed: ${response.status}`, errorBody)
       accessToken = null
       tokenExpiresAt = 0
       return null
@@ -75,8 +72,6 @@ export async function apiFetch(
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
-  } else {
-    console.warn('apiFetch: No access token available, request will be unauthenticated')
   }
 
   // Resolve URL for API calls (except auth routes which stay on Next.js)
@@ -92,16 +87,11 @@ export async function apiFetch(
     }
   }
 
-  try {
-    return await fetch(url, {
-      ...init,
-      headers,
-      credentials: 'include',
-    })
-  } catch (error) {
-    console.error('apiFetch network error:', { url, error: error instanceof Error ? error.message : error })
-    throw error
-  }
+  return fetch(url, {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
 }
 
 /**

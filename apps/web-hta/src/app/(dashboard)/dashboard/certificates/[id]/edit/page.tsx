@@ -530,22 +530,12 @@ export default function EditCertificatePage() {
         const response = await apiFetch(`/api/certificates/${certificateId}`)
 
         if (!response.ok) {
-          // Log detailed error for debugging
-          const errorBody = await response.text().catch(() => 'Unable to read error body')
-          console.error(`API Error: ${response.status} ${response.statusText}`, {
-            url: `/api/certificates/${certificateId}`,
-            status: response.status,
-            body: errorBody,
-          })
-
           if (response.status === 404) {
             setLoadError('Certificate not found')
           } else if (response.status === 403) {
             setLoadError('You do not have permission to edit this certificate')
-          } else if (response.status === 401) {
-            setLoadError(`Authentication failed (401): ${errorBody}`)
           } else {
-            setLoadError(`Failed to load certificate (${response.status}): ${errorBody}`)
+            setLoadError('Failed to load certificate')
           }
           return
         }
@@ -596,14 +586,8 @@ export default function EditCertificatePage() {
         setCurrentRevision(data.currentRevision ?? 1)
         setReviewerName(data.reviewer?.name || null)
       } catch (error) {
-        // Log detailed error for debugging - this catches network/CORS errors
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        console.error('Error fetching certificate (catch block):', {
-          error: errorMessage,
-          certificateId,
-          apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
-        })
-        setLoadError(`Network error: ${errorMessage}`)
+        console.error('Error fetching certificate:', error)
+        setLoadError('Failed to load certificate')
       } finally {
         setIsLoading(false)
       }
