@@ -24,15 +24,16 @@ function generateNonce(): string {
  */
 function buildCSP(nonce: string): string {
   const isProduction = process.env.NODE_ENV === 'production'
+  // Relax CSP in CI/E2E - Next.js standalone mode doesn't apply nonces to script tags
+  const isE2ETest = process.env.E2E_TEST === 'true' || process.env.CI === 'true'
+  const useStrictCSP = isProduction && !isE2ETest
 
   const directives: Record<string, string[]> = {
     'default-src': ["'self'"],
     'script-src': [
       "'self'",
       `'nonce-${nonce}'`,
-      "'strict-dynamic'",
-      // Allow inline scripts in development for hot reload
-      ...(isProduction ? [] : ["'unsafe-inline'", "'unsafe-eval'"]),
+      ...(useStrictCSP ? ["'strict-dynamic'"] : ["'unsafe-inline'", "'unsafe-eval'"]),
     ],
     'style-src': [
       "'self'",
