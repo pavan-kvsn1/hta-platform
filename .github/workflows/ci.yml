@@ -304,6 +304,9 @@ jobs:
       - name: Build database package
         run: pnpm --filter @hta/database build
 
+      - name: Build shared package
+        run: pnpm --filter @hta/shared build
+
       - name: Build API server
         run: pnpm --filter @hta/api build
 
