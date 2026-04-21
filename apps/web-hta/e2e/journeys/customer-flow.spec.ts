@@ -24,10 +24,10 @@ test.describe('Customer Review Flow', () => {
   })
 
   test('customer can login successfully', async ({ page }) => {
-    await page.goto('/customer/login', { waitUntil: 'networkidle' })
+    await page.goto('/customer/login')
 
     // Wait for form to be hydrated
-    await page.getByLabel('Email Address').waitFor({ state: 'visible' })
+    await page.getByLabel('Email Address').waitFor({ state: 'visible', timeout: 15000 })
 
     await page.getByLabel('Email Address').fill(TEST_USERS.customer.email)
     await page.getByLabel('Password').fill(TEST_USERS.customer.password)
