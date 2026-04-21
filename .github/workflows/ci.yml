@@ -301,6 +301,9 @@ jobs:
           AUTH_SECRET: test-secret-for-ci
           NEXTAUTH_URL: http://localhost:3000
 
+      - name: Build database package
+        run: pnpm --filter @hta/database build
+
       - name: Build API server
         run: pnpm --filter @hta/api build
 
