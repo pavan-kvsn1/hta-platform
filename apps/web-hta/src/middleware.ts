@@ -32,8 +32,8 @@ function buildCSP(nonce: string): string {
     'default-src': ["'self'"],
     'script-src': [
       "'self'",
-      `'nonce-${nonce}'`,
-      ...(useStrictCSP ? ["'strict-dynamic'"] : ["'unsafe-inline'", "'unsafe-eval'"]),
+      // Don't include nonce in CI/E2E - it makes 'unsafe-inline' be ignored
+      ...(useStrictCSP ? [`'nonce-${nonce}'`, "'strict-dynamic'"] : ["'unsafe-inline'", "'unsafe-eval'"]),
     ],
     'style-src': [
       "'self'",
