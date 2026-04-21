@@ -113,7 +113,7 @@ test.describe('Customer Review Flow', () => {
 
       if (hasLink) {
         await certificateLink.click()
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         // Should show certificate info
         const certificateHeader = page.locator('header, .header, h1, h2')
@@ -142,7 +142,7 @@ test.describe('Customer Review Flow', () => {
 
         if (await reviewLink.isVisible()) {
           await reviewLink.click()
-          await page.waitForLoadState('networkidle')
+          await page.waitForLoadState('domcontentloaded')
 
           // Should have "Approve" or "Sign" button
           const approveButton = page.locator('button:has-text("Approve"), button:has-text("Sign")')
@@ -170,7 +170,7 @@ test.describe('Customer Review Flow', () => {
 
         if (await reviewLink.isVisible()) {
           await reviewLink.click()
-          await page.waitForLoadState('networkidle')
+          await page.waitForLoadState('domcontentloaded')
 
           // Should have a message input textarea
           const messageInput = page.locator('textarea')
@@ -205,7 +205,7 @@ test.describe('Customer Review Flow', () => {
 
         if (await reviewLink.isVisible()) {
           await reviewLink.click()
-          await page.waitForLoadState('networkidle')
+          await page.waitForLoadState('domcontentloaded')
 
           const approveButton = page.locator('button:has-text("Approve"), button:has-text("Sign")')
           const hasApproveButton = await approveButton.first().isVisible({ timeout: 5000 }).catch(() => false)
@@ -266,7 +266,7 @@ test.describe('Customer Review Flow', () => {
 test.describe('Customer Token-Based Review', () => {
   test('invalid token shows error page', async ({ page }) => {
     await page.goto('/customer/review/invalid-token-12345')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Should show error or redirect to login
     const errorPage = page.locator('text=/invalid|expired|error|not found|404/i')

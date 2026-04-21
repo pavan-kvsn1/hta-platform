@@ -20,7 +20,7 @@ test.describe('Reviewer Flow', () => {
     await expect(page).toHaveURL(/dashboard/)
 
     // Wait for page to finish loading
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Should see page content - wait longer for data to load
     await expect(
@@ -30,7 +30,7 @@ test.describe('Reviewer Flow', () => {
 
   test('can view certificate table with team certificates', async ({ page }) => {
     await page.goto('/dashboard')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Should have a certificate table or list
     const certificateTable = page.locator('table, [role="table"], .certificate-table, [class*="list"]')
@@ -79,7 +79,7 @@ test.describe('Reviewer Flow', () => {
 
       if (await reviewLink.isVisible()) {
         await reviewLink.click()
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         // Should see certificate header
         await expect(page.locator('h1, h2').first()).toBeVisible()
@@ -108,7 +108,7 @@ test.describe('Reviewer Flow', () => {
 
     if (hasLink) {
       await certificateLink.click()
-      await page.waitForLoadState('networkidle')
+      await page.waitForLoadState('domcontentloaded')
 
       // Look for PDF preview button
       const pdfButton = page.locator('button:has-text("Preview PDF"), button:has-text("PDF"), a:has-text("PDF")')
@@ -141,7 +141,7 @@ test.describe('Reviewer Flow', () => {
 
       if (await reviewLink.isVisible()) {
         await reviewLink.click()
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         // Review comment textarea should be present
         const commentTextarea = page.locator('textarea')

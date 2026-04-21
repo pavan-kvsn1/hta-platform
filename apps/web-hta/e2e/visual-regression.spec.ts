@@ -109,7 +109,7 @@ test.describe('Visual Regression - Responsive Design', () => {
 test.describe('Visual Regression - Component States', () => {
   test('login form with validation error', async ({ page }, testInfo) => {
     await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     await page.click('button[type="submit"]')
     await page.waitForTimeout(500)
@@ -123,7 +123,7 @@ test.describe('Visual Regression - Component States', () => {
     await page.fill('input[type="password"]', 'wrongpassword')
     await page.click('button[type="submit"]')
 
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(1000)
 
     await snapshot(page, 'login-form-invalid-credentials', testInfo)

@@ -128,7 +128,7 @@ export async function loginAsCustomer(page: Page) {
  * Wait for page to be fully loaded and stable
  */
 export async function waitForPageStable(page: Page, timeout = 500) {
-  await page.waitForLoadState('networkidle')
+  await page.waitForLoadState('domcontentloaded')
   await page.waitForTimeout(timeout)
 }
 

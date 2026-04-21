@@ -26,7 +26,7 @@ test.describe('Admin Authorization Flow', () => {
 
   test('can view certificates pending authorization', async ({ page }) => {
     await page.goto('/admin')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Look for pending authorization badges or section
     const pendingAuthBadge = page.locator(`text=${STATUS_LABELS.PENDING_ADMIN_AUTHORIZATION}`).first()
@@ -80,7 +80,7 @@ test.describe('Admin Authorization Flow', () => {
 
       if (await authLink.isVisible()) {
         await authLink.click()
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         // Should see certificate details
         await expect(page.locator('h1, h2').first()).toBeVisible()
@@ -110,7 +110,7 @@ test.describe('Admin Authorization Flow', () => {
 
       if (await authLink.isVisible()) {
         await authLink.click()
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         // Should see authorize button
         const authorizeButton = page.locator('button:has-text("Authorize"), button:has-text("Approve")')
@@ -138,7 +138,7 @@ test.describe('Admin Authorization Flow', () => {
 
       if (await authLink.isVisible()) {
         await authLink.click()
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         // Should see signatures section
         const signaturesSection = page.locator('text=/signature|signed/i')
@@ -167,7 +167,7 @@ test.describe('Admin Authorization Flow', () => {
 
       if (await viewLink.isVisible()) {
         await viewLink.click()
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         // Should see certificate with authorized status
         await expect(page.locator(`text=${STATUS_LABELS.AUTHORIZED}`)).toBeVisible()
@@ -192,7 +192,7 @@ test.describe('Admin Authorization Flow', () => {
 
       if (await viewLink.isVisible()) {
         await viewLink.click()
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         // Should have download PDF button
         const downloadButton = page.locator('button:has-text("Download"), a:has-text("Download"), button:has-text("PDF")')
@@ -214,7 +214,7 @@ test.describe('Admin Dashboard Statistics', () => {
 
   test('dashboard shows authorization statistics', async ({ page }) => {
     await page.goto('/admin')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Look for stats cards or numbers
     const statsSection = page.locator('.grid, [class*="stats"], [class*="card"]')
@@ -257,7 +257,7 @@ test.describe('Admin Dashboard Statistics', () => {
       await searchInput.press('Enter')
 
       // Should filter results
-      await page.waitForLoadState('networkidle')
+      await page.waitForLoadState('domcontentloaded')
     }
   })
 })
