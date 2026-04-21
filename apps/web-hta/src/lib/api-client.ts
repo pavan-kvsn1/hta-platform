@@ -72,6 +72,8 @@ export async function apiFetch(
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
+  } else {
+    console.warn('apiFetch: No access token available, request will be unauthenticated')
   }
 
   // Resolve URL - prepend API base for /api/ paths (except auth routes)
@@ -82,11 +84,19 @@ export async function apiFetch(
     headers.set('X-Tenant-ID', 'hta-calibration')
   }
 
-  return fetch(url, {
-    ...init,
-    headers,
-    credentials: 'include',
-  })
+  // Log the request details for debugging
+  console.log('apiFetch:', { url, hasToken: !!token, method: init?.method || 'GET' })
+
+  try {
+    return await fetch(url, {
+      ...init,
+      headers,
+      credentials: 'include',
+    })
+  } catch (error) {
+    console.error('apiFetch network error:', { url, error: error instanceof Error ? error.message : error })
+    throw error
+  }
 }
 
 /**

@@ -596,8 +596,14 @@ export default function EditCertificatePage() {
         setCurrentRevision(data.currentRevision ?? 1)
         setReviewerName(data.reviewer?.name || null)
       } catch (error) {
-        console.error('Error fetching certificate:', error)
-        setLoadError('Failed to load certificate')
+        // Log detailed error for debugging - this catches network/CORS errors
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        console.error('Error fetching certificate (catch block):', {
+          error: errorMessage,
+          certificateId,
+          apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
+        })
+        setLoadError(`Network error: ${errorMessage}`)
       } finally {
         setIsLoading(false)
       }
