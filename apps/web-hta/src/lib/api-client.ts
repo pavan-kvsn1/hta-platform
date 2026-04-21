@@ -3,10 +3,10 @@
  *
  * Provides authenticated fetch for Fastify API calls.
  * Automatically handles token refresh and adds Authorization header.
+ *
+ * API calls go through Next.js rewrites (see next.config.ts) which proxy
+ * /api/* requests to the Fastify server. This avoids CORS issues.
  */
-
-// API base URL (Fastify server)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 // Token storage (in-memory for security, refreshed on page load)
 let accessToken: string | null = null
@@ -76,16 +76,14 @@ export async function apiFetch(
     console.warn('apiFetch: No access token available, request will be unauthenticated')
   }
 
-  // Resolve URL - prepend API base for /api/ paths (except auth routes)
-  let url: RequestInfo | URL = input
+  // Add tenant header for Fastify API calls (proxied through Next.js rewrites)
+  // Next.js rewrites /api/* (except /api/auth/*) to the Fastify server - see next.config.ts
   if (typeof input === 'string' && input.startsWith('/api/') && !input.startsWith('/api/auth/')) {
-    url = `${API_BASE_URL}${input}`
-    // Add tenant header for Fastify API calls
     headers.set('X-Tenant-ID', 'hta-calibration')
   }
 
-  // Log the request details for debugging
-  console.log('apiFetch:', { url, hasToken: !!token, method: init?.method || 'GET' })
+  // Use relative URL - Next.js rewrites will proxy to Fastify server
+  const url = input
 
   try {
     return await fetch(url, {

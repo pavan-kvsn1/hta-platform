@@ -360,9 +360,25 @@ jobs:
           JWT_SECRET: test-secret-for-ci
           NEXTAUTH_URL: http://localhost:3000
           NEXT_PUBLIC_API_URL: http://localhost:4000
+          API_URL: http://localhost:4000
           PORT: 3000
           HOSTNAME: 0.0.0.0
           CI: true  # Relax CSP for E2E tests
+
+      - name: Verify servers are running
+        run: |
+          echo "=== Checking API server ==="
+          curl -v http://localhost:4000/health || echo "API health check failed"
+          echo ""
+          echo "=== Checking Web server ==="
+          curl -sf http://localhost:3000/api/auth/csrf || echo "Web server check failed"
+          echo ""
+          echo "=== Testing CORS preflight to API ==="
+          curl -v -X OPTIONS http://localhost:4000/api/certificates/test \
+            -H "Origin: http://localhost:3000" \
+            -H "Access-Control-Request-Method: GET" \
+            -H "Access-Control-Request-Headers: Authorization,X-Tenant-ID" \
+            || echo "CORS preflight failed"
 
       - name: Run E2E tests (sharded)
         run: |
