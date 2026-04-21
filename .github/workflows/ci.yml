@@ -298,6 +298,9 @@ jobs:
       - name: Build shared package
         run: pnpm --filter @hta/shared build
 
+      - name: Build API server
+        run: pnpm --filter @hta/api build
+
       - name: Build web app
         run: pnpm --filter @hta/web build
         env:
@@ -306,9 +309,6 @@ jobs:
           NEXTAUTH_SECRET: test-secret-for-ci
           AUTH_SECRET: test-secret-for-ci
           NEXTAUTH_URL: http://localhost:3000
-
-      - name: Build API server
-        run: pnpm --filter @hta/api build
 
       - name: Start API server
         run: |
