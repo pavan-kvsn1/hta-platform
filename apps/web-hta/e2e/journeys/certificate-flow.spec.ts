@@ -168,7 +168,7 @@ test.describe('Certificate List', () => {
 
     // Should see certificate list or empty state
     await expect(
-      page.getByRole('table').or(page.getByText(/no certificates/i))
+      page.getByRole('table').or(page.getByText(/no certificates/i)).first()
     ).toBeVisible()
   })
 
