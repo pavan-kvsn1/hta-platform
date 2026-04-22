@@ -13,6 +13,8 @@ import {
   CertificateReviewed,
   CustomerApproval,
   CustomerReview,
+  MasterInstrumentChange,
+  SecurityAlert,
 } from './templates/index.js'
 
 export type EmailTemplate =
@@ -22,6 +24,8 @@ export type EmailTemplate =
   | 'certificate-reviewed'
   | 'customer-approval'
   | 'customer-review'
+  | 'master-instrument-change'
+  | 'security-alert'
 
 export interface RenderEmailOptions {
   template: EmailTemplate
@@ -71,6 +75,16 @@ export async function renderEmail(options: RenderEmailOptions): Promise<{
       subject = `Certificate ${(props as { certificateNumber?: string }).certificateNumber || ''} Ready for Review`
       break
 
+    case 'master-instrument-change':
+      element = React.createElement(MasterInstrumentChange, props as unknown as React.ComponentProps<typeof MasterInstrumentChange>)
+      subject = `Security Alert: Master Instrument ${(props as { action?: string }).action || 'Changed'} - ${(props as { assetNumber?: string }).assetNumber || ''}`
+      break
+
+    case 'security-alert':
+      element = React.createElement(SecurityAlert, props as unknown as React.ComponentProps<typeof SecurityAlert>)
+      subject = `[${(props as { severity?: string }).severity || 'HIGH'}] Security Alert: ${(props as { alertType?: string }).alertType?.replace(/_/g, ' ') || 'Suspicious Activity'}`
+      break
+
     default:
       throw new Error(`Unknown email template: ${template}`)
   }
@@ -97,6 +111,10 @@ export function getEmailSubject(template: EmailTemplate, props: Record<string, u
       return `Customer ${props.status === 'approved' ? 'Approved' : 'Requested Changes'} - Certificate ${props.certificateNumber || ''}`
     case 'customer-review':
       return `Certificate ${props.certificateNumber || ''} Ready for Review`
+    case 'master-instrument-change':
+      return `Security Alert: Master Instrument ${props.action || 'Changed'} - ${props.assetNumber || ''}`
+    case 'security-alert':
+      return `[${props.severity || 'HIGH'}] Security Alert: ${(props.alertType as string)?.replace(/_/g, ' ') || 'Suspicious Activity'}`
     default:
       return 'HTA Calibration Notification'
   }

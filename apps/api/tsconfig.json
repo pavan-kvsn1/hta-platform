@@ -19,7 +19,7 @@
     "paths": {
       "@hta/database": ["../../packages/database/src"],
       "@hta/shared/*": ["../../packages/shared/src/*"],
-      "@hta/emails": ["../../packages/emails/src"]
+      "@hta/emails": ["../../packages/emails/dist"]
     }
   },
   "include": ["src/**/*"],

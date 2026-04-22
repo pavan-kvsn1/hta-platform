@@ -65,11 +65,61 @@ jobs:
           pnpm --filter @hta/database db:generate
           pnpm --filter @hta/web-tenant-template db:generate
 
-      - name: Lint
+      - name: Lint (includes security rules)
         run: pnpm turbo run lint
 
       - name: Type check
         run: pnpm turbo run typecheck
+
+  # ===========================================================================
+  # SECURITY SCAN
+  # ===========================================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level=high
+        continue-on-error: true  # Don't fail build, but report
+
+      - name: Check for known vulnerabilities
+        run: |
+          echo "## Security Audit Results" >> $GITHUB_STEP_SUMMARY
+          pnpm audit --json 2>/dev/null | jq -r '
+            if .metadata.vulnerabilities.high > 0 or .metadata.vulnerabilities.critical > 0 then
+              "### Vulnerabilities Found\n" +
+              "- Critical: \(.metadata.vulnerabilities.critical // 0)\n" +
+              "- High: \(.metadata.vulnerabilities.high // 0)\n" +
+              "- Moderate: \(.metadata.vulnerabilities.moderate // 0)\n" +
+              "- Low: \(.metadata.vulnerabilities.low // 0)"
+            else
+              "### No High/Critical Vulnerabilities Found"
+            end
+          ' >> $GITHUB_STEP_SUMMARY || echo "Audit check completed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate Prisma Clients
+        run: |
+          pnpm --filter @hta/database db:generate
+          pnpm --filter @hta/web-tenant-template db:generate
+
+      - name: Security lint check
+        run: |
+          echo "## ESLint Security Rules" >> $GITHUB_STEP_SUMMARY
+          pnpm turbo run lint 2>&1 | grep -E "(security/|XSS|injection)" >> $GITHUB_STEP_SUMMARY || echo "No security warnings in lint output" >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
   # UNIT TESTS
@@ -77,7 +127,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: code-quality
+    needs: [code-quality, security-scan]
     steps:
       - uses: actions/checkout@v4
 

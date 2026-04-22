@@ -18,3 +18,9 @@ export {
   updateUsageTracking,
   getSubscriptionStatus,
 } from './subscription.js'
+
+export {
+  sendEmail,
+  sendSecurityAlertEmail,
+  isEmailConfigured,
+} from './email.js'

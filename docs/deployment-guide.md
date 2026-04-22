@@ -806,17 +806,17 @@ $REGISTRY = "asia-south1-docker.pkg.dev/hta-platform-prod/production-docker"
 gcloud auth configure-docker asia-south1-docker.pkg.dev
 
 # Build images (from repo root)
-docker build -f apps/api/Dockerfile -t hta-api:latest .
-docker build -f apps/web-hta/Dockerfile -t hta-web:latest .
-docker build -f apps/worker/Dockerfile -t hta-worker:latest .
+docker build --no-cache -f apps/api/Dockerfile -t hta-api:latest .
+docker build --no-cache -f apps/web-hta/Dockerfile -t hta-web:latest .
+docker build --no-cache -f apps/worker/Dockerfile -t hta-worker:latest .
 
 # Tag for registry (both :latest and version tag)
 docker tag hta-api:latest $REGISTRY/hta-api:latest
-docker tag hta-api:latest $REGISTRY/hta-api:v1.0.10
+docker tag hta-api:latest $REGISTRY/hta-api:v1.0.15
 docker tag hta-web:latest $REGISTRY/hta-web:latest
-docker tag hta-web:latest $REGISTRY/hta-web:v1.0.10
+docker tag hta-web:latest $REGISTRY/hta-web:v1.0.15
 docker tag hta-worker:latest $REGISTRY/hta-worker:latest
-docker tag hta-worker:latest $REGISTRY/hta-worker:v1.0.10
+docker tag hta-worker:latest $REGISTRY/hta-worker:v1.0.15
 
 # Push images (push :latest - this is what K8s deployments use)
 docker push $REGISTRY/hta-api:latest
@@ -824,9 +824,9 @@ docker push $REGISTRY/hta-web:latest
 docker push $REGISTRY/hta-worker:latest
 
 # Optionally push version tags for rollback
-docker push $REGISTRY/hta-api:v1.0.10
-docker push $REGISTRY/hta-web:v1.0.10
-docker push $REGISTRY/hta-worker:v1.0.10
+docker push $REGISTRY/hta-api:v1.0.15
+docker push $REGISTRY/hta-web:v1.0.15
+docker push $REGISTRY/hta-worker:v1.0.15
 ```
 
 #### Option A: Build Locally (Linux/Mac)
@@ -1221,6 +1221,128 @@ argocd app rollback hta-platform
 
 # View in UI
 kubectl port-forward svc/argocd-server -n argocd 8080:443
+```
+
+### 9.6 Troubleshooting Argo CD
+
+> **WARNING:** NEVER delete an ArgoCD Application when workloads are running. Deleting the app with `prune: true` will delete ALL managed resources including deployments, causing downtime.
+
+#### Get Admin Password (PowerShell)
+
+```powershell
+# PowerShell doesn't have base64 command - use this instead:
+$encoded = kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}"
+[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($encoded))
+```
+
+#### Force Refresh (Clear Cache)
+
+When ArgoCD shows stale/cached errors after pushing changes:
+
+```bash
+# Option 1: Use the UI - click "Refresh" then "Hard Refresh"
+
+# Option 2: Via kubectl (Linux/Mac)
+kubectl -n argocd patch application hta-platform --type merge \
+  -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'
+
+# Option 2: Via kubectl (PowerShell)
+kubectl -n argocd patch application hta-platform --type merge `
+  -p "{`"metadata`":{`"annotations`":{`"argocd.argoproj.io/refresh`":`"hard`"}}}"
+
+# Option 3: Delete the annotation and let it resync
+kubectl -n argocd annotate application hta-platform argocd.argoproj.io/refresh-
+```
+
+#### App Stuck in "Unknown" Sync Status
+
+Usually means kustomize build failed. Check the error:
+
+```bash
+kubectl -n argocd describe application hta-platform | grep -A5 "Message:"
+```
+
+Common causes:
+- **Duplicate resource IDs**: Two files define the same resource (e.g., ServiceAccount with same name)
+- **Invalid kustomization.yaml**: Missing resources, wrong paths
+- **Deprecated fields**: `commonLabels` should be `labels` with `pairs`
+
+Fix by updating the kustomization files and pushing to Git. Then force refresh.
+
+#### App Stuck in "OutOfSync" with Immutable Field Error
+
+```
+Deployment.apps "xxx" is invalid: spec.selector: Invalid value: field is immutable
+```
+
+The deployment's label selector changed. You must delete the old deployment first:
+
+```bash
+# Delete the specific deployment (NOT the ArgoCD app!)
+kubectl delete deployment hta-api hta-web hta-worker -n hta-platform
+
+# ArgoCD will automatically recreate them with correct selectors
+```
+
+#### Application Deletion Stuck
+
+If you accidentally started deleting an app and it's stuck:
+
+```bash
+# Check if app has deletion timestamp
+kubectl -n argocd get application hta-platform -o yaml | grep deletionTimestamp
+
+# Remove the finalizer to force deletion (LAST RESORT - will orphan resources)
+kubectl -n argocd patch application hta-platform --type json \
+  -p '[{"op":"remove","path":"/metadata/finalizers"}]'
+
+# PowerShell version:
+kubectl -n argocd patch application hta-platform --type json `
+  -p "[{`"op`":`"remove`",`"path`":`"/metadata/finalizers`"}]"
+```
+
+#### Namespace Stuck in Terminating
+
+If a namespace won't delete due to stuck finalizers:
+
+```bash
+# Find what's blocking deletion
+kubectl get namespace hta-platform -o json | grep -A5 "finalizersRemaining"
+
+# Find resources with finalizers
+kubectl api-resources --verbs=list --namespaced -o name | xargs -I {} kubectl get {} -n hta-platform --ignore-not-found 2>/dev/null
+
+# Remove finalizer from stuck resource (example: NEG)
+kubectl patch servicenetworkendpointgroup RESOURCE_NAME -n hta-platform \
+  -p '{"metadata":{"finalizers":null}}' --type=merge
+```
+
+#### Safe Recovery After Disaster
+
+If workloads are down and you need to recover:
+
+```bash
+# 1. Create namespace if deleted
+kubectl create namespace hta-platform
+
+# 2. Apply service accounts
+kubectl apply -f k8s/service-accounts.yaml
+
+# 3. Verify secrets exist (from External Secrets)
+kubectl get secrets -n hta-platform
+
+# 4. Create ConfigMap if missing
+kubectl create configmap hta-config -n hta-platform \
+  --from-literal=NODE_ENV=production \
+  --from-literal=LOG_LEVEL=info \
+  --from-literal=NEXTAUTH_URL=https://app.hta-calibration.com \
+  --from-literal=API_URL=http://hta-api:80
+
+# 5. Apply ArgoCD application (will recreate all resources)
+kubectl apply -f infra/k8s/base/argocd/application.yaml
+
+# 6. Watch for sync
+kubectl -n argocd get applications -w
 ```
 
 ---

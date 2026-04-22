@@ -15,9 +15,12 @@ export interface TenantConfig {
 /**
  * Extract tenant slug from hostname
  *
+ * Uses the main domain name (not subdomain) as the tenant identifier.
+ * Each tenant has their own domain, with 'app' as a standard subdomain.
+ *
  * Examples:
- * - hta.example.com -> hta
- * - tenant1.calibr8s.com -> tenant1
+ * - app.hta-calibration.com -> hta-calibration
+ * - app.newclient.com -> newclient
  * - localhost:3000 -> default (or from env)
  */
 export function getTenantFromHost(host: string): string {
@@ -26,23 +29,23 @@ export function getTenantFromHost(host: string): string {
 
   // Local development
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return process.env.DEFAULT_TENANT || 'hta'
+    return process.env.DEFAULT_TENANT || 'hta-calibration'
   }
 
-  // Extract subdomain
+  // Extract main domain name (second part)
+  // e.g., app.hta-calibration.com -> ['app', 'hta-calibration', 'com'] -> 'hta-calibration'
   const parts = hostname.split('.')
   if (parts.length >= 3) {
-    // e.g., tenant.calibr8s.com -> tenant
+    return parts[1]
+  }
+
+  // Two-part domain (e.g., hta-calibration.com)
+  if (parts.length === 2) {
     return parts[0]
   }
 
-  // Single domain or www
-  if (parts[0] === 'www') {
-    return process.env.DEFAULT_TENANT || 'hta'
-  }
-
   // Fallback to default
-  return process.env.DEFAULT_TENANT || 'hta'
+  return process.env.DEFAULT_TENANT || 'hta-calibration'
 }
 
 /**

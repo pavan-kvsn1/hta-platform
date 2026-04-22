@@ -202,7 +202,8 @@ export function parseImageStorageKey(storageKey: string): Partial<ImagePathOptio
   }
 
   const filename = parts[parts.length - 1]
-  const filenameMatch = filename.match(/^(\d+)-\w+(?:-v\d+)?(?:-(optimized|thumbnail))?\./)
+  // eslint-disable-next-line security/detect-unsafe-regex -- Pattern is bounded by filename length
+  const filenameMatch = filename.match(/^(\d+)-[a-zA-Z0-9_]{1,50}(?:-v\d{1,5})?(?:-(optimized|thumbnail))?\./)
   const timestamp = filenameMatch ? parseInt(filenameMatch[1]) : undefined
   const variant = filenameMatch?.[2] as 'optimized' | 'thumbnail' | undefined
 

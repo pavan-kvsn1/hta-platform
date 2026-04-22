@@ -3,6 +3,7 @@ import tseslint from 'typescript-eslint'
 import reactPlugin from 'eslint-plugin-react'
 import reactHooksPlugin from 'eslint-plugin-react-hooks'
 import nextPlugin from '@next/eslint-plugin-next'
+import security from 'eslint-plugin-security'
 
 export default tseslint.config(
   eslint.configs.recommended,
@@ -25,6 +26,7 @@ export default tseslint.config(
       react: reactPlugin,
       'react-hooks': reactHooksPlugin,
       '@next/next': nextPlugin,
+      security,
     },
     rules: {
       // TypeScript
@@ -47,6 +49,12 @@ export default tseslint.config(
       // Next.js
       '@next/next/no-html-link-for-pages': 'error',
       '@next/next/no-img-element': 'warn',
+
+      // Security rules for XSS prevention
+      'security/detect-object-injection': 'warn',
+      'security/detect-non-literal-regexp': 'warn',
+      'security/detect-unsafe-regex': 'error',
+      'security/detect-eval-with-expression': 'error',
     },
     settings: {
       react: {

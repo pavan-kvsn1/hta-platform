@@ -21,13 +21,17 @@ export async function tenantMiddleware(
     tenantSlug = headerTenant
   }
 
-  // 2. Extract from subdomain if not in header
+  // 2. Extract from domain name (not subdomain) if not in header
+  // Each tenant has their own domain: app.hta-calibration.com -> hta-calibration
   if (!tenantSlug) {
-    const host = request.headers.host || ''
+    const host = (request.headers.host || '').split(':')[0] // Remove port
     const parts = host.split('.')
 
-    // Expect format: {tenant}.api.domain.com or {tenant}.localhost
-    if (parts.length >= 2 && parts[0] !== 'api' && parts[0] !== 'www') {
+    // Format: app.{tenant}.com -> extract tenant from parts[1]
+    if (parts.length >= 3) {
+      tenantSlug = parts[1]
+    } else if (parts.length === 2) {
+      // Direct domain: {tenant}.com
       tenantSlug = parts[0]
     }
   }

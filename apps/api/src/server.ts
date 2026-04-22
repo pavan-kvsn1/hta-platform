@@ -17,6 +17,7 @@ import notificationRoutes from './routes/notifications/index.js'
 import internalRequestRoutes from './routes/internal-requests/index.js'
 import customersRoutes from './routes/customers/index.js'
 import chatRoutes from './routes/chat/index.js'
+import securityRoutes from './routes/security/index.js'
 
 // Import middleware
 import { tenantMiddleware } from './middleware/tenant.js'
@@ -77,10 +78,14 @@ await server.register(multipart, {
 // MIDDLEWARE
 // =============================================================================
 
-// Tenant identification for all routes except health and CORS preflight
+// Tenant identification for all routes except health, security, and CORS preflight
 server.addHook('preHandler', async (request, reply) => {
   // Skip tenant check for health endpoints
   if (request.url.startsWith('/health')) {
+    return
+  }
+  // Skip tenant check for internal security alerts (from web service)
+  if (request.url.startsWith('/api/security/csp-alert')) {
     return
   }
   // Skip tenant check for CORS preflight requests (OPTIONS)
@@ -130,6 +135,9 @@ await server.register(customersRoutes, { prefix: '/api/customers' })
 
 // Chat routes
 await server.register(chatRoutes, { prefix: '/api/chat' })
+
+// Security routes (CSP alerts, security dashboard)
+await server.register(securityRoutes, { prefix: '/api/security' })
 
 // =============================================================================
 // START SERVER

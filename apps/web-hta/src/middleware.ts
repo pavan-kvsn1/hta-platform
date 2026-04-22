@@ -2,44 +2,45 @@
  * Next.js Middleware
  *
  * Handles:
- * - Content Security Policy (CSP) with nonces
+ * - Content Security Policy (CSP)
  * - Security headers
  * - Request logging
+ *
+ * CSP Strategy:
+ * Uses 'unsafe-inline' instead of nonces because Next.js App Router
+ * doesn't inject nonces into auto-generated script tags.
+ *
+ * Compensating Security Controls:
+ * - 'self' restricts scripts to same origin (blocks external scripts)
+ * - Audit logging for all sensitive changes (tamper-evident external logs)
+ * - Approval workflows for certificate revisions
+ * - Admin alerts for master instrument changes (notifications + emails)
+ *
+ * @see docs/security/security-architecture.md for full security documentation
  */
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
- * Generate a cryptographically secure nonce
+ * Build CSP header
+ *
+ * CSP Violation Reporting:
+ * In production, violations are reported to /api/csp-report for security monitoring.
+ * These reports help identify XSS attempts and CSP misconfigurations.
  */
-function generateNonce(): string {
-  const array = new Uint8Array(16)
-  crypto.getRandomValues(array)
-  return Buffer.from(array).toString('base64')
-}
-
-/**
- * Build CSP header with nonce
- */
-function buildCSP(nonce: string): string {
+function buildCSP(): string {
   const isProduction = process.env.NODE_ENV === 'production'
-  // Relax CSP in CI/E2E - Next.js standalone mode doesn't apply nonces to script tags
-  const isE2ETest = process.env.E2E_TEST === 'true' || process.env.CI === 'true'
-  const useStrictCSP = isProduction && !isE2ETest
 
   const directives: Record<string, string[]> = {
     'default-src': ["'self'"],
     'script-src': [
       "'self'",
-      // Don't include nonce in CI/E2E - it makes 'unsafe-inline' be ignored
-      ...(useStrictCSP ? [`'nonce-${nonce}'`, "'strict-dynamic'"] : ["'unsafe-inline'", "'unsafe-eval'"]),
+      "'unsafe-inline'",  // Required: Next.js App Router doesn't support nonces
     ],
     'style-src': [
       "'self'",
-      `'nonce-${nonce}'`,
-      // Tailwind and some UI libraries need unsafe-inline for styles
-      "'unsafe-inline'",
+      "'unsafe-inline'",  // Required for Tailwind and UI libraries
     ],
     'img-src': [
       "'self'",
@@ -53,7 +54,6 @@ function buildCSP(nonce: string): string {
       "'self'",
       'https://*.sentry.io',
       'wss://*.pusher.com',
-      'https://api.htacalibr8s.com',
       ...(isProduction ? [] : ['ws://localhost:*', 'http://localhost:*']),
     ],
     'frame-src': ["'self'"],
@@ -62,6 +62,8 @@ function buildCSP(nonce: string): string {
     'base-uri': ["'self'"],
     'form-action': ["'self'"],
     'upgrade-insecure-requests': [],
+    // CSP violation reporting for security monitoring
+    ...(isProduction ? { 'report-uri': ['/api/csp-report'] } : {}),
   }
 
   return Object.entries(directives)
@@ -75,9 +77,9 @@ function buildCSP(nonce: string): string {
 /**
  * Security headers applied to all responses
  */
-function getSecurityHeaders(nonce: string): Record<string, string> {
+function getSecurityHeaders(): Record<string, string> {
   return {
-    'Content-Security-Policy': buildCSP(nonce),
+    'Content-Security-Policy': buildCSP(),
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'X-XSS-Protection': '1; mode=block',
@@ -92,20 +94,14 @@ function getSecurityHeaders(nonce: string): Record<string, string> {
 }
 
 export function middleware(request: NextRequest) {
-  // Generate nonce for this request
-  const nonce = generateNonce()
-
   // Create response with security headers
   const response = NextResponse.next()
 
   // Apply security headers
-  const securityHeaders = getSecurityHeaders(nonce)
+  const securityHeaders = getSecurityHeaders()
   for (const [key, value] of Object.entries(securityHeaders)) {
     response.headers.set(key, value)
   }
-
-  // Pass nonce to the application via header (can be read in layout.tsx)
-  response.headers.set('X-Nonce', nonce)
 
   // Add request ID for tracing
   const requestId = request.headers.get('x-request-id') || crypto.randomUUID()

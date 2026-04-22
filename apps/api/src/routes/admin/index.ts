@@ -3,6 +3,9 @@ import crypto from 'crypto'
 import { prisma, Prisma } from '@hta/database'
 import { requireAdmin, requireMasterAdmin } from '../../middleware/auth.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
+import { createLogger } from '@hta/shared'
+
+const logger = createLogger('admin-routes')
 
 // Helper to safely parse JSON
 function safeJsonParse<T>(value: unknown, defaultValue: T): T {
@@ -16,6 +19,86 @@ function safeJsonParse<T>(value: unknown, defaultValue: T): T {
     }
   }
   return defaultValue
+}
+
+/**
+ * Alert all admins (except the actor) when master instruments are modified.
+ * This is a security control to detect unauthorized changes.
+ */
+async function alertAdminsOnInstrumentChange(
+  tenantId: string,
+  actorId: string,
+  actorName: string,
+  action: 'CREATED' | 'UPDATED' | 'DELETED',
+  instrument: { assetNumber: string; description: string },
+  changeDetails?: string
+): Promise<void> {
+  try {
+    // Get all other admins in the tenant
+    const otherAdmins = await prisma.user.findMany({
+      where: {
+        tenantId,
+        role: 'ADMIN',
+        isActive: true,
+        NOT: { id: actorId },
+      },
+      select: { id: true, email: true },
+    })
+
+    if (otherAdmins.length === 0) return
+
+    const actionText = {
+      CREATED: 'created',
+      UPDATED: 'modified',
+      DELETED: 'deleted',
+    }[action]
+
+    const title = `Master Instrument ${actionText.charAt(0).toUpperCase() + actionText.slice(1)}`
+    const message = `${actorName} ${actionText} master instrument: ${instrument.assetNumber} - ${instrument.description}${changeDetails ? `. Changes: ${changeDetails}` : ''}`
+
+    // Create notifications for all other admins
+    await prisma.notification.createMany({
+      data: otherAdmins.map((admin) => ({
+        userId: admin.id,
+        type: 'MASTER_INSTRUMENT_CHANGE',
+        title,
+        message,
+        data: JSON.stringify({
+          action,
+          actorId,
+          actorName,
+          assetNumber: instrument.assetNumber,
+          description: instrument.description,
+          changeDetails,
+          timestamp: new Date().toISOString(),
+        }),
+      })),
+    })
+
+    // Log to audit trail (external logging for tamper-evidence)
+    logger.info({
+      audit: true,
+      security: true,
+      event: 'MASTER_INSTRUMENT_CHANGE',
+      tenantId,
+      actorId,
+      actorName,
+      action,
+      instrument: {
+        assetNumber: instrument.assetNumber,
+        description: instrument.description,
+      },
+      changeDetails,
+      notifiedAdmins: otherAdmins.map((a) => a.email),
+    })
+
+    // TODO: Queue email alerts when email service is implemented
+    // Template: 'master-instrument-change' in @hta/emails package
+    // Props: { recipientName, actorName, action, assetNumber, description, changeDetails, timestamp, dashboardUrl }
+  } catch (error) {
+    // Don't fail the main operation if alerting fails
+    logger.error({ error }, 'Failed to alert admins on instrument change')
+  }
 }
 
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
@@ -543,6 +626,16 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       },
     })
 
+    // Alert other admins about the new master instrument
+    const actorName = request.user!.name || request.user!.email || 'Unknown Admin'
+    alertAdminsOnInstrumentChange(
+      tenantId,
+      userId,
+      actorName,
+      'CREATED',
+      { assetNumber: body.assetNumber, description: body.description }
+    ).catch(() => {}) // Non-blocking
+
     return {
       success: true,
       instrument,
@@ -649,6 +742,25 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       return newVersion
     })
 
+    // Alert other admins about the instrument update
+    const actorName = request.user!.name || request.user!.email || 'Unknown Admin'
+    const changedFields: string[] = []
+    if (body.description && body.description !== current.description) changedFields.push('description')
+    if (body.assetNumber && body.assetNumber !== current.assetNumber) changedFields.push('assetNumber')
+    if (body.calibrationDueDate) changedFields.push('calibrationDueDate')
+    if (body.rangeData !== undefined) changedFields.push('rangeData')
+    if (body.status && body.status !== current.status) changedFields.push('status')
+    if (body.isActive !== undefined && body.isActive !== current.isActive) changedFields.push('isActive')
+
+    alertAdminsOnInstrumentChange(
+      tenantId,
+      userId,
+      actorName,
+      'UPDATED',
+      { assetNumber: result.assetNumber, description: result.description },
+      changedFields.length > 0 ? changedFields.join(', ') : 'general update'
+    ).catch(() => {}) // Non-blocking
+
     return {
       success: true,
       instrument: result,
@@ -660,6 +772,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     preHandler: [requireAdmin],
   }, async (request, reply) => {
     const tenantId = request.tenantId
+    const userId = request.user!.sub
     const { id } = request.params
 
     const instrument = await prisma.masterInstrument.findFirst({
@@ -674,6 +787,16 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       where: { id: instrument.id },
       data: { isActive: false },
     })
+
+    // Alert other admins about the instrument deletion
+    const actorName = request.user!.name || request.user!.email || 'Unknown Admin'
+    alertAdminsOnInstrumentChange(
+      tenantId,
+      userId,
+      actorName,
+      'DELETED',
+      { assetNumber: instrument.assetNumber, description: instrument.description }
+    ).catch(() => {}) // Non-blocking
 
     return { success: true }
   })

@@ -11,9 +11,11 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: hta-gateway
-  namespace: hta-prod
+  namespace: hta-platform
   labels:
     app.kubernetes.io/name: hta-platform
+  annotations:
+    networking.gke.io/pre-shared-certs: mcrt-91136e4b-2072-4a7d-ace8-3363b7f75629
 spec:
   gatewayClassName: gke-l7-global-external-managed
   addresses:
@@ -21,31 +23,51 @@ spec:
     - type: NamedAddress
       value: production-security-policy-ip
   listeners:
-    # HTTP only for initial testing
-    # TODO: Add HTTPS listener with GCP Managed Certificate after HTTP is working
+    # HTTP listener (redirects to HTTPS in production)
     - name: http
       port: 80
       protocol: HTTP
       allowedRoutes:
         namespaces:
           from: Same
+    # HTTPS listener with GCP Certificate Manager
+    - name: https
+      port: 443
+      protocol: HTTPS
+      allowedRoutes:
+        namespaces:
+          from: Same
+      tls:
+        mode: Terminate
+        options:
+          networking.gke.io/pre-shared-certs: mcrt-91136e4b-2072-4a7d-ace8-3363b7f75629
 ---
 # Main routing rules for app subdomain
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: hta-app-routes
-  namespace: hta-prod
+  namespace: hta-platform
   labels:
     app.kubernetes.io/name: hta-platform
 spec:
   parentRefs:
     - name: hta-gateway
       sectionName: http
+    - name: hta-gateway
+      sectionName: https
   hostnames:
     - "app.hta-calibration.com"
   rules:
-    # API path: /api/* -> hta-api
+    # NextAuth routes: /api/auth/* -> hta-web (Next.js handles auth)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/auth
+      backendRefs:
+        - name: hta-web
+          port: 80
+    # API path: /api/* -> hta-api (Fastify)
     - matches:
         - path:
             type: PathPrefix
@@ -75,7 +97,7 @@ apiVersion: networking.gke.io/v1
 kind: GCPBackendPolicy
 metadata:
   name: hta-api-backend-policy
-  namespace: hta-prod
+  namespace: hta-platform
 spec:
   default:
     securityPolicy: production-security-policy
@@ -88,7 +110,7 @@ apiVersion: networking.gke.io/v1
 kind: GCPBackendPolicy
 metadata:
   name: hta-web-backend-policy
-  namespace: hta-prod
+  namespace: hta-platform
 spec:
   default:
     securityPolicy: production-security-policy
@@ -102,7 +124,7 @@ apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: hta-api-health-check
-  namespace: hta-prod
+  namespace: hta-platform
 spec:
   default:
     checkIntervalSec: 30
@@ -123,7 +145,7 @@ apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: hta-web-health-check
-  namespace: hta-prod
+  namespace: hta-platform
 spec:
   default:
     checkIntervalSec: 30
