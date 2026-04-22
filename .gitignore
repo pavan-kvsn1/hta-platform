@@ -42,3 +42,17 @@ apps/web-hta/e2e/.auth/*.json
 !apps/web-hta/e2e/.auth/.gitkeep
 .claude/
 apps/web-hta/storage/
+
+# Terraform
+**/.terraform/
+*.tfplan
+tfplan
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+!terraform.tfvars.example
+
+# Temporary files
+temp.yaml
+ns-patch.json
+.env.cloud
