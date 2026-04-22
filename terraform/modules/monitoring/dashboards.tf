@@ -61,11 +61,6 @@ resource "google_monitoring_dashboard" "services_overview" {
               label = "Latency (ms)"
               scale = "LINEAR"
             }
-            thresholds = [{
-              value     = var.latency_threshold_ms
-              color     = "YELLOW"
-              direction = "ABOVE"
-            }]
           }
         }],
         # Error Rate
@@ -99,26 +94,21 @@ resource "google_monitoring_dashboard" "services_overview" {
               label = "Error Rate (%)"
               scale = "LINEAR"
             }
-            thresholds = [{
-              value     = var.error_rate_threshold * 100
-              color     = "RED"
-              direction = "ABOVE"
-            }]
           }
         }],
-        # Pod/Instance Count
+        # Pod/Instance Count - uses container uptime as proxy for active pods
         [{
           title = "Active Pods"
           xyChart = {
             dataSets = [for service in var.services : {
               timeSeriesQuery = {
                 timeSeriesFilter = {
-                  filter = "resource.type=\"k8s_pod\" AND resource.labels.pod_name=monitoring.regex.full_match(\"hta-${service}-.*\")"
+                  filter = "resource.type=\"k8s_container\" AND resource.labels.container_name=\"hta-${service}\" AND metric.type=\"kubernetes.io/container/uptime\""
                   aggregation = {
                     alignmentPeriod   = "60s"
                     perSeriesAligner  = "ALIGN_COUNT"
-                    crossSeriesReducer = "REDUCE_SUM"
-                    groupByFields     = ["resource.labels.pod_name"]
+                    crossSeriesReducer = "REDUCE_COUNT"
+                    groupByFields     = ["resource.labels.container_name"]
                   }
                 }
               }
@@ -147,21 +137,16 @@ resource "google_monitoring_dashboard" "services_overview" {
               label = "Connections"
               scale = "LINEAR"
             }
-            thresholds = [{
-              value     = var.db_connection_threshold
-              color     = "YELLOW"
-              direction = "ABOVE"
-            }]
           }
         }],
-        # Worker Queue Depth
+        # Worker Queue Depth (placeholder - uses Redis memory as proxy until custom metrics exist)
         [{
           title = "Worker Queue Depth"
           xyChart = {
             dataSets = [{
               timeSeriesQuery = {
                 timeSeriesFilter = {
-                  filter = "metric.type=\"custom.googleapis.com/worker/queue/depth\""
+                  filter = "resource.type=\"redis_instance\" AND metric.type=\"redis.googleapis.com/stats/memory/usage\""
                   aggregation = {
                     alignmentPeriod  = "60s"
                     perSeriesAligner = "ALIGN_MEAN"
@@ -171,14 +156,9 @@ resource "google_monitoring_dashboard" "services_overview" {
               plotType = "LINE"
             }]
             yAxis = {
-              label = "Queue Depth"
+              label = "Memory (bytes)"
               scale = "LINEAR"
             }
-            thresholds = [{
-              value     = var.queue_depth_threshold
-              color     = "YELLOW"
-              direction = "ABOVE"
-            }]
           }
         }],
         # Memory Usage

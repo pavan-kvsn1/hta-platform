@@ -85,19 +85,20 @@ output "argocd_url" {
   value       = "https://argocd.hta-calibration.com"
 }
 
-output "argocd_ip_address" {
-  description = "Argo CD static IP (point DNS here)"
-  value       = module.iap.argocd_ip_address
-}
+# IAP outputs disabled - module requires GCP Organization
+# output "argocd_ip_address" {
+#   description = "Argo CD static IP (point DNS here)"
+#   value       = module.iap.argocd_ip_address
+# }
 
-output "iap_client_id" {
-  description = "IAP OAuth Client ID (needed for K8s secret)"
-  value       = module.iap.iap_client_id
-  sensitive   = true
-}
+# output "iap_client_id" {
+#   description = "IAP OAuth Client ID (needed for K8s secret)"
+#   value       = module.iap.iap_client_id
+#   sensitive   = true
+# }
 
-output "iap_client_secret" {
-  description = "IAP OAuth Client Secret (needed for K8s secret)"
-  value       = module.iap.iap_client_secret
-  sensitive   = true
-}
+# output "iap_client_secret" {
+#   description = "IAP OAuth Client Secret (needed for K8s secret)"
+#   value       = module.iap.iap_client_secret
+#   sensitive   = true
+# }

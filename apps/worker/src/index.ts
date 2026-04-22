@@ -20,6 +20,10 @@ import type { EmailJobData, NotificationJobData, CleanupJobData } from './types.
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
 const CLEANUP_INTERVAL_MS = parseInt(process.env.CLEANUP_INTERVAL_MS || '3600000', 10) // 1 hour
+const DATABASE_URL = process.env.DATABASE_URL || '(not set)'
+
+// Debug: Log database URL (masked)
+console.log('[Worker] DATABASE_URL:', DATABASE_URL.replace(/:[^:@]+@/, ':***@'))
 
 // =============================================================================
 // MAIN
@@ -31,8 +35,15 @@ async function main() {
   const Redis = ioredis.Redis
 
   // Redis connection for BullMQ
+  // TLS config needed for Google Cloud Memorystore with transit encryption
+  const isTls = REDIS_URL.startsWith('rediss://')
   const connection = new Redis(REDIS_URL, {
     maxRetriesPerRequest: null,
+    ...(isTls && {
+      tls: {
+        rejectUnauthorized: false, // Memorystore uses Google-managed certs
+      },
+    }),
   })
 
   console.log(`

@@ -29,7 +29,10 @@ resource "google_sql_database_instance" "main" {
     ip_configuration {
       ipv4_enabled    = false
       private_network = var.vpc_network_id
-      require_ssl     = true
+      # mTLS - requires client certificates (handled by Cloud SQL Auth Proxy)
+      # Keep require_ssl to avoid state conflict (deprecated but needed for migration)
+      require_ssl = true
+      ssl_mode    = "TRUSTED_CLIENT_CERTIFICATE_REQUIRED"
     }
 
     maintenance_window {
@@ -64,6 +67,12 @@ resource "google_sql_database_instance" "main" {
       name  = "log_lock_waits"
       value = "on"
     }
+
+    # Enable IAM authentication for Cloud SQL Auth Proxy
+    database_flags {
+      name  = "cloudsql.iam_authentication"
+      value = "on"
+    }
   }
 }
 
@@ -74,10 +83,32 @@ resource "google_sql_database" "main" {
   project  = var.project_id
 }
 
-# User
+# User (password-based - kept for backward compatibility)
 resource "google_sql_user" "main" {
   name     = var.database_user
   instance = google_sql_database_instance.main.name
   project  = var.project_id
   password = var.database_password
+}
+
+# =============================================================================
+# IAM Users for Cloud SQL Auth Proxy
+# These allow pods to authenticate using Workload Identity instead of passwords
+# Format: {service-account-name}@{project-id}.iam (without .gserviceaccount.com)
+# =============================================================================
+
+resource "google_sql_user" "api_iam" {
+  count    = var.enable_iam_auth ? 1 : 0
+  name     = "${var.api_service_account_name}@${var.project_id}.iam"
+  instance = google_sql_database_instance.main.name
+  project  = var.project_id
+  type     = "CLOUD_IAM_SERVICE_ACCOUNT"
+}
+
+resource "google_sql_user" "worker_iam" {
+  count    = var.enable_iam_auth ? 1 : 0
+  name     = "${var.worker_service_account_name}@${var.project_id}.iam"
+  instance = google_sql_database_instance.main.name
+  project  = var.project_id
+  type     = "CLOUD_IAM_SERVICE_ACCOUNT"
 }

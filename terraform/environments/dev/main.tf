@@ -36,6 +36,18 @@ provider "google-beta" {
 }
 
 # =============================================================================
+# Locals - Predictable Service Account Emails
+# =============================================================================
+# Service account emails follow a predictable pattern. Using locals instead of
+# resource attributes avoids "computed values in for_each" errors in Terraform.
+
+locals {
+  api_sa_email    = "${var.environment}-api@${var.project_id}.iam.gserviceaccount.com"
+  worker_sa_email = "${var.environment}-worker@${var.project_id}.iam.gserviceaccount.com"
+  web_sa_email    = "${var.environment}-web@${var.project_id}.iam.gserviceaccount.com"
+}
+
+# =============================================================================
 # VPC Network
 # =============================================================================
 
@@ -188,6 +200,11 @@ module "cloudsql" {
   database_user     = var.database_user
   database_password = var.database_password
 
+  # Enable IAM authentication for Cloud SQL Auth Proxy
+  enable_iam_auth              = true
+  api_service_account_name     = "${var.environment}-api"
+  worker_service_account_name  = "${var.environment}-worker"
+
   # Dev: No cross-region replica
   enable_replica = false
 
@@ -269,7 +286,7 @@ module "uploads_bucket" {
   }
 
   admin_members = [
-    "serviceAccount:${google_service_account.api.email}",
+    "serviceAccount:${local.api_sa_email}",
   ]
 
   labels = {
@@ -287,28 +304,30 @@ module "secrets" {
   project_id = var.project_id
 
   secrets = {
+    # DATABASE_URL connects to Cloud SQL Auth Proxy sidecar (localhost:5432)
+    # The proxy handles mTLS to Cloud SQL, so no sslmode needed
     "database-url" = {
-      value = "postgresql://${var.database_user}:${var.database_password}@${module.cloudsql.private_ip_address}:5432/${var.database_name}"
+      value = "postgresql://${var.database_user}:${var.database_password}@localhost:5432/${var.database_name}"
       accessors = [
-        "serviceAccount:${google_service_account.api.email}",
-        "serviceAccount:${google_service_account.worker.email}",
+        "serviceAccount:${local.api_sa_email}",
+        "serviceAccount:${local.worker_sa_email}",
       ]
     }
     "redis-url" = {
       value = module.redis.connection_string
       accessors = [
-        "serviceAccount:${google_service_account.api.email}",
-        "serviceAccount:${google_service_account.worker.email}",
+        "serviceAccount:${local.api_sa_email}",
+        "serviceAccount:${local.worker_sa_email}",
       ]
     }
     "nextauth-secret" = {
       accessors = [
-        "serviceAccount:${google_service_account.web.email}",
+        "serviceAccount:${local.web_sa_email}",
       ]
     }
     "resend-api-key" = {
       accessors = [
-        "serviceAccount:${google_service_account.worker.email}",
+        "serviceAccount:${local.worker_sa_email}",
       ]
     }
   }
@@ -357,6 +376,25 @@ resource "google_service_account_iam_member" "web_workload_identity" {
   service_account_id = google_service_account.web.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[${var.k8s_namespace}/web-hta]"
+}
+
+# Cloud SQL Client role for Auth Proxy IAM authentication
+resource "google_project_iam_member" "api_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.api.email}"
+}
+
+resource "google_project_iam_member" "worker_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.worker.email}"
+}
+
+resource "google_project_iam_member" "web_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.web.email}"
 }
 
 # =============================================================================

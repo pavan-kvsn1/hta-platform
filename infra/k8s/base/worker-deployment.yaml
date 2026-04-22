@@ -18,34 +18,16 @@ spec:
         app: hta-worker
         app.kubernetes.io/name: hta-worker
     spec:
-      serviceAccountName: hta-worker
+      serviceAccountName: worker
       containers:
         - name: worker
-          image: gcr.io/PROJECT_ID/hta-worker:latest
+          image: asia-south1-docker.pkg.dev/hta-platform-prod/production-docker/hta-worker:latest
           imagePullPolicy: Always
-          env:
-            - name: NODE_ENV
-              value: "production"
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: hta-secrets
-                  key: database-url
-            - name: REDIS_URL
-              valueFrom:
-                secretKeyRef:
-                  name: hta-secrets
-                  key: redis-url
-            - name: RESEND_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: hta-secrets
-                  key: resend-api-key
-            - name: EMAIL_FROM
-              valueFrom:
-                configMapKeyRef:
-                  name: hta-config
-                  key: email-from
+          envFrom:
+            - configMapRef:
+                name: hta-config
+            - secretRef:
+                name: worker-secrets
           resources:
             requests:
               memory: "128Mi"
@@ -60,7 +42,23 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - "pgrep -f 'node dist/index.js' > /dev/null"
+                - "pgrep -f 'node apps/worker/dist/index.js' > /dev/null"
             initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 3
+        # Cloud SQL Auth Proxy sidecar - handles mTLS to Cloud SQL
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+          args:
+            - "--private-ip"
+            - "--structured-logs"
+            - "hta-platform-prod:asia-south1:production-postgres"
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"

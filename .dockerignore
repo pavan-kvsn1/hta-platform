@@ -13,7 +13,10 @@ dist
 .gitignore
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
 
 # IDE and editor files
 .idea

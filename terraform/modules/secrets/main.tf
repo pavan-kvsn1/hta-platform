@@ -16,10 +16,13 @@ resource "google_secret_manager_secret" "secrets" {
 }
 
 resource "google_secret_manager_secret_version" "versions" {
-  for_each = { for k, v in var.secrets : k => v if lookup(v, "value", null) != null }
+  # Keys (secret names like "database-url") are not sensitive, only the values are.
+  # Use nonsensitive() because Terraform conservatively marks the entire expression
+  # as sensitive even though we're only extracting the public key names.
+  for_each = nonsensitive(toset([for k, v in var.secrets : k if v.value != null]))
 
   secret      = google_secret_manager_secret.secrets[each.key].id
-  secret_data = each.value.value
+  secret_data = var.secrets[each.key].value
 }
 
 # IAM bindings for secret access

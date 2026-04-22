@@ -13,7 +13,7 @@ import {
   CertificateReviewed,
   CustomerApproval,
   CustomerReview,
-} from './templates'
+} from './templates/index.js'
 
 export type EmailTemplate =
   | 'password-reset'

@@ -2,9 +2,17 @@
   "name": "@hta/emails",
   "version": "0.0.1",
   "private": true,
-  "main": "./src/index.ts",
+  "type": "module",
+  "main": "./dist/index.js",
   "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
+    "build": "tsc",
     "test": "echo 'No tests yet'",
     "test:unit": "vitest run",
     "typecheck": "tsc --noEmit",

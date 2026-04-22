@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # =============================================================================
 # HTA Web Frontend Dockerfile
 # Multi-stage build for Next.js production deployment
@@ -29,8 +30,9 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/emails/package.json ./packages/emails/
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install ALL dependencies (need devDeps for build)
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # -----------------------------------------------------------------------------
 # Builder stage: Build the application
@@ -38,25 +40,22 @@ RUN pnpm install --frozen-lockfile
 FROM base AS builder
 WORKDIR /app
 
-# Copy dependencies
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web-hta/node_modules ./apps/web-hta/node_modules
-COPY --from=deps /app/packages/database/node_modules ./packages/database/node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/ui/node_modules ./packages/ui/node_modules
-COPY --from=deps /app/packages/emails/node_modules ./packages/emails/node_modules
+# Copy everything from deps (includes node_modules with pnpm structure)
+COPY --from=deps /app ./
 
 # Copy source code
 COPY . .
 
-# Generate Prisma client
-RUN pnpm --filter @hta/database db:generate
+# Build all required packages
+RUN pnpm --filter @hta/database build
+RUN pnpm --filter @hta/shared build
+RUN pnpm --filter @hta/emails build
 
 # Build arguments for Next.js
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Build the application
+# Build the application (Next.js standalone mode bundles everything)
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @hta/web build
 
@@ -71,16 +70,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 
 # Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
 USER nextjs
 
-# Copy standalone build
+# Copy standalone build (Next.js bundles all dependencies)
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web-hta/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web-hta/.next/static ./apps/web-hta/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web-hta/public ./apps/web-hta/public
 
 EXPOSE 3000
 
-# Start the server
 CMD ["node", "apps/web-hta/server.js"]

@@ -51,17 +51,19 @@ output "dashboard_urls" {
   description = "URLs to the monitoring dashboards"
   value = {
     services_overview = "https://console.cloud.google.com/monitoring/dashboards/builder/${google_monitoring_dashboard.services_overview.id}?project=${var.project_id}"
-    slo               = "https://console.cloud.google.com/monitoring/dashboards/builder/${google_monitoring_dashboard.slo.id}?project=${var.project_id}"
+    # slo dashboard disabled until custom metrics exist
+    # slo               = "https://console.cloud.google.com/monitoring/dashboards/builder/${google_monitoring_dashboard.slo.id}?project=${var.project_id}"
   }
 }
 
 output "alert_policy_ids" {
   description = "IDs of created alert policies"
   value = {
-    high_error_rate = { for k, v in google_monitoring_alert_policy.high_error_rate : k => v.name }
-    high_latency    = google_monitoring_alert_policy.high_latency.name
+    # Note: Some alerts disabled until custom metrics exist
+    # high_error_rate = { for k, v in google_monitoring_alert_policy.high_error_rate : k => v.name }
+    # high_latency    = google_monitoring_alert_policy.high_latency.name
     db_connections  = google_monitoring_alert_policy.db_connection_pool.name
-    queue_backlog   = google_monitoring_alert_policy.worker_backlog.name
+    # queue_backlog   = google_monitoring_alert_policy.worker_backlog.name
   }
 }
 

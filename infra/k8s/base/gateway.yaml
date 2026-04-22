@@ -11,7 +11,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: hta-gateway
-  namespace: hta-platform
+  namespace: hta-prod
   labels:
     app.kubernetes.io/name: hta-platform
 spec:
@@ -21,17 +21,8 @@ spec:
     - type: NamedAddress
       value: production-security-policy-ip
   listeners:
-    - name: https
-      port: 443
-      protocol: HTTPS
-      allowedRoutes:
-        namespaces:
-          from: Same
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: hta-tls-cert
+    # HTTP only for initial testing
+    # TODO: Add HTTPS listener with GCP Managed Certificate after HTTP is working
     - name: http
       port: 80
       protocol: HTTP
@@ -39,49 +30,22 @@ spec:
         namespaces:
           from: Same
 ---
-# HTTP to HTTPS redirect
+# Main routing rules for app subdomain
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: http-redirect
-  namespace: hta-platform
-spec:
-  parentRefs:
-    - name: hta-gateway
-      sectionName: http
-  rules:
-    - filters:
-        - type: RequestRedirect
-          requestRedirect:
-            scheme: https
-            statusCode: 301
----
-# Main routing rules
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: hta-routes
-  namespace: hta-platform
+  name: hta-app-routes
+  namespace: hta-prod
   labels:
     app.kubernetes.io/name: hta-platform
 spec:
   parentRefs:
     - name: hta-gateway
-      sectionName: https
+      sectionName: http
   hostnames:
-    - "app.hta.example.com"
-    - "api.hta.example.com"
+    - "app.hta-calibration.com"
   rules:
-    # API subdomain: api.hta.example.com/*
-    - matches:
-        - headers:
-            - type: Exact
-              name: ":authority"
-              value: api.hta.example.com
-      backendRefs:
-        - name: hta-api
-          port: 80
-    # API path on app domain: app.hta.example.com/api/*
+    # API path: /api/* -> hta-api
     - matches:
         - path:
             type: PathPrefix
@@ -89,7 +53,7 @@ spec:
       backendRefs:
         - name: hta-api
           port: 80
-    # Health check endpoint (for monitoring)
+    # Health check endpoint
     - matches:
         - path:
             type: Exact
@@ -97,7 +61,7 @@ spec:
       backendRefs:
         - name: hta-api
           port: 80
-    # Frontend: everything else
+    # Frontend: everything else -> hta-web
     - matches:
         - path:
             type: PathPrefix
@@ -111,7 +75,7 @@ apiVersion: networking.gke.io/v1
 kind: GCPBackendPolicy
 metadata:
   name: hta-api-backend-policy
-  namespace: hta-platform
+  namespace: hta-prod
 spec:
   default:
     securityPolicy: production-security-policy
@@ -124,7 +88,7 @@ apiVersion: networking.gke.io/v1
 kind: GCPBackendPolicy
 metadata:
   name: hta-web-backend-policy
-  namespace: hta-platform
+  namespace: hta-prod
 spec:
   default:
     securityPolicy: production-security-policy
@@ -138,7 +102,7 @@ apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: hta-api-health-check
-  namespace: hta-platform
+  namespace: hta-prod
 spec:
   default:
     checkIntervalSec: 30
@@ -159,7 +123,7 @@ apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: hta-web-health-check
-  namespace: hta-platform
+  namespace: hta-prod
 spec:
   default:
     checkIntervalSec: 30

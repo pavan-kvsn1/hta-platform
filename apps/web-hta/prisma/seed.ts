@@ -245,7 +245,7 @@ async function main() {
     update: {},
     create: {
       tenantId,
-      email: 'admin@htaipl.com',
+      email: 'hemanth@htaipl.com',
       name: 'Hemanth Kumar',
       passwordHash: adminPassword,
       role: 'ADMIN',

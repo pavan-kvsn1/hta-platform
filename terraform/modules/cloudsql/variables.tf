@@ -70,6 +70,24 @@ variable "database_password" {
   sensitive   = true
 }
 
+variable "enable_iam_auth" {
+  description = "Enable IAM authentication for Cloud SQL Auth Proxy"
+  type        = bool
+  default     = false
+}
+
+variable "api_service_account_name" {
+  description = "Name of the API service account (without @project.iam.gserviceaccount.com)"
+  type        = string
+  default     = ""
+}
+
+variable "worker_service_account_name" {
+  description = "Name of the Worker service account (without @project.iam.gserviceaccount.com)"
+  type        = string
+  default     = ""
+}
+
 # =============================================================================
 # Replica Configuration
 # =============================================================================

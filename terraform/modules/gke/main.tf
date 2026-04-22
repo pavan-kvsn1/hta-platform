@@ -49,6 +49,11 @@ resource "google_container_cluster" "main" {
     }
   }
 
+  # Gateway API for advanced ingress/load balancing
+  gateway_api_config {
+    channel = "CHANNEL_STANDARD"
+  }
+
   # Maintenance window
   maintenance_policy {
     daily_maintenance_window {

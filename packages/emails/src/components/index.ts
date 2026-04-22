@@ -1,2 +1,2 @@
-export { Layout } from './Layout'
-export { Button } from './Button'
+export { Layout } from './Layout.js'
+export { Button } from './Button.js'

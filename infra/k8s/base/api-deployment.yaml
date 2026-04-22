@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/name: hta-api
     app.kubernetes.io/component: api
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: hta-api
@@ -18,44 +18,19 @@ spec:
         app: hta-api
         app.kubernetes.io/name: hta-api
     spec:
-      serviceAccountName: hta-api
+      serviceAccountName: api
       containers:
         - name: api
-          image: gcr.io/PROJECT_ID/hta-api:latest
+          image: asia-south1-docker.pkg.dev/hta-platform-prod/production-docker/hta-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
               name: http
-          env:
-            - name: NODE_ENV
-              value: "production"
-            - name: PORT
-              value: "8080"
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: hta-secrets
-                  key: database-url
-            - name: REDIS_URL
-              valueFrom:
-                secretKeyRef:
-                  name: hta-secrets
-                  key: redis-url
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: hta-secrets
-                  key: jwt-secret
-            - name: CORS_ORIGINS
-              valueFrom:
-                configMapKeyRef:
-                  name: hta-config
-                  key: cors-origins
-            - name: GCS_BUCKET_NAME
-              valueFrom:
-                configMapKeyRef:
-                  name: hta-config
-                  key: gcs-bucket-name
+          envFrom:
+            - configMapRef:
+                name: hta-config
+            - secretRef:
+                name: api-secrets
           resources:
             requests:
               memory: "256Mi"
@@ -79,6 +54,22 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+        # Cloud SQL Auth Proxy sidecar - handles mTLS to Cloud SQL
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+          args:
+            - "--private-ip"
+            - "--structured-logs"
+            - "hta-platform-prod:asia-south1:production-postgres"
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

@@ -33,5 +33,10 @@ resource "google_redis_instance" "main" {
   # Transit encryption
   transit_encryption_mode = var.transit_encryption_mode
 
+  # BullMQ requires noeviction policy to prevent job data loss
+  redis_configs = {
+    maxmemory-policy = "noeviction"
+  }
+
   labels = var.labels
 }

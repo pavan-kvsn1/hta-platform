@@ -16,12 +16,3 @@ spec:
       name: http
   selector:
     app: hta-api
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: hta-api
-  namespace: hta-platform
-  annotations:
-    # Workload Identity for GCS access
-    iam.gke.io/gcp-service-account: hta-api@PROJECT_ID.iam.gserviceaccount.com

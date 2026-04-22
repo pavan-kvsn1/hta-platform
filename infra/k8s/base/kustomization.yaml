@@ -6,8 +6,8 @@ namespace: hta-platform
 resources:
   - namespace.yaml
   - service-accounts.yaml
-  - configmap.yaml
-  - secrets.yaml
+  # - configmap.yaml         # Created manually with kubectl
+  # - secrets.yaml           # Using External Secrets Operator instead
   - api-deployment.yaml
   - api-service.yaml
   - web-hta-deployment.yaml
@@ -17,6 +17,7 @@ resources:
   - hpa.yaml
   # - ingress.yaml  # DEPRECATED: Use gateway.yaml instead
 
-commonLabels:
-  app.kubernetes.io/part-of: hta-platform
-  app.kubernetes.io/managed-by: kustomize
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: hta-platform
+      app.kubernetes.io/managed-by: kustomize

@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/name: hta-web
     app.kubernetes.io/component: frontend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: hta-web
@@ -21,36 +21,18 @@ spec:
       serviceAccountName: web-hta
       containers:
         - name: web
-          image: gcr.io/PROJECT_ID/hta-web:latest
+          image: asia-south1-docker.pkg.dev/hta-platform-prod/production-docker/hta-web:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
               name: http
-          env:
-            - name: NODE_ENV
-              value: "production"
-            - name: PORT
-              value: "3000"
-            - name: NEXTAUTH_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: hta-config
-                  key: nextauth-url
-            - name: NEXTAUTH_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: hta-secrets
-                  key: nextauth-secret
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: hta-secrets
-                  key: database-url
-            - name: NEXT_PUBLIC_API_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: hta-config
-                  key: api-url
+          envFrom:
+            - configMapRef:
+                name: hta-config
+            - secretRef:
+                name: web-secrets
+            - secretRef:
+                name: api-secrets  # For DATABASE_URL if web needs direct DB access
           resources:
             requests:
               memory: "256Mi"
@@ -74,6 +56,22 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+        # Cloud SQL Auth Proxy sidecar - handles mTLS to Cloud SQL
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+          args:
+            - "--private-ip"
+            - "--structured-logs"
+            - "hta-platform-prod:asia-south1:production-postgres"
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

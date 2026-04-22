@@ -33,6 +33,18 @@ provider "google-beta" {
 }
 
 # =============================================================================
+# Locals - Predictable Service Account Emails
+# =============================================================================
+# Service account emails follow a predictable pattern. Using locals instead of
+# resource attributes avoids "computed values in for_each" errors in Terraform.
+
+locals {
+  api_sa_email    = "${var.environment}-api@${var.project_id}.iam.gserviceaccount.com"
+  worker_sa_email = "${var.environment}-worker@${var.project_id}.iam.gserviceaccount.com"
+  web_sa_email    = "${var.environment}-web@${var.project_id}.iam.gserviceaccount.com"
+}
+
+# =============================================================================
 # VPC Network
 # =============================================================================
 
@@ -179,6 +191,11 @@ module "cloudsql" {
   database_user     = var.database_user
   database_password = var.database_password
 
+  # Enable IAM authentication for Cloud SQL Auth Proxy
+  enable_iam_auth              = true
+  api_service_account_name     = "${var.environment}-api"
+  worker_service_account_name  = "${var.environment}-worker"
+
   # Cross-region replica for DR
   enable_replica = var.enable_dr_replica
   replica_region = var.dr_replica_region
@@ -262,7 +279,7 @@ module "uploads_bucket" {
   }
 
   admin_members = [
-    "serviceAccount:${google_service_account.api.email}",
+    "serviceAccount:${local.api_sa_email}",
   ]
 
   labels = {
@@ -280,28 +297,30 @@ module "secrets" {
   project_id = var.project_id
 
   secrets = {
+    # DATABASE_URL connects to Cloud SQL Auth Proxy sidecar (localhost:5432)
+    # The proxy handles mTLS to Cloud SQL, so no sslmode needed
     "database-url" = {
-      value = "postgresql://${var.database_user}:${var.database_password}@${module.cloudsql.private_ip_address}:5432/${var.database_name}"
+      value = "postgresql://${var.database_user}:${var.database_password}@localhost:5432/${var.database_name}"
       accessors = [
-        "serviceAccount:${google_service_account.api.email}",
-        "serviceAccount:${google_service_account.worker.email}",
+        "serviceAccount:${local.api_sa_email}",
+        "serviceAccount:${local.worker_sa_email}",
       ]
     }
     "redis-url" = {
       value = module.redis.connection_string
       accessors = [
-        "serviceAccount:${google_service_account.api.email}",
-        "serviceAccount:${google_service_account.worker.email}",
+        "serviceAccount:${local.api_sa_email}",
+        "serviceAccount:${local.worker_sa_email}",
       ]
     }
     "nextauth-secret" = {
       accessors = [
-        "serviceAccount:${google_service_account.web.email}",
+        "serviceAccount:${local.web_sa_email}",
       ]
     }
     "resend-api-key" = {
       accessors = [
-        "serviceAccount:${google_service_account.worker.email}",
+        "serviceAccount:${local.worker_sa_email}",
       ]
     }
   }
@@ -352,6 +371,25 @@ resource "google_service_account_iam_member" "web_workload_identity" {
   member             = "serviceAccount:${var.project_id}.svc.id.goog[${var.k8s_namespace}/web-hta]"
 }
 
+# Cloud SQL Client role for Auth Proxy IAM authentication
+resource "google_project_iam_member" "api_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.api.email}"
+}
+
+resource "google_project_iam_member" "worker_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.worker.email}"
+}
+
+resource "google_project_iam_member" "web_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.web.email}"
+}
+
 # =============================================================================
 # Artifact Registry
 # =============================================================================
@@ -384,6 +422,9 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.actor"      = "assertion.actor"
     "attribute.repository" = "assertion.repository"
   }
+
+  # Restrict to only your repository
+  attribute_condition = "assertion.repository == '${var.github_repo}'"
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
@@ -419,21 +460,25 @@ resource "google_project_iam_member" "github_actions_gke_developer" {
 # IAP for Argo CD
 # =============================================================================
 
-module "iap" {
-  source = "../../modules/iap"
-
-  project_id          = var.project_id
-  support_email       = var.iap_support_email
-  application_title   = "HTA Platform"
-  client_display_name = "Argo CD IAP Client"
-
-  # Who can access Argo CD (Google account emails)
-  authorized_members = var.iap_authorized_members
-}
+# IAP module disabled - requires GCP Organization
+# To enable: add project to a GCP Organization, then uncomment
+# module "iap" {
+#   source = "../../modules/iap"
+#
+#   project_id          = var.project_id
+#   support_email       = var.iap_support_email
+#   application_title   = "HTA Platform"
+#   client_display_name = "Argo CD IAP Client"
+#
+#   # Who can access Argo CD (Google account emails)
+#   authorized_members = var.iap_authorized_members
+# }
 
 # =============================================================================
 # Monitoring & Alerting
 # =============================================================================
+# Note: Some alerts are disabled until custom metrics exist (apps must emit them)
+# See modules/monitoring/alerts.tf and modules/monitoring/slo.tf for details
 
 module "monitoring" {
   source = "../../modules/monitoring"

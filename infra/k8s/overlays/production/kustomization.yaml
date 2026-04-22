@@ -50,8 +50,9 @@ patches:
       kind: Deployment
       name: hta-api
 
-commonLabels:
-  environment: production
+labels:
+  - pairs:
+      environment: production
 
 commonAnnotations:
   app.kubernetes.io/version: "1.0.0"

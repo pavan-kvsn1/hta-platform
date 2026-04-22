@@ -1,6 +1,6 @@
 import { Text, Section } from '@react-email/components'
 import * as React from 'react'
-import { Layout, Button } from '../components'
+import { Layout, Button } from '../components/index.js'
 
 interface CertificateReviewedProps {
   assigneeName: string

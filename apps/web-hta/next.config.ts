@@ -86,9 +86,14 @@ const nextConfig: NextConfig = {
     ]
   },
 
-  // Proxy API requests to the standalone API service
-  // Exclude /api/auth/* which are handled by Next.js (NextAuth)
+  // Proxy API requests to the standalone API service (development only)
+  // In production, the Gateway/Ingress routes /api/* directly to the API service
   async rewrites() {
+    // Skip rewrites in production - Gateway handles routing
+    if (process.env.NODE_ENV === 'production') {
+      return { beforeFiles: [], afterFiles: [], fallback: [] }
+    }
+
     const apiUrl = process.env.API_URL || 'http://localhost:4000'
     return {
       beforeFiles: [],
