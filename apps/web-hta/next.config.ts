@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 
+// Security headers - CSP is handled in middleware.ts for dynamic control
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
   { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
@@ -8,20 +9,7 @@ const securityHeaders = [
   { key: 'X-XSS-Protection', value: '1; mode=block' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-  {
-    key: 'Content-Security-Policy',
-    value: [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js requires unsafe-inline/eval
-      "style-src 'self' 'unsafe-inline'", // For CSS-in-JS and inline styles
-      "img-src 'self' data: blob: https:", // Allow images from self, data URIs, blobs, HTTPS
-      "font-src 'self' data:", // Fonts from self and data URIs
-      "connect-src 'self' https:", // API calls to self and HTTPS endpoints
-      "frame-ancestors 'none'", // Prevent framing (clickjacking protection)
-      "base-uri 'self'", // Restrict base tag
-      "form-action 'self'", // Restrict form submissions
-    ].join('; '),
-  },
+  // CSP removed - handled by middleware.ts for better control and reporting
 ]
 
 const nextConfig: NextConfig = {

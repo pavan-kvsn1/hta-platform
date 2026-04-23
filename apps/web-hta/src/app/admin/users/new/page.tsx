@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -42,7 +44,7 @@ export default function CreateUserPage() {
 
   useEffect(() => {
     // Fetch Admins for assignment dropdown
-    fetch('/api/admin/users/admins')
+    apiFetch('/api/admin/users/admins')
       .then((res) => res.json())
       .then((data) => setAdmins(data.admins || []))
       .catch(console.error)
@@ -61,7 +63,7 @@ export default function CreateUserPage() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await apiFetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

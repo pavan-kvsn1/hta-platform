@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -146,7 +148,7 @@ export function UserTATMetrics({ userId, userRole, adminType, periodDays = 30 }:
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch(`/api/admin/users/${userId}/tat-metrics?periodDays=${periodDays}`)
+    apiFetch(`/api/admin/users/${userId}/tat-metrics?periodDays=${periodDays}`)
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch metrics')
         return res.json()

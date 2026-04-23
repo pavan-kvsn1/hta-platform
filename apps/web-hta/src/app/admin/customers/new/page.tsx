@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -56,7 +58,7 @@ export default function CreateCustomerPage() {
   })
 
   useEffect(() => {
-    fetch('/api/admin/users/admins')
+    apiFetch('/api/admin/users/admins')
       .then((res) => res.json())
       .then((data) => setAdmins(data.admins || []))
       .catch(console.error)
@@ -90,7 +92,7 @@ export default function CreateCustomerPage() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/admin/customers', {
+      const res = await apiFetch('/api/admin/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

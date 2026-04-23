@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, CreditCard, Users, Building2, FileText, Check } from 'lucide-react'
@@ -134,7 +136,7 @@ export default function SubscriptionPage() {
   useEffect(() => {
     async function fetchSubscription() {
       try {
-        const res = await fetch('/api/admin/subscription')
+        const res = await apiFetch('/api/admin/subscription')
         if (!res.ok) throw new Error('Failed to fetch subscription')
         const result = await res.json()
         setData(result)

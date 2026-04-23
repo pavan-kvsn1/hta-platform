@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import { FileText, Loader2, AlertCircle, Download, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -34,7 +36,7 @@ export function CustomerPDFViewer({ token, certificateNumber }: CustomerPDFViewe
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch(`/api/customer/review/${token}/certificate`)
+      const response = await apiFetch(`/api/customer/review/${token}/certificate`)
 
       if (!response.ok) {
         const data = await response.json()

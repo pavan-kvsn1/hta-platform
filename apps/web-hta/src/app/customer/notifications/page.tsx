@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState, useCallback } from 'react'
 import { NotificationItem } from '@/components/notifications/NotificationItem'
 import { Button } from '@/components/ui/button'
@@ -48,7 +50,7 @@ export default function CustomerNotificationsPage() {
         offset: currentOffset.toString(),
       })
 
-      const response = await fetch(`/api/notifications?${params}`)
+      const response = await apiFetch(`/api/notifications?${params}`)
       if (!response.ok) throw new Error('Failed to fetch')
 
       const data: NotificationsResponse = await response.json()
@@ -77,7 +79,7 @@ export default function CustomerNotificationsPage() {
 
   const handleMarkAsRead = async (id: string) => {
     try {
-      await fetch('/api/notifications/mark-read', {
+      await apiFetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationIds: [id] }),
@@ -97,7 +99,7 @@ export default function CustomerNotificationsPage() {
       const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id)
       if (unreadIds.length === 0) return
 
-      await fetch('/api/notifications/mark-read', {
+      await apiFetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationIds: unreadIds }),

@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -46,7 +48,7 @@ export function DashboardSidebar({
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        const res = await fetch('/api/notifications/unread-count')
+        const res = await apiFetch('/api/notifications/unread-count')
         if (res.ok) {
           const data = await res.json()
           setUnreadCount(data.count)

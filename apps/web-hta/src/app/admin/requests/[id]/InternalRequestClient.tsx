@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -83,7 +85,7 @@ export function InternalRequestClient({
     setError('')
     setProcessing(true)
     try {
-      const res = await fetch(`/api/admin/internal-requests/${request.id}/review`, {
+      const res = await apiFetch(`/api/admin/internal-requests/${request.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import { FlaskConical, Factory, Calendar, AlertTriangle, CheckCircle2, Loader2, FileText, UserCheck } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -40,7 +42,7 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
         params.append('excludeId', certificateId)
       }
 
-      const response = await fetch(`/api/certificates/check-number?${params}`)
+      const response = await apiFetch(`/api/certificates/check-number?${params}`)
       if (response.ok) {
         const data = await response.json()
         setNumberExists(data.exists)

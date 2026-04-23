@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { Check, ChevronsUpDown, User, Briefcase, Loader2, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -42,7 +44,7 @@ export function ReviewerSelect({
       setFetchError(null)
 
       try {
-        const res = await fetch('/api/users/reviewers')
+        const res = await apiFetch('/api/users/reviewers')
         if (!res.ok) throw new Error('Failed to fetch reviewers')
 
         const data = await res.json()

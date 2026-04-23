@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   PendingReviewTable,
@@ -115,7 +117,7 @@ export function DashboardClient() {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await fetch('/api/customer/dashboard')
+      const response = await apiFetch('/api/customer/dashboard')
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard data')
       }

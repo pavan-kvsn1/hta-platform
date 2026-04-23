@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useCallback } from 'react'
 import { AdminAuthHeader } from './AdminAuthHeader'
 import { AdminAuthContent, CertificateFormData } from './AdminAuthContent'
@@ -53,7 +55,7 @@ export function AdminAuthorizationClient({
       setIsDownloading(true)
 
       // Use the signed PDF download endpoint
-      const response = await fetch(`/api/certificates/${certificate.id}/download-signed`)
+      const response = await apiFetch(`/api/certificates/${certificate.id}/download-signed`)
       if (!response.ok) {
         throw new Error('Failed to download PDF')
       }

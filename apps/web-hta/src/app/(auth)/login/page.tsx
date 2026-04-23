@@ -13,7 +13,6 @@ import { tenantConfig } from '@/config/tenant'
 function StaffLoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
   const error = searchParams.get('error')
 
   const [email, setEmail] = useState('')
@@ -71,7 +70,11 @@ function StaffLoginForm() {
         } catch (err) {
           console.warn('Failed to issue refresh token:', err)
         }
-        router.push(callbackUrl)
+
+        // Route admins to admin page, others to dashboard
+        const destination = searchParams.get('callbackUrl')
+          || (session?.user?.role === 'ADMIN' ? '/admin' : '/dashboard')
+        router.push(destination)
         router.refresh()
       }
     } catch {

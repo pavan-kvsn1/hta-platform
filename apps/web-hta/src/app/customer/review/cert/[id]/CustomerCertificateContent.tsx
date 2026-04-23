@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState } from 'react'
 import {
   AlertCircle,
@@ -75,7 +77,7 @@ export function CustomerCertificateContent({
   const fetchUucImages = async () => {
     setUucImagesModal({ isOpen: true, images: [], isLoading: true, error: null })
     try {
-      const response = await fetch(`/api/certificates/${certificate.id}/images?type=UUC`)
+      const response = await apiFetch(`/api/certificates/${certificate.id}/images?type=UUC`)
       if (!response.ok) throw new Error('Failed to fetch images')
       const data = await response.json()
       setUucImagesModal({
@@ -99,8 +101,8 @@ export function CustomerCertificateContent({
     setReadingImagesModal({ isOpen: true, parameters: [], isLoading: true, error: null })
     try {
       const [uucResponse, masterResponse] = await Promise.all([
-        fetch(`/api/certificates/${certificate.id}/images?type=READING_UUC`),
-        fetch(`/api/certificates/${certificate.id}/images?type=READING_MASTER`),
+        apiFetch(`/api/certificates/${certificate.id}/images?type=READING_UUC`),
+        apiFetch(`/api/certificates/${certificate.id}/images?type=READING_MASTER`),
       ])
 
       if (!uucResponse.ok || !masterResponse.ok) throw new Error('Failed to fetch images')
@@ -154,7 +156,7 @@ export function CustomerCertificateContent({
   const fetchMasterImages = async () => {
     setMasterImagesModal({ isOpen: true, images: [], isLoading: true, error: null })
     try {
-      const response = await fetch(`/api/certificates/${certificate.id}/images?type=MASTER_INSTRUMENT`)
+      const response = await apiFetch(`/api/certificates/${certificate.id}/images?type=MASTER_INSTRUMENT`)
       if (!response.ok) throw new Error('Failed to fetch images')
       const data = await response.json()
       setMasterImagesModal({

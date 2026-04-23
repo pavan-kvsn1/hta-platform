@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { ChatMessage } from './ChatMessage'
@@ -51,7 +53,7 @@ export function ChatContainer({
     if (!threadId) return
 
     try {
-      const res = await fetch(`/api/chat/threads/${threadId}/messages`)
+      const res = await apiFetch(`/api/chat/threads/${threadId}/messages`)
       if (!res.ok) throw new Error('Failed to fetch messages')
 
       const data = await res.json()
@@ -77,7 +79,7 @@ export function ChatContainer({
 
     const markAsRead = async () => {
       try {
-        await fetch(`/api/chat/threads/${threadId}/read`, { method: 'POST' })
+        await apiFetch(`/api/chat/threads/${threadId}/read`, { method: 'POST' })
       } catch (err) {
         console.error('Mark as read error:', err)
       }
@@ -107,7 +109,7 @@ export function ChatContainer({
     if (!threadId || !currentUserId) return
 
     try {
-      const res = await fetch(`/api/chat/threads/${threadId}/messages`, {
+      const res = await apiFetch(`/api/chat/threads/${threadId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, attachments }),

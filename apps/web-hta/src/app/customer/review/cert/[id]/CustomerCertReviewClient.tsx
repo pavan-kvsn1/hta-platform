@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useCallback, useEffect } from 'react'
 import { CustomerCertificateHeader } from './CustomerCertificateHeader'
 import { CustomerCertificateContent } from './CustomerCertificateContent'
@@ -144,7 +146,7 @@ export function CustomerCertReviewClient({
   const handleDownload = useCallback(async () => {
     setIsDownloading(true)
     try {
-      const response = await fetch(`/api/certificates/${certificate.id}/download-signed`)
+      const response = await apiFetch(`/api/certificates/${certificate.id}/download-signed`)
       if (!response.ok) {
         throw new Error('Failed to download PDF')
       }

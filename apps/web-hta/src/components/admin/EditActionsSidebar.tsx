@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -128,7 +130,7 @@ export function EditActionsSidebar({
     setError(null)
 
     try {
-      const response = await fetch(`/api/admin/certificates/${certificate.id}/edit`, {
+      const response = await apiFetch(`/api/admin/certificates/${certificate.id}/edit`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

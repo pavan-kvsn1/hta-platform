@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, use, useCallback } from 'react'
 import Link from 'next/link'
 import {
@@ -150,7 +152,7 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
 
   const fetchInstrument = useCallback(async () => {
     try {
-      const response = await fetch(`/api/admin/instruments/${id}`)
+      const response = await apiFetch(`/api/admin/instruments/${id}`)
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('Instrument not found')
@@ -179,7 +181,7 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
     setError(null)
 
     try {
-      const response = await fetch(`/api/admin/instruments/${id}`, {
+      const response = await apiFetch(`/api/admin/instruments/${id}`, {
         method: 'DELETE',
       })
 

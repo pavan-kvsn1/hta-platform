@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-client'
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -86,7 +87,7 @@ export function useCertificateImages({
     setError(null)
 
     try {
-      const response = await fetch(`/api/certificates/${certificateId}/images`)
+      const response = await apiFetch(`/api/certificates/${certificateId}/images`)
       if (!response.ok) {
         throw new Error('Failed to fetch images')
       }
@@ -171,7 +172,7 @@ export function useCertificateImages({
       formData.append('file', file)
       formData.append('metadata', JSON.stringify(metadata))
 
-      const response = await fetch(`/api/certificates/${certId}/images`, {
+      const response = await apiFetch(`/api/certificates/${certId}/images`, {
         method: 'POST',
         body: formData,
       })
@@ -216,7 +217,7 @@ export function useCertificateImages({
     setError(null)
 
     try {
-      const response = await fetch(`/api/certificates/${certId}/images`)
+      const response = await apiFetch(`/api/certificates/${certId}/images`)
       if (!response.ok) {
         throw new Error('Failed to fetch images')
       }

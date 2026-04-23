@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -49,7 +51,7 @@ export default function ReviewRequestPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     const fetchRequest = async () => {
       try {
-        const res = await fetch(`/api/admin/customers/requests/${id}`)
+        const res = await apiFetch(`/api/admin/customers/requests/${id}`)
         if (res.ok) {
           const data = await res.json()
           setRequest(data.request)
@@ -67,7 +69,7 @@ export default function ReviewRequestPage({ params }: { params: Promise<{ id: st
     setError('')
     setProcessing(true)
     try {
-      const res = await fetch(`/api/admin/customers/requests/${id}/approve`, {
+      const res = await apiFetch(`/api/admin/customers/requests/${id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -91,7 +93,7 @@ export default function ReviewRequestPage({ params }: { params: Promise<{ id: st
     setError('')
     setProcessing(true)
     try {
-      const res = await fetch(`/api/admin/customers/requests/${id}/reject`, {
+      const res = await apiFetch(`/api/admin/customers/requests/${id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: rejectionReason }),

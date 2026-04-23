@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useRef, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -194,7 +196,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
 
   const fetchInstrument = useCallback(async () => {
     try {
-      const response = await fetch(`/api/admin/instruments/${id}`)
+      const response = await apiFetch(`/api/admin/instruments/${id}`)
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('Instrument not found')
@@ -260,7 +262,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
     setSaving(true)
 
     try {
-      const response = await fetch(`/api/admin/instruments/${id}`, {
+      const response = await apiFetch(`/api/admin/instruments/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -321,7 +323,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
       if (certFormData.validFrom) uploadFormData.append('validFrom', certFormData.validFrom)
       if (certFormData.validUntil) uploadFormData.append('validUntil', certFormData.validUntil)
 
-      const response = await fetch(`/api/admin/instruments/${id}/certificates`, {
+      const response = await apiFetch(`/api/admin/instruments/${id}/certificates`, {
         method: 'POST',
         body: uploadFormData,
       })

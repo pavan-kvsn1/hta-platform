@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -60,7 +62,7 @@ export default function AuthorizationPage() {
         limit: '20',
         status: 'PENDING_ADMIN_AUTHORIZATION',
       })
-      const res = await fetch(`/api/admin/authorization?${params}`)
+      const res = await apiFetch(`/api/admin/authorization?${params}`)
       if (res.ok) {
         const data = await res.json()
         setCertificates(data.certificates)

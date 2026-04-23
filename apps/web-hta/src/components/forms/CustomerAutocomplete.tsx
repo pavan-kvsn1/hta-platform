@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Building2, MapPin, Loader2, Search, User, Star } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -74,7 +76,7 @@ export function CustomerAutocomplete({
 
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/customers/search?q=${encodeURIComponent(query)}&limit=5`)
+      const res = await apiFetch(`/api/customers/search?q=${encodeURIComponent(query)}&limit=5`)
       if (res.ok) {
         const data = await res.json()
         setCustomers(data.customers)
@@ -114,7 +116,7 @@ export function CustomerAutocomplete({
       if (query.length > 0) {
         params.set('q', query)
       }
-      const res = await fetch(`/api/customers/users?${params.toString()}`)
+      const res = await apiFetch(`/api/customers/users?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
         setContactUsers(data.users)

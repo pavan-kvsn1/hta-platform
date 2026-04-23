@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
@@ -83,7 +85,7 @@ export default function CustomerInstrumentsPage() {
         params.set('search', searchQuery)
       }
 
-      const res = await fetch(`/api/customer/instruments?${params}`)
+      const res = await apiFetch(`/api/customer/instruments?${params}`)
       if (res.ok) {
         const data = await res.json()
         setInstruments(data.instruments)

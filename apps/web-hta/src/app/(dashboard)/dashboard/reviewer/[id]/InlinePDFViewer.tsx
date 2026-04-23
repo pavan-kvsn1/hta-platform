@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import { Loader2, AlertCircle, Download, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -34,7 +36,7 @@ export function InlinePDFViewer({ certificateId, certificateNumber }: InlinePDFV
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch(`/api/certificates/${certificateId}/pdf-data`)
+      const response = await apiFetch(`/api/certificates/${certificateId}/pdf-data`)
 
       if (!response.ok) {
         const data = await response.json()

@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
@@ -175,7 +177,7 @@ export default function CertificateViewPage() {
   const fetchUucImages = async () => {
     setUucImagesModal({ isOpen: true, images: [], isLoading: true, error: null })
     try {
-      const response = await fetch(`/api/certificates/${certificateId}/images?type=UUC`)
+      const response = await apiFetch(`/api/certificates/${certificateId}/images?type=UUC`)
       if (!response.ok) throw new Error('Failed to fetch images')
       const data = await response.json()
       setUucImagesModal({
@@ -201,8 +203,8 @@ export default function CertificateViewPage() {
     try {
       // Fetch all reading images
       const [uucResponse, masterResponse] = await Promise.all([
-        fetch(`/api/certificates/${certificateId}/images?type=READING_UUC`),
-        fetch(`/api/certificates/${certificateId}/images?type=READING_MASTER`),
+        apiFetch(`/api/certificates/${certificateId}/images?type=READING_UUC`),
+        apiFetch(`/api/certificates/${certificateId}/images?type=READING_MASTER`),
       ])
 
       if (!uucResponse.ok || !masterResponse.ok) throw new Error('Failed to fetch images')
@@ -256,7 +258,7 @@ export default function CertificateViewPage() {
     async function fetchCertificate() {
       try {
         setIsLoading(true)
-        const response = await fetch(`/api/certificates/${certificateId}?include=feedbacks,events`)
+        const response = await apiFetch(`/api/certificates/${certificateId}?include=feedbacks,events`)
 
         if (!response.ok) {
           if (response.status === 404) {

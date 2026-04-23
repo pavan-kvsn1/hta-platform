@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState } from 'react'
 import { AlertCircle, CheckCircle as _CheckCircle, Image as ImageIcon } from 'lucide-react'
 import { cn as _cn } from '@/lib/utils'
@@ -126,7 +128,7 @@ export function AdminAuthContent({ formData, certificateId }: AdminAuthContentPr
   const fetchUucImages = async () => {
     setUucImagesModal({ isOpen: true, images: [], isLoading: true, error: null })
     try {
-      const response = await fetch(`/api/certificates/${certificateId}/images?type=UUC`)
+      const response = await apiFetch(`/api/certificates/${certificateId}/images?type=UUC`)
       if (!response.ok) throw new Error('Failed to fetch images')
       const data = await response.json()
       setUucImagesModal({
@@ -150,8 +152,8 @@ export function AdminAuthContent({ formData, certificateId }: AdminAuthContentPr
     setReadingImagesModal({ isOpen: true, parameters: [], isLoading: true, error: null })
     try {
       const [uucResponse, masterResponse] = await Promise.all([
-        fetch(`/api/certificates/${certificateId}/images?type=READING_UUC`),
-        fetch(`/api/certificates/${certificateId}/images?type=READING_MASTER`),
+        apiFetch(`/api/certificates/${certificateId}/images?type=READING_UUC`),
+        apiFetch(`/api/certificates/${certificateId}/images?type=READING_MASTER`),
       ])
 
       if (!uucResponse.ok || !masterResponse.ok) throw new Error('Failed to fetch images')
@@ -205,7 +207,7 @@ export function AdminAuthContent({ formData, certificateId }: AdminAuthContentPr
   const fetchMasterImages = async () => {
     setMasterImagesModal({ isOpen: true, images: [], isLoading: true, error: null })
     try {
-      const response = await fetch(`/api/certificates/${certificateId}/images?type=MASTER_INSTRUMENT`)
+      const response = await apiFetch(`/api/certificates/${certificateId}/images?type=MASTER_INSTRUMENT`)
       if (!response.ok) throw new Error('Failed to fetch images')
       const data = await response.json()
       setMasterImagesModal({

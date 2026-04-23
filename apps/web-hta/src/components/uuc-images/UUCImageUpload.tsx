@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { Button as _Button } from '@/components/ui/button'
@@ -88,7 +90,7 @@ export function UUCImageUpload({
           const formData = new FormData()
           validFiles.forEach((file) => formData.append('files', file))
 
-          const res = await fetch(`/api/certificates/${certificateId}/uuc-images`, {
+          const res = await apiFetch(`/api/certificates/${certificateId}/uuc-images`, {
             method: 'POST',
             body: formData,
           })
@@ -150,7 +152,7 @@ export function UUCImageUpload({
       // If it's a saved image, delete from server
       if (certificateId && !imageId.startsWith('temp-')) {
         try {
-          await fetch(`/api/certificates/${certificateId}/uuc-images/${imageId}`, {
+          await apiFetch(`/api/certificates/${certificateId}/uuc-images/${imageId}`, {
             method: 'DELETE',
           })
         } catch (err) {

@@ -40,7 +40,7 @@ function generateToken(): string {
  * Get JWT secret as Uint8Array for jose
  */
 function getJwtSecret(): Uint8Array {
-  const secret = process.env.JWT_SECRET || process.env.AUTH_SECRET
+  const secret = process.env.JWT_SECRET || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
   if (!secret) {
     throw new Error('JWT_SECRET or AUTH_SECRET must be configured')
   }

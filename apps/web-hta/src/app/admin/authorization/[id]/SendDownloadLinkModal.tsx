@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
@@ -65,7 +67,7 @@ export function SendDownloadLinkModal({
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true)
     try {
-      const response = await fetch(`/api/admin/certificates/${certificateId}/send-download-link`)
+      const response = await apiFetch(`/api/admin/certificates/${certificateId}/send-download-link`)
       if (response.ok) {
         const data = await response.json()
         setHistory(data.tokens || [])
@@ -100,7 +102,7 @@ export function SendDownloadLinkModal({
     setError(null)
 
     try {
-      const response = await fetch(`/api/admin/certificates/${certificateId}/send-download-link`, {
+      const response = await apiFetch(`/api/admin/certificates/${certificateId}/send-download-link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

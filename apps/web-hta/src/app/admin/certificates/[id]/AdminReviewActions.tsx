@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -80,7 +82,7 @@ export function AdminReviewActions({
     setError(null)
 
     try {
-      const response = await fetch(`/api/certificates/${certificate.id}/review`, {
+      const response = await apiFetch(`/api/certificates/${certificate.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,7 +125,7 @@ export function AdminReviewActions({
     setError(null)
 
     try {
-      const response = await fetch(`/api/certificates/${certificate.id}/review`, {
+      const response = await apiFetch(`/api/certificates/${certificate.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -162,7 +164,7 @@ export function AdminReviewActions({
     setError(null)
 
     try {
-      const response = await fetch(`/api/certificates/${certificate.id}/review`, {
+      const response = await apiFetch(`/api/certificates/${certificate.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

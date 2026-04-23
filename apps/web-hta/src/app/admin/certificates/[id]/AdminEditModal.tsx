@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,7 +60,7 @@ export function AdminEditModal({
     setError(null)
 
     try {
-      const response = await fetch(`/api/admin/certificates/${certificateId}/edit`, {
+      const response = await apiFetch(`/api/admin/certificates/${certificateId}/edit`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

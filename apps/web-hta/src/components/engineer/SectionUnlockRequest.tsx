@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -69,7 +71,7 @@ export function SectionUnlockRequest({ certificateId, certificateStatus }: Secti
 
   const fetchUnlockRequests = useCallback(async () => {
     try {
-      const res = await fetch(`/api/certificates/${certificateId}/unlock-requests`)
+      const res = await apiFetch(`/api/certificates/${certificateId}/unlock-requests`)
       if (res.ok) {
         const data = await res.json()
         setRequests(data.requests)
@@ -120,7 +122,7 @@ export function SectionUnlockRequest({ certificateId, certificateStatus }: Secti
     setSuccess(null)
 
     try {
-      const res = await fetch('/api/internal-requests', {
+      const res = await apiFetch('/api/internal-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

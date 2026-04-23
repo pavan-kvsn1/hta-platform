@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-client'
 import { create } from 'zustand'
 import {
   MasterInstrument,
@@ -80,7 +81,7 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
 
     try {
       // Try to fetch from API first
-      const response = await fetch('/api/instruments')
+      const response = await apiFetch('/api/instruments')
 
       if (!response.ok) {
         throw new Error('API request failed')
@@ -309,7 +310,7 @@ if (typeof window !== 'undefined') {
 
   // Then attempt to refresh from API (non-blocking)
   setTimeout(() => {
-    fetch('/api/instruments')
+    apiFetch('/api/instruments')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {

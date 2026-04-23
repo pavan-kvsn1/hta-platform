@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -78,7 +80,7 @@ export default function CustomerRequestsPage() {
       params.set('page', page.toString())
       params.set('limit', '15')
 
-      const res = await fetch(`/api/admin/customers/requests?${params}`)
+      const res = await apiFetch(`/api/admin/customers/requests?${params}`)
       if (res.ok) {
         const data = await res.json()
         setRequests(data.requests)

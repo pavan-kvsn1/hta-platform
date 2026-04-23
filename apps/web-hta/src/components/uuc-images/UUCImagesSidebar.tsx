@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -44,7 +46,7 @@ export function UUCImagesSidebar({
       try {
         setIsLoading(true)
         setError(null)
-        const res = await fetch(`/api/certificates/${certificateId}/uuc-images`)
+        const res = await apiFetch(`/api/certificates/${certificateId}/uuc-images`)
 
         if (!res.ok) {
           throw new Error('Failed to load images')
@@ -74,7 +76,7 @@ export function UUCImagesSidebar({
 
   const handleDownload = async (image: UUCImage) => {
     try {
-      const res = await fetch(`/api/certificates/${certificateId}/uuc-images/${image.id}/file`)
+      const res = await apiFetch(`/api/certificates/${certificateId}/uuc-images/${image.id}/file`)
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')

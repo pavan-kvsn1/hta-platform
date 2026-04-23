@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -265,7 +267,7 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       }
 
       // Submit for review with signature data, client evidence, and section responses
-      const response = await fetch(`/api/certificates/${certId}/submit`, {
+      const response = await apiFetch(`/api/certificates/${certId}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -372,8 +374,6 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
             )}
           </div>
         )}
-
-
         {/* Reviewer Selection - New Workflow Only */}
         {USE_NEW_WORKFLOW && (
           <div className="rounded-2xl border-2 border-purple-200 bg-purple-50/50 p-6">

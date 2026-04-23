@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -241,7 +243,7 @@ export default function AdminRequestsPage() {
       params.set('page', page.toString())
       params.set('limit', '15')
 
-      const res = await fetch(`/api/admin/requests?${params}`)
+      const res = await apiFetch(`/api/admin/requests?${params}`)
       if (res.ok) {
         const data = await res.json()
         setRequests(data.requests)

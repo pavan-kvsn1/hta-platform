@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useRef, KeyboardEvent, ChangeEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -59,7 +61,7 @@ export function ChatInput({
         formData.append('files', file)
       })
 
-      const res = await fetch(`/api/chat/threads/${threadId}/attachments`, {
+      const res = await apiFetch(`/api/chat/threads/${threadId}/attachments`, {
         method: 'POST',
         body: formData,
       })

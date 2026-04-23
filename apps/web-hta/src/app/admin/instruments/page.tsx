@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -117,7 +119,7 @@ export default function InstrumentsPage() {
         params.set('search', searchQuery)
       }
 
-      const res = await fetch(`/api/admin/instruments?${params}`)
+      const res = await apiFetch(`/api/admin/instruments?${params}`)
       if (res.ok) {
         const data = await res.json()
         setInstruments(data.instruments)
@@ -141,7 +143,7 @@ export default function InstrumentsPage() {
 
   const handleExport = async (format: 'csv' | 'json') => {
     try {
-      const res = await fetch(`/api/admin/instruments/export?format=${format}`)
+      const res = await apiFetch(`/api/admin/instruments/export?format=${format}`)
       if (res.ok) {
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)

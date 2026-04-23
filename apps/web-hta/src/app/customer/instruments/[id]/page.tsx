@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, use, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -120,7 +122,7 @@ export default function CustomerInstrumentDetailPage({
 
   const fetchInstrument = useCallback(async () => {
     try {
-      const response = await fetch(`/api/customer/instruments/${id}`)
+      const response = await apiFetch(`/api/customer/instruments/${id}`)
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('Instrument not found')

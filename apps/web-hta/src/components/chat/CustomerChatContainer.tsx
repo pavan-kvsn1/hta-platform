@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -43,7 +45,7 @@ export function CustomerChatContainer({
 
     try {
       const encodedToken = encodeURIComponent(token)
-      const res = await fetch(`/api/customer/review/${encodedToken}/chat`)
+      const res = await apiFetch(`/api/customer/review/${encodedToken}/chat`)
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -90,7 +92,7 @@ export function CustomerChatContainer({
 
     try {
       const encodedToken = encodeURIComponent(token)
-      const res = await fetch(`/api/customer/review/${encodedToken}/chat`, {
+      const res = await apiFetch(`/api/customer/review/${encodedToken}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newMessage.trim() }),

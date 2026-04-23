@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { MessageSquare, Send, Loader2, RefreshCw } from 'lucide-react'
@@ -46,7 +48,7 @@ export function CustomerChatPanel({
     try {
       setError(null)
       const encodedToken = encodeURIComponent(token)
-      const res = await fetch(`/api/customer/review/${encodedToken}/chat`)
+      const res = await apiFetch(`/api/customer/review/${encodedToken}/chat`)
 
       if (!res.ok) {
         const data = await res.json()
@@ -81,7 +83,7 @@ export function CustomerChatPanel({
 
     try {
       const encodedToken = encodeURIComponent(token)
-      const res = await fetch(`/api/customer/review/${encodedToken}/chat`, {
+      const res = await apiFetch(`/api/customer/review/${encodedToken}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newMessage.trim() }),

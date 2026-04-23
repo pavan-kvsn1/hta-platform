@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -107,7 +109,7 @@ export default function UsersPage() {
 
   const fetchTeamData = useCallback(async () => {
     try {
-      const res = await fetch('/api/customer/team')
+      const res = await apiFetch('/api/customer/team')
       if (!res.ok) {
         if (res.status === 403) {
           router.push('/customer/dashboard')
@@ -154,7 +156,7 @@ export default function UsersPage() {
       // Get signature data
       const signatureDataUrl = signatureRef.current?.toDataURL() || ''
 
-      const res = await fetch('/api/customer/team/request', {
+      const res = await apiFetch('/api/customer/team/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -194,7 +196,7 @@ export default function UsersPage() {
     setPocChangeSubmitting(true)
 
     try {
-      const res = await fetch('/api/customer/team/request', {
+      const res = await apiFetch('/api/customer/team/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

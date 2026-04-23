@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -85,7 +87,7 @@ export function CustomerRequestView({
     setError('')
     setProcessing(true)
     try {
-      const res = await fetch(`/api/admin/customers/requests/${request.id}/approve`, {
+      const res = await apiFetch(`/api/admin/customers/requests/${request.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -109,7 +111,7 @@ export function CustomerRequestView({
     setError('')
     setProcessing(true)
     try {
-      const res = await fetch(`/api/admin/customers/requests/${request.id}/reject`, {
+      const res = await apiFetch(`/api/admin/customers/requests/${request.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: rejectionReason }),

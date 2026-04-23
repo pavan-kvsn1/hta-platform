@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState } from 'react'
 import { signOut } from 'next-auth/react'
 import {
@@ -33,7 +35,7 @@ export function DeleteAccountDialog() {
     setError(null)
 
     try {
-      const res = await fetch('/api/customer/delete-account', {
+      const res = await apiFetch('/api/customer/delete-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),

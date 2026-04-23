@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -64,7 +66,7 @@ export default function NewInstrumentPage() {
     setSaving(true)
 
     try {
-      const response = await fetch('/api/admin/instruments', {
+      const response = await apiFetch('/api/admin/instruments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

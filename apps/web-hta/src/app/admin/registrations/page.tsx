@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -87,7 +89,7 @@ export default function RegistrationsPage() {
         limit: '20',
         status,
       })
-      const res = await fetch(`/api/admin/registrations?${params}`)
+      const res = await apiFetch(`/api/admin/registrations?${params}`)
       if (res.ok) {
         const data = await res.json()
         setRegistrations(data.registrations)
@@ -112,7 +114,7 @@ export default function RegistrationsPage() {
   const handleApprove = async (id: string) => {
     setProcessing(id)
     try {
-      const res = await fetch(`/api/admin/registrations/${id}/approve`, {
+      const res = await apiFetch(`/api/admin/registrations/${id}/approve`, {
         method: 'POST',
       })
 
@@ -142,7 +144,7 @@ export default function RegistrationsPage() {
     setRejectDialogOpen(false)
 
     try {
-      const res = await fetch(`/api/admin/registrations/${rejectingId}/reject`, {
+      const res = await apiFetch(`/api/admin/registrations/${rejectingId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: rejectReason.trim() }),

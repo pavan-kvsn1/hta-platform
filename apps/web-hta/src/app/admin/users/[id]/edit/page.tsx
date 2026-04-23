@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -83,8 +85,8 @@ export default function EditUserPage({
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/admin/users/${id}`).then((res) => res.json()),
-      fetch('/api/admin/users/admins').then((res) => res.json()),
+      apiFetch(`/api/admin/users/${id}`).then((res) => res.json()),
+      apiFetch('/api/admin/users/admins').then((res) => res.json()),
     ])
       .then(([userData, adminsData]) => {
         if (userData.user) {
@@ -120,7 +122,7 @@ export default function EditUserPage({
     setSaving(true)
 
     try {
-      const res = await fetch(`/api/admin/users/${id}`, {
+      const res = await apiFetch(`/api/admin/users/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -147,7 +149,7 @@ export default function EditUserPage({
 
   const handleDeactivate = async () => {
     try {
-      const res = await fetch(`/api/admin/users/${id}`, {
+      const res = await apiFetch(`/api/admin/users/${id}`, {
         method: 'DELETE',
       })
 
@@ -166,7 +168,7 @@ export default function EditUserPage({
 
   const handleReactivate = async () => {
     try {
-      const res = await fetch(`/api/admin/users/${id}/reactivate`, {
+      const res = await apiFetch(`/api/admin/users/${id}/reactivate`, {
         method: 'PUT',
       })
 
@@ -177,7 +179,7 @@ export default function EditUserPage({
       }
 
       // Refresh user data
-      const userRes = await fetch(`/api/admin/users/${id}`)
+      const userRes = await apiFetch(`/api/admin/users/${id}`)
       const userData = await userRes.json()
       if (userData.user) {
         setUser(userData.user)

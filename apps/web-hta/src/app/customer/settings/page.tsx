@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -57,7 +59,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchTeamData = async () => {
       try {
-        const res = await fetch('/api/customer/team')
+        const res = await apiFetch('/api/customer/team')
         if (!res.ok) {
           if (res.status === 403) {
             router.push('/customer/dashboard')

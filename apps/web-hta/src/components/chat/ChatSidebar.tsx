@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { ChatContainer } from './ChatContainer'
 import { Button } from '@/components/ui/button'
@@ -33,7 +35,7 @@ export function ChatSidebar({
       setError(null)
 
       try {
-        const res = await fetch('/api/chat/threads', {
+        const res = await apiFetch('/api/chat/threads', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ certificateId, threadType }),

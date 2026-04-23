@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -217,7 +219,7 @@ export function CustomerReviewClient({
     const fetchSignatures = async () => {
       try {
         const encodedToken = encodeURIComponent(token)
-        const response = await fetch(`/api/customer/review/${encodedToken}/certificate`)
+        const response = await apiFetch(`/api/customer/review/${encodedToken}/certificate`)
         if (response.ok) {
           const data = await response.json()
           if (data.signatures) {
@@ -249,7 +251,7 @@ export function CustomerReviewClient({
     try {
       // Encode token to handle special characters like colon in cert:ID format
       const encodedToken = encodeURIComponent(token)
-      const response = await fetch(`/api/customer/review/${encodedToken}/approve`, {
+      const response = await apiFetch(`/api/customer/review/${encodedToken}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

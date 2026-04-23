@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -66,8 +68,6 @@ interface ReviewerPageClientProps {
   customerFeedback: CustomerFeedback | null
   lastSentCustomerInfo: LastSentCustomerInfo | null
 }
-
-
 export function ReviewerPageClient({
   certificate,
   assignee,
@@ -142,7 +142,7 @@ export function ReviewerPageClient({
     setError(null)
 
     try {
-      const response = await fetch(`/api/certificates/${certificate.id}/review`, {
+      const response = await apiFetch(`/api/certificates/${certificate.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -186,7 +186,7 @@ export function ReviewerPageClient({
     setError(null)
 
     try {
-      const response = await fetch(`/api/certificates/${certificate.id}/review`, {
+      const response = await apiFetch(`/api/certificates/${certificate.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -257,7 +257,7 @@ export function ReviewerPageClient({
     setError(null)
 
     try {
-      const response = await fetch(`/api/certificates/${certificate.id}/review`, {
+      const response = await apiFetch(`/api/certificates/${certificate.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -285,7 +285,7 @@ export function ReviewerPageClient({
   const handleDownload = useCallback(async () => {
     setIsDownloading(true)
     try {
-      const response = await fetch(`/api/certificates/${certificate.id}/download-signed`)
+      const response = await apiFetch(`/api/certificates/${certificate.id}/download-signed`)
       if (!response.ok) {
         throw new Error('Failed to download PDF')
       }

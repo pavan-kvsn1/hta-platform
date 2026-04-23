@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Bell } from 'lucide-react'
 import { NotificationDropdown } from './NotificationDropdown'
@@ -37,7 +39,7 @@ export function NotificationBell({ userRole }: NotificationBellProps) {
   // Fetch unread count (lightweight polling)
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const res = await fetch('/api/notifications/unread-count')
+      const res = await apiFetch('/api/notifications/unread-count')
       if (res.ok) {
         const data = await res.json()
         // Animate if count increased
@@ -57,7 +59,7 @@ export function NotificationBell({ userRole }: NotificationBellProps) {
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/notifications?limit=10')
+      const res = await apiFetch('/api/notifications?limit=10')
       if (res.ok) {
         const data = await res.json()
         setNotifications(data.notifications)
@@ -73,7 +75,7 @@ export function NotificationBell({ userRole }: NotificationBellProps) {
   // Mark single notification as read
   const handleMarkAsRead = useCallback(async (id: string) => {
     try {
-      await fetch('/api/notifications/mark-read', {
+      await apiFetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationIds: [id] }),
@@ -91,7 +93,7 @@ export function NotificationBell({ userRole }: NotificationBellProps) {
   // Mark all as read
   const handleMarkAllAsRead = useCallback(async () => {
     try {
-      await fetch('/api/notifications/mark-read', {
+      await apiFetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationIds: 'all' }),

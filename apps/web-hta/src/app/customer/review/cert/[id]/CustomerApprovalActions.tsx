@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -62,7 +64,7 @@ export function CustomerApprovalActions({
       const token = `cert:${certificate.id}`
       const encodedToken = encodeURIComponent(token)
 
-      const response = await fetch(`/api/customer/review/${encodedToken}/approve`, {
+      const response = await apiFetch(`/api/customer/review/${encodedToken}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -112,7 +114,7 @@ export function CustomerApprovalActions({
       const token = `cert:${certificate.id}`
       const encodedToken = encodeURIComponent(token)
 
-      const response = await fetch(`/api/customer/review/${encodedToken}/reject`, {
+      const response = await apiFetch(`/api/customer/review/${encodedToken}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -45,6 +45,13 @@ Thumbs.db
 .turbo
 **/.turbo
 
+# Claude Code worktrees (contain old/experimental code)
+.claude
+.claude/
+.claude/**
+**/.claude
+**/.claude/**
+
 # Misc
 *.log
 npm-debug.log*

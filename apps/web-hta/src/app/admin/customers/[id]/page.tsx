@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -144,8 +146,8 @@ export default function CustomerDetailPage({
   const fetchData = useCallback(async () => {
     try {
       const [accountRes, adminsRes] = await Promise.all([
-        fetch(`/api/admin/customers/${id}`),
-        fetch('/api/admin/users/admins'),
+        apiFetch(`/api/admin/customers/${id}`),
+        apiFetch('/api/admin/users/admins'),
       ])
 
       if (accountRes.ok) {
@@ -184,7 +186,7 @@ export default function CustomerDetailPage({
     setSaving(true)
 
     try {
-      const res = await fetch(`/api/admin/customers/${id}`, {
+      const res = await apiFetch(`/api/admin/customers/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -221,7 +223,7 @@ export default function CustomerDetailPage({
     setError('')
 
     try {
-      const res = await fetch(`/api/admin/customers/${id}/users`, {
+      const res = await apiFetch(`/api/admin/customers/${id}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newUser),

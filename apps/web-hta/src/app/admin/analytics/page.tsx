@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, Fragment, useCallback } from 'react'
 import Link from 'next/link'
 import {
@@ -193,8 +195,8 @@ export default function AnalyticsPage() {
   const fetchFilterOptions = async () => {
     try {
       const [customersRes, engineersRes] = await Promise.all([
-        fetch('/api/admin/customers?limit=100'),
-        fetch('/api/admin/users?role=ENGINEER&limit=100'),
+        apiFetch('/api/admin/customers?limit=100'),
+        apiFetch('/api/admin/users?role=ENGINEER&limit=100'),
       ])
 
       if (customersRes.ok) {
@@ -222,7 +224,7 @@ export default function AnalyticsPage() {
         ...(engineer !== 'all' && { engineerId: engineer }),
       })
 
-      const response = await fetch(`/api/admin/analytics?${params}`)
+      const response = await apiFetch(`/api/admin/analytics?${params}`)
 
       if (!response.ok) {
         throw new Error('Failed to fetch analytics')

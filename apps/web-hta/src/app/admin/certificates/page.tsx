@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect, Suspense, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -123,7 +125,7 @@ function AdminCertificatesContent() {
         params.set('search', searchQuery)
       }
 
-      const res = await fetch(`/api/admin/certificates?${params}`)
+      const res = await apiFetch(`/api/admin/certificates?${params}`)
       if (res.ok) {
         const data = await res.json()
         setCertificates(data.certificates)

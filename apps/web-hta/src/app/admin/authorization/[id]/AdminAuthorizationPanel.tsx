@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ShieldCheck, CheckCircle, ChevronDown, ChevronRight, User, Mail, Send as _Send } from 'lucide-react'
@@ -53,7 +55,7 @@ export function AdminAuthorizationPanel({
     setAuthorizeError(null)
 
     try {
-      const response = await fetch(`/api/admin/authorization/${certificateId}/authorize`, {
+      const response = await apiFetch(`/api/admin/authorization/${certificateId}/authorize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
