@@ -86,6 +86,9 @@ jobs:
       - name: Configure Docker for GAR
         run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Generate image tags
         id: tags
         run: |
@@ -96,21 +99,36 @@ jobs:
 
       - name: Build and push API image
         if: needs.changes.outputs.api == 'true'
-        run: |
-          docker build -f apps/api/Dockerfile -t ${{ steps.tags.outputs.api }} .
-          docker push ${{ steps.tags.outputs.api }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.api }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
 
       - name: Build and push Worker image
         if: needs.changes.outputs.worker == 'true'
-        run: |
-          docker build -f apps/worker/Dockerfile -t ${{ steps.tags.outputs.worker }} .
-          docker push ${{ steps.tags.outputs.worker }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/worker/Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.worker }}
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
 
       - name: Build and push Web image
         if: needs.changes.outputs.web == 'true'
-        run: |
-          docker build -f apps/web-hta/Dockerfile -t ${{ steps.tags.outputs.web }} .
-          docker push ${{ steps.tags.outputs.web }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web-hta/Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.web }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
 
   # ===========================================================================
   # CREATE PR TO UPDATE MANIFESTS

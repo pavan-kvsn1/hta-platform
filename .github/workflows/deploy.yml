@@ -99,21 +99,22 @@ jobs:
         if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
         run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
 
+      - name: Set up Docker Buildx
+        if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push Docker image
         if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
-        run: |
-          IMAGE="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/hta-${{ matrix.service }}"
-
-          # Build with commit SHA tag
-          docker build \
-            -f ${{ matrix.dockerfile }} \
-            -t ${IMAGE}:${{ github.sha }} \
-            -t ${IMAGE}:latest \
-            .
-
-          # Push both tags
-          docker push ${IMAGE}:${{ github.sha }}
-          docker push ${IMAGE}:latest
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/hta-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/hta-${{ matrix.service }}:latest
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
     outputs:
       api_image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/hta-api:${{ github.sha }}

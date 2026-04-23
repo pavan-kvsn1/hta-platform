@@ -229,30 +229,23 @@ jobs:
             dockerfile: apps/api/Dockerfile
           - app: worker
             dockerfile: apps/worker/Dockerfile
+          - app: web
+            dockerfile: apps/web-hta/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Prisma Clients
-        run: pnpm --filter @hta/database db:generate
-
-      - name: Build package
-        run: pnpm turbo run build --filter=@hta/${{ matrix.app }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image (dry run)
-        run: |
-          docker build -f ${{ matrix.dockerfile }} -t hta-${{ matrix.app }}:test .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          tags: hta-${{ matrix.app }}:test
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
 
   # ===========================================================================
   # E2E TESTS (Sharded for parallelism)
