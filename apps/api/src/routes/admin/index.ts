@@ -1324,6 +1324,195 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // ============================================================================
+  // INSTRUMENT CERTIFICATES
+  // ============================================================================
+
+  // GET /api/admin/instruments/:id/certificates/latest - Get latest certificate PDF
+  fastify.get<{ Params: { id: string } }>('/instruments/:id/certificates/latest', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params
+    const query = request.query as { download?: string; forceDownload?: string; metadata?: string }
+    const download = query.download === 'true'
+    const metadataOnly = query.metadata === 'true'
+
+    const { getStorageProvider } = await import('../../lib/storage/index.js')
+
+    // Fetch latest certificate record
+    const certificate = await prisma.masterInstrumentCertificate.findFirst({
+      where: {
+        masterInstrumentId: id,
+        isLatest: true,
+        isActive: true,
+      },
+      include: {
+        masterInstrument: {
+          select: { assetNumber: true, description: true },
+        },
+        uploadedBy: {
+          select: { id: true, name: true },
+        },
+      },
+    })
+
+    if (certificate) {
+      if (metadataOnly || !download) {
+        return { certificate }
+      }
+
+      const storage = getStorageProvider()
+      const exists = await storage.exists(certificate.storagePath)
+
+      if (exists) {
+        const signedUrl = await storage.getSignedUrl(certificate.storagePath, {
+          expiresInMinutes: 15,
+        })
+        return reply.redirect(signedUrl)
+      }
+    }
+
+    // No certificate or file not found in storage
+    const instrument = await prisma.masterInstrument.findUnique({
+      where: { id },
+      select: { assetNumber: true, description: true },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
+
+    return reply.status(404).send({
+      error: `No certificate found for this instrument`,
+    })
+  })
+
+  // GET /api/admin/instruments/:id/certificates - List all certificates
+  fastify.get<{ Params: { id: string } }>('/instruments/:id/certificates', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params
+    const tenantId = request.tenantId
+    const query = request.query as { includeInactive?: string; latestOnly?: string }
+
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: { id, tenantId },
+      select: { id: true, assetNumber: true, description: true },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
+
+    const where: Record<string, unknown> = { masterInstrumentId: id }
+    if (query.includeInactive !== 'true') where.isActive = true
+    if (query.latestOnly === 'true') where.isLatest = true
+
+    const certificates = await prisma.masterInstrumentCertificate.findMany({
+      where,
+      include: {
+        uploadedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { uploadedAt: 'desc' },
+    })
+
+    return {
+      instrument: { id: instrument.id, assetNumber: instrument.assetNumber, description: instrument.description },
+      certificates,
+      total: certificates.length,
+    }
+  })
+
+  // POST /api/admin/instruments/:id/certificates - Upload new certificate
+  fastify.post<{ Params: { id: string } }>('/instruments/:id/certificates', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+
+    const { getStorageProvider, assetNumberToFileName } = await import('../../lib/storage/index.js')
+
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: { id, tenantId },
+      select: { id: true, assetNumber: true, reportNo: true, calibrationDueDate: true },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
+
+    const data = await request.file()
+    if (!data) {
+      return reply.status(400).send({ error: 'No file provided' })
+    }
+
+    if (data.mimetype !== 'application/pdf') {
+      return reply.status(400).send({ error: 'Only PDF files are allowed' })
+    }
+
+    const chunks: Buffer[] = []
+    for await (const chunk of data.file) {
+      chunks.push(chunk)
+    }
+    const buffer = Buffer.concat(chunks)
+
+    const maxSize = 10 * 1024 * 1024
+    if (buffer.length > maxSize) {
+      return reply.status(400).send({ error: 'File size exceeds 10MB limit' })
+    }
+
+    // Parse form fields
+    const fields = data.fields as Record<string, { value?: string } | undefined>
+    const reportNo = fields.reportNo?.value || null
+    const validFromStr = fields.validFrom?.value || null
+    const validUntilStr = fields.validUntil?.value || null
+
+    const fileName = assetNumberToFileName(instrument.assetNumber)
+    const storagePath = `master-instruments/${fileName}`
+
+    const storage = getStorageProvider()
+    await storage.upload(storagePath, buffer, {
+      contentType: 'application/pdf',
+      metadata: {
+        instrumentId: id,
+        assetNumber: instrument.assetNumber,
+        uploadedBy: userId,
+      },
+    })
+
+    // Mark existing certificates as not latest
+    await prisma.masterInstrumentCertificate.updateMany({
+      where: { masterInstrumentId: id, isLatest: true },
+      data: { isLatest: false },
+    })
+
+    const certificate = await prisma.masterInstrumentCertificate.create({
+      data: {
+        masterInstrumentId: id,
+        fileName: data.filename,
+        fileSize: buffer.length,
+        mimeType: 'application/pdf',
+        storagePath,
+        reportNo: reportNo || instrument.reportNo,
+        validFrom: validFromStr ? new Date(validFromStr) : null,
+        validUntil: validUntilStr ? new Date(validUntilStr) : instrument.calibrationDueDate,
+        uploadedById: userId,
+        isLatest: true,
+        isActive: true,
+      },
+      include: {
+        uploadedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    })
+
+    return { success: true, certificate }
+  })
+
+  // ============================================================================
   // CUSTOMER DETAILS
   // ============================================================================
 
