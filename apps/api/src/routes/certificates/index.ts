@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { prisma, Prisma } from '@hta/database'
 import { requireStaff, requireAuth, requireAdmin } from '../../middleware/auth.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
+import { queueCertificateSubmittedEmail, queueCertificateReviewedEmail, queueCustomerReviewEmail, enqueueNotification } from '../../services/queue.js'
 import certificateImagesRoutes from './images/index.js'
 
 // Type for Prisma transaction client
@@ -575,6 +576,33 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       return cert
     })
 
+    // Queue email + notification to reviewer (non-blocking)
+    const certNumber = result.certificateNumber || `CERT-${result.id.substring(0, 8)}`
+    if (effectiveReviewerId) {
+      prisma.user.findUnique({
+        where: { id: effectiveReviewerId },
+        select: { email: true, name: true },
+      }).then((reviewer) => {
+        if (reviewer) {
+          queueCertificateSubmittedEmail({
+            reviewerEmail: reviewer.email,
+            reviewerName: reviewer.name,
+            certificateNumber: certNumber,
+            assigneeName: userName,
+            customerName: certificate.customerName || undefined,
+          }).catch(() => {})
+        }
+      }).catch(() => {})
+
+      enqueueNotification({
+        type: 'create-notification',
+        userId: effectiveReviewerId,
+        notificationType: isResubmission ? 'ENGINEER_RESPONDED' : 'SUBMITTED_FOR_REVIEW',
+        certificateId: result.id,
+        data: { certificateNumber: certNumber, assigneeName: userName },
+      }).catch(() => {})
+    }
+
     return {
       success: true,
       message: isResubmission ? 'Certificate resubmitted for peer review' : 'Certificate submitted for peer review',
@@ -594,6 +622,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     const tenantId = request.tenantId
     const userId = request.user!.sub
     const userEmail = request.user!.email
+    const userName = request.user!.name
     const { id } = request.params
     const body = request.body as {
       action: 'approve' | 'request_revision' | 'reject'
@@ -743,6 +772,59 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         return { tokenResult }
       })
 
+      // Queue emails + notifications (non-blocking)
+      const certNum = certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
+
+      if (certificate.createdBy) {
+        queueCertificateReviewedEmail({
+          assigneeEmail: certificate.createdBy.email,
+          assigneeName: certificate.createdBy.name,
+          certificateNumber: certNum,
+          reviewerName: userName,
+          approved: true,
+        }).catch(() => {})
+
+        enqueueNotification({
+          type: 'create-notification',
+          userId: certificate.createdBy.id,
+          notificationType: 'CERTIFICATE_APPROVED',
+          certificateId: id,
+          data: { certificateNumber: certNum, reviewerName: userName },
+        }).catch(() => {})
+      }
+
+      if (body.sendToCustomer && result.tokenResult) {
+        queueCustomerReviewEmail({
+          customerEmail: body.sendToCustomer.email,
+          customerName: body.sendToCustomer.name,
+          certificateNumber: certNum,
+          instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+          token: result.tokenResult.token,
+        }).catch(() => {})
+
+        // Notify assignee that cert was sent to customer
+        if (certificate.createdById) {
+          enqueueNotification({
+            type: 'create-notification',
+            userId: certificate.createdById,
+            notificationType: 'SENT_TO_CUSTOMER',
+            certificateId: id,
+            data: { certificateNumber: certNum },
+          }).catch(() => {})
+        }
+
+        // Notify customer
+        if (result.tokenResult.customerId) {
+          enqueueNotification({
+            type: 'create-notification',
+            customerId: result.tokenResult.customerId,
+            notificationType: 'CERTIFICATE_READY',
+            certificateId: id,
+            data: { certificateNumber: certNum },
+          }).catch(() => {})
+        }
+      }
+
       return {
         success: true,
         message: body.sendToCustomer ? 'Certificate approved and sent to customer' : 'Certificate approved',
@@ -816,6 +898,27 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         }
       })
 
+      // Notify assignee about revision request (email + notification)
+      if (certificate.createdBy) {
+        const certNum = certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
+        queueCertificateReviewedEmail({
+          assigneeEmail: certificate.createdBy.email,
+          assigneeName: certificate.createdBy.name,
+          certificateNumber: certNum,
+          reviewerName: userName,
+          approved: false,
+          revisionNote: body.generalNotes || body.comment || 'Revision requested',
+        }).catch(() => {})
+
+        enqueueNotification({
+          type: 'create-notification',
+          userId: certificate.createdBy.id,
+          notificationType: 'REVISION_REQUESTED',
+          certificateId: id,
+          data: { certificateNumber: certNum, reviewerName: userName },
+        }).catch(() => {})
+      }
+
       return { success: true, message: 'Revision requested' }
     }
 
@@ -855,6 +958,27 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         })
       })
 
+      // Notify assignee about rejection (email + notification)
+      if (certificate.createdBy) {
+        const certNum = certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
+        queueCertificateReviewedEmail({
+          assigneeEmail: certificate.createdBy.email,
+          assigneeName: certificate.createdBy.name,
+          certificateNumber: certNum,
+          reviewerName: userName,
+          approved: false,
+          revisionNote: body.comment || 'Certificate rejected',
+        }).catch(() => {})
+
+        enqueueNotification({
+          type: 'create-notification',
+          userId: certificate.createdBy.id,
+          notificationType: 'CERTIFICATE_REJECTED',
+          certificateId: id,
+          data: { certificateNumber: certNum, reviewerName: userName },
+        }).catch(() => {})
+      }
+
       return { success: true, message: 'Certificate rejected' }
     }
 
@@ -879,7 +1003,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     const certificate = await prisma.certificate.findFirst({
       where: { tenantId, id },
-      include: { createdBy: { select: { id: true, name: true } } },
+      include: { createdBy: { select: { id: true, name: true, email: true } } },
     })
 
     if (!certificate) {
@@ -952,6 +1076,30 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         },
       })
     })
+
+    // Notify engineer that customer revision was forwarded to them (email + notification)
+    if (certificate.createdById) {
+      const certNum = certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
+      enqueueNotification({
+        type: 'create-notification',
+        userId: certificate.createdById,
+        notificationType: 'CUSTOMER_REVISION_FORWARDED',
+        certificateId: id,
+        data: { certificateNumber: certNum, adminName: userName },
+      }).catch(() => {})
+
+      // Also email the engineer
+      if (certificate.createdBy) {
+        queueCertificateReviewedEmail({
+          assigneeEmail: certificate.createdBy.email,
+          assigneeName: certificate.createdBy.name,
+          certificateNumber: certNum,
+          reviewerName: userName,
+          approved: false,
+          revisionNote: body.generalNotes || body.customerFeedback || 'Customer revision forwarded',
+        }).catch(() => {})
+      }
+    }
 
     return { success: true, message: 'Certificate assigned to engineer for revision' }
   })
@@ -1067,6 +1215,35 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
       return { token: approvalToken.token, customerId: customer.id, expiresAt: approvalToken.expiresAt }
     })
+
+    // Queue customer review email + notification
+    const certNum = certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
+    queueCustomerReviewEmail({
+      customerEmail: body.customerEmail.toLowerCase(),
+      customerName: body.customerName,
+      certificateNumber: certNum,
+      instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+      token: result.token,
+    }).catch(() => {})
+
+    enqueueNotification({
+      type: 'create-notification',
+      customerId: result.customerId,
+      notificationType: 'CERTIFICATE_READY',
+      certificateId: id,
+      data: { certificateNumber: certNum },
+    }).catch(() => {})
+
+    // Notify assignee that cert was sent to customer
+    if (certificate.createdById) {
+      enqueueNotification({
+        type: 'create-notification',
+        userId: certificate.createdById,
+        notificationType: 'SENT_TO_CUSTOMER',
+        certificateId: id,
+        data: { certificateNumber: certNum },
+      }).catch(() => {})
+    }
 
     return {
       success: true,

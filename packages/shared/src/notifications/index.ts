@@ -25,6 +25,10 @@ const notificationTemplates: Record<NotificationType, NotificationTemplate> = {
     title: 'Certificate Approved',
     message: (data: Record<string, string>) => `Your certificate ${data.certificateNumber} has been approved`,
   },
+  CERTIFICATE_REJECTED: {
+    title: 'Certificate Rejected',
+    message: (data: Record<string, string>) => `Your certificate ${data.certificateNumber} has been rejected by ${data.reviewerName || 'the reviewer'}`,
+  },
   SENT_TO_CUSTOMER: {
     title: 'Sent to Customer',
     message: (data: Record<string, string>) => `Certificate ${data.certificateNumber} has been sent to customer`,
@@ -32,6 +36,10 @@ const notificationTemplates: Record<NotificationType, NotificationTemplate> = {
   CERTIFICATE_FINALIZED: {
     title: 'Certificate Finalized',
     message: (data: Record<string, string>) => `Customer approved certificate ${data.certificateNumber}`,
+  },
+  CUSTOMER_REVISION_FORWARDED: {
+    title: 'Revision Required',
+    message: (data: Record<string, string>) => `Customer revision for ${data.certificateNumber} has been forwarded to you by ${data.adminName || 'admin'}`,
   },
   SUBMITTED_FOR_REVIEW: {
     title: 'Certificate Submitted',
@@ -49,6 +57,18 @@ const notificationTemplates: Record<NotificationType, NotificationTemplate> = {
     title: 'Customer Approved',
     message: (data: Record<string, string>) => `Customer approved certificate ${data.certificateNumber}`,
   },
+  ADMIN_AUTHORIZED: {
+    title: 'Certificate Authorized',
+    message: (data: Record<string, string>) => `Certificate ${data.certificateNumber} has been authorized by ${data.adminName || 'admin'}`,
+  },
+  STAFF_CREATED: {
+    title: 'New Staff Member',
+    message: (data: Record<string, string>) => `${data.creatorName || 'Admin'} created a new staff account for ${data.staffName} (${data.staffEmail})`,
+  },
+  MASTER_INSTRUMENT_CHANGE: {
+    title: 'Master Instrument Updated',
+    message: (data: Record<string, string>) => `${data.actorName || 'Admin'} ${data.action || 'modified'} master instrument: ${data.assetNumber}`,
+  },
   CERTIFICATE_READY: {
     title: 'Certificate Ready for Review',
     message: (data: Record<string, string>) => `Certificate ${data.certificateNumber} is ready for your review`,
@@ -60,6 +80,10 @@ const notificationTemplates: Record<NotificationType, NotificationTemplate> = {
   NEW_CHAT_MESSAGE: {
     title: 'New Message',
     message: (data: Record<string, string>) => `${data.senderName || 'Someone'} sent a message on ${data.certificateNumber}`,
+  },
+  PASSWORD_CHANGED: {
+    title: 'Password Changed',
+    message: () => `Your password has been changed. If this was not you, contact your administrator immediately.`,
   },
   REGISTRATION_SUBMITTED: {
     title: 'New Registration Request',

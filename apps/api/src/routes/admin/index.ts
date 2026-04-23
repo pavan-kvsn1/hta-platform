@@ -4,6 +4,7 @@ import { prisma, Prisma } from '@hta/database'
 import { requireAdmin, requireMasterAdmin } from '../../middleware/auth.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 import { createLogger } from '@hta/shared'
+import { queueStaffActivationEmail, enqueueNotification } from '../../services/queue.js'
 
 const logger = createLogger('admin-routes')
 
@@ -42,7 +43,7 @@ async function alertAdminsOnInstrumentChange(
         isActive: true,
         NOT: { id: actorId },
       },
-      select: { id: true, email: true },
+      select: { id: true, email: true, name: true },
     })
 
     if (otherAdmins.length === 0) return
@@ -92,9 +93,28 @@ async function alertAdminsOnInstrumentChange(
       notifiedAdmins: otherAdmins.map((a) => a.email),
     })
 
-    // TODO: Queue email alerts when email service is implemented
-    // Template: 'master-instrument-change' in @hta/emails package
-    // Props: { recipientName, actorName, action, assetNumber, description, changeDetails, timestamp, dashboardUrl }
+    // Send email alerts to other admins (non-blocking)
+    const dashboardUrl = process.env.APP_URL
+      ? `${process.env.APP_URL}/admin/instruments`
+      : 'https://app.hta-calibration.com/admin/instruments'
+
+    const { sendEmail } = await import('../../services/email.js')
+    for (const admin of otherAdmins) {
+      sendEmail({
+        to: admin.email,
+        template: 'master-instrument-change',
+        props: {
+          recipientName: admin.name || 'Admin',
+          actorName,
+          action: actionText,
+          assetNumber: instrument.assetNumber,
+          description: instrument.description,
+          changeDetails: changeDetails || '',
+          timestamp: new Date().toISOString(),
+          dashboardUrl,
+        },
+      }).catch(() => {})
+    }
   } catch (error) {
     // Don't fail the main operation if alerting fails
     logger.error({ error }, 'Failed to alert admins on instrument change')
@@ -2134,6 +2154,42 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       return { signature, certificate: updatedCertificate }
     })
 
+    // Notify engineer and reviewer that certificate was authorized (email + notification)
+    const certNum = result.certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
+    const { queueCertificateReviewedEmail } = await import('../../services/queue.js')
+    const staffToNotify = [certificate.createdById, certificate.reviewerId].filter(
+      (uid): uid is string => !!uid
+    )
+    const uniqueStaff = [...new Set(staffToNotify)]
+
+    for (const staffId of uniqueStaff) {
+      enqueueNotification({
+        type: 'create-notification',
+        userId: staffId,
+        notificationType: 'ADMIN_AUTHORIZED',
+        certificateId: id,
+        data: { certificateNumber: certNum, adminName: userName },
+      }).catch(() => {})
+    }
+
+    // Email the engineer that the certificate is authorized
+    if (certificate.createdById) {
+      prisma.user.findUnique({
+        where: { id: certificate.createdById },
+        select: { email: true, name: true },
+      }).then((engineer) => {
+        if (engineer) {
+          queueCertificateReviewedEmail({
+            assigneeEmail: engineer.email,
+            assigneeName: engineer.name,
+            certificateNumber: certNum,
+            reviewerName: userName,
+            approved: true,
+          }).catch(() => {})
+        }
+      }).catch(() => {})
+    }
+
     // Handle download link if requested
     let downloadLinkResult = null
     if (body.sendDownloadLink && body.customerEmail && body.customerName) {
@@ -2382,7 +2438,27 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       },
     })
 
-    // TODO: Send activation email via queue
+    queueStaffActivationEmail({
+      to: body.email,
+      userName: body.name,
+      token: activationToken,
+    }).catch(() => {})
+
+    // Notify all admins about new staff creation
+    const creatorName = request.user!.name || 'Admin'
+    prisma.user.findMany({
+      where: { tenantId, role: 'ADMIN', isActive: true, NOT: { id: request.user!.sub } },
+      select: { id: true },
+    }).then((admins) => {
+      for (const admin of admins) {
+        enqueueNotification({
+          type: 'create-notification',
+          userId: admin.id,
+          notificationType: 'STAFF_CREATED',
+          data: { creatorName, staffName: body.name, staffEmail: body.email },
+        }).catch(() => {})
+      }
+    }).catch(() => {})
 
     // Update usage tracking (async, non-blocking)
     updateUsageTracking(tenantId).catch(() => {})

@@ -11,6 +11,7 @@ import {
   revokeAllUserTokens,
   REFRESH_TOKEN_CONFIG,
 } from '../../services/refresh-token.js'
+import { queuePasswordResetEmail, enqueueNotification } from '../../services/queue.js'
 
 // =============================================================================
 // SCHEMAS
@@ -341,6 +342,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       },
     })
 
+    enqueueNotification({
+      type: 'create-notification',
+      userId: dbUser.id,
+      notificationType: 'PASSWORD_CHANGED',
+      data: {},
+    }).catch(() => {})
+
     return {
       success: true,
       message: 'Password changed successfully. Please log in again.',
@@ -386,8 +394,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
             },
           })
 
-          // TODO: Queue email notification
-          // await enqueue('email:send', { ... })
+          queuePasswordResetEmail({
+            to: user.email,
+            userName: user.name,
+            token,
+          }).catch(() => {})
         }
       }
     } else {
@@ -413,7 +424,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
             },
           })
 
-          // TODO: Queue email notification
+          queuePasswordResetEmail({
+            to: customer.email,
+            userName: customer.name,
+            token,
+            isCustomer: true,
+          }).catch(() => {})
         }
       }
     }
@@ -463,6 +479,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       await revokeAllUserTokens(resetToken.userId, 'STAFF', 'PASSWORD_RESET')
+
+      enqueueNotification({
+        type: 'create-notification',
+        userId: resetToken.userId,
+        notificationType: 'PASSWORD_CHANGED',
+        data: {},
+      }).catch(() => {})
     } else if (resetToken.customerId) {
       await prisma.customerUser.update({
         where: { id: resetToken.customerId },
@@ -470,6 +493,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       await revokeAllUserTokens(resetToken.customerId, 'CUSTOMER', 'PASSWORD_RESET')
+
+      enqueueNotification({
+        type: 'create-notification',
+        customerId: resetToken.customerId,
+        notificationType: 'PASSWORD_CHANGED',
+        data: {},
+      }).catch(() => {})
     }
 
     // Mark token as used

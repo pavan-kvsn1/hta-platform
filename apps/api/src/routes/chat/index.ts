@@ -13,6 +13,7 @@ import {
   canAccessChatThread,
   type ThreadType,
 } from '../../services/chat.js'
+import { enqueueNotification } from '../../services/queue.js'
 
 const chatRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/chat/threads - Get threads for current user
@@ -186,6 +187,30 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
       content: body.content.trim(),
       attachments: body.attachments,
     })
+
+    // Notify other participants in the thread (non-blocking)
+    const cert = threadData.certificate
+    const otherParticipants: string[] = []
+    if (threadData.threadType === 'ASSIGNEE_REVIEWER') {
+      if (cert.createdById && cert.createdById !== userId) otherParticipants.push(cert.createdById)
+      if (cert.reviewerId && cert.reviewerId !== userId) otherParticipants.push(cert.reviewerId)
+    } else if (threadData.threadType === 'REVIEWER_CUSTOMER') {
+      if (cert.reviewerId && cert.reviewerId !== userId) otherParticipants.push(cert.reviewerId)
+    }
+
+    for (const participantId of otherParticipants) {
+      enqueueNotification({
+        type: 'create-notification',
+        userId: participantId,
+        notificationType: 'NEW_CHAT_MESSAGE',
+        certificateId: cert.id,
+        data: {
+          threadId,
+          senderName: request.user!.name || 'Unknown',
+          preview: body.content.trim().substring(0, 100),
+        },
+      }).catch(() => {})
+    }
 
     return reply.status(201).send({ message })
   })

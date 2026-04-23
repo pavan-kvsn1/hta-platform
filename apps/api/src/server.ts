@@ -22,6 +22,7 @@ import securityRoutes from './routes/security/index.js'
 // Import middleware
 import { tenantMiddleware } from './middleware/tenant.js'
 import { errorHandler } from './middleware/error-handler.js'
+import { closeQueues } from './services/queue.js'
 
 const server = Fastify({
   logger: {
@@ -51,9 +52,17 @@ await server.register(cors, {
 
 // Rate limiting
 await server.register(rateLimit, {
-  max: 100,
+  max: 250,
   timeWindow: '1 minute',
   keyGenerator: (request) => {
+    // Prefer user ID from JWT for per-user limits; fall back to IP for unauthenticated requests
+    try {
+      const auth = request.headers.authorization
+      if (auth?.startsWith('Bearer ')) {
+        const payload = JSON.parse(Buffer.from(auth.split('.')[1], 'base64').toString())
+        if (payload.sub) return payload.sub
+      }
+    } catch { /* fall through to IP */ }
     return request.headers['x-forwarded-for'] as string || request.ip
   },
 })
@@ -155,6 +164,7 @@ const start = async () => {
 ║  Status:  Running                                         ║
 ║  URL:     http://${host}:${port}                             ║
 ║  Env:     ${process.env.NODE_ENV || 'development'}                                    ║
+║  Queue:   ${process.env.REDIS_URL ? 'Connected' : 'Disabled (no REDIS_URL)'}                              ║
 ╚═══════════════════════════════════════════════════════════╝
     `)
   } catch (err) {
@@ -162,6 +172,17 @@ const start = async () => {
     process.exit(1)
   }
 }
+
+// Graceful shutdown
+async function shutdown(signal: string) {
+  console.log(`\n[API] Received ${signal}, shutting down...`)
+  await closeQueues()
+  await server.close()
+  process.exit(0)
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))
 
 start()
 

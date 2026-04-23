@@ -53,17 +53,28 @@ export async function cleanTestDatabase(): Promise<void> {
   // Delete in reverse order of dependencies (leaves first, roots last)
   try {
     await prisma.$transaction(async (tx) => {
+      // Chat
+      await tx.chatAttachment.deleteMany()
+      await tx.chatMessage.deleteMany()
+      await tx.chatThread.deleteMany()
+
       // Calibration data
       await tx.calibrationResult.deleteMany()
       await tx.certificateMasterInstrument.deleteMany()
       await tx.parameter.deleteMany()
 
       // Certificate lifecycle
+      await tx.signature.deleteMany()
+      await tx.certificateEvent.deleteMany()
       await tx.certificateRevision.deleteMany()
       await tx.downloadToken.deleteMany()
 
       // Notifications
       await tx.notification.deleteMany()
+
+      // Auth tokens
+      await tx.passwordResetToken.deleteMany()
+      await tx.refreshToken.deleteMany()
 
       // Audit
       await tx.auditLog.deleteMany()
@@ -78,25 +89,42 @@ export async function cleanTestDatabase(): Promise<void> {
       await tx.customerUser.deleteMany()
       await tx.customerAccount.deleteMany()
 
-      // Users last
+      // Subscriptions (TenantUsage references TenantSubscription)
+      await tx.tenantUsage.deleteMany()
+      await tx.tenantSubscription.deleteMany()
+
+      // Users
       await tx.user.deleteMany()
+
+      // Tenants last
+      await tx.tenant.deleteMany()
     })
   } catch (error) {
     console.error('Error cleaning test database:', error)
     // Fallback to individual deletes
     try {
+      await prisma.chatAttachment.deleteMany()
+      await prisma.chatMessage.deleteMany()
+      await prisma.chatThread.deleteMany()
       await prisma.calibrationResult.deleteMany()
       await prisma.certificateMasterInstrument.deleteMany()
       await prisma.parameter.deleteMany()
+      await prisma.signature.deleteMany()
+      await prisma.certificateEvent.deleteMany()
       await prisma.certificateRevision.deleteMany()
       await prisma.downloadToken.deleteMany()
       await prisma.notification.deleteMany()
+      await prisma.passwordResetToken.deleteMany()
+      await prisma.refreshToken.deleteMany()
       await prisma.auditLog.deleteMany()
       await prisma.certificate.deleteMany()
       await prisma.masterInstrument.deleteMany()
       await prisma.customerUser.deleteMany()
       await prisma.customerAccount.deleteMany()
+      await prisma.tenantUsage.deleteMany()
+      await prisma.tenantSubscription.deleteMany()
       await prisma.user.deleteMany()
+      await prisma.tenant.deleteMany()
     } catch {
       // Ignore - database may be in inconsistent state
     }

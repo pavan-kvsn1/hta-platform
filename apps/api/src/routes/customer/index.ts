@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { prisma, Prisma } from '@hta/database'
 import { requireCustomer, optionalAuth } from '../../middleware/auth.js'
 import bcrypt from 'bcryptjs'
+import { queueCustomerApprovalNotificationEmail, enqueueNotification } from '../../services/queue.js'
 
 // Helper to safely parse JSON strings
 function safeJsonParse<T>(value: unknown, fallback: T): T {
@@ -778,6 +779,37 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         })
       })
 
+      // Notify the engineer/creator (email + notification)
+      const certNum = certificate.certificateNumber || `CERT-${certificate.id.substring(0, 8)}`
+      if (certificate.createdBy) {
+        queueCustomerApprovalNotificationEmail({
+          staffEmail: certificate.createdBy.email,
+          staffName: certificate.createdBy.name,
+          certificateNumber: certNum,
+          customerName: customer.name || customer.companyName || 'Customer',
+          approved: true,
+        }).catch(() => {})
+
+        enqueueNotification({
+          type: 'create-notification',
+          userId: certificate.createdBy.id,
+          notificationType: 'CERTIFICATE_FINALIZED',
+          certificateId: certificate.id,
+          data: { certificateNumber: certNum },
+        }).catch(() => {})
+      }
+
+      // Notify reviewer
+      if (certificate.reviewerId) {
+        enqueueNotification({
+          type: 'create-notification',
+          userId: certificate.reviewerId,
+          notificationType: 'CUSTOMER_APPROVED',
+          certificateId: certificate.id,
+          data: { certificateNumber: certNum },
+        }).catch(() => {})
+      }
+
       return { success: true, message: 'Certificate approved successfully' }
     }
 
@@ -864,6 +896,37 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         },
       })
     })
+
+    // Notify the engineer/creator (token-based flow - email + notification)
+    const certNum = tokenRecord.certificate.certificateNumber || `CERT-${tokenRecord.certificateId.substring(0, 8)}`
+    if (tokenRecord.certificate.createdBy) {
+      queueCustomerApprovalNotificationEmail({
+        staffEmail: tokenRecord.certificate.createdBy.email,
+        staffName: tokenRecord.certificate.createdBy.name,
+        certificateNumber: certNum,
+        customerName: tokenRecord.customer.name || tokenRecord.customer.companyName || 'Customer',
+        approved: true,
+      }).catch(() => {})
+
+      enqueueNotification({
+        type: 'create-notification',
+        userId: tokenRecord.certificate.createdBy.id,
+        notificationType: 'CERTIFICATE_FINALIZED',
+        certificateId: tokenRecord.certificateId,
+        data: { certificateNumber: certNum },
+      }).catch(() => {})
+    }
+
+    // Notify reviewer
+    if (tokenRecord.certificate.reviewerId) {
+      enqueueNotification({
+        type: 'create-notification',
+        userId: tokenRecord.certificate.reviewerId,
+        notificationType: 'CUSTOMER_APPROVED',
+        certificateId: tokenRecord.certificateId,
+        data: { certificateNumber: certNum },
+      }).catch(() => {})
+    }
 
     return { success: true, message: 'Certificate approved successfully' }
   })
@@ -993,6 +1056,30 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         })
       })
 
+      // Notify engineer about customer revision request (email + notification)
+      const certNum = certificate.certificateNumber || `CERT-${certificate.id.substring(0, 8)}`
+      if (certificate.createdBy) {
+        queueCustomerApprovalNotificationEmail({
+          staffEmail: certificate.createdBy.email,
+          staffName: certificate.createdBy.name,
+          certificateNumber: certNum,
+          customerName: customer.name || customer.companyName || 'Customer',
+          approved: false,
+          rejectionNote: formattedNotes,
+        }).catch(() => {})
+      }
+
+      // Notify reviewer too
+      if (certificate.reviewerId) {
+        enqueueNotification({
+          type: 'create-notification',
+          userId: certificate.reviewerId,
+          notificationType: 'CUSTOMER_REVISION_REQUEST',
+          certificateId: certificate.id,
+          data: { certificateNumber: certNum },
+        }).catch(() => {})
+      }
+
       return { success: true, message: 'Revision request submitted successfully' }
     }
 
@@ -1067,6 +1154,30 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         },
       })
     })
+
+    // Notify engineer about customer revision request (token-based, email + notification)
+    const certNum = tokenRecord.certificate.certificateNumber || `CERT-${tokenRecord.certificateId.substring(0, 8)}`
+    if (tokenRecord.certificate.createdBy) {
+      queueCustomerApprovalNotificationEmail({
+        staffEmail: tokenRecord.certificate.createdBy.email,
+        staffName: tokenRecord.certificate.createdBy.name,
+        certificateNumber: certNum,
+        customerName: tokenRecord.customer.name || tokenRecord.customer.companyName || 'Customer',
+        approved: false,
+        rejectionNote: formattedNotes,
+      }).catch(() => {})
+    }
+
+    // Notify reviewer too
+    if (tokenRecord.certificate.reviewer) {
+      enqueueNotification({
+        type: 'create-notification',
+        userId: tokenRecord.certificate.reviewer.id,
+        notificationType: 'CUSTOMER_REVISION_REQUEST',
+        certificateId: tokenRecord.certificateId,
+        data: { certificateNumber: certNum },
+      }).catch(() => {})
+    }
 
     return { success: true, message: 'Revision request submitted successfully' }
   })
