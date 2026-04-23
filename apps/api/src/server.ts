@@ -60,7 +60,7 @@ await server.register(rateLimit, {
 
 // JWT
 await server.register(jwt, {
-  secret: process.env.JWT_SECRET || process.env.AUTH_SECRET || 'dev-secret-change-in-production',
+  secret: process.env.JWT_SECRET || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'dev-secret-change-in-production',
   sign: {
     expiresIn: '15m', // Access token expires in 15 minutes
   },
