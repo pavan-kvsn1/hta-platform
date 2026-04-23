@@ -1,6 +1,6 @@
-import { apiFetch } from '@/lib/api-client'
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
 import { useState, useCallback, useEffect, useRef } from 'react'
 // Mirror of Prisma enum for client-side usage
 export type CertificateImageType = 'UUC' | 'MASTER_INSTRUMENT' | 'READING_UUC' | 'READING_MASTER'
