@@ -1332,8 +1332,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     preHandler: [requireAdmin],
   }, async (request, reply) => {
     const { id } = request.params
-    const query = request.query as { download?: string; forceDownload?: string; metadata?: string }
-    const download = query.download === 'true'
+    const query = request.query as { metadata?: string }
     const metadataOnly = query.metadata === 'true'
 
     const { getStorageProvider } = await import('../../lib/storage/index.js')
@@ -1356,7 +1355,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     if (certificate) {
-      if (metadataOnly || !download) {
+      if (metadataOnly) {
         return { certificate }
       }
 
@@ -1367,8 +1366,10 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         const signedUrl = await storage.getSignedUrl(certificate.storagePath, {
           expiresInMinutes: 15,
         })
-        return reply.redirect(signedUrl)
+        return { certificate, url: signedUrl }
       }
+
+      return { certificate, url: null }
     }
 
     // No certificate or file not found in storage

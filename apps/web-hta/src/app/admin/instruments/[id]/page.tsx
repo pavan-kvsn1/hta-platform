@@ -139,6 +139,7 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
   const [instrument, setInstrument] = useState<Instrument | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
   // Section expansion state
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -171,6 +172,21 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
   useEffect(() => {
     fetchInstrument()
   }, [id, fetchInstrument])
+
+  // Fetch signed URL for certificate PDF
+  useEffect(() => {
+    if (!instrument) return
+    async function fetchPdfUrl() {
+      try {
+        const res = await apiFetch(`/api/admin/instruments/${id}/certificates/latest`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.url) setPdfUrl(data.url)
+        }
+      } catch { /* no cert available */ }
+    }
+    fetchPdfUrl()
+  }, [id, instrument])
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))
@@ -521,11 +537,17 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
           </div>
           {/* PDF Viewer */}
           <div className="flex-1 bg-slate-100">
-            <iframe
-              src={`/api/admin/instruments/${id}/certificates/latest?download=true`}
-              className="w-full h-full"
-              title="Calibration Certificate"
-            />
+            {pdfUrl ? (
+              <iframe
+                src={pdfUrl}
+                className="w-full h-full"
+                title="Calibration Certificate"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+                No certificate available
+              </div>
+            )}
           </div>
         </div>
       </div>
