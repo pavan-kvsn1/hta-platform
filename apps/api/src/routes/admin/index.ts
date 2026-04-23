@@ -366,54 +366,494 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true }
   })
 
-  // GET /api/admin/analytics - Dashboard analytics
+  // GET /api/admin/analytics - Performance analytics dashboard
   fastify.get('/analytics', {
     preHandler: [requireAdmin],
   }, async (request) => {
     const tenantId = request.tenantId
+    const query = request.query as {
+      days?: string
+      customerId?: string
+      engineerId?: string
+    }
 
-    const [
-      totalCertificates,
-      totalUsers,
-      totalCustomers,
-      certificatesByStatus,
-      recentCertificates,
-    ] = await Promise.all([
-      prisma.certificate.count({ where: { tenantId } }),
-      prisma.user.count({ where: { tenantId, isActive: true } }),
-      prisma.customerAccount.count({ where: { tenantId, isActive: true } }),
-      prisma.certificate.groupBy({
-        by: ['status'],
-        where: { tenantId },
-        _count: true,
-      }),
-      prisma.certificate.findMany({
-        where: { tenantId },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
+    const days = Math.max(1, parseInt(query.days || '30', 10))
+    const customerId = query.customerId || undefined
+    const engineerId = query.engineerId || undefined
+
+    const now = new Date()
+    const periodStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+    const prevPeriodStart = new Date(periodStart.getTime() - days * 24 * 60 * 60 * 1000)
+
+    // ---------- helpers ----------
+    function median(arr: number[]): number {
+      if (arr.length === 0) return 0
+      const sorted = [...arr].sort((a, b) => a - b)
+      const mid = Math.floor(sorted.length / 2)
+      return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+    }
+
+    function hoursDiff(a: Date, b: Date): number {
+      return Math.max(0, (b.getTime() - a.getTime()) / (1000 * 60 * 60))
+    }
+
+    function changePercent(current: number, prev: number): number {
+      if (prev === 0) return current > 0 ? 100 : 0
+      return Math.round(((current - prev) / prev) * 100)
+    }
+
+    // ---------- Build certificate filter ----------
+    const certWhere: Record<string, unknown> = { tenantId }
+    if (engineerId) certWhere.createdById = engineerId
+    if (customerId) {
+      // Filter by customer account company name
+      const account = await prisma.customerAccount.findUnique({
+        where: { id: customerId },
+        select: { companyName: true },
+      })
+      if (account) certWhere.customerName = account.companyName
+    }
+
+    // ---------- Fetch certificates in current period ----------
+    const currentCerts = await prisma.certificate.findMany({
+      where: {
+        ...certWhere,
+        createdAt: { gte: periodStart },
+      },
+      select: {
+        id: true,
+        certificateNumber: true,
+        status: true,
+        customerName: true,
+        createdAt: true,
+        createdById: true,
+        createdBy: { select: { name: true } },
+      },
+    })
+
+    // ---------- Fetch events for current-period certs ----------
+    const certIds = currentCerts.map((c) => c.id)
+
+    const [allEvents, allFeedbacks, allUnlockRequests] = await Promise.all([
+      certIds.length > 0
+        ? prisma.certificateEvent.findMany({
+            where: { certificateId: { in: certIds } },
+            orderBy: { createdAt: 'asc' },
+            select: {
+              certificateId: true,
+              eventType: true,
+              createdAt: true,
+            },
+          })
+        : Promise.resolve([]),
+      certIds.length > 0
+        ? prisma.reviewFeedback.findMany({
+            where: { certificateId: { in: certIds } },
+            select: {
+              certificateId: true,
+              feedbackType: true,
+              targetSection: true,
+              createdAt: true,
+              isResolved: true,
+              resolvedAt: true,
+            },
+          })
+        : Promise.resolve([]),
+      prisma.internalRequest.findMany({
+        where: {
+          type: 'SECTION_UNLOCK',
+          createdAt: { gte: periodStart },
+          ...(certIds.length > 0 ? { certificateId: { in: certIds } } : {}),
+        },
         select: {
           id: true,
-          certificateNumber: true,
+          certificateId: true,
           status: true,
-          customerName: true,
+          data: true,
           createdAt: true,
+          reviewedAt: true,
         },
       }),
     ])
 
-    const statusCounts = certificatesByStatus.reduce((acc: Record<string, number>, item: (typeof certificatesByStatus)[number]) => {
-      acc[item.status] = item._count
-      return acc
-    }, {} as Record<string, number>)
+    // Group events by certificate
+    type EventEntry = { certificateId: string; eventType: string; createdAt: Date }
+    const eventsByCert = new Map<string, EventEntry[]>()
+    for (const ev of allEvents) {
+      if (!eventsByCert.has(ev.certificateId)) eventsByCert.set(ev.certificateId, [])
+      eventsByCert.get(ev.certificateId)!.push(ev)
+    }
+
+    // ---------- Stage TAT computation ----------
+    type StageKey = 'createdToSubmitted' | 'submittedToReviewed' | 'reviewedToCustomer' | 'customerToAuthorized' | 'total'
+    const stageDurations: Record<StageKey, number[]> = {
+      createdToSubmitted: [],
+      submittedToReviewed: [],
+      reviewedToCustomer: [],
+      customerToAuthorized: [],
+      total: [],
+    }
+
+    // Per-certificate stage info for the detail table
+    type CertStages = { name: string; hours: number; status: 'ok' | 'slow' | 'stuck' }[]
+    const certStagesMap = new Map<string, CertStages>()
+
+    for (const cert of currentCerts) {
+      const events = eventsByCert.get(cert.id) || []
+      const createdAt = cert.createdAt
+
+      // Find first submit event
+      const submitEvent = events.find(
+        (e) => e.eventType === 'SUBMITTED_FOR_REVIEW' || e.eventType === 'RESUBMITTED_FOR_REVIEW'
+      )
+      // Find first review-complete event (approve or revision request)
+      const reviewEvent = events.find(
+        (e) =>
+          e.eventType === 'APPROVED' ||
+          e.eventType === 'REVIEWER_APPROVED_SENT_TO_CUSTOMER' ||
+          e.eventType === 'REVISION_REQUESTED'
+      )
+      // Find sent-to-customer event
+      const customerEvent = events.find(
+        (e) => e.eventType === 'SENT_TO_CUSTOMER' || e.eventType === 'REVIEWER_APPROVED_SENT_TO_CUSTOMER'
+      )
+      // Find admin-authorized event
+      const authEvent = events.find((e) => e.eventType === 'ADMIN_AUTHORIZED')
+      // Find customer-approved event
+      const custApprovedEvent = events.find((e) => e.eventType === 'CUSTOMER_APPROVED')
+
+      const stages: CertStages = []
+
+      // Stage 1: Created -> Submitted
+      let s1Hours = 0
+      if (submitEvent) {
+        s1Hours = hoursDiff(createdAt, submitEvent.createdAt)
+        stageDurations.createdToSubmitted.push(s1Hours)
+      }
+      stages.push({ name: 'Draft', hours: Math.round(s1Hours * 10) / 10, status: s1Hours > 48 ? 'stuck' : s1Hours > 24 ? 'slow' : 'ok' })
+
+      // Stage 2: Submitted -> Reviewed
+      let s2Hours = 0
+      if (submitEvent && reviewEvent) {
+        s2Hours = hoursDiff(submitEvent.createdAt, reviewEvent.createdAt)
+        stageDurations.submittedToReviewed.push(s2Hours)
+      }
+      stages.push({ name: 'Review', hours: Math.round(s2Hours * 10) / 10, status: s2Hours > 48 ? 'stuck' : s2Hours > 24 ? 'slow' : 'ok' })
+
+      // Stage 3: Reviewed -> Customer
+      let s3Hours = 0
+      if (reviewEvent && customerEvent) {
+        s3Hours = hoursDiff(reviewEvent.createdAt, customerEvent.createdAt)
+        stageDurations.reviewedToCustomer.push(s3Hours)
+      }
+      stages.push({ name: 'Customer', hours: Math.round(s3Hours * 10) / 10, status: s3Hours > 72 ? 'stuck' : s3Hours > 48 ? 'slow' : 'ok' })
+
+      // Stage 4: Customer -> Authorized
+      let s4Hours = 0
+      const custStageStart = custApprovedEvent || customerEvent
+      if (custStageStart && authEvent) {
+        s4Hours = hoursDiff(custStageStart.createdAt, authEvent.createdAt)
+        stageDurations.customerToAuthorized.push(s4Hours)
+      }
+      stages.push({ name: 'Authorization', hours: Math.round(s4Hours * 10) / 10, status: s4Hours > 48 ? 'stuck' : s4Hours > 24 ? 'slow' : 'ok' })
+
+      // Total
+      const totalHours = s1Hours + s2Hours + s3Hours + s4Hours
+      if (submitEvent) {
+        stageDurations.total.push(totalHours)
+      }
+
+      certStagesMap.set(cert.id, stages)
+    }
+
+    // ---------- Previous period certs for comparison ----------
+    const prevCerts = await prisma.certificate.findMany({
+      where: {
+        ...certWhere,
+        createdAt: { gte: prevPeriodStart, lt: periodStart },
+      },
+      select: { id: true, createdAt: true },
+    })
+
+    const prevCertIds = prevCerts.map((c) => c.id)
+
+    const [prevEvents, prevFeedbacks] = await Promise.all([
+      prevCertIds.length > 0
+        ? prisma.certificateEvent.findMany({
+            where: { certificateId: { in: prevCertIds } },
+            orderBy: { createdAt: 'asc' },
+            select: {
+              certificateId: true,
+              eventType: true,
+              createdAt: true,
+            },
+          })
+        : Promise.resolve([]),
+      prevCertIds.length > 0
+        ? prisma.reviewFeedback.findMany({
+            where: { certificateId: { in: prevCertIds } },
+            select: {
+              certificateId: true,
+              feedbackType: true,
+              targetSection: true,
+              createdAt: true,
+              isResolved: true,
+              resolvedAt: true,
+            },
+          })
+        : Promise.resolve([]),
+    ])
+
+    // Group prev events by cert
+    const prevEventsByCert = new Map<string, EventEntry[]>()
+    for (const ev of prevEvents) {
+      if (!prevEventsByCert.has(ev.certificateId)) prevEventsByCert.set(ev.certificateId, [])
+      prevEventsByCert.get(ev.certificateId)!.push(ev)
+    }
+
+    // Compute prev period stage durations
+    const prevStageDurations: Record<StageKey, number[]> = {
+      createdToSubmitted: [],
+      submittedToReviewed: [],
+      reviewedToCustomer: [],
+      customerToAuthorized: [],
+      total: [],
+    }
+
+    for (const cert of prevCerts) {
+      const events = prevEventsByCert.get(cert.id) || []
+      const submitEvent = events.find(
+        (e) => e.eventType === 'SUBMITTED_FOR_REVIEW' || e.eventType === 'RESUBMITTED_FOR_REVIEW'
+      )
+      const reviewEvent = events.find(
+        (e) =>
+          e.eventType === 'APPROVED' ||
+          e.eventType === 'REVIEWER_APPROVED_SENT_TO_CUSTOMER' ||
+          e.eventType === 'REVISION_REQUESTED'
+      )
+      const customerEvent = events.find(
+        (e) => e.eventType === 'SENT_TO_CUSTOMER' || e.eventType === 'REVIEWER_APPROVED_SENT_TO_CUSTOMER'
+      )
+      const authEvent = events.find((e) => e.eventType === 'ADMIN_AUTHORIZED')
+      const custApprovedEvent = events.find((e) => e.eventType === 'CUSTOMER_APPROVED')
+
+      if (submitEvent) {
+        prevStageDurations.createdToSubmitted.push(hoursDiff(cert.createdAt, submitEvent.createdAt))
+      }
+      if (submitEvent && reviewEvent) {
+        prevStageDurations.submittedToReviewed.push(hoursDiff(submitEvent.createdAt, reviewEvent.createdAt))
+      }
+      if (reviewEvent && customerEvent) {
+        prevStageDurations.reviewedToCustomer.push(hoursDiff(reviewEvent.createdAt, customerEvent.createdAt))
+      }
+      const custStart = custApprovedEvent || customerEvent
+      if (custStart && authEvent) {
+        prevStageDurations.customerToAuthorized.push(hoursDiff(custStart.createdAt, authEvent.createdAt))
+      }
+
+      let total = 0
+      if (submitEvent) total += hoursDiff(cert.createdAt, submitEvent.createdAt)
+      if (submitEvent && reviewEvent) total += hoursDiff(submitEvent.createdAt, reviewEvent.createdAt)
+      if (reviewEvent && customerEvent) total += hoursDiff(reviewEvent.createdAt, customerEvent.createdAt)
+      const cs = custApprovedEvent || customerEvent
+      if (cs && authEvent) total += hoursDiff(cs.createdAt, authEvent.createdAt)
+      if (submitEvent) prevStageDurations.total.push(total)
+    }
+
+    // Build stage metrics
+    function buildStageMetrics(current: number[], prev: number[]): { avgHours: number; medianHours: number; count: number; changePercent: number } {
+      const avgCurrent = current.length > 0 ? current.reduce((a, b) => a + b, 0) / current.length : 0
+      const avgPrev = prev.length > 0 ? prev.reduce((a, b) => a + b, 0) / prev.length : 0
+      return {
+        avgHours: Math.round(avgCurrent * 10) / 10,
+        medianHours: Math.round(median(current) * 10) / 10,
+        count: current.length,
+        changePercent: changePercent(avgCurrent, avgPrev),
+      }
+    }
+
+    const stageTAT = {
+      createdToSubmitted: buildStageMetrics(stageDurations.createdToSubmitted, prevStageDurations.createdToSubmitted),
+      submittedToReviewed: buildStageMetrics(stageDurations.submittedToReviewed, prevStageDurations.submittedToReviewed),
+      reviewedToCustomer: buildStageMetrics(stageDurations.reviewedToCustomer, prevStageDurations.reviewedToCustomer),
+      customerToAuthorized: buildStageMetrics(stageDurations.customerToAuthorized, prevStageDurations.customerToAuthorized),
+      total: buildStageMetrics(stageDurations.total, prevStageDurations.total),
+    }
+
+    // ---------- Bottleneck ----------
+    const stageAvgs: { key: string; label: string; avg: number }[] = [
+      { key: 'createdToSubmitted', label: 'draft', avg: stageTAT.createdToSubmitted.avgHours },
+      { key: 'submittedToReviewed', label: 'review', avg: stageTAT.submittedToReviewed.avgHours },
+      { key: 'reviewedToCustomer', label: 'customer', avg: stageTAT.reviewedToCustomer.avgHours },
+      { key: 'customerToAuthorized', label: 'authorization', avg: stageTAT.customerToAuthorized.avgHours },
+    ]
+    const maxStage = stageAvgs.reduce((best, s) => (s.avg > best.avg ? s : best), stageAvgs[0])
+    const bottleneck = maxStage && maxStage.avg > 0 ? maxStage.label : null
+
+    // ---------- Revision metrics ----------
+    function computeRevisionMetrics(
+      feedbacks: typeof allFeedbacks,
+      prevFeedbackList: typeof prevFeedbacks,
+      feedbackTypes: string[],
+      totalCerts: number,
+      prevTotalCerts: number
+    ) {
+      const current = feedbacks.filter((f) => feedbackTypes.includes(f.feedbackType))
+      const prev = prevFeedbackList.filter((f) => feedbackTypes.includes(f.feedbackType))
+
+      const total = current.length
+      const avgPerCert = totalCerts > 0 ? Math.round((total / totalCerts) * 10) / 10 : 0
+
+      // TAT: time from creation to resolution
+      const resolvedCurrent = current.filter((f) => f.isResolved && f.resolvedAt)
+      const tatHours = resolvedCurrent.map((f) => hoursDiff(f.createdAt, f.resolvedAt!))
+      const avgTATHours = tatHours.length > 0
+        ? Math.round((tatHours.reduce((a, b) => a + b, 0) / tatHours.length) * 10) / 10
+        : 0
+
+      // First-pass rate: certs with zero feedbacks of this type / total certs
+      const certsWithFeedback = new Set(current.map((f) => f.certificateId))
+      const firstPassRate = totalCerts > 0
+        ? Math.round(((totalCerts - certsWithFeedback.size) / totalCerts) * 100)
+        : 0
+
+      // Previous period
+      const prevTotal = prev.length
+      const prevAvgPerCert = prevTotalCerts > 0 ? Math.round((prevTotal / prevTotalCerts) * 10) / 10 : 0
+      const prevResolved = prev.filter((f) => f.isResolved && f.resolvedAt)
+      const prevTatHours = prevResolved.map((f) => hoursDiff(f.createdAt, f.resolvedAt!))
+      const prevAvgTATHours = prevTatHours.length > 0
+        ? Math.round((prevTatHours.reduce((a, b) => a + b, 0) / prevTatHours.length) * 10) / 10
+        : 0
+      const prevCertsWithFeedback = new Set(prev.map((f) => f.certificateId))
+      const prevFirstPassRate = prevTotalCerts > 0
+        ? Math.round(((prevTotalCerts - prevCertsWithFeedback.size) / prevTotalCerts) * 100)
+        : 0
+
+      // By sections
+      const sectionCounts = new Map<string, number>()
+      for (const f of current) {
+        const section = f.targetSection || 'general'
+        sectionCounts.set(section, (sectionCounts.get(section) || 0) + 1)
+      }
+      const bySections = Array.from(sectionCounts.entries())
+        .map(([section, count]) => ({ section, count }))
+        .sort((a, b) => b.count - a.count)
+
+      return {
+        total,
+        avgPerCert,
+        avgTATHours,
+        firstPassRate,
+        prevTotal,
+        prevAvgPerCert,
+        prevAvgTATHours,
+        prevFirstPassRate,
+        hasPrevData: prevCertIds.length > 0,
+        bySections,
+      }
+    }
+
+    const reviewerRevisions = computeRevisionMetrics(
+      allFeedbacks,
+      prevFeedbacks,
+      ['REVISION_REQUESTED', 'REJECTED'],
+      currentCerts.length,
+      prevCerts.length
+    )
+
+    const customerRevisions = computeRevisionMetrics(
+      allFeedbacks,
+      prevFeedbacks,
+      ['CUSTOMER_REVISION_FORWARDED'],
+      currentCerts.length,
+      prevCerts.length
+    )
+
+    // ---------- Unlock metrics ----------
+    const resolvedUnlocks = allUnlockRequests.filter((r) => r.status !== 'PENDING' && r.reviewedAt)
+    const unlockTATHours = resolvedUnlocks.map((r) => hoursDiff(r.createdAt, r.reviewedAt!))
+    const avgUnlockTAT = unlockTATHours.length > 0
+      ? Math.round((unlockTATHours.reduce((a, b) => a + b, 0) / unlockTATHours.length) * 10) / 10
+      : 0
+
+    const approvedCount = allUnlockRequests.filter((r) => r.status === 'APPROVED').length
+    const rejectedCount = allUnlockRequests.filter((r) => r.status === 'REJECTED').length
+    const totalUnlocks = allUnlockRequests.length
+
+    const unlockSectionCounts = new Map<string, number>()
+    for (const req of allUnlockRequests) {
+      try {
+        const parsed = typeof req.data === 'string' ? JSON.parse(req.data) : req.data
+        const sections = Array.isArray(parsed?.sections) ? parsed.sections : []
+        for (const s of sections) {
+          unlockSectionCounts.set(s, (unlockSectionCounts.get(s) || 0) + 1)
+        }
+      } catch {
+        // skip malformed data
+      }
+    }
+    const unlockBySections = Array.from(unlockSectionCounts.entries())
+      .map(([section, count]) => ({ section, count }))
+      .sort((a, b) => b.count - a.count)
+
+    const unlockMetrics = {
+      total: totalUnlocks,
+      avgTATHours: avgUnlockTAT,
+      approvedPercent: totalUnlocks > 0 ? Math.round((approvedCount / totalUnlocks) * 100) : 0,
+      rejectedPercent: totalUnlocks > 0 ? Math.round((rejectedCount / totalUnlocks) * 100) : 0,
+      bySections: unlockBySections,
+    }
+
+    // ---------- Certificate detail table ----------
+    // Count feedbacks and unlocks per cert
+    const feedbackCountsByCert = new Map<string, { reviewer: number; customer: number }>()
+    for (const f of allFeedbacks) {
+      if (!feedbackCountsByCert.has(f.certificateId)) {
+        feedbackCountsByCert.set(f.certificateId, { reviewer: 0, customer: 0 })
+      }
+      const counts = feedbackCountsByCert.get(f.certificateId)!
+      if (f.feedbackType === 'REVISION_REQUESTED' || f.feedbackType === 'REJECTED') {
+        counts.reviewer++
+      } else if (f.feedbackType === 'CUSTOMER_REVISION_FORWARDED') {
+        counts.customer++
+      }
+    }
+
+    const unlockCountsByCert = new Map<string, number>()
+    for (const req of allUnlockRequests) {
+      if (req.certificateId) {
+        unlockCountsByCert.set(req.certificateId, (unlockCountsByCert.get(req.certificateId) || 0) + 1)
+      }
+    }
+
+    const certificates = currentCerts.map((cert) => {
+      const stages = certStagesMap.get(cert.id) || []
+      const totalTATHours = stages.reduce((sum, s) => sum + s.hours, 0)
+      const fbCounts = feedbackCountsByCert.get(cert.id) || { reviewer: 0, customer: 0 }
+
+      return {
+        id: cert.id,
+        certificateNumber: cert.certificateNumber,
+        customer: cert.customerName || 'N/A',
+        engineer: cert.createdBy?.name || 'N/A',
+        totalTATHours: Math.round(totalTATHours * 10) / 10,
+        reviewerRevisions: fbCounts.reviewer,
+        customerRevisions: fbCounts.customer,
+        unlocks: unlockCountsByCert.get(cert.id) || 0,
+        status: cert.status,
+        stages,
+      }
+    })
 
     return {
-      summary: {
-        totalCertificates,
-        totalUsers,
-        totalCustomers,
-      },
-      certificatesByStatus: statusCounts,
-      recentCertificates,
+      stageTAT,
+      bottleneck,
+      unlockMetrics,
+      reviewerRevisions,
+      customerRevisions,
+      certificates,
+      totalCertificates: currentCerts.length,
     }
   })
 
@@ -1932,28 +2372,75 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/subscription', {
     preHandler: [requireAdmin],
   }, async (request) => {
-    const { getSubscriptionStatus } = await import('../../services/subscription.js')
+    const { getSubscriptionStatus, getCurrentUsage } = await import('../../services/subscription.js')
     const tenantId = request.tenantId
+
+    // Tier-based limits
+    const TIER_LIMITS: Record<string, { certificates: number; staffUsers: number; customerAccounts: number; customerUsers: number }> = {
+      STARTER:  { certificates: 500,  staffUsers: 5,  customerAccounts: 20,  customerUsers: 50 },
+      GROWTH:   { certificates: 5000, staffUsers: 15, customerAccounts: 100, customerUsers: 300 },
+      SCALE:    { certificates: -1,   staffUsers: -1, customerAccounts: -1,  customerUsers: -1 },
+      INTERNAL: { certificates: -1,   staffUsers: -1, customerAccounts: -1,  customerUsers: -1 },
+    }
+
+    // Base prices in paise
+    const TIER_BASE_PRICE: Record<string, number> = {
+      STARTER: 299900,
+      GROWTH: 599900,
+      SCALE: 1199900,
+      INTERNAL: 0,
+    }
+
+    const EXTRA_SEAT_PRICE = 5000 // ₹50/month in paise
+    const GST_RATE = 0.18
 
     const status = await getSubscriptionStatus(tenantId)
 
+    // Always compute live usage even without a subscription
+    const liveUsage = status
+      ? status.usage
+      : await getCurrentUsage(tenantId)
+
+    const usage = {
+      certificatesThisPeriod: liveUsage.certificatesIssued,
+      staffUsers: liveUsage.staffUserCount,
+      customerAccounts: liveUsage.customerAccountCount,
+      customerUsers: liveUsage.customerUserCount,
+    }
+
     if (!status) {
       return {
-        hasSubscription: false,
-        message: 'No subscription found for this tenant',
+        subscription: null,
+        usage,
+        limits: TIER_LIMITS.STARTER, // default limits for display
+        billing: { subtotal: 0, tax: 0, total: 0 },
       }
     }
 
+    const tier = status.tier as string
+    const limits = TIER_LIMITS[tier] || TIER_LIMITS.STARTER
+
+    const extraSeats = (status.extraSeats.staff || 0)
+      + (status.extraSeats.customerAccounts || 0)
+      + (status.extraSeats.customerUsers || 0)
+    const basePrice = TIER_BASE_PRICE[tier] || 0
+    const subtotal = basePrice + extraSeats * EXTRA_SEAT_PRICE
+    const tax = Math.round(subtotal * GST_RATE)
+    const total = subtotal + tax
+
     return {
-      hasSubscription: true,
       subscription: {
         tier: status.tier,
         status: status.status,
         currentPeriodStart: status.currentPeriodStart.toISOString(),
         currentPeriodEnd: status.currentPeriodEnd.toISOString(),
-        extraSeats: status.extraSeats,
+        extraStaffSeats: status.extraSeats.staff,
+        extraCustomerAccounts: status.extraSeats.customerAccounts,
+        extraCustomerUserSeats: status.extraSeats.customerUsers,
       },
-      usage: status.usage,
+      usage,
+      limits,
+      billing: { subtotal, tax, total },
     }
   })
 }

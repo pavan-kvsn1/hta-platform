@@ -1,0 +1,4 @@
+[
+  {"op":"replace","path":"/spec/listeners/0/allowedRoutes/namespaces/from","value":"All"},
+  {"op":"replace","path":"/spec/listeners/1/allowedRoutes/namespaces/from","value":"All"}
+]

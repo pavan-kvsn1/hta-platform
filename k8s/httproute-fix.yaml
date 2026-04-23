@@ -1,0 +1,50 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: hta-app-routes
+  namespace: hta-prod
+  labels:
+    app.kubernetes.io/name: hta-platform
+spec:
+  parentRefs:
+    - name: hta-gateway
+      namespace: hta-platform
+      sectionName: http
+    - name: hta-gateway
+      namespace: hta-platform
+      sectionName: https
+  hostnames:
+    - "app.hta-calibration.com"
+  rules:
+    # NextAuth routes: /api/auth/* -> hta-web (Next.js handles auth)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/auth
+      backendRefs:
+        - name: hta-web
+          port: 80
+    # API path: /api/* -> hta-api (Fastify)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      backendRefs:
+        - name: hta-api
+          port: 80
+    # Health check endpoint
+    - matches:
+        - path:
+            type: Exact
+            value: /health
+      backendRefs:
+        - name: hta-api
+          port: 80
+    # Frontend: everything else -> hta-web
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: hta-web
+          port: 80

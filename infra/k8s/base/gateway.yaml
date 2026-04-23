@@ -29,14 +29,14 @@ spec:
       protocol: HTTP
       allowedRoutes:
         namespaces:
-          from: Same
+          from: All
     # HTTPS listener with GCP Certificate Manager
     - name: https
       port: 443
       protocol: HTTPS
       allowedRoutes:
         namespaces:
-          from: Same
+          from: All
       tls:
         mode: Terminate
         options:
