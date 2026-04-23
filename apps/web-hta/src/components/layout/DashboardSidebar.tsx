@@ -7,7 +7,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
-import { FileText, ClipboardCheck, Bell, LogOut, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { FileText, ClipboardCheck, Bell, Settings, LogOut, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface DashboardSidebarProps {
@@ -72,6 +72,7 @@ export function DashboardSidebar({
     { label: 'My Certificates', icon: FileText, href: '/dashboard', show: true },
     { label: 'Reviews', icon: ClipboardCheck, href: '/dashboard/reviewer', show: userRole === 'ENGINEER' || userRole === 'ADMIN' },
     { label: 'Notifications', icon: Bell, href: '/notifications', show: true, badge: unreadCount },
+    { label: 'Settings', icon: Settings, href: '/settings', show: true },
   ].filter((item) => item.show)
 
   const isActive = (href: string) => {
