@@ -1082,6 +1082,88 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  // GET /api/admin/instruments/:id - Get single instrument detail
+  fastify.get<{ Params: { id: string } }>('/instruments/:id', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id } = request.params
+
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: {
+        tenantId,
+        id,
+        isActive: true,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const dueDate = instrument.calibrationDueDate ? new Date(instrument.calibrationDueDate) : null
+    const daysUntilExpiry = dueDate
+      ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      : 0
+
+    let status = 'VALID'
+    if (!dueDate || daysUntilExpiry < 0) {
+      status = 'EXPIRED'
+    } else if (daysUntilExpiry <= 30) {
+      status = 'EXPIRING_SOON'
+    }
+    if (instrument.status === 'UNDER_RECAL') {
+      status = 'UNDER_RECAL'
+    }
+
+    // Parse rangeData safely
+    let rangeData: unknown[] = []
+    try {
+      if (instrument.rangeData) {
+        rangeData = typeof instrument.rangeData === 'string'
+          ? JSON.parse(instrument.rangeData)
+          : Array.isArray(instrument.rangeData) ? instrument.rangeData : []
+      }
+    } catch {
+      rangeData = []
+    }
+
+    return {
+      id: instrument.id,
+      instrumentId: instrument.instrumentId || instrument.id,
+      version: instrument.version,
+      category: instrument.category,
+      description: instrument.description,
+      make: instrument.make,
+      model: instrument.model,
+      assetNumber: instrument.assetNumber || '',
+      serialNumber: instrument.serialNumber || '',
+      usage: instrument.usage,
+      calibratedAtLocation: instrument.calibratedAtLocation,
+      reportNo: instrument.reportNo,
+      calibrationDueDate: instrument.calibrationDueDate?.toISOString() || null,
+      remarks: instrument.remarks,
+      isActive: instrument.isActive,
+      status,
+      daysUntilExpiry,
+      rangeData,
+      createdBy: instrument.createdBy,
+      createdAt: instrument.createdAt.toISOString(),
+      changeReason: instrument.changeReason,
+      parameterGroup: instrument.parameterGroup,
+      parameterCapabilities: instrument.parameterCapabilities || [],
+      parameterRoles: instrument.parameterRoles || [],
+      sopReferences: instrument.sopReferences || [],
+    }
+  })
+
   // PUT /api/admin/instruments/:id - Update instrument (creates new version)
   fastify.put<{ Params: { id: string } }>('/instruments/:id', {
     preHandler: [requireAdmin],
@@ -2322,6 +2404,135 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     return { success: true, message: 'User reactivated successfully' }
+  })
+
+  // GET /api/admin/users/:id/tat-metrics - Per-user TAT performance metrics
+  fastify.get('/users/:id/tat-metrics', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { periodDays: periodDaysStr } = request.query as { periodDays?: string }
+    const periodDays = Math.max(1, parseInt(periodDaysStr || '30', 10))
+    const tenantId = request.tenantId
+
+    const { calculateUserTATMetrics, calculateRequestHandlingMetrics } = await import('../../lib/user-tat-calculator.js')
+
+    const user = await prisma.user.findUnique({
+      where: { id, tenantId },
+      select: { id: true, role: true, adminType: true },
+    })
+
+    if (!user) {
+      return reply.status(404).send({ error: 'User not found' })
+    }
+
+    const now = new Date()
+    const startDate = new Date(now)
+    startDate.setDate(startDate.getDate() - (periodDays * 2))
+    startDate.setHours(0, 0, 0, 0)
+
+    const periodStart = new Date(now)
+    periodStart.setDate(periodStart.getDate() - periodDays)
+    periodStart.setHours(0, 0, 0, 0)
+
+    const previousPeriodStart = new Date(periodStart)
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - periodDays)
+
+    const whereConditions: { OR: object[] } = {
+      OR: [
+        { createdById: id },
+        { reviewerId: id },
+      ],
+    }
+
+    if (user.role === 'ADMIN') {
+      whereConditions.OR.push({
+        status: 'AUTHORIZED',
+        events: {
+          some: {
+            eventType: 'ADMIN_AUTHORIZED',
+            createdAt: { gte: startDate },
+          },
+        },
+      })
+    }
+
+    const certificates = await prisma.certificate.findMany({
+      where: {
+        tenantId,
+        ...whereConditions,
+        events: {
+          some: {
+            createdAt: { gte: startDate },
+          },
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        currentRevision: true,
+        createdById: true,
+        reviewerId: true,
+        events: {
+          select: {
+            id: true,
+            eventType: true,
+            createdAt: true,
+            certificateId: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    })
+
+    const certMetrics = calculateUserTATMetrics(certificates, id, periodDays)
+
+    let requestHandling = null
+    if (user.role === 'ADMIN') {
+      const internalRequests = await prisma.internalRequest.findMany({
+        where: {
+          reviewedById: id,
+          reviewedAt: { gte: startDate },
+        },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          reviewedAt: true,
+          reviewedById: true,
+        },
+      })
+
+      const customerRequests = user.adminType === 'MASTER'
+        ? await prisma.customerRequest.findMany({
+            where: {
+              reviewedById: id,
+              reviewedAt: { gte: startDate },
+            },
+            select: {
+              id: true,
+              status: true,
+              createdAt: true,
+              reviewedAt: true,
+              reviewedById: true,
+            },
+          })
+        : []
+
+      requestHandling = calculateRequestHandlingMetrics(
+        internalRequests,
+        customerRequests,
+        id,
+        user.adminType,
+        periodStart,
+        previousPeriodStart
+      )
+    }
+
+    return {
+      ...certMetrics,
+      requestHandling,
+    }
   })
 
   // ============================================================================
