@@ -110,7 +110,8 @@ export function ReviewerPageClient({
   const [viewMode, setViewMode] = useState<'details' | 'pdf'>('details')
   const [isDownloading, setIsDownloading] = useState(false)
 
-  const canReview = certificate.status === 'PENDING_REVIEW' || certificate.status === 'CUSTOMER_REVISION_REQUIRED'
+  const decisionMade = ['APPROVED', 'PENDING_CUSTOMER_APPROVAL', 'PENDING_ADMIN_AUTHORIZATION', 'AUTHORIZED', 'REJECTED'].includes(certificate.status)
+  const canReview = !decisionMade
   const isRevisionRequired = certificate.status === 'REVISION_REQUIRED'
   const isCustomerRevisionRequired = certificate.status === 'CUSTOMER_REVISION_REQUIRED'
   const isPendingCustomer = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
@@ -576,7 +577,7 @@ export function ReviewerPageClient({
                 </div>
               )}
 
-              {/* Status Indicators for non-review states */}
+              {/* Status Indicators for post-decision states */}
               {isRevisionRequired && (
                 <div className="flex items-center gap-3 py-3 px-4 bg-amber-50 rounded-xl border border-amber-100">
                   <div className="size-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
