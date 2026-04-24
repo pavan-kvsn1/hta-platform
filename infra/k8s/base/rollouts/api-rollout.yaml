@@ -126,6 +126,11 @@ spec:
                 configMapKeyRef:
                   name: hta-config
                   key: gcs-bucket-name
+            - name: GCS_CERTIFICATES_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: hta-config
+                  key: gcs-bucket-name
           resources:
             requests:
               memory: "256Mi"

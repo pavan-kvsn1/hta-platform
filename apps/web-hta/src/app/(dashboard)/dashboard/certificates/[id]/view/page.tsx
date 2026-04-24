@@ -363,7 +363,7 @@ export default function CertificateViewPage() {
   const hasReviewer = !!certificate.reviewer
 
   return (
-    <div className="flex h-full bg-slate-100 p-3 gap-3">
+    <div className="flex h-[calc(100vh-4rem)] bg-slate-100 p-3 gap-3 overflow-hidden">
       {/* Left Side - Certificate Card */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -773,7 +773,7 @@ export default function CertificateViewPage() {
       </div>
 
       {/* Right Panel - Chat */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col gap-3">
+      <div className="w-[380px] flex-shrink-0 flex flex-col gap-3 h-full overflow-hidden">
         {/* Chat Section */}
         <div className={cn(
           'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',

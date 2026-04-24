@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { CustomerCertificateHeader } from './CustomerCertificateHeader'
 import { CustomerCertificateContent } from './CustomerCertificateContent'
 import { CustomerApprovalActions } from './CustomerApprovalActions'
-import { ChatSidebar } from '@/components/chat/ChatSidebar'
+import { CustomerChatContainer } from '@/components/chat/CustomerChatContainer'
 import { InlinePDFViewer } from '@/app/(dashboard)/dashboard/reviewer/[id]/InlinePDFViewer'
 import { cn } from '@/lib/utils'
 import { ChevronDown, ChevronRight, Clock, AlertTriangle } from 'lucide-react'
@@ -135,31 +135,43 @@ export function CustomerCertReviewClient({
   const [isChatExpanded, setIsChatExpanded] = useState(true)
   const [isActionsExpanded, setIsActionsExpanded] = useState(true)
 
-  // Check if customer can take action
-  const canApprove = certificate.status === 'PENDING_CUSTOMER_APPROVAL' || certificate.status === 'CUSTOMER_REVISION_REQUIRED'
-  const isAuthorized = certificate.status === 'AUTHORIZED'
+  // Track local status after customer takes action (immediate UI update)
+  const [localStatus, setLocalStatus] = useState<string | null>(null)
+  const effectiveStatus = localStatus || certificate.status
+
+  // Check if customer can take action — only when pending their approval
+  const canApprove = effectiveStatus === 'PENDING_CUSTOMER_APPROVAL'
+  const isAuthorized = effectiveStatus === 'AUTHORIZED'
 
   // Check if certificate is completed (read-only)
-  const isCompleted = ['APPROVED', 'PENDING_ADMIN_AUTHORIZATION', 'PENDING_ADMIN_APPROVAL', 'AUTHORIZED'].includes(certificate.status)
+  const isCompleted = ['APPROVED', 'PENDING_ADMIN_AUTHORIZATION', 'PENDING_ADMIN_APPROVAL', 'AUTHORIZED'].includes(effectiveStatus)
+
 
   // Handle download PDF (only for authorized certificates)
   const handleDownload = useCallback(async () => {
     setIsDownloading(true)
     try {
-      const response = await apiFetch(`/api/certificates/${certificate.id}/download-signed`)
+      // Fetch certificate data for PDF generation
+      const response = await apiFetch(`/api/certificates/${certificate.id}/pdf-data`)
       if (!response.ok) {
-        throw new Error('Failed to download PDF')
+        throw new Error('Failed to fetch certificate data')
       }
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
+      const data = await response.json()
+      const { signatures, ...certData } = data
+
+      // Generate PDF client-side
+      const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
+      const result = await generatePDFWithOptimalSpacing(certData, signatures)
+
+      const fileName = `${certificate.certificateNumber.replace(/\//g, '-')}.pdf`
+      const url = URL.createObjectURL(result.blob)
       const link = document.createElement('a')
       link.href = url
-      const fileName = `${certificate.certificateNumber.replace(/\//g, '-')}.pdf`
       link.download = fileName
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 100)
     } catch (err) {
       console.error('Error downloading PDF:', err)
       alert('Failed to download PDF')
@@ -169,7 +181,7 @@ export function CustomerCertReviewClient({
   }, [certificate.id, certificate.certificateNumber])
 
   return (
-    <div className="flex flex-col h-full bg-slate-100 pt-3 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-3.5rem)] bg-slate-100 pt-3 overflow-hidden">
       {/* TAT Banner - Only show when not completed and has sentAt */}
       {sentAt && !isCompleted && (
         <div className="flex-shrink-0">
@@ -186,123 +198,117 @@ export function CustomerCertReviewClient({
             {/* Header Section - Fixed */}
             <div className="flex-shrink-0">
               <CustomerCertificateHeader
-              headerData={headerData}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              isAuthorized={isAuthorized}
-              onDownload={isAuthorized ? handleDownload : undefined}
-              isDownloading={isDownloading}
-              expiresAt={expiresAt}
-            />
+                headerData={headerData}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                isAuthorized={isAuthorized}
+                onDownload={isAuthorized ? handleDownload : undefined}
+                isDownloading={isDownloading}
+                expiresAt={expiresAt}
+              />
+            </div>
+
+            {/* Content Area - Scrollable */}
+            <div className="flex-1 overflow-y-auto bg-section-inner">
+              {viewMode === 'details' ? (
+                <div className="p-4 space-y-6">
+                  <CustomerCertificateContent
+                    certificate={certificate}
+                    signatures={signatures}
+                  />
+                </div>
+              ) : (
+                <InlinePDFViewer
+                  certificateId={certificate.id}
+                  certificateNumber={certificate.certificateNumber}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel - Chat & Actions, fixed to viewport height */}
+        <div className="w-[380px] flex-shrink-0 flex flex-col p-2 gap-3 h-full overflow-hidden bg-section-inner">
+          {/* ===== CHAT SECTION ===== */}
+          <div className={cn(
+            'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',
+            isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
+          )}>
+            {/* Chat Header - Collapsible */}
+            <button
+              onClick={() => setIsChatExpanded(!isChatExpanded)}
+              className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                {isChatExpanded ? (
+                  <ChevronDown className="size-4 text-slate-400" />
+                ) : (
+                  <ChevronRight className="size-4 text-slate-400" />
+                )}
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Discussion</span>
+              </div>
+            </button>
+
+            {/* Chat Content - Only when expanded */}
+            {isChatExpanded && (
+              <div className="flex-1 flex flex-col min-h-0">
+                {/* Reviewer Info Header */}
+                <div className="flex-shrink-0 px-4 py-3 border-t border-b border-slate-100 bg-slate-50/50">
+                  <div className="flex items-center gap-3">
+                    <div className="size-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                      HTA
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">
+                        HTA Calibration Team
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Certificate Review Discussion
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chat Messages Area */}
+                <div className="flex-1 min-h-0 overflow-hidden text-xs">
+                  <CustomerChatContainer
+                    token={`cert:${certificate.id}`}
+                    className="h-full border-0 rounded-none"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Content Area - Scrollable */}
-          <div className="flex-1 overflow-y-auto bg-section-inner">
-            {viewMode === 'details' ? (
-              <div className="p-4 space-y-6">
-                <CustomerCertificateContent
+          {/* ===== REVIEW ACTIONS SECTION ===== */}
+          <div className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
+            <button
+              onClick={() => setIsActionsExpanded(!isActionsExpanded)}
+              className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                {isActionsExpanded ? (
+                  <ChevronDown className="size-4 text-slate-400" />
+                ) : (
+                  <ChevronRight className="size-4 text-slate-400" />
+                )}
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Your Actions</span>
+              </div>
+            </button>
+
+            {isActionsExpanded && (
+              <div className="border-t border-slate-100">
+                <CustomerApprovalActions
                   certificate={certificate}
+                  customer={customer}
                   signatures={signatures}
+                  canApprove={canApprove}
+                  onStatusChange={setLocalStatus}
                 />
               </div>
-            ) : (
-              <InlinePDFViewer
-                certificateId={certificate.id}
-                certificateNumber={certificate.certificateNumber}
-              />
             )}
           </div>
         </div>
-      </div>
-
-      {/* Right Panel - Fixed to screen height, no independent scroll */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col p-2 gap-3 h-full overflow-hidden bg-section-inner">
-        {/* ===== CHAT SECTION ===== */}
-        <div className={cn(
-          'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',
-          isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
-        )}>
-          {/* Chat Header - Collapsible */}
-          <button
-            onClick={() => setIsChatExpanded(!isChatExpanded)}
-            className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {isChatExpanded ? (
-                <ChevronDown className="size-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="size-4 text-slate-400" />
-              )}
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Discussion</span>
-            </div>
-          </button>
-
-          {/* Chat Content - Only when expanded */}
-          {isChatExpanded && (
-            <div className="flex-1 flex flex-col min-h-0">
-              {/* Reviewer Info Header */}
-              <div className="flex-shrink-0 px-4 py-3 border-t border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center gap-3">
-                  {/* Avatar */}
-                  <div className="size-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
-                    HTA
-                  </div>
-                  {/* Name & Status */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">
-                      HTA Calibration Team
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Certificate Review Discussion
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Chat Messages Area */}
-              <div className="flex-1 min-h-0 overflow-hidden text-xs">
-                <ChatSidebar
-                  isOpen={true}
-                  onClose={() => {}}
-                  certificateId={certificate.id}
-                  threadType="REVIEWER_CUSTOMER"
-                  embedded={true}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ===== REVIEW ACTIONS SECTION ===== */}
-        <div className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
-          {/* Actions Header - Collapsible */}
-          <button
-            onClick={() => setIsActionsExpanded(!isActionsExpanded)}
-            className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {isActionsExpanded ? (
-                <ChevronDown className="size-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="size-4 text-slate-400" />
-              )}
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Your Actions</span>
-            </div>
-          </button>
-
-          {/* Actions Content - Only when expanded */}
-          {isActionsExpanded && (
-            <div className="border-t border-slate-100">
-              <CustomerApprovalActions
-                certificate={certificate}
-                customer={customer}
-                signatures={signatures}
-                canApprove={canApprove}
-              />
-            </div>
-          )}
-        </div>
-      </div>
       </div>
     </div>
   )

@@ -6,6 +6,8 @@ import { requireStaff, requireAuth, requireAdmin } from '../../middleware/auth.j
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 import { queueCertificateSubmittedEmail, queueCertificateReviewedEmail, queueCustomerReviewEmail, enqueueNotification } from '../../services/queue.js'
 import certificateImagesRoutes from './images/index.js'
+import { detectCertificateChanges, generateChangeSummary } from '../../lib/change-detection.js'
+import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
 
 // Type for Prisma transaction client
 type TransactionClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
@@ -22,6 +24,24 @@ function safeJsonParse<T>(value: unknown, fallback: T): T {
     }
   }
   return fallback
+}
+
+// Parse user agent string into a human-readable format
+function parseUserAgentString(userAgent: string): string {
+  if (!userAgent || userAgent === 'unknown') return ''
+  let browser = ''
+  if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) browser = 'Chrome'
+  else if (userAgent.includes('Firefox')) browser = 'Firefox'
+  else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) browser = 'Safari'
+  else if (userAgent.includes('Edg')) browser = 'Edge'
+  let os = ''
+  if (userAgent.includes('Windows')) os = 'Windows'
+  else if (userAgent.includes('Mac OS')) os = 'macOS'
+  else if (userAgent.includes('Linux')) os = 'Linux'
+  else if (userAgent.includes('Android')) os = 'Android'
+  else if (userAgent.includes('iPhone') || userAgent.includes('iPad')) os = 'iOS'
+  const parts = [browser, os].filter(Boolean)
+  return parts.length > 0 ? parts.join(' / ') : ''
 }
 
 // Schema for creating a certificate
@@ -350,11 +370,50 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         masterInstruments: true,
         certificateImages: true,
         uucImages: true,
+        feedbacks: {
+          include: {
+            user: {
+              select: { name: true, role: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        events: {
+          include: {
+            user: {
+              select: { name: true, role: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     })
 
     if (!certificate) {
       return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    // Access control: only creator, reviewer, admin, or matching customer can view
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+    const isCreator = certificate.createdById === userId
+    const isReviewer = certificate.reviewerId === userId
+    const isAdmin = userRole === 'ADMIN'
+
+    let hasCustomerAccess = false
+    if (userRole === 'CUSTOMER') {
+      const customer = await prisma.customerUser.findUnique({
+        where: { tenantId_email: { tenantId, email: request.user!.email } },
+        include: { customerAccount: true },
+      })
+      if (customer) {
+        const companyName = customer.customerAccount?.companyName || customer.companyName || ''
+        hasCustomerAccess = companyName.toLowerCase() === certificate.customerName?.toLowerCase()
+      }
+    }
+
+    if (!isCreator && !isReviewer && !isAdmin && !hasCustomerAccess) {
+      return reply.status(403).send({ error: 'Forbidden' })
     }
 
     return certificate
@@ -371,6 +430,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     // Verify ownership or admin access
     const existing = await prisma.certificate.findFirst({
       where: { tenantId, id },
+      include: {
+        parameters: { include: { results: true } },
+      },
     })
 
     if (!existing) {
@@ -392,16 +454,214 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     const body = request.body as Record<string, unknown>
 
-    const certificate = await prisma.certificate.update({
-      where: { id },
-      data: {
-        ...body,
-        lastModifiedById: userId,
-        updatedAt: new Date(),
-      },
+    // Optimistic concurrency check
+    if (body.clientUpdatedAt) {
+      const clientTs = new Date(body.clientUpdatedAt as string).getTime()
+      const serverTs = existing.updatedAt.getTime()
+      if (serverTs - clientTs > 1000) {
+        return reply.status(409).send({
+          error: 'CONFLICT',
+          message: 'Certificate was modified by another user',
+          serverUpdatedAt: existing.updatedAt.toISOString(),
+        })
+      }
+    }
+
+    const {
+      certificateNumber,
+      reviewerId,
+      calibratedAt,
+      srfNumber,
+      srfDate,
+      dateOfCalibration,
+      calibrationTenure,
+      dueDateAdjustment,
+      calibrationDueDate,
+      dueDateNotApplicable,
+      customerName,
+      customerAddress,
+      customerContactName,
+      customerContactEmail,
+      uucDescription,
+      uucMake,
+      uucModel,
+      uucSerialNumber,
+      uucInstrumentId,
+      uucLocationName,
+      uucMachineName,
+      ambientTemperature,
+      relativeHumidity,
+      calibrationStatus,
+      stickerOldRemoved,
+      stickerNewAffixed,
+      statusNotes,
+      selectedConclusionStatements,
+      additionalConclusionStatement,
+      parameters,
+      masterInstruments,
+    } = body as Record<string, any>
+
+    const certificate = await prisma.$transaction(async (tx: any) => {
+      const cert = await tx.certificate.update({
+        where: { id },
+        data: {
+          ...(certificateNumber && existing.status === 'DRAFT' ? { certificateNumber } : {}),
+          ...(reviewerId && !existing.reviewerId ? { reviewerId } : {}),
+          calibratedAt,
+          srfNumber: srfNumber || null,
+          srfDate: srfDate ? new Date(srfDate) : null,
+          dateOfCalibration: dateOfCalibration ? new Date(dateOfCalibration) : null,
+          calibrationTenure: calibrationTenure || 12,
+          dueDateAdjustment: dueDateAdjustment || 0,
+          calibrationDueDate: calibrationDueDate ? new Date(calibrationDueDate) : null,
+          dueDateNotApplicable: dueDateNotApplicable || false,
+          customerName,
+          customerAddress,
+          customerContactName,
+          customerContactEmail,
+          uucDescription,
+          uucMake,
+          uucModel,
+          uucSerialNumber,
+          uucInstrumentId: uucInstrumentId || null,
+          uucLocationName: uucLocationName || null,
+          uucMachineName: uucMachineName || null,
+          ambientTemperature: ambientTemperature || null,
+          relativeHumidity: relativeHumidity || null,
+          calibrationStatus: JSON.stringify(calibrationStatus || []),
+          stickerOldRemoved: stickerOldRemoved || null,
+          stickerNewAffixed: stickerNewAffixed || null,
+          statusNotes: statusNotes || null,
+          selectedConclusionStatements: JSON.stringify(selectedConclusionStatements || []),
+          additionalConclusionStatement: additionalConclusionStatement || null,
+          lastModifiedById: userId,
+        },
+      })
+
+      // Delete existing parameters and results, then recreate
+      await tx.calibrationResult.deleteMany({
+        where: { parameter: { certificateId: id } },
+      })
+      await tx.parameter.deleteMany({
+        where: { certificateId: id },
+      })
+
+      // Delete existing master instrument links
+      await tx.certificateMasterInstrument.deleteMany({
+        where: { certificateId: id },
+      })
+
+      // Create new parameters and results
+      if (parameters && parameters.length > 0) {
+        for (let i = 0; i < parameters.length; i++) {
+          const param = parameters[i]
+          const createdParam = await tx.parameter.create({
+            data: {
+              certificateId: cert.id,
+              parameterName: param.parameterName || '',
+              parameterUnit: param.parameterUnit || null,
+              rangeMin: param.rangeMin || null,
+              rangeMax: param.rangeMax || null,
+              rangeUnit: param.rangeUnit || null,
+              operatingMin: param.operatingMin || null,
+              operatingMax: param.operatingMax || null,
+              operatingUnit: param.operatingUnit || null,
+              leastCountValue: param.leastCountValue || null,
+              leastCountUnit: param.leastCountUnit || null,
+              accuracyValue: param.accuracyValue || null,
+              accuracyUnit: param.accuracyUnit || null,
+              accuracyType: param.accuracyType || 'ABSOLUTE',
+              errorFormula: param.errorFormula || 'A-B',
+              showAfterAdjustment: param.showAfterAdjustment || false,
+              requiresBinning: param.requiresBinning || false,
+              bins: param.bins && Array.isArray(param.bins) && param.bins.length > 0 ? param.bins : Prisma.DbNull,
+              sopReference: param.sopReference || null,
+              masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
+              sortOrder: i,
+            },
+          })
+
+          if (param.results && param.results.length > 0) {
+            await tx.calibrationResult.createMany({
+              data: param.results.map((result: any) => ({
+                parameterId: createdParam.id,
+                pointNumber: result.pointNumber,
+                standardReading: result.standardReading || null,
+                beforeAdjustment: result.beforeAdjustment || null,
+                afterAdjustment: result.afterAdjustment || null,
+                errorObserved: result.errorObserved ?? null,
+                isOutOfLimit: result.isOutOfLimit || false,
+              })),
+            })
+          }
+        }
+      }
+
+      // Create master instrument links
+      if (masterInstruments && masterInstruments.length > 0) {
+        for (const mi of masterInstruments) {
+          if (mi.masterInstrumentId && mi.masterInstrumentId > 0) {
+            await tx.certificateMasterInstrument.create({
+              data: {
+                certificateId: cert.id,
+                masterInstrumentId: String(mi.masterInstrumentId),
+                category: mi.category || null,
+                description: mi.description || null,
+                make: mi.make || null,
+                model: mi.model || null,
+                assetNo: mi.assetNo || null,
+                serialNumber: mi.serialNumber || null,
+                calibratedAt: mi.calibratedAt || null,
+                reportNo: mi.reportNo || null,
+                calibrationDueDate: mi.calibrationDueDate || null,
+                sopReference: mi.sopReference || '',
+              },
+            })
+          }
+        }
+      }
+
+      // Detect field-level changes for audit logging
+      const changeSet = detectCertificateChanges(
+        existing as unknown as Record<string, unknown>,
+        body
+      )
+
+      if (changeSet.hasChanges) {
+        const lastEvent = await tx.certificateEvent.findFirst({
+          where: { certificateId: id },
+          orderBy: { sequenceNumber: 'desc' },
+        })
+        const nextSequence = (lastEvent?.sequenceNumber ?? 0) + 1
+
+        await tx.certificateEvent.create({
+          data: {
+            certificateId: id,
+            sequenceNumber: nextSequence,
+            revision: cert.currentRevision,
+            eventType: 'FIELDS_UPDATED',
+            eventData: JSON.stringify({
+              changes: changeSet.certificateFields,
+              parameters: changeSet.parameters,
+              summary: generateChangeSummary(changeSet),
+            }),
+            userId,
+            userRole: request.user!.role,
+          },
+        })
+      }
+
+      return cert
     })
 
-    return { success: true, certificate }
+    return {
+      success: true,
+      certificate: {
+        id: certificate.id,
+        certificateNumber: certificate.certificateNumber,
+        updatedAt: certificate.updatedAt,
+      },
+    }
   })
 
   // DELETE /api/certificates/:id - Delete draft certificate
@@ -526,7 +786,10 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       // Create event
-      await tx.certificateEvent.create({
+      const sectionResponses = body.sectionResponses || {}
+      const sectionResponseCount = Object.values(sectionResponses).filter((r: unknown) => typeof r === 'string' && r.trim()).length
+
+      const event = await tx.certificateEvent.create({
         data: {
           certificateId: id,
           sequenceNumber: nextSequence,
@@ -539,15 +802,52 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             isResubmission,
             engineerNotes: body.engineerNotes || null,
             hasSignature: true,
+            sectionResponseCount,
+            sectionIds: Object.keys(sectionResponses).filter((k: string) => sectionResponses[k]?.trim()),
           }),
           userId,
           userRole,
         },
       })
 
+      // If resubmission, create feedback entries for section responses
+      // Use the OLD revision number so responses are grouped with the requests they're responding to
+      if (isResubmission) {
+        const sectionResponseEntries = Object.entries(sectionResponses) as [string, string][]
+        for (const [sectionId, response] of sectionResponseEntries) {
+          if (response?.trim()) {
+            await tx.reviewFeedback.create({
+              data: {
+                certificateId: id,
+                revisionNumber: certificate.currentRevision, // Old revision to group with request
+                eventId: event.id,
+                feedbackType: 'ASSIGNEE_RESPONSE',
+                comment: response.trim(),
+                targetSection: sectionId,
+                userId,
+              },
+            })
+          }
+        }
+
+        // Create general notes feedback entry
+        if (body.engineerNotes?.trim()) {
+          await tx.reviewFeedback.create({
+            data: {
+              certificateId: id,
+              revisionNumber: certificate.currentRevision,
+              eventId: event.id,
+              feedbackType: 'ENGINEER_RESPONSE',
+              comment: body.engineerNotes.trim(),
+              userId,
+            },
+          })
+        }
+      }
+
       // Delete existing signatures and create new
       await tx.signature.deleteMany({ where: { certificateId: id } })
-      await tx.signature.create({
+      const engineerSig = await tx.signature.create({
         data: {
           certificateId: id,
           signerType: 'ASSIGNEE',
@@ -556,6 +856,20 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           signatureData: body.signatureData!,
           signerId: userId,
         },
+      })
+
+      // Record signing evidence
+      await appendSigningEvidence(tx, {
+        certificateId: id,
+        signatureId: engineerSig.id,
+        eventType: 'ASSIGNEE_SIGNED',
+        revision: newRevision,
+        evidence: collectFastifyEvidence(request, {
+          signerType: 'ASSIGNEE',
+          signerName: body.signerName!,
+          signerEmail: userEmail,
+          sessionMethod: 'direct',
+        }),
       })
 
       // Audit log
@@ -721,7 +1035,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Store reviewer signature
         await tx.signature.deleteMany({ where: { certificateId: id, signerType: 'REVIEWER' } })
-        await tx.signature.create({
+        const reviewerSig = await tx.signature.create({
           data: {
             certificateId: id,
             signerType: 'REVIEWER',
@@ -730,6 +1044,20 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             signatureData: body.signatureData!,
             signerId: userId,
           },
+        })
+
+        // Record signing evidence
+        await appendSigningEvidence(tx, {
+          certificateId: id,
+          signatureId: reviewerSig.id,
+          eventType: 'REVIEWER_SIGNED',
+          revision: certificate.currentRevision,
+          evidence: collectFastifyEvidence(request, {
+            signerType: 'REVIEWER',
+            signerName: body.signerName!,
+            signerEmail: userEmail,
+            sessionMethod: 'direct',
+          }),
         })
 
         // Create approval token if sending to customer
@@ -745,6 +1073,10 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
           if (!customer) {
             const tempPasswordHash = crypto.randomBytes(32).toString('hex')
+            // Try to link to existing customer account by company name
+            const customerAccount = certificate.customerName
+              ? await tx.customerAccount.findFirst({ where: { tenantId, companyName: certificate.customerName } })
+              : null
             customer = await tx.customerUser.create({
               data: {
                 tenantId,
@@ -752,6 +1084,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
                 name: body.sendToCustomer.name,
                 passwordHash: tempPasswordHash,
                 companyName: certificate.customerName || 'Unknown Company',
+                customerAccountId: customerAccount?.id || null,
                 isActive: true,
               },
             })
@@ -1151,6 +1484,10 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (!customer) {
         const tempPasswordHash = crypto.randomBytes(32).toString('hex')
+        // Try to link to existing customer account by company name
+        const customerAccount = certificate.customerName
+          ? await tx.customerAccount.findFirst({ where: { tenantId, companyName: certificate.customerName } })
+          : null
         customer = await tx.customerUser.create({
           data: {
             tenantId,
@@ -1158,6 +1495,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             name: body.customerName,
             passwordHash: tempPasswordHash,
             companyName: certificate.customerName || 'Unknown Company',
+            customerAccountId: customerAccount?.id || null,
             isActive: true,
           },
         })
@@ -1404,6 +1742,10 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
         if (!customer) {
           const tempPasswordHash = crypto.randomBytes(32).toString('hex')
+          // Try to link to existing customer account by company name
+          const customerAccount = certificate.customerName
+            ? await tx.customerAccount.findFirst({ where: { tenantId, companyName: certificate.customerName } })
+            : null
           customer = await tx.customerUser.create({
             data: {
               tenantId,
@@ -1411,6 +1753,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               name: customerName || 'Customer',
               passwordHash: tempPasswordHash,
               companyName: certificate.customerName || 'Unknown Company',
+              customerAccountId: customerAccount?.id || null,
               isActive: true,
             },
           })
@@ -1533,15 +1876,35 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       orderBy: { sequenceNumber: 'asc' },
     })
 
-    // Helper to check if signature has evidence for current revision
-    const hasEvidenceForCurrentRevision = (signatureId: string, signerType: string): boolean => {
-      const eventTypeMap: Record<string, string> = {
-        'ASSIGNEE': 'ASSIGNEE_SIGNED',
-        'REVIEWER': 'REVIEWER_SIGNED',
-        'ADMIN': 'ADMIN_SIGNED',
-        'CUSTOMER': 'CUSTOMER_SIGNED',
+    const signerEventTypeMap: Record<string, string> = {
+      'ASSIGNEE': 'ASSIGNEE_SIGNED',
+      'REVIEWER': 'REVIEWER_SIGNED',
+      'ADMIN': 'ADMIN_SIGNED',
+      'CUSTOMER': 'CUSTOMER_SIGNED',
+    }
+
+    // Helper to extract metadata from signing evidence
+    const getMetadataForSignature = (signatureId: string | null, signerType: string) => {
+      let evidence = signatureId
+        ? signingEvidence.find(e => e.signatureId === signatureId)
+        : null
+
+      if (!evidence) {
+        evidence = signingEvidence.find(e => e.eventType === signerEventTypeMap[signerType]) || null
       }
-      return signingEvidence.some(e => e.signatureId === signatureId || e.eventType === eventTypeMap[signerType])
+
+      if (!evidence) return undefined
+
+      const parsed = safeJsonParse<Record<string, string>>(evidence.evidence, {})
+      if (Object.keys(parsed).length === 0) {
+        return { signedAt: evidence.createdAt.toISOString() }
+      }
+      return {
+        signedAt: parsed.serverTimestamp || evidence.createdAt.toISOString(),
+        ipAddress: parsed.ipAddress,
+        timezone: parsed.timezone,
+        deviceInfo: parsed.userAgent ? parseUserAgentString(parsed.userAgent) : undefined,
+      }
     }
 
     const assigneeSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'ASSIGNEE')
@@ -1549,10 +1912,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     const adminSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'ADMIN')
     const customerSig = dbSignatures.find((s: (typeof dbSignatures)[number]) => s.signerType === 'CUSTOMER')
 
-    const validAssigneeSig = assigneeSig && hasEvidenceForCurrentRevision(assigneeSig.id, 'ASSIGNEE') ? assigneeSig : null
-    const validReviewerSig = reviewerSig && hasEvidenceForCurrentRevision(reviewerSig.id, 'REVIEWER') ? reviewerSig : null
-    const validAdminSig = adminSig && hasEvidenceForCurrentRevision(adminSig.id, 'ADMIN') ? adminSig : null
-    const validCustomerSig = customerSig && hasEvidenceForCurrentRevision(customerSig.id, 'CUSTOMER') ? customerSig : null
+    // Include signatures regardless of evidence (evidence is for audit metadata, not gating)
+    const validAssigneeSig = assigneeSig || null
+    const validReviewerSig = reviewerSig || null
+    const validAdminSig = adminSig || null
+    const validCustomerSig = customerSig || null
 
     const signatures = (validAssigneeSig || validReviewerSig || validAdminSig || validCustomerSig) ? {
       ...(validAssigneeSig ? {
@@ -1560,6 +1924,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           name: validAssigneeSig.signerName.toUpperCase(),
           image: validAssigneeSig.signatureData,
           signatureId: validAssigneeSig.id,
+          metadata: getMetadataForSignature(validAssigneeSig.id, 'ASSIGNEE'),
         }
       } : {}),
       ...(validReviewerSig ? {
@@ -1567,6 +1932,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           name: validReviewerSig.signerName.toUpperCase(),
           image: validReviewerSig.signatureData,
           signatureId: validReviewerSig.id,
+          metadata: getMetadataForSignature(validReviewerSig.id, 'REVIEWER'),
         }
       } : {}),
       ...(validAdminSig ? {
@@ -1574,6 +1940,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           name: validAdminSig.signerName.toUpperCase(),
           image: validAdminSig.signatureData,
           signatureId: validAdminSig.id,
+          metadata: getMetadataForSignature(validAdminSig.id, 'ADMIN'),
         }
       } : {}),
       ...(validCustomerSig ? {
@@ -1584,6 +1951,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           image: validCustomerSig.signatureData,
           signedAt: validCustomerSig.signedAt.toISOString(),
           signatureId: validCustomerSig.id,
+          metadata: getMetadataForSignature(validCustomerSig.id, 'CUSTOMER'),
         }
       } : {}),
     } : undefined
@@ -1865,6 +2233,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         createdById: true,
         reviewerId: true,
         status: true,
+        currentRevision: true,
       },
     })
 
@@ -1898,10 +2267,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       orderBy: { createdAt: 'desc' },
     })
 
-    // Get sections that are unlocked from feedback (reviewer comments)
+    // Get sections that are unlocked from feedback (only from current revision)
     const feedbacks = await prisma.reviewFeedback.findMany({
       where: {
         certificateId,
+        revisionNumber: certificate.currentRevision,
         feedbackType: { in: ['REVISION_REQUESTED', 'CUSTOMER_REVISION_FORWARDED'] },
         targetSection: { not: null },
       },
@@ -1910,12 +2280,14 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     const feedbackUnlockedSections = [...new Set(feedbacks.map((f: (typeof feedbacks)[number]) => f.targetSection).filter(Boolean))] as string[]
 
-    // Get sections from approved unlock requests
+    // Get sections from approved unlock requests (only from current revision)
     const approvedUnlockedSections: string[] = []
     unlockRequests
       .filter((r: (typeof unlockRequests)[number]) => r.status === 'APPROVED')
       .forEach((r: (typeof unlockRequests)[number]) => {
         const data = safeJsonParse<Record<string, unknown>>(r.data, {})
+        // Only include unlock requests from the current revision cycle
+        if (data.revisionNumber !== certificate.currentRevision) return
         if (data.sections && Array.isArray(data.sections)) {
           approvedUnlockedSections.push(...(data.sections as string[]))
         }
@@ -1941,6 +2313,139 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         fromApprovedRequests: [...new Set(approvedUnlockedSections)],
         all: allUnlockedSections,
       },
+    }
+  })
+
+  // GET /api/certificates/:id/download-signed - Download signed PDF
+  fastify.get<{ Params: { id: string } }>('/:id/download-signed', {
+    preHandler: [requireAuth],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+    const userEmail = request.user!.email
+    const { id } = request.params
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    if (!['APPROVED', 'PENDING_ADMIN_AUTHORIZATION', 'AUTHORIZED'].includes(certificate.status)) {
+      return reply.status(400).send({ error: 'Certificate is not approved — signed PDF is not available' })
+    }
+
+    // Access control
+    if (userRole === 'ENGINEER') {
+      if (certificate.createdById !== userId) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+    } else if (userRole === 'CUSTOMER') {
+      const customer = await prisma.customerUser.findUnique({
+        where: { tenantId_email: { tenantId, email: userEmail } },
+        include: { customerAccount: true },
+      })
+      const customerCompanyName = customer?.customerAccount?.companyName || customer?.companyName
+      if (!customer || !customerCompanyName || certificate.customerName?.toLowerCase() !== customerCompanyName.toLowerCase()) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+    } else if (userRole !== 'ADMIN') {
+      return reply.status(403).send({ error: 'Forbidden' })
+    }
+
+    if (!certificate.signedPdfPath) {
+      return reply.status(400).send({ error: 'Signed PDF not yet generated. Please generate the PDF first.' })
+    }
+
+    // Try to read the stored PDF from storage
+    try {
+      const { getStorageProvider } = await import('../../lib/storage/index.js')
+      const storage = getStorageProvider()
+      const pdfBuffer = await storage.download(certificate.signedPdfPath)
+      const filename = `HTA_${certificate.certificateNumber}_SIGNED.pdf`
+
+      return reply
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `attachment; filename="${filename}"`)
+        .header('Content-Length', pdfBuffer.length)
+        .send(pdfBuffer)
+    } catch {
+      return reply.status(500).send({ error: 'Failed to retrieve signed PDF' })
+    }
+  })
+
+  // GET /api/certificates/:id/verify-evidence - Verify signing evidence chain
+  fastify.get<{ Params: { id: string } }>('/:id/verify-evidence', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id } = request.params
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    // Get all signing evidence for this certificate
+    const evidence = await prisma.signingEvidence.findMany({
+      where: { certificateId: id },
+      orderBy: [{ revision: 'asc' }, { sequenceNumber: 'asc' }],
+    })
+
+    const signatures = await prisma.signature.findMany({
+      where: { certificateId: id },
+    })
+
+    // Basic chain verification
+    const issues: string[] = []
+    let isValid = true
+
+    // Check sequence continuity per revision
+    const byRevision = new Map<number, typeof evidence>()
+    for (const e of evidence) {
+      if (!byRevision.has(e.revision)) byRevision.set(e.revision, [])
+      byRevision.get(e.revision)!.push(e)
+    }
+
+    for (const [revision, revEvidence] of byRevision) {
+      const sorted = revEvidence.sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+      for (let i = 0; i < sorted.length; i++) {
+        if (sorted[i].sequenceNumber !== i + 1) {
+          issues.push(`Revision ${revision}: sequence gap at position ${i + 1} (found ${sorted[i].sequenceNumber})`)
+          isValid = false
+        }
+      }
+    }
+
+    // Verify each signature has corresponding evidence
+    for (const sig of signatures) {
+      const hasEvidence = evidence.some(e => e.signatureId === sig.id)
+      if (!hasEvidence) {
+        issues.push(`Signature ${sig.signerType} by ${sig.signerName} has no evidence record`)
+      }
+    }
+
+    return {
+      valid: isValid,
+      certificateId: id,
+      currentRevision: certificate.currentRevision,
+      totalEvidence: evidence.length,
+      totalSignatures: signatures.length,
+      issues,
+      evidence: evidence.map((e) => ({
+        id: e.id,
+        revision: e.revision,
+        sequenceNumber: e.sequenceNumber,
+        eventType: e.eventType,
+        signatureId: e.signatureId,
+        createdAt: e.createdAt,
+      })),
     }
   })
 

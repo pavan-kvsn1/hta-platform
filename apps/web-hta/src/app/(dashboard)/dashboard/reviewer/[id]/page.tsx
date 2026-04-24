@@ -208,6 +208,25 @@ export default async function ReviewerReviewPage({ params }: Props) {
     lastSentCustomerName = sentData.customerName || null
   }
 
+  // Fallback: look up customer contact email from CustomerAccount if not on the certificate
+  let resolvedContactEmail = certificate.customerContactEmail
+  let resolvedContactName = certificate.customerContactName
+  if (!resolvedContactEmail && certificate.customerName) {
+    const customerAccount = await prisma.customerAccount.findFirst({
+      where: { companyName: certificate.customerName, tenantId: certificate.tenantId },
+      select: {
+        contactEmail: true,
+        primaryPoc: { select: { name: true, email: true } },
+      },
+    })
+    if (customerAccount) {
+      resolvedContactEmail = customerAccount.primaryPoc?.email || customerAccount.contactEmail || null
+      if (!resolvedContactName) {
+        resolvedContactName = customerAccount.primaryPoc?.name || null
+      }
+    }
+  }
+
   // Serialize feedbacks for client
   const serializedFeedbacks = certificate.feedbacks.map((f) => ({
     id: f.id,
@@ -246,8 +265,8 @@ export default async function ReviewerReviewPage({ params }: Props) {
         status: certificate.status,
         customerName: certificate.customerName,
         customerAddress: certificate.customerAddress,
-        customerContactName: certificate.customerContactName,
-        customerContactEmail: certificate.customerContactEmail,
+        customerContactName: resolvedContactName,
+        customerContactEmail: resolvedContactEmail,
         calibratedAt: certificate.calibratedAt,
         srfNumber: certificate.srfNumber,
         srfDate: certificate.srfDate?.toISOString() || null,

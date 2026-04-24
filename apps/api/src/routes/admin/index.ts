@@ -5,6 +5,7 @@ import { requireAdmin, requireMasterAdmin } from '../../middleware/auth.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 import { createLogger } from '@hta/shared'
 import { queueStaffActivationEmail, enqueueNotification } from '../../services/queue.js'
+import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
 
 const logger = createLogger('admin-routes')
 
@@ -1742,6 +1743,181 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // ============================================================================
+  // UNIFIED REQUESTS (internal + customer)
+  // ============================================================================
+
+  // GET /api/admin/requests - Unified requests listing (section unlocks + customer requests)
+  fastify.get('/requests', {
+    preHandler: [requireMasterAdmin],
+  }, async (request) => {
+    const query = request.query as {
+      status?: string
+      type?: string
+      page?: string
+      limit?: string
+    }
+    const status = query.status || 'PENDING'
+    const type = query.type || 'ALL'
+    const page = parseInt(query.page || '1')
+    const limit = parseInt(query.limit || '15')
+
+    // Build where clauses
+    const internalWhere: Record<string, unknown> = {}
+    const customerWhere: Record<string, unknown> = {}
+
+    if (status !== 'ALL') {
+      internalWhere.status = status
+      customerWhere.status = status
+    }
+
+    // Type filtering
+    const fetchInternal = type === 'ALL' || type === 'SECTION_UNLOCK'
+    const fetchCustomer = type === 'ALL' || type === 'USER_ADDITION' || type === 'POC_CHANGE'
+
+    if (type === 'USER_ADDITION' || type === 'POC_CHANGE') {
+      customerWhere.type = type
+    }
+
+    // Fetch counts for summary cards
+    const [
+      internalPendingCount,
+      userAddPendingCount,
+      pocChangePendingCount,
+      internalApprovedCount,
+      internalRejectedCount,
+      customerApprovedCount,
+      customerRejectedCount,
+    ] = await Promise.all([
+      prisma.internalRequest.count({ where: { status: 'PENDING' } }),
+      prisma.customerRequest.count({ where: { status: 'PENDING', type: 'USER_ADDITION' } }),
+      prisma.customerRequest.count({ where: { status: 'PENDING', type: 'POC_CHANGE' } }),
+      prisma.internalRequest.count({ where: { status: 'APPROVED' } }),
+      prisma.internalRequest.count({ where: { status: 'REJECTED' } }),
+      prisma.customerRequest.count({ where: { status: 'APPROVED' } }),
+      prisma.customerRequest.count({ where: { status: 'REJECTED' } }),
+    ])
+
+    // Fetch requests from both tables
+    const [internalRequests, customerRequests] = await Promise.all([
+      fetchInternal
+        ? prisma.internalRequest.findMany({
+            where: internalWhere,
+            include: {
+              certificate: {
+                select: { id: true, certificateNumber: true, status: true },
+              },
+              requestedBy: {
+                select: { id: true, name: true, email: true },
+              },
+              reviewedBy: {
+                select: { id: true, name: true },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : [],
+      fetchCustomer
+        ? prisma.customerRequest.findMany({
+            where: customerWhere,
+            include: {
+              customerAccount: {
+                select: { id: true, companyName: true },
+              },
+              requestedBy: {
+                select: { id: true, name: true, email: true },
+              },
+              reviewedBy: {
+                select: { id: true, name: true },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : [],
+    ])
+
+    const SECTION_LABELS: Record<string, string> = {
+      'summary': 'Summary',
+      'uuc-details': 'UUC Details',
+      'master-inst': 'Master Instruments',
+      'environment': 'Environmental',
+      'results': 'Results',
+      'remarks': 'Remarks',
+      'conclusion': 'Conclusion',
+    }
+
+    // Normalize internal requests
+    const normalizedInternal = internalRequests.map((r) => {
+      const data = typeof r.data === 'string' ? JSON.parse(r.data as string) : r.data
+      const sections = ((data as Record<string, unknown>)?.sections || []) as string[]
+      const sectionLabels = sections.map((s: string) => SECTION_LABELS[s] || s).join(', ')
+
+      return {
+        id: r.id,
+        category: 'internal' as const,
+        type: r.type,
+        status: r.status,
+        title: r.certificate?.certificateNumber || 'Unknown Certificate',
+        subtitle: `by ${r.requestedBy.name || 'Unknown'}`,
+        details: sectionLabels || 'No sections specified',
+        requestedBy: r.requestedBy.name || 'Unknown',
+        requestedByEmail: r.requestedBy.email,
+        createdAt: r.createdAt.toISOString(),
+      }
+    })
+
+    // Normalize customer requests
+    const normalizedCustomer = customerRequests.map((r) => {
+      const data = typeof r.data === 'string' ? JSON.parse(r.data as string) : r.data
+      const dataObj = data as Record<string, unknown> | null
+
+      let details = ''
+      if (r.type === 'USER_ADDITION') {
+        details = `Add: ${dataObj?.name || 'Unknown'} (${dataObj?.email || 'No email'})`
+      } else if (r.type === 'POC_CHANGE') {
+        details = 'POC change requested'
+      }
+
+      return {
+        id: r.id,
+        category: 'customer' as const,
+        type: r.type,
+        status: r.status,
+        title: r.customerAccount.companyName,
+        subtitle: r.requestedBy ? `by ${r.requestedBy.name} (POC)` : 'System',
+        details,
+        requestedBy: r.requestedBy?.name || 'System',
+        requestedByEmail: r.requestedBy?.email || '',
+        createdAt: r.createdAt.toISOString(),
+      }
+    })
+
+    // Merge and sort by createdAt desc
+    const allRequests = [...normalizedInternal, ...normalizedCustomer].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+
+    // Pagination
+    const total = allRequests.length
+    const totalPages = Math.ceil(total / limit)
+    const paginatedRequests = allRequests.slice((page - 1) * limit, page * limit)
+
+    return {
+      requests: paginatedRequests,
+      pagination: { page, limit, total, totalPages },
+      counts: {
+        pending: {
+          sectionUnlock: internalPendingCount,
+          userAddition: userAddPendingCount,
+          pocChange: pocChangePendingCount,
+          total: internalPendingCount + userAddPendingCount + pocChangePendingCount,
+        },
+        approved: internalApprovedCount + customerApprovedCount,
+        rejected: internalRejectedCount + customerRejectedCount,
+      },
+    }
+  })
+
+  // ============================================================================
   // INTERNAL REQUESTS
   // ============================================================================
 
@@ -2117,6 +2293,20 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         },
       })
 
+      // Record signing evidence
+      await appendSigningEvidence(tx, {
+        certificateId: id,
+        signatureId: signature.id,
+        eventType: 'ADMIN_SIGNED',
+        revision: certificate.currentRevision,
+        evidence: collectFastifyEvidence(request, {
+          signerType: 'ADMIN',
+          signerName: body.signerName.toUpperCase(),
+          signerEmail: userEmail,
+          sessionMethod: 'direct',
+        }),
+      })
+
       // Update certificate status to AUTHORIZED
       const updatedCertificate = await tx.certificate.update({
         where: { id },
@@ -2171,6 +2361,23 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         data: { certificateNumber: certNum, adminName: userName },
       }).catch(() => {})
     }
+
+    // Notify customer that certificate is authorized
+    prisma.signature.findFirst({
+      where: { certificateId: id, signerType: 'CUSTOMER' },
+      select: { customerId: true },
+      orderBy: { signedAt: 'desc' },
+    }).then((customerSig) => {
+      if (customerSig?.customerId) {
+        enqueueNotification({
+          type: 'create-notification',
+          customerId: customerSig.customerId,
+          notificationType: 'ADMIN_AUTHORIZED',
+          certificateId: id,
+          data: { certificateNumber: certNum, adminName: userName },
+        }).catch(() => {})
+      }
+    }).catch(() => {})
 
     // Email the engineer that the certificate is authorized
     if (certificate.createdById) {
@@ -2918,6 +3125,1139 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       usage,
       limits,
       billing: { subtotal, tax, total },
+    }
+  })
+
+  // GET /api/admin/certificates/:id - Admin certificate detail view
+  fastify.get<{ Params: { id: string } }>('/certificates/:id', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id } = request.params
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+      include: {
+        createdBy: { select: { id: true, name: true, email: true } },
+        reviewer: { select: { id: true, name: true, email: true } },
+        parameters: {
+          include: { results: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+        masterInstruments: true,
+        feedbacks: {
+          orderBy: { createdAt: 'desc' },
+          include: { user: { select: { name: true, role: true } } },
+        },
+        chatThreads: {
+          include: { messages: { orderBy: { createdAt: 'desc' }, take: 1 } },
+        },
+        events: {
+          orderBy: { sequenceNumber: 'desc' },
+          include: {
+            user: { select: { id: true, name: true, role: true } },
+            customer: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    // Calculate TAT
+    const submissionEvents = certificate.events.filter((e: any) => e.eventType === 'SUBMITTED_FOR_REVIEW')
+    const firstSubmission = submissionEvents.length > 0
+      ? submissionEvents.reduce((earliest: any, e: any) => e.createdAt < earliest.createdAt ? e : earliest)
+      : null
+    const authorizedEvent = certificate.status === 'AUTHORIZED'
+      ? certificate.events.find((e: any) => e.eventType === 'ADMIN_AUTHORIZED')
+      : null
+
+    let tat: { hours: number; status: 'ok' | 'warning' | 'overdue' } = { hours: 0, status: 'ok' }
+    if (firstSubmission) {
+      const end = authorizedEvent?.createdAt || new Date()
+      const diffMs = end.getTime() - firstSubmission.createdAt.getTime()
+      const hours = Math.floor(diffMs / (1000 * 60 * 60))
+      tat = { hours, status: hours > 48 ? 'overdue' : hours > 24 ? 'warning' : 'ok' }
+    }
+
+    const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+      DRAFT: { label: 'Draft', className: 'bg-amber-50 text-amber-600 border-amber-100' },
+      PENDING_REVIEW: { label: 'Pending Review', className: 'bg-blue-50 text-blue-600 border-blue-100' },
+      REVISION_REQUIRED: { label: 'Revision Required', className: 'bg-orange-50 text-orange-600 border-orange-100' },
+      PENDING_CUSTOMER_APPROVAL: { label: 'Pending Customer', className: 'bg-purple-50 text-purple-600 border-purple-100' },
+      CUSTOMER_REVISION_REQUIRED: { label: 'Customer Revision', className: 'bg-pink-50 text-pink-600 border-pink-100' },
+      PENDING_ADMIN_AUTHORIZATION: { label: 'Pending Authorization', className: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
+      APPROVED: { label: 'Approved', className: 'bg-green-50 text-green-600 border-green-100' },
+      AUTHORIZED: { label: 'Authorized', className: 'bg-green-50 text-green-600 border-green-100' },
+      REJECTED: { label: 'Rejected', className: 'bg-red-50 text-red-600 border-red-100' },
+    }
+    const statusConfig = STATUS_CONFIG[certificate.status] || STATUS_CONFIG.PENDING_REVIEW
+
+    const engineerThread = certificate.chatThreads.find((t: any) => t.threadType === 'ASSIGNEE_REVIEWER')
+    const customerThread = certificate.chatThreads.find((t: any) => t.threadType === 'REVIEWER_CUSTOMER')
+
+    const reviewers = await prisma.user.findMany({
+      where: { tenantId, role: 'ADMIN', id: { not: certificate.createdById } },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' },
+    })
+
+    return {
+      certificate: {
+        id: certificate.id,
+        certificateNumber: certificate.certificateNumber,
+        status: certificate.status,
+        customerName: certificate.customerName,
+        customerAddress: certificate.customerAddress,
+        calibratedAt: certificate.calibratedAt,
+        srfNumber: certificate.srfNumber,
+        srfDate: certificate.srfDate?.toISOString() || null,
+        dateOfCalibration: certificate.dateOfCalibration?.toISOString() || null,
+        calibrationDueDate: certificate.calibrationDueDate?.toISOString() || null,
+        dueDateNotApplicable: certificate.dueDateNotApplicable,
+        uucDescription: certificate.uucDescription,
+        uucMake: certificate.uucMake,
+        uucModel: certificate.uucModel,
+        uucSerialNumber: certificate.uucSerialNumber,
+        uucLocationName: certificate.uucLocationName,
+        ambientTemperature: certificate.ambientTemperature,
+        relativeHumidity: certificate.relativeHumidity,
+        calibrationStatus: safeJsonParse<string[]>(certificate.calibrationStatus, []),
+        conclusionStatements: safeJsonParse<string[]>(certificate.selectedConclusionStatements, []),
+        additionalConclusionStatement: certificate.additionalConclusionStatement,
+        currentRevision: certificate.currentRevision,
+        createdAt: certificate.createdAt.toISOString(),
+        updatedAt: certificate.updatedAt.toISOString(),
+        parameters: certificate.parameters.map((p: any) => ({
+          id: p.id,
+          parameterName: p.parameterName,
+          parameterUnit: p.parameterUnit,
+          rangeMin: p.rangeMin,
+          rangeMax: p.rangeMax,
+          rangeUnit: p.rangeUnit,
+          accuracyValue: p.accuracyValue,
+          accuracyUnit: p.accuracyUnit,
+          accuracyType: p.accuracyType,
+          errorFormula: p.errorFormula,
+          showAfterAdjustment: p.showAfterAdjustment,
+          requiresBinning: p.requiresBinning,
+          bins: p.bins,
+          sopReference: p.sopReference,
+          results: p.results.map((r: any) => ({
+            id: r.id,
+            pointNumber: r.pointNumber,
+            standardReading: r.standardReading,
+            beforeAdjustment: r.beforeAdjustment,
+            afterAdjustment: r.afterAdjustment,
+            errorObserved: r.errorObserved,
+            isOutOfLimit: r.isOutOfLimit,
+          })),
+        })),
+        masterInstruments: certificate.masterInstruments.map((mi: any) => ({
+          id: mi.id,
+          description: mi.description,
+          make: mi.make,
+          model: mi.model,
+          serialNumber: mi.serialNumber,
+          calibrationDueDate: mi.calibrationDueDate,
+        })),
+      },
+      assignee: {
+        id: certificate.createdBy.id,
+        name: certificate.createdBy.name || 'Unknown',
+        email: certificate.createdBy.email,
+      },
+      reviewer: certificate.reviewer ? {
+        id: certificate.reviewer.id,
+        name: certificate.reviewer.name || 'Unknown',
+        email: certificate.reviewer.email,
+      } : null,
+      feedbacks: certificate.feedbacks.map((f: any) => ({
+        id: f.id,
+        feedbackType: f.feedbackType,
+        comment: f.comment,
+        createdAt: f.createdAt.toISOString(),
+        revisionNumber: f.revisionNumber,
+        targetSection: f.targetSection,
+        user: { name: f.user.name, role: f.user.role },
+      })),
+      events: certificate.events.map((e: any) => ({
+        id: e.id,
+        sequenceNumber: e.sequenceNumber,
+        revision: e.revision,
+        eventType: e.eventType,
+        eventData: e.eventData,
+        userRole: e.userRole,
+        createdAt: e.createdAt.toISOString(),
+        user: e.user ? { id: e.user.id, name: e.user.name, role: e.user.role } : null,
+        customer: e.customer ? { id: e.customer.id, name: e.customer.name, email: e.customer.email } : null,
+      })),
+      chatThreads: {
+        engineer: engineerThread?.id || null,
+        customer: customerThread?.id || null,
+      },
+      headerData: {
+        certificateNumber: certificate.certificateNumber,
+        status: certificate.status,
+        statusLabel: statusConfig.label,
+        statusClassName: statusConfig.className,
+        tat,
+        assigneeName: certificate.createdBy.name || 'Unknown',
+        customerName: certificate.customerName || '-',
+        calibratedAt: certificate.calibratedAt,
+        currentRevision: certificate.currentRevision,
+      },
+      reviewers,
+    }
+  })
+
+  // PATCH /api/admin/certificates/:id/edit - Admin edits certificate fields
+  fastify.patch<{ Params: { id: string } }>('/certificates/:id/edit', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userName = request.user!.name
+    const { id } = request.params
+    const body = request.body as { field: string; value: string; reason: string }
+
+    const ALLOWED_FIELDS = ['certificateNumber', 'dateOfCalibration', 'calibrationDueDate', 'reviewerId'] as const
+    type AllowedField = (typeof ALLOWED_FIELDS)[number]
+
+    if (!body.field || !ALLOWED_FIELDS.includes(body.field as AllowedField)) {
+      return reply.status(400).send({ error: `Field not editable. Allowed: ${ALLOWED_FIELDS.join(', ')}` })
+    }
+
+    if (!body.reason?.trim()) {
+      return reply.status(400).send({ error: 'Reason is required for audit trail' })
+    }
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    const oldValue = (certificate as Record<string, unknown>)[body.field]
+    const oldValueStr = oldValue instanceof Date ? oldValue.toISOString() : oldValue != null ? String(oldValue) : null
+
+    // Prepare update data
+    let updateData: Record<string, unknown> = {}
+    if (body.field === 'dateOfCalibration' || body.field === 'calibrationDueDate') {
+      updateData = { [body.field]: body.value ? new Date(body.value) : null }
+    } else if (body.field === 'reviewerId') {
+      updateData = { [body.field]: body.value || null }
+    } else {
+      updateData = { [body.field]: body.value }
+    }
+
+    // Validate specific fields
+    if (body.field === 'certificateNumber' && body.value) {
+      const existing = await prisma.certificate.findFirst({
+        where: { tenantId, certificateNumber: body.value, id: { not: id } },
+      })
+      if (existing) {
+        return reply.status(400).send({ error: 'Certificate number already exists' })
+      }
+    }
+
+    if (body.field === 'reviewerId' && body.value) {
+      const reviewer = await prisma.user.findFirst({
+        where: { tenantId, id: body.value, isActive: true },
+      })
+      if (!reviewer) {
+        return reply.status(400).send({ error: 'Reviewer not found' })
+      }
+      if (reviewer.id === certificate.createdById) {
+        return reply.status(400).send({ error: 'Cannot assign certificate creator as reviewer' })
+      }
+    }
+
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const lastEvent = await tx.certificateEvent.findFirst({
+        where: { certificateId: id },
+        orderBy: { sequenceNumber: 'desc' },
+      })
+
+      await tx.certificate.update({
+        where: { id },
+        data: { ...updateData, lastModifiedById: userId },
+      })
+
+      await tx.certificateEvent.create({
+        data: {
+          certificateId: id,
+          sequenceNumber: (lastEvent?.sequenceNumber ?? 0) + 1,
+          revision: certificate.currentRevision,
+          userId,
+          userRole: 'ADMIN',
+          eventType: 'ADMIN_EDIT',
+          eventData: JSON.stringify({
+            field: body.field,
+            from: oldValueStr,
+            to: body.value,
+            reason: body.reason.trim(),
+            adminId: userId,
+            adminName: userName,
+          }),
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          entityType: 'Certificate',
+          entityId: id,
+          action: 'ADMIN_EDIT',
+          actorId: userId,
+          actorType: 'ADMIN',
+          changes: JSON.stringify({
+            field: body.field,
+            from: oldValueStr,
+            to: body.value,
+            reason: body.reason.trim(),
+          }),
+        },
+      })
+    })
+
+    const fieldLabels: Record<string, string> = {
+      certificateNumber: 'Certificate Number',
+      dateOfCalibration: 'Date of Calibration',
+      calibrationDueDate: 'Calibration Due Date',
+      reviewerId: 'Reviewer',
+    }
+
+    return { success: true, message: `${fieldLabels[body.field] || body.field} updated successfully` }
+  })
+
+  // POST /api/admin/certificates/:id/send-download-link - Send download link to customer
+  fastify.post<{ Params: { id: string } }>('/certificates/:id/send-download-link', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userName = request.user!.name
+    const userEmail = request.user!.email
+    const { id } = request.params
+    const body = request.body as {
+      customerEmail: string
+      customerName: string
+      ccAdmin?: boolean
+    }
+
+    if (!body.customerEmail?.trim()) {
+      return reply.status(400).send({ error: 'Customer email is required' })
+    }
+    if (!body.customerName?.trim()) {
+      return reply.status(400).send({ error: 'Customer name is required' })
+    }
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    if (!['AUTHORIZED', 'COMPLETED'].includes(certificate.status)) {
+      return reply.status(400).send({ error: 'Certificate must be authorized before sending download link' })
+    }
+
+    if (!certificate.signedPdfPath) {
+      return reply.status(400).send({ error: 'Signed PDF not available. Please generate the PDF first.' })
+    }
+
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const token = crypto.randomUUID()
+
+    const downloadToken = await prisma.downloadToken.create({
+      data: {
+        token,
+        certificateId: id,
+        customerEmail: body.customerEmail.toLowerCase().trim(),
+        customerName: body.customerName.trim(),
+        expiresAt,
+        maxDownloads: 5,
+        sentById: userId,
+      },
+    })
+
+    // Log event
+    const lastEvent = await prisma.certificateEvent.findFirst({
+      where: { certificateId: id },
+      orderBy: { sequenceNumber: 'desc' },
+    })
+
+    await prisma.certificateEvent.create({
+      data: {
+        certificateId: id,
+        sequenceNumber: (lastEvent?.sequenceNumber || 0) + 1,
+        revision: certificate.currentRevision,
+        eventType: 'DOWNLOAD_LINK_SENT',
+        eventData: JSON.stringify({
+          customerEmail: body.customerEmail.toLowerCase().trim(),
+          customerName: body.customerName.trim(),
+          tokenId: downloadToken.id,
+          expiresAt: expiresAt.toISOString(),
+          sentBy: userName,
+        }),
+        userId,
+        userRole: 'ADMIN',
+      },
+    })
+
+    const baseUrl = process.env.APP_URL || 'https://app.hta-calibration.com'
+    const downloadUrl = `${baseUrl}/customer/download/${token}`
+
+    // Send email
+    const { sendEmail } = await import('../../services/email.js')
+    const recipients = [body.customerEmail.toLowerCase().trim()]
+    if (body.ccAdmin && userEmail) {
+      recipients.push(userEmail)
+    }
+
+    for (const to of recipients) {
+      sendEmail({
+        to,
+        template: 'certificate-download-ready' as any,
+        props: {
+          customerName: body.customerName.trim(),
+          certificateNumber: certificate.certificateNumber,
+          instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+          serialNumber: certificate.uucSerialNumber || '',
+          calibrationDate: certificate.dateOfCalibration
+            ? certificate.dateOfCalibration.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+            : '',
+          downloadUrl,
+        },
+      }).catch(() => {})
+    }
+
+    return {
+      success: true,
+      token: downloadToken.token,
+      tokenExpiry: downloadToken.expiresAt.toISOString(),
+      downloadUrl,
+      maxDownloads: downloadToken.maxDownloads,
+    }
+  })
+
+  // GET /api/admin/certificates/:id/send-download-link - Download link history
+  fastify.get<{ Params: { id: string } }>('/certificates/:id/send-download-link', {
+    preHandler: [requireAdmin],
+  }, async (request) => {
+    const { id } = request.params
+
+    const tokens = await prisma.downloadToken.findMany({
+      where: { certificateId: id },
+      orderBy: { createdAt: 'desc' },
+      include: { sentBy: { select: { name: true, email: true } } },
+    })
+
+    const baseUrl = process.env.APP_URL || 'https://app.hta-calibration.com'
+
+    return {
+      tokens: tokens.map((t: any) => ({
+        id: t.id,
+        customerEmail: t.customerEmail,
+        customerName: t.customerName,
+        downloadUrl: `${baseUrl}/customer/download/${t.token}`,
+        createdAt: t.createdAt.toISOString(),
+        expiresAt: t.expiresAt.toISOString(),
+        downloadCount: t.downloadCount,
+        maxDownloads: t.maxDownloads,
+        downloadedAt: t.downloadedAt?.toISOString() || null,
+        isExpired: new Date() > t.expiresAt,
+        isExhausted: t.downloadCount >= t.maxDownloads,
+        sentBy: t.sentBy?.name || 'Unknown',
+      })),
+    }
+  })
+
+  // POST /api/admin/customers - Create customer account with POC
+  fastify.post('/customers', {
+    preHandler: [requireMasterAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const body = request.body as {
+      companyName: string
+      address?: string
+      contactEmail?: string
+      contactPhone?: string
+      assignedAdminId?: string
+      pocName: string
+      pocEmail: string
+    }
+
+    if (!body.companyName?.trim()) {
+      return reply.status(400).send({ error: 'Company name is required' })
+    }
+    if (!body.pocName?.trim()) {
+      return reply.status(400).send({ error: 'POC name is required' })
+    }
+    if (!body.pocEmail?.trim()) {
+      return reply.status(400).send({ error: 'POC email is required' })
+    }
+
+    // Check unique company name
+    const existingAccount = await prisma.customerAccount.findFirst({
+      where: { tenantId, companyName: body.companyName.trim() },
+    })
+    if (existingAccount) {
+      return reply.status(400).send({ error: 'A customer account with this name already exists' })
+    }
+
+    // Check unique POC email
+    const existingUser = await prisma.customerUser.findFirst({
+      where: { tenantId, email: body.pocEmail.trim().toLowerCase() },
+    })
+    if (existingUser) {
+      return reply.status(400).send({ error: 'A user with this email already exists' })
+    }
+
+    // Validate admin if provided
+    if (body.assignedAdminId) {
+      const admin = await prisma.user.findFirst({
+        where: { tenantId, id: body.assignedAdminId, role: 'ADMIN', isActive: true },
+      })
+      if (!admin) {
+        return reply.status(400).send({ error: 'Invalid Admin selected' })
+      }
+    }
+
+    const activationToken = crypto.randomUUID()
+    const activationExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const account = await tx.customerAccount.create({
+        data: {
+          tenantId,
+          companyName: body.companyName.trim(),
+          address: body.address?.trim() || null,
+          contactEmail: body.contactEmail?.trim() || null,
+          contactPhone: body.contactPhone?.trim() || null,
+          assignedAdminId: body.assignedAdminId || null,
+          isActive: true,
+        },
+      })
+
+      const pocUser = await tx.customerUser.create({
+        data: {
+          tenantId,
+          email: body.pocEmail.trim().toLowerCase(),
+          name: body.pocName.trim(),
+          customerAccountId: account.id,
+          companyName: body.companyName.trim(),
+          isPoc: true,
+          isActive: false,
+          activationToken,
+          activationExpiry,
+        },
+      })
+
+      const updatedAccount = await tx.customerAccount.update({
+        where: { id: account.id },
+        data: { primaryPocId: pocUser.id },
+        include: {
+          assignedAdmin: { select: { id: true, name: true } },
+          primaryPoc: { select: { id: true, name: true, email: true, isActive: true } },
+        },
+      })
+
+      return { account: updatedAccount, pocUser }
+    })
+
+    // Send activation email
+    const baseUrl = process.env.APP_URL || 'https://app.hta-calibration.com'
+    const activationUrl = `${baseUrl}/customer/activate/${activationToken}`
+
+    const { sendEmail } = await import('../../services/email.js')
+    sendEmail({
+      to: body.pocEmail.trim().toLowerCase(),
+      template: 'customer-activation' as any,
+      props: {
+        userName: body.pocName.trim(),
+        companyName: body.companyName.trim(),
+        activationUrl,
+      },
+    }).catch(() => {})
+
+    return {
+      success: true,
+      account: {
+        id: result.account.id,
+        companyName: result.account.companyName,
+        assignedAdmin: result.account.assignedAdmin,
+        primaryPoc: result.account.primaryPoc,
+      },
+      message: 'Customer account created. Activation email will be sent to the POC.',
+    }
+  })
+
+  // GET /api/admin/customers/:id/users - List users for a customer account
+  fastify.get<{ Params: { id: string } }>('/customers/:id/users', {
+    preHandler: [requireMasterAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id } = request.params
+
+    const account = await prisma.customerAccount.findFirst({
+      where: { tenantId, id },
+      select: { id: true, companyName: true, primaryPocId: true },
+    })
+
+    if (!account) {
+      return reply.status(404).send({ error: 'Customer account not found' })
+    }
+
+    const users = await prisma.customerUser.findMany({
+      where: { customerAccountId: id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isPoc: true,
+        isActive: true,
+        activatedAt: true,
+        createdAt: true,
+      },
+      orderBy: [{ isPoc: 'desc' }, { name: 'asc' }],
+    })
+
+    return {
+      users: users.map((u: any) => ({
+        ...u,
+        activatedAt: u.activatedAt?.toISOString() || null,
+        createdAt: u.createdAt.toISOString(),
+      })),
+    }
+  })
+
+  // POST /api/admin/customers/:id/users - Admin adds user to customer account
+  fastify.post<{ Params: { id: string } }>('/customers/:id/users', {
+    preHandler: [requireMasterAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const { id } = request.params
+    const body = request.body as { name: string; email: string }
+
+    if (!body.name?.trim()) {
+      return reply.status(400).send({ error: 'User name is required' })
+    }
+    if (!body.email?.trim()) {
+      return reply.status(400).send({ error: 'User email is required' })
+    }
+
+    const normalizedEmail = body.email.trim().toLowerCase()
+
+    const account = await prisma.customerAccount.findFirst({
+      where: { tenantId, id },
+      select: { id: true, companyName: true },
+    })
+
+    if (!account) {
+      return reply.status(404).send({ error: 'Customer account not found' })
+    }
+
+    const existingUser = await prisma.customerUser.findFirst({
+      where: { tenantId, email: normalizedEmail },
+    })
+
+    if (existingUser) {
+      return reply.status(400).send({ error: 'A user with this email already exists' })
+    }
+
+    const activationToken = crypto.randomUUID()
+    const activationExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const user = await tx.customerUser.create({
+        data: {
+          tenantId,
+          email: normalizedEmail,
+          name: body.name.trim(),
+          customerAccountId: id,
+          companyName: account.companyName,
+          isPoc: false,
+          isActive: false,
+          activationToken,
+          activationExpiry,
+        },
+      })
+
+      await tx.customerRequest.create({
+        data: {
+          type: 'USER_ADDITION',
+          status: 'APPROVED',
+          customerAccountId: id,
+          data: JSON.stringify({ name: body.name.trim(), email: normalizedEmail }),
+          reviewedById: userId,
+          reviewedAt: new Date(),
+        },
+      })
+
+      return user
+    })
+
+    // Send activation email
+    const baseUrl = process.env.APP_URL || 'https://app.hta-calibration.com'
+    const activationUrl = `${baseUrl}/customer/activate/${activationToken}`
+
+    const { sendEmail } = await import('../../services/email.js')
+    sendEmail({
+      to: normalizedEmail,
+      template: 'customer-activation' as any,
+      props: {
+        userName: body.name.trim(),
+        companyName: account.companyName,
+        activationUrl,
+      },
+    }).catch(() => {})
+
+    return {
+      success: true,
+      user: {
+        id: result.id,
+        name: result.name,
+        email: result.email,
+        isActive: result.isActive,
+      },
+      message: 'User created. Invite email will be sent.',
+    }
+  })
+
+  // GET /api/admin/customers/requests - Get customer requests (team additions, etc.)
+  fastify.get('/customers/requests', {
+    preHandler: [requireMasterAdmin],
+  }, async (request) => {
+    const tenantId = request.tenantId
+    const query = request.query as { status?: string; page?: string; limit?: string }
+    const status = query.status || 'PENDING'
+    const page = parseInt(query.page || '1')
+    const limit = parseInt(query.limit || '20')
+
+    const where: Record<string, unknown> = {}
+    if (status !== 'ALL') {
+      where.status = status
+    }
+
+    // Filter by tenant through customer account
+    const [requests, total] = await Promise.all([
+      prisma.customerRequest.findMany({
+        where,
+        include: {
+          customerAccount: { select: { id: true, companyName: true, tenantId: true } },
+          requestedBy: { select: { id: true, name: true, email: true } },
+          reviewedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.customerRequest.count({ where }),
+    ])
+
+    // Filter by tenant
+    const tenantRequests = requests.filter((r: any) => r.customerAccount?.tenantId === tenantId)
+
+    return {
+      requests: tenantRequests.map((r: any) => ({
+        id: r.id,
+        type: r.type,
+        status: r.status,
+        data: safeJsonParse(r.data, {}),
+        customerAccount: r.customerAccount ? { id: r.customerAccount.id, companyName: r.customerAccount.companyName } : null,
+        requestedBy: r.requestedBy,
+        reviewedBy: r.reviewedBy,
+        reviewedAt: r.reviewedAt?.toISOString() || null,
+        createdAt: r.createdAt.toISOString(),
+      })),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    }
+  })
+
+  // GET /api/admin/customers/requests/:id - Get customer request detail
+  fastify.get<{ Params: { id: string } }>('/customers/requests/:id', {
+    preHandler: [requireMasterAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params
+
+    const customerRequest = await prisma.customerRequest.findUnique({
+      where: { id },
+      include: {
+        customerAccount: {
+          select: { id: true, companyName: true, primaryPocId: true },
+        },
+        requestedBy: { select: { id: true, name: true, email: true } },
+        reviewedBy: { select: { id: true, name: true } },
+      },
+    })
+
+    if (!customerRequest) {
+      return reply.status(404).send({ error: 'Request not found' })
+    }
+
+    return {
+      id: customerRequest.id,
+      type: customerRequest.type,
+      status: customerRequest.status,
+      data: typeof customerRequest.data === 'string' ? JSON.parse(customerRequest.data) : customerRequest.data,
+      customerAccount: customerRequest.customerAccount
+        ? { id: customerRequest.customerAccount.id, companyName: customerRequest.customerAccount.companyName }
+        : null,
+      requestedBy: customerRequest.requestedBy,
+      reviewedBy: customerRequest.reviewedBy,
+      reviewedAt: customerRequest.reviewedAt?.toISOString() || null,
+      rejectionReason: customerRequest.rejectionReason,
+      createdAt: customerRequest.createdAt.toISOString(),
+    }
+  })
+
+  // POST /api/admin/customers/requests/:id/approve - Approve a customer request
+  fastify.post<{ Params: { id: string } }>('/customers/requests/:id/approve', {
+    preHandler: [requireMasterAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params
+    const adminId = request.user!.sub
+
+    const customerRequest = await prisma.customerRequest.findUnique({
+      where: { id },
+      include: {
+        customerAccount: {
+          select: { id: true, companyName: true, primaryPocId: true, tenantId: true },
+        },
+        requestedBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+
+    if (!customerRequest) {
+      return reply.status(404).send({ error: 'Request not found' })
+    }
+    if (customerRequest.status !== 'PENDING') {
+      return reply.status(400).send({ error: 'Request has already been processed' })
+    }
+
+    const data = typeof customerRequest.data === 'string'
+      ? JSON.parse(customerRequest.data) as Record<string, string>
+      : customerRequest.data as Record<string, string>
+
+    if (customerRequest.type === 'USER_ADDITION') {
+      const normalizedEmail = (data.email || '').toLowerCase()
+
+      // Check email not already in use
+      const existingUser = await prisma.customerUser.findFirst({
+        where: { email: normalizedEmail },
+      })
+      if (existingUser) {
+        return reply.status(400).send({ error: 'A user with this email already exists' })
+      }
+
+      const { randomUUID } = await import('crypto')
+      const activationToken = randomUUID()
+      const activationExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+
+      const result = await prisma.$transaction(async (tx) => {
+        const user = await tx.customerUser.create({
+          data: {
+            tenantId: customerRequest.customerAccount?.tenantId || request.tenantId,
+            email: normalizedEmail,
+            name: data.name || '',
+            customerAccountId: customerRequest.customerAccount!.id,
+            companyName: customerRequest.customerAccount!.companyName,
+            isPoc: false,
+            isActive: false,
+            activationToken,
+            activationExpiry,
+          },
+        })
+        await tx.customerRequest.update({
+          where: { id: customerRequest.id },
+          data: {
+            status: 'APPROVED',
+            reviewedById: adminId,
+            reviewedAt: new Date(),
+          },
+        })
+        return user
+      })
+
+      // Send activation email
+      const baseUrl = process.env.APP_URL || 'https://app.hta-calibration.com'
+      const activationUrl = `${baseUrl}/customer/activate/${activationToken}`
+      const { sendEmail } = await import('../../services/email.js')
+      sendEmail({
+        to: normalizedEmail,
+        template: 'customer-activation' as any,
+        props: {
+          userName: data.name || '',
+          companyName: customerRequest.customerAccount!.companyName,
+          activationUrl,
+        },
+      }).catch(() => {})
+
+      return {
+        success: true,
+        message: 'User addition request approved. Invite email will be sent.',
+        user: { id: result.id, name: result.name, email: result.email },
+      }
+    }
+
+    if (customerRequest.type === 'POC_CHANGE') {
+      const newPocUser = await prisma.customerUser.findFirst({
+        where: {
+          id: data.newPocUserId || '',
+          customerAccountId: customerRequest.customerAccount!.id,
+        },
+      })
+      if (!newPocUser) {
+        return reply.status(400).send({ error: 'New POC user not found or does not belong to this account' })
+      }
+
+      const oldPocId = customerRequest.customerAccount!.primaryPocId
+
+      await prisma.$transaction(async (tx) => {
+        if (oldPocId) {
+          await tx.customerUser.update({
+            where: { id: oldPocId },
+            data: { isPoc: false },
+          })
+        }
+        await tx.customerUser.update({
+          where: { id: data.newPocUserId },
+          data: { isPoc: true },
+        })
+        await tx.customerAccount.update({
+          where: { id: customerRequest.customerAccount!.id },
+          data: { primaryPocId: data.newPocUserId },
+        })
+        await tx.customerRequest.update({
+          where: { id: customerRequest.id },
+          data: {
+            status: 'APPROVED',
+            reviewedById: adminId,
+            reviewedAt: new Date(),
+          },
+        })
+      })
+
+      return {
+        success: true,
+        message: 'POC change request approved. Both parties will be notified.',
+        newPoc: { id: newPocUser.id, name: newPocUser.name, email: newPocUser.email },
+      }
+    }
+
+    return reply.status(400).send({ error: 'Unknown request type' })
+  })
+
+  // POST /api/admin/customers/requests/:id/reject - Reject a customer request
+  fastify.post<{ Params: { id: string } }>('/customers/requests/:id/reject', {
+    preHandler: [requireMasterAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params
+    const adminId = request.user!.sub
+    const body = request.body as { reason?: string }
+
+    if (!body.reason?.trim()) {
+      return reply.status(400).send({ error: 'Rejection reason is required' })
+    }
+
+    const customerRequest = await prisma.customerRequest.findUnique({
+      where: { id },
+      include: {
+        customerAccount: { select: { id: true, companyName: true } },
+        requestedBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+
+    if (!customerRequest) {
+      return reply.status(404).send({ error: 'Request not found' })
+    }
+    if (customerRequest.status !== 'PENDING') {
+      return reply.status(400).send({ error: 'Request has already been processed' })
+    }
+
+    await prisma.customerRequest.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: body.reason!.trim(),
+        reviewedById: adminId,
+        reviewedAt: new Date(),
+      },
+    })
+
+    return {
+      success: true,
+      message: 'Request rejected. The requester will be notified.',
+    }
+  })
+
+  // GET /api/admin/instruments/export - Export instruments as JSON
+  fastify.get('/instruments/export', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const query = request.query as { format?: string; includeInactive?: string }
+    const includeInactive = query.includeInactive === 'true'
+
+    const where: Record<string, unknown> = { tenantId, isLatest: true }
+    if (!includeInactive) {
+      where.isActive = true
+    }
+
+    const instruments = await prisma.masterInstrument.findMany({
+      where,
+      orderBy: [{ category: 'asc' }, { description: 'asc' }],
+    })
+
+    const jsonData = instruments.map((inst: any) => ({
+      id: inst.legacyId || null,
+      type: inst.category,
+      instrument_desc: inst.description,
+      make: inst.make,
+      model: inst.model,
+      asset_no: inst.assetNumber,
+      instrument_sl_no: inst.serialNumber,
+      usage: inst.usage || '',
+      calibrated_at: inst.calibratedAtLocation || '',
+      report_no: inst.reportNo || '',
+      next_due_on: inst.calibrationDueDate
+        ? `${(inst.calibrationDueDate.getMonth() + 1).toString().padStart(2, '0')}/${inst.calibrationDueDate.getDate().toString().padStart(2, '0')}/${inst.calibrationDueDate.getFullYear()}`
+        : '',
+      range: safeJsonParse<unknown[]>(inst.rangeData, []),
+      remarks: inst.remarks || '',
+    }))
+
+    const now = new Date()
+    const dateStamp = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`
+
+    reply.header('Content-Type', 'application/json')
+    reply.header('Content-Disposition', `attachment; filename="master-instruments-${dateStamp}.json"`)
+    return reply.send(JSON.stringify(jsonData, null, 2))
+  })
+
+  // POST /api/admin/instruments/import - Import instruments from JSON
+  fastify.post('/instruments/import', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userName = request.user!.name
+    const query = request.query as { mode?: string }
+    const mode = query.mode || 'preview'
+    const body = request.body as { instruments: Array<Record<string, unknown>> }
+
+    if (!body.instruments || !Array.isArray(body.instruments)) {
+      return reply.status(400).send({ error: 'instruments array is required' })
+    }
+
+    const results: Array<{ row: number; assetNumber: string; description: string; action: string; notes: string }> = []
+
+    for (let i = 0; i < body.instruments.length; i++) {
+      const record = body.instruments[i]
+      const assetNumber = String(record.asset_no || record.asset_number || '').trim()
+      const description = String(record.instrument_desc || record.description || '').trim()
+
+      if (!assetNumber) {
+        results.push({ row: i + 1, assetNumber: '', description, action: 'SKIP', notes: 'Missing asset number' })
+        continue
+      }
+
+      // Check if instrument exists
+      const existing = await prisma.masterInstrument.findFirst({
+        where: { tenantId, assetNumber, isLatest: true },
+      })
+
+      if (mode === 'preview') {
+        results.push({
+          row: i + 1,
+          assetNumber,
+          description,
+          action: existing ? 'UPDATE' : 'CREATE',
+          notes: existing ? 'Will update existing' : 'Will create new',
+        })
+      } else {
+        // Actually import
+        try {
+          if (existing) {
+            // Create new version
+            await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+              await tx.masterInstrument.update({
+                where: { id: existing.id },
+                data: { isLatest: false },
+              })
+              await tx.masterInstrument.create({
+                data: {
+                  tenantId,
+                  instrumentId: existing.instrumentId,
+                  category: String(record.type || record.category || existing.category),
+                  description: description || existing.description,
+                  make: String(record.make || existing.make),
+                  model: String(record.model || existing.model),
+                  assetNumber,
+                  serialNumber: String(record.instrument_sl_no || record.serial_number || existing.serialNumber),
+                  version: existing.version + 1,
+                  isLatest: true,
+                  isActive: true,
+                  createdById: userId,
+                },
+              })
+            })
+            results.push({ row: i + 1, assetNumber, description, action: 'UPDATE', notes: 'Updated successfully' })
+          } else {
+            await prisma.masterInstrument.create({
+              data: {
+                tenantId,
+                instrumentId: crypto.randomUUID(),
+                category: String(record.type || record.category || ''),
+                description,
+                make: String(record.make || ''),
+                model: String(record.model || ''),
+                assetNumber,
+                serialNumber: String(record.instrument_sl_no || record.serial_number || ''),
+                version: 1,
+                isLatest: true,
+                isActive: true,
+                createdById: userId,
+              },
+            })
+            results.push({ row: i + 1, assetNumber, description, action: 'CREATE', notes: 'Created successfully' })
+          }
+        } catch (err) {
+          results.push({ row: i + 1, assetNumber, description, action: 'ERROR', notes: String(err) })
+        }
+      }
+    }
+
+    // Alert other admins if actual import
+    if (mode === 'import') {
+      const createdCount = results.filter(r => r.action === 'CREATE').length
+      const updatedCount = results.filter(r => r.action === 'UPDATE').length
+      if (createdCount + updatedCount > 0) {
+        alertAdminsOnInstrumentChange(tenantId, userId, userName, 'CREATED', {
+          assetNumber: 'BULK_IMPORT',
+          description: `Imported ${createdCount} new, ${updatedCount} updated instruments`,
+        }).catch(() => {})
+      }
+    }
+
+    return {
+      mode,
+      total: body.instruments.length,
+      created: results.filter(r => r.action === 'CREATE').length,
+      updated: results.filter(r => r.action === 'UPDATE').length,
+      skipped: results.filter(r => r.action === 'SKIP').length,
+      errors: results.filter(r => r.action === 'ERROR').length,
+      results,
     }
   })
 }

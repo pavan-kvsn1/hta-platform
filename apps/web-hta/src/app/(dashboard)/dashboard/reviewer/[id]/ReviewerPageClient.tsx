@@ -308,7 +308,7 @@ export function ReviewerPageClient({
   }, [certificate.id, certificate.certificateNumber])
 
   return (
-    <div className="flex h-full bg-slate-100">
+    <div className="flex h-[calc(100vh-4rem)] bg-slate-100 overflow-hidden">
       {/* Left Side - Header + Content (Scrollable) */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Certificate Card - Bounding Box */}
@@ -384,12 +384,12 @@ export function ReviewerPageClient({
         </div>
       </div>
 
-      {/* Right Panel - Collapsible Chat & Actions */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col gap-3 bg-section-inner p-2">
+      {/* Right Panel - Chat & Actions, fixed to viewport height */}
+      <div className="w-[380px] flex-shrink-0 flex flex-col gap-2 bg-section-inner p-2 h-full overflow-hidden">
 
         {/* ===== CHAT SECTION ===== */}
         <div className={cn(
-          'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden ',
+          'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',
           isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
         )}>
           {/* Chat Header - Collapsible */}

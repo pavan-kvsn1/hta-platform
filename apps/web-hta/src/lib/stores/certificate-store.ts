@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { apiFetch } from '@/lib/api-client'
 
 // Accuracy calculation types
 export type AccuracyType = 'PERCENT_READING' | 'ABSOLUTE' | 'PERCENT_SCALE'
@@ -748,7 +749,7 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
         clientUpdatedAt: formData.serverUpdatedAt,
       }
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),

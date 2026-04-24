@@ -50,6 +50,10 @@ const getNavigationPath = (type: string, certificateId: string | null, userRole:
 
   // Engineer notifications - determine if assignee or reviewer based on notification type
   if (userRole === 'ENGINEER') {
+    // Chat messages go to view page (works for both assignee and reviewer)
+    if (type === 'NEW_CHAT_MESSAGE') {
+      return `/dashboard/certificates/${certificateId}/view`
+    }
     // Reviewer notifications go to reviewer page
     if (REVIEWER_NOTIFICATION_TYPES.includes(type)) {
       return `/dashboard/reviewer/${certificateId}`
@@ -59,7 +63,7 @@ const getNavigationPath = (type: string, certificateId: string | null, userRole:
   }
 
   // Default fallback
-  return `/dashboard/certificates/${certificateId}/edit`
+  return `/dashboard/certificates/${certificateId}/view`
 }
 
 interface NotificationItemProps {

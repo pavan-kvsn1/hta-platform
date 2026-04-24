@@ -26,6 +26,7 @@ interface CustomerApprovalActionsProps {
   customer: CustomerData
   signatures: Signature[]
   canApprove: boolean
+  onStatusChange?: (status: string) => void
 }
 
 export function CustomerApprovalActions({
@@ -33,6 +34,7 @@ export function CustomerApprovalActions({
   customer,
   signatures,
   canApprove,
+  onStatusChange,
 }: CustomerApprovalActionsProps) {
   const router = useRouter()
   const [isApproving, setIsApproving] = useState(false)
@@ -46,11 +48,13 @@ export function CustomerApprovalActions({
   // Form states
   const [revisionNotes, setRevisionNotes] = useState('')
 
-  // Status checks
+  // Track action taken for immediate UI feedback
+  const [actionTaken, setActionTaken] = useState<'approved' | 'revision' | null>(null)
+
+  // Status checks — use actionTaken for immediate feedback, fall back to server status
   const isRevisionRequired = certificate.status === 'REVISION_REQUIRED'
-  const isCustomerRevisionRequired = certificate.status === 'CUSTOMER_REVISION_REQUIRED'
-  const _isPendingApproval = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
-  const isApproved = ['APPROVED', 'PENDING_ADMIN_AUTHORIZATION', 'PENDING_ADMIN_APPROVAL', 'AUTHORIZED'].includes(certificate.status)
+  const isCustomerRevisionRequired = actionTaken === 'revision' || certificate.status === 'CUSTOMER_REVISION_REQUIRED'
+  const isApproved = actionTaken === 'approved' || ['APPROVED', 'PENDING_ADMIN_AUTHORIZATION', 'PENDING_ADMIN_APPROVAL', 'AUTHORIZED'].includes(certificate.status)
 
   // Check if customer already signed
   const customerSignature = signatures.find(s => s.signerType === 'CUSTOMER')
@@ -90,7 +94,8 @@ export function CustomerApprovalActions({
       }
 
       setShowApproveModal(false)
-      router.push('/customer/dashboard')
+      setActionTaken('approved')
+      onStatusChange?.('APPROVED')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -129,6 +134,8 @@ export function CustomerApprovalActions({
 
       setShowRevisionModal(false)
       setRevisionNotes('')
+      setActionTaken('revision')
+      onStatusChange?.('CUSTOMER_REVISION_REQUIRED')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')

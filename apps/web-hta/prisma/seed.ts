@@ -8,8 +8,16 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import * as fs from 'fs'
 import * as crypto from 'crypto'
-
 const prisma = new PrismaClient()
+
+// GCS upload helper — used when GCS_BUCKET is set (production/staging)
+const GCS_BUCKET = process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET
+async function getGCSBucket() {
+  if (!GCS_BUCKET) return null
+  const { Storage } = await import('@google-cloud/storage')
+  const storage = new Storage({ projectId: process.env.GCP_PROJECT_ID })
+  return storage.bucket(GCS_BUCKET)
+}
 
 // Certificate PDF source directory (within project)
 const CERTIFICATE_PDF_SOURCE = path.resolve(__dirname, '../reference_docs/certificate_pdfs')
@@ -33,6 +41,12 @@ function assetNumberToFileName(assetNumber: string): string {
 interface MasterInstrumentJson {
   id: number
   type: string
+  parameter_group?: string | null
+  parameter?: {
+    role?: string[]
+    capabilities?: string[]
+  } | null
+  sop_references?: string[] | null
   instrument_desc: string
   make: string | { ind?: string; sen?: string }
   model: string | { ind?: string; sen?: string }
@@ -78,10 +92,15 @@ async function seedCertificates(tenantId: string, adminUserId: string) {
     return
   }
 
-  // Ensure storage directory exists
-  if (!fs.existsSync(CERTIFICATE_STORAGE_PATH)) {
-    fs.mkdirSync(CERTIFICATE_STORAGE_PATH, { recursive: true })
-    console.log(`Created storage directory: ${CERTIFICATE_STORAGE_PATH}`)
+  const gcsBucket = await getGCSBucket()
+  if (gcsBucket) {
+    console.log(`GCS mode: uploading to gs://${GCS_BUCKET}/master-instruments/`)
+  } else {
+    // Local mode: ensure storage directory exists
+    if (!fs.existsSync(CERTIFICATE_STORAGE_PATH)) {
+      fs.mkdirSync(CERTIFICATE_STORAGE_PATH, { recursive: true })
+      console.log(`Created storage directory: ${CERTIFICATE_STORAGE_PATH}`)
+    }
   }
 
   // Check if certificates already exist
@@ -126,10 +145,18 @@ async function seedCertificates(tenantId: string, adminUserId: string) {
 
       // Generate storage path (relative path for DB storage)
       const storagePath = `master-instruments/${expectedFileName}`
-      const fullStoragePath = path.join(CERTIFICATE_STORAGE_PATH, expectedFileName)
 
-      // Copy PDF to storage directory
-      fs.writeFileSync(fullStoragePath, pdfBuffer)
+      // Upload to GCS or write to local filesystem
+      if (gcsBucket) {
+        const file = gcsBucket.file(storagePath)
+        await file.save(pdfBuffer, {
+          contentType: 'application/pdf',
+          resumable: false,
+        })
+      } else {
+        const fullStoragePath = path.join(CERTIFICATE_STORAGE_PATH, expectedFileName)
+        fs.writeFileSync(fullStoragePath, pdfBuffer)
+      }
 
       // Create certificate record
       await prisma.masterInstrumentCertificate.create({
@@ -377,22 +404,63 @@ async function main() {
   // ==================
   // MASTER INSTRUMENTS
   // ==================
-  console.log('\n--- Migrating Master Instruments from JSON ---')
+  console.log('\n--- Syncing Master Instruments from JSON ---')
 
-  const existingInstruments = await prisma.masterInstrument.count({ where: { tenantId } })
-  if (existingInstruments > 0) {
-    console.log(`Skipping instrument migration - ${existingInstruments} instruments already exist`)
-  } else {
-    const jsonPath = path.join(__dirname, '../src/data/master-instruments.json')
-    try {
-      const jsonData = fs.readFileSync(jsonPath, 'utf-8')
-      const instruments: MasterInstrumentJson[] = JSON.parse(jsonData)
+  const jsonPath = path.join(__dirname, '../src/data/master-instruments.json')
+  try {
+    const jsonData = fs.readFileSync(jsonPath, 'utf-8')
+    const instruments: MasterInstrumentJson[] = JSON.parse(jsonData)
 
-      let successCount = 0
-      let errorCount = 0
+    // Build a map of existing instruments by legacyId for upsert
+    const existingInstruments = await prisma.masterInstrument.findMany({
+      where: { tenantId, isLatest: true },
+      select: { id: true, instrumentId: true, legacyId: true },
+    })
+    const existingByLegacyId = new Map(
+      existingInstruments.filter(i => i.legacyId != null).map(i => [i.legacyId!, i])
+    )
 
-      for (const instrument of instruments) {
-        try {
+    let createdCount = 0
+    let updatedCount = 0
+    let errorCount = 0
+
+    for (const instrument of instruments) {
+      try {
+        const instrumentData = {
+          category: instrument.type,
+          description: instrument.instrument_desc,
+          make: serializeCompositeValue(instrument.make),
+          model: serializeCompositeValue(instrument.model),
+          assetNumber: instrument.asset_no,
+          serialNumber: serializeCompositeValue(instrument.instrument_sl_no),
+          usage: instrument.usage || null,
+          calibratedAtLocation: instrument.calibrated_at || null,
+          reportNo: instrument.report_no || null,
+          calibrationDueDate: parseDate(instrument.next_due_on),
+          rangeData: instrument.range && instrument.range.length > 0 ? instrument.range : undefined,
+          remarks: instrument.remarks || null,
+          parameterGroup: instrument.parameter_group || null,
+          parameterCapabilities: instrument.parameter?.capabilities || [],
+          parameterRoles: instrument.parameter?.role || [],
+          sopReferences: instrument.sop_references || [],
+          isActive: true,
+          importedFromJson: true,
+        }
+
+        const existing = existingByLegacyId.get(instrument.id)
+
+        if (existing) {
+          // Update existing instrument with all fields
+          await prisma.masterInstrument.update({
+            where: { id: existing.id },
+            data: {
+              ...instrumentData,
+              changeReason: 'Re-synced from JSON (added parameter metadata)',
+            },
+          })
+          updatedCount++
+        } else {
+          // Create new instrument
           const instrumentId = crypto.randomUUID()
           await prisma.masterInstrument.create({
             data: {
@@ -401,34 +469,24 @@ async function main() {
               version: 1,
               isLatest: true,
               legacyId: instrument.id,
-              category: instrument.type,
-              description: instrument.instrument_desc,
-              make: serializeCompositeValue(instrument.make),
-              model: serializeCompositeValue(instrument.model),
-              assetNumber: instrument.asset_no,
-              serialNumber: serializeCompositeValue(instrument.instrument_sl_no),
-              usage: instrument.usage || null,
-              calibratedAtLocation: instrument.calibrated_at || null,
-              reportNo: instrument.report_no || null,
-              calibrationDueDate: parseDate(instrument.next_due_on),
-              rangeData: instrument.range && instrument.range.length > 0 ? instrument.range : undefined,
-              remarks: instrument.remarks || null,
-              isActive: true,
-              importedFromJson: true,
+              ...instrumentData,
               changeReason: 'Initial seed import',
             },
           })
-          successCount++
-        } catch (err) {
-          errorCount++
-          console.error(`Failed to import instrument ${instrument.id} (${instrument.asset_no}):`, err)
+          createdCount++
         }
+      } catch (err) {
+        errorCount++
+        console.error(`Failed to sync instrument ${instrument.id} (${instrument.asset_no}):`, err)
       }
-
-      console.log(`Imported ${successCount} instruments (${errorCount} errors)`)
-    } catch (err) {
-      console.error('Failed to read master-instruments.json:', err)
     }
+
+    console.log(`Instrument sync complete:`)
+    console.log(`  - Created: ${createdCount}`)
+    console.log(`  - Updated: ${updatedCount}`)
+    console.log(`  - Errors: ${errorCount}`)
+  } catch (err) {
+    console.error('Failed to read master-instruments.json:', err)
   }
 
   // ==================

@@ -82,7 +82,7 @@ const internalRequestRoutes: FastifyPluginAsync = async (fastify) => {
         status: 'PENDING',
         requestedById: userId,
         certificateId: body.certificateId,
-        data: JSON.stringify({ sections: body.sections, reason: body.reason }),
+        data: JSON.stringify({ sections: body.sections, reason: body.reason, revisionNumber: certificate.currentRevision }),
       },
       include: {
         requestedBy: {

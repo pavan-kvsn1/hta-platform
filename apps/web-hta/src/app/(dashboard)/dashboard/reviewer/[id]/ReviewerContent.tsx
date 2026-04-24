@@ -107,6 +107,7 @@ interface CertificateData {
   customerName: string | null
   customerAddress: string | null
   customerContactName: string | null
+  customerContactEmail: string | null
   calibratedAt: string | null
   srfNumber: string | null
   srfDate: string | null

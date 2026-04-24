@@ -10,6 +10,7 @@ import {
   Users,
   Building2,
   Bell,
+  Inbox,
   Wrench,
   FileText,
   Settings,
@@ -21,6 +22,7 @@ import {
   CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { apiFetch } from '@/lib/api-client'
 
 interface AdminSidebarProps {
   userName: string
@@ -44,11 +46,26 @@ export function AdminSidebar({
   const pathname = usePathname()
   const isMaster = adminType === 'MASTER'
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
 
   // Load state from localStorage
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved === 'true') setIsCollapsed(true)
+  }, [])
+
+  // Fetch unread notification count
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await apiFetch('/api/notifications/unread-count')
+        const data = await res.json()
+        if (data.count !== undefined) setUnreadNotifications(data.count)
+      } catch { /* ignore */ }
+    }
+    fetchUnread()
+    const interval = setInterval(fetchUnread, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   // Toggle and persist
@@ -81,7 +98,7 @@ export function AdminSidebar({
     {
       name: 'Requests',
       href: '/admin/requests',
-      icon: Bell,
+      icon: Inbox,
       badge: pendingRequests,
       masterOnly: true,
     },
@@ -91,6 +108,13 @@ export function AdminSidebar({
       href: '/admin/authorization',
       icon: ShieldCheck,
       badge: pendingAuthorizations,
+      masterOnly: false,
+    },
+    {
+      name: 'Notifications',
+      href: '/admin/notifications',
+      icon: Bell,
+      badge: unreadNotifications,
       masterOnly: false,
     },
     {

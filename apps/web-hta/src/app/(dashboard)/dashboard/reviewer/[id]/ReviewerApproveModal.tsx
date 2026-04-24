@@ -13,7 +13,7 @@ import {
   X,
   Loader2,
   AlertTriangle,
-  Lock,
+  Pencil,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import TypedSignature, { type TypedSignatureHandle } from '@/components/signatures/TypedSignature'
@@ -66,6 +66,8 @@ export function ReviewerApproveModal({
   const [email, setEmail] = useState(customerEmail || '')
   const [name, setName] = useState(customerName || '')
   const [message, setMessage] = useState('')
+  const [editCustomerInfo, setEditCustomerInfo] = useState(false)
+  const hasPrefilledInfo = !!(customerEmail && customerName)
 
   // Signature state
   const signatureRef = useRef<TypedSignatureHandle>(null)
@@ -93,6 +95,7 @@ export function ReviewerApproveModal({
       setName(customerName || '')
       setMessage('')
       setSendToCustomer(true)
+      setEditCustomerInfo(false)
       setConsentAccepted(false)
       setConsentAcceptedAt(null)
       setError(null)
@@ -237,42 +240,51 @@ export function ReviewerApproveModal({
 
             {sendToCustomer && (
               <div className="space-y-3 pl-5">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs font-medium text-gray-700 pb-0.5 flex items-center gap-1">
-                      Customer's Reviewer Email <span className="text-red-500">*</span>
-                      {customerEmail && <Lock className="h-3 w-3 text-slate-400" />}
-                    </Label>
-                    <Input
-                      type="email"
-                      value={email}
-                      onChange={(e) => !customerEmail && setEmail(e.target.value)}
-                      placeholder="customer@company.com"
-                      readOnly={!!customerEmail}
-                      className={cn(
-                        "mt-0.5 text-xs h-8 md:text-xs",
-                        customerEmail && "bg-gray-100 cursor-not-allowed text-gray-600"
-                      )}
-                    />
+                {hasPrefilledInfo && !editCustomerInfo && (
+                  <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                    <div className="text-xs text-gray-700">
+                      <span className="font-medium">{name || '(no name)'}</span>
+                      {email && <span className="text-gray-500 ml-1.5">— {email}</span>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditCustomerInfo(true)}
+                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Edit
+                    </button>
                   </div>
-                  <div>
-                    <Label className="text-xs font-medium text-gray-700 pb-0.5 flex items-center gap-1">
-                      Customer's Reviewer Name <span className="text-red-500">*</span>
-                      {customerName && <Lock className="h-3 w-3 text-slate-400" />}
-                    </Label>
-                    <Input
-                      type="text"
-                      value={name}
-                      onChange={(e) => !customerName && setName(e.target.value)}
-                      placeholder="Contact person name"
-                      readOnly={!!customerName}
-                      className={cn(
-                        "mt-0.5 text-xs h-8 md:text-xs",
-                        customerName && "bg-gray-100 cursor-not-allowed text-gray-600"
-                      )}
-                    />
+                )}
+
+                {(!hasPrefilledInfo || editCustomerInfo) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 pb-0.5 flex items-center gap-1">
+                        Customer&apos;s Reviewer Email <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="customer@company.com"
+                        className="mt-0.5 text-xs h-8 md:text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 pb-0.5 flex items-center gap-1">
+                        Customer&apos;s Reviewer Name <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Contact person name"
+                        className="mt-0.5 text-xs h-8 md:text-xs"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <Label className="text-xs font-medium text-gray-700 pb-0.5">

@@ -74,6 +74,11 @@ spec:
                 configMapKeyRef:
                   name: hta-config
                   key: gcs-bucket-name
+            - name: GCS_CERTIFICATES_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: hta-config
+                  key: gcs-bucket-name
             # Canary-specific: add version label for logging/tracing
             - name: DEPLOYMENT_VERSION
               value: "canary"

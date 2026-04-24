@@ -184,6 +184,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
     const message = await sendMessage({
       threadId,
       senderId: userId,
+      senderRole: userRole,
       content: body.content.trim(),
       attachments: body.attachments,
     })

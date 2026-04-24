@@ -43,6 +43,7 @@ export interface ChatMessageInfo {
 export interface SendMessageInput {
   threadId: string
   senderId: string
+  senderRole?: string
   content: string
   attachments?: {
     fileName: string
@@ -157,7 +158,7 @@ export async function getThreadsForUser(userId: string, tenantId: string): Promi
 
 // Send a message to a thread
 export async function sendMessage(input: SendMessageInput): Promise<ChatMessageInfo> {
-  const { threadId, senderId, content, attachments } = input
+  const { threadId, senderId, senderRole, content, attachments } = input
 
   // Get thread to verify access and get participant info
   const thread = await prisma.chatThread.findUnique({
@@ -178,29 +179,44 @@ export async function sendMessage(input: SendMessageInput): Promise<ChatMessageI
     throw new Error('Thread not found')
   }
 
-  // Get sender info
-  const sender = await prisma.user.findUnique({
-    where: { id: senderId },
-    select: { id: true, name: true, role: true },
-  })
+  const isCustomer = senderRole === 'CUSTOMER'
 
-  if (!sender) {
-    throw new Error('Sender not found')
+  // Get sender info from the appropriate table
+  let senderName: string | null = null
+  if (isCustomer) {
+    const customer = await prisma.customerUser.findUnique({
+      where: { id: senderId },
+      select: { name: true },
+    })
+    if (!customer) throw new Error('Sender not found')
+    senderName = customer.name
+  } else {
+    const user = await prisma.user.findUnique({
+      where: { id: senderId },
+      select: { name: true },
+    })
+    if (!user) throw new Error('Sender not found')
+    senderName = user.name
   }
 
   // Determine sender type based on certificate role
-  let senderType: string = 'ADMIN'
-  if (senderId === thread.certificate.createdById) {
+  let senderType: string
+  if (isCustomer) {
+    senderType = 'CUSTOMER'
+  } else if (senderId === thread.certificate.createdById) {
     senderType = 'ASSIGNEE'
   } else if (senderId === thread.certificate.reviewerId) {
     senderType = 'REVIEWER'
+  } else {
+    senderType = 'ADMIN'
   }
 
-  // Create message with attachments
+  // Create message with attachments — use customerId for customer senders
   const message = await prisma.chatMessage.create({
     data: {
       threadId,
-      senderId,
+      senderId: isCustomer ? undefined : senderId,
+      customerId: isCustomer ? senderId : undefined,
       senderType,
       content,
       attachments: attachments
@@ -216,6 +232,7 @@ export async function sendMessage(input: SendMessageInput): Promise<ChatMessageI
     },
     include: {
       sender: { select: { id: true, name: true, role: true } },
+      customer: { select: { id: true, name: true } },
       attachments: true,
     },
   })
@@ -223,9 +240,9 @@ export async function sendMessage(input: SendMessageInput): Promise<ChatMessageI
   return {
     id: message.id,
     threadId: message.threadId,
-    senderId: message.senderId || '',
-    senderName: message.sender?.name || null,
-    senderRole: message.sender?.role || 'ENGINEER',
+    senderId: message.senderId || message.customerId || '',
+    senderName: message.sender?.name || message.customer?.name || senderName,
+    senderRole: message.sender?.role || (message.customerId ? 'CUSTOMER' : 'ENGINEER'),
     content: message.content,
     createdAt: message.createdAt,
     readAt: message.readAt,
@@ -262,6 +279,7 @@ export async function getMessages(
     },
     include: {
       sender: { select: { id: true, name: true, role: true } },
+      customer: { select: { id: true, name: true } },
       attachments: true,
     },
     orderBy: { createdAt: 'desc' },
@@ -275,9 +293,9 @@ export async function getMessages(
     messages: resultMessages.map((m: (typeof resultMessages)[number]) => ({
       id: m.id,
       threadId: m.threadId,
-      senderId: m.senderId || '',
-      senderName: m.sender?.name || null,
-      senderRole: m.sender?.role || 'ENGINEER',
+      senderId: m.senderId || m.customerId || '',
+      senderName: m.sender?.name || m.customer?.name || null,
+      senderRole: m.sender?.role || (m.customerId ? 'CUSTOMER' : 'ENGINEER'),
       content: m.content,
       createdAt: m.createdAt,
       readAt: m.readAt,

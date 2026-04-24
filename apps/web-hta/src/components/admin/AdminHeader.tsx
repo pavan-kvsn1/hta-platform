@@ -1,14 +1,31 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Menu, ArrowRightLeft } from 'lucide-react'
+import { Menu, ArrowRightLeft, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { apiFetch } from '@/lib/api-client'
 
 interface AdminHeaderProps {
   showEngineerSwitch?: boolean
 }
 
 export function AdminHeader({ showEngineerSwitch = false }: AdminHeaderProps) {
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await apiFetch('/api/notifications/unread-count')
+        const data = await res.json()
+        if (data.count !== undefined) setUnreadCount(data.count)
+      } catch { /* ignore */ }
+    }
+    fetchUnread()
+    const interval = setInterval(fetchUnread, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
     <header className="flex items-center justify-between whitespace-nowrap bg-[#222D7C] px-4 sm:px-6 h-16 sticky top-0 z-[60]">
       {/* Left Side - Mobile Menu & Title */}
@@ -29,6 +46,19 @@ export function AdminHeader({ showEngineerSwitch = false }: AdminHeaderProps) {
 
       {/* Right Side - Actions */}
       <div className="flex items-center gap-3">
+        {/* Notifications Bell */}
+        <Link
+          href="/admin/notifications"
+          className="relative p-2 rounded-lg text-white hover:bg-[#2d3a8c] transition-colors"
+        >
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </Link>
+
         {/* Switch to Engineer View */}
         {showEngineerSwitch && (
           <Link href="/dashboard">

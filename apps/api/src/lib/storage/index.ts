@@ -21,7 +21,7 @@ let imageStorageProviderInstance: StorageProvider | null = null
  */
 export function getStorageConfig(): StorageConfig {
   return {
-    gcsBucket: process.env.GCS_CERTIFICATES_BUCKET,
+    gcsBucket: process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET,
     gcsProjectId: process.env.GCP_PROJECT_ID,
   }
 }
@@ -31,7 +31,7 @@ export function getStorageConfig(): StorageConfig {
  */
 export function getImageStorageConfig(): StorageConfig {
   return {
-    gcsBucket: process.env.GCS_IMAGES_BUCKET || process.env.GCS_CERTIFICATES_BUCKET,
+    gcsBucket: process.env.GCS_IMAGES_BUCKET || process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET,
     gcsProjectId: process.env.GCP_PROJECT_ID,
   }
 }
@@ -47,7 +47,7 @@ export function getStorageProvider(): StorageProvider {
   const config = getStorageConfig()
 
   if (!config.gcsBucket) {
-    throw new Error('GCS_CERTIFICATES_BUCKET environment variable is required')
+    throw new Error('GCS_BUCKET environment variable is required')
   }
 
   storageProviderInstance = new GCSStorageProvider(config.gcsBucket, config.gcsProjectId)

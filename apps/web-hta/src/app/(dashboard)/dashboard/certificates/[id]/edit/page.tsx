@@ -700,7 +700,7 @@ export default function EditCertificatePage() {
   }
 
   return (
-    <div className="flex h-full bg-slate-100 p-3 gap-3 overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] bg-slate-100 p-3 gap-3 overflow-hidden">
       {/* Left Side - Certificate Card */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -944,84 +944,86 @@ export default function EditCertificatePage() {
         </div>
       </div>
 
-      {/* Right Panel - Chat */}
-<div className="w-[380px] flex-shrink-0 flex flex-col gap-3 overflow-y-auto">
-      {/* Chat Box */}
-      <div className={cn(
-      'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',
-      isChatExpanded ? 'min-h-[700px] max-h-[900px]' : 'flex-shrink-0'
-      )}>
-            {/* Chat Header - Collapsible */}
-          <button
-            onClick={() => setIsChatExpanded(!isChatExpanded)}
-            className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {isChatExpanded ? (
-                <ChevronDown className="size-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="size-4 text-slate-400" />
-              )}
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Chat with Reviewer</span>
-            </div>
-          </button>
-
-          {/* Chat Content - Only when expanded */}
-          {isChatExpanded && (
-            <div className="flex-1 flex flex-col min-h-0">
-              {/* Person Header */}
-              {reviewerName && (
-                <div className="flex-shrink-0 px-4 py-3 border-t border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="size-10 rounded-full bg-slate-700 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
-                      {reviewerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                    </div>
-                    {/* Name & Status */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {reviewerName}
-                      </p>
-                      <p className="text-xs text-slate-500 flex items-center gap-1.5">
-                        <span>Reviewer</span>
-                        <span className="size-1.5 rounded-full bg-green-500" />
-                        <span className="text-green-600">Online</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Chat Messages Area */}
-              <div className="flex-1 min-h-0 overflow-hidden text-xs">
-                {reviewerName ? (
-                  <ChatSidebar
-                    isOpen={true}
-                    onClose={() => {}}
-                    certificateId={certificateId}
-                    threadType="ASSIGNEE_REVIEWER"
-                    embedded={true}
-                  />
+      {/* Right Panel - Chat & Unlock (shown when status is REVISION_REQUIRED or reviewer assigned) */}
+      {(formData.status === 'REVISION_REQUIRED' || reviewerName) && (
+      <div className="w-[380px] flex-shrink-0 flex flex-col gap-3 h-full overflow-hidden">
+        {/* Chat Box */}
+        <div className={cn(
+        'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',
+        isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
+        )}>
+              {/* Chat Header - Collapsible */}
+            <button
+              onClick={() => setIsChatExpanded(!isChatExpanded)}
+              className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                {isChatExpanded ? (
+                  <ChevronDown className="size-4 text-slate-400" />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-slate-400 text-xs p-4 text-center">
-                    <div>
-                      <MessageSquare className="size-8 mx-auto mb-2 text-slate-300" />
-                      <p className="font-medium text-slate-600">No reviewer assigned yet</p>
-                      <p className="text-[10px] mt-1 text-slate-400">Chat will be available once a reviewer is assigned</p>
+                  <ChevronRight className="size-4 text-slate-400" />
+                )}
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Chat with Reviewer</span>
+              </div>
+            </button>
+
+            {/* Chat Content - Only when expanded */}
+            {isChatExpanded && (
+              <div className="flex-1 flex flex-col min-h-0">
+                {/* Person Header */}
+                {reviewerName && (
+                  <div className="flex-shrink-0 px-4 py-3 border-t border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center gap-3">
+                      {/* Avatar */}
+                      <div className="size-10 rounded-full bg-slate-700 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                        {reviewerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      </div>
+                      {/* Name & Status */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {reviewerName}
+                        </p>
+                        <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                          <span>Reviewer</span>
+                          <span className="size-1.5 rounded-full bg-green-500" />
+                          <span className="text-green-600">Online</span>
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Section Unlock Request - Only for REVISION_REQUIRED status */}
-        <SectionUnlockRequest
-          certificateId={certificateId}
-          certificateStatus={formData.status}
-        />
-      </div>
+                {/* Chat Messages Area */}
+                <div className="flex-1 min-h-0 overflow-hidden text-xs">
+                  {reviewerName ? (
+                    <ChatSidebar
+                      isOpen={true}
+                      onClose={() => {}}
+                      certificateId={certificateId}
+                      threadType="ASSIGNEE_REVIEWER"
+                      embedded={true}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-slate-400 text-xs p-4 text-center">
+                      <div>
+                        <MessageSquare className="size-8 mx-auto mb-2 text-slate-300" />
+                        <p className="font-medium text-slate-600">No reviewer assigned yet</p>
+                        <p className="text-[10px] mt-1 text-slate-400">Chat will be available once a reviewer is assigned</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Section Unlock Request - Only for REVISION_REQUIRED status */}
+          <SectionUnlockRequest
+            certificateId={certificateId}
+            certificateStatus={formData.status}
+          />
+        </div>
+      )}
 
       {/* Conflict Resolution Dialog */}
       <ConflictResolutionDialog

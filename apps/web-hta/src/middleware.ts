@@ -37,6 +37,7 @@ function buildCSP(): string {
     'script-src': [
       "'self'",
       "'unsafe-inline'",  // Required: Next.js App Router doesn't support nonces
+      "'wasm-unsafe-eval'",  // Required: PDF generation uses WebAssembly
     ],
     'style-src': [
       "'self'",
@@ -49,14 +50,17 @@ function buildCSP(): string {
       'https://storage.googleapis.com',
       'https://*.googleusercontent.com',
     ],
-    'font-src': ["'self'", 'data:'],
+    'font-src': ["'self'", 'data:', 'https://unpkg.com'],
     'connect-src': [
       "'self'",
+      'blob:',
+      'https://unpkg.com',  // @react-pdf/renderer fetches fonts from unpkg
       'https://*.sentry.io',
       'wss://*.pusher.com',
       ...(isProduction ? [] : ['ws://localhost:*', 'http://localhost:*']),
     ],
-    'frame-src': ["'self'"],
+    'worker-src': ["'self'", 'blob:'],
+    'frame-src': ["'self'", 'blob:', 'https://storage.googleapis.com'],
     'frame-ancestors': ["'none'"],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],

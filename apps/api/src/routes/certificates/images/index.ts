@@ -292,7 +292,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Upload to storage
     const storage = getImageStorageProvider()
-    const storageBucket = process.env.GCS_IMAGES_BUCKET || process.env.GCS_CERTIFICATES_BUCKET || null
+    const storageBucket = process.env.GCS_IMAGES_BUCKET || process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET || null
 
     const storageKey = generateImageStorageKey(
       {
