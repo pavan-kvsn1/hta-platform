@@ -111,7 +111,7 @@ export function ReviewerPageClient({
   const [isDownloading, setIsDownloading] = useState(false)
 
   const decisionMade = ['APPROVED', 'PENDING_CUSTOMER_APPROVAL', 'PENDING_ADMIN_AUTHORIZATION', 'AUTHORIZED', 'REJECTED'].includes(certificate.status)
-  const canReview = !decisionMade
+  const canReview = !decisionMade && certificate.status !== 'REVISION_REQUIRED'
   const isRevisionRequired = certificate.status === 'REVISION_REQUIRED'
   const isCustomerRevisionRequired = certificate.status === 'CUSTOMER_REVISION_REQUIRED'
   const isPendingCustomer = certificate.status === 'PENDING_CUSTOMER_APPROVAL'

@@ -960,13 +960,13 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ error: 'Certificate not found' })
     }
 
-    // Verify reviewer
-    if (certificate.reviewerId !== userId) {
+    // Verify reviewer (admins can also review)
+    if (certificate.reviewerId !== userId && !request.user!.isAdmin) {
       return reply.status(403).send({ error: 'You are not the reviewer for this certificate' })
     }
 
     // Check status
-    const reviewableStatuses = ['PENDING_REVIEW', 'CUSTOMER_REVISION_REQUIRED']
+    const reviewableStatuses = ['DRAFT', 'PENDING_REVIEW', 'CUSTOMER_REVISION_REQUIRED']
     if (!reviewableStatuses.includes(certificate.status)) {
       return reply.status(400).send({ error: `Certificate is not in a reviewable state: ${certificate.status}` })
     }
