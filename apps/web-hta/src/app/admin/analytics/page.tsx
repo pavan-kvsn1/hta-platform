@@ -16,8 +16,8 @@ import {
   Clock,
   BarChart3,
   ChevronRight,
-  Unlock,
-  GitPullRequestArrow,
+  // Unlock,
+  // GitPullRequestArrow,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -254,7 +254,7 @@ export default function AnalyticsPage() {
   const toggleRow = (id: string) => {
     setExpandedRows((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
   }

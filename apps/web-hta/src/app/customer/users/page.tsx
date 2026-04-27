@@ -30,7 +30,7 @@ import {
   Clock,
   AlertCircle,
   User,
-  PenTool,
+  // PenTool,
   ArrowRightLeft,
   ArrowLeft,
   ArrowRight,
@@ -135,7 +135,7 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [tableUsers, setTableUsers] = useState<TeamMember[]>([])
   const [tablePagination, setTablePagination] = useState<Pagination | null>(null)
-  const [tableLoading, setTableLoading] = useState(false)
+  const [_tableLoading, setTableLoading] = useState(false)
 
   const debouncedSearch = useDebounce(searchQuery)
 
