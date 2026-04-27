@@ -11,7 +11,7 @@ import { AdminEditPanel } from './AdminEditPanel'
 import { AdminReviewActions } from './AdminReviewActions'
 import { InlinePDFViewer } from '@/app/(dashboard)/dashboard/reviewer/[id]/InlinePDFViewer'
 import { cn } from '@/lib/utils'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { MessageSquare, Pencil, Settings2, X } from 'lucide-react'
 import type {
   CertificateData,
   Assignee,
@@ -49,18 +49,12 @@ export function AdminCertificateClient({
   headerData,
   reviewers,
 }: AdminCertificateClientProps) {
-  // View mode state: 'details' shows certificate content, 'pdf' shows PDF preview
   const [viewMode, setViewMode] = useState<'details' | 'pdf'>('details')
   const [isDownloading, setIsDownloading] = useState(false)
-
-  // Collapsible panel states
-  const [isChatExpanded, setIsChatExpanded] = useState(true)
-  const [isEditExpanded, setIsEditExpanded] = useState(true)
-  const [isReviewExpanded, setIsReviewExpanded] = useState(true)
+  const [isChatVisible, setIsChatVisible] = useState(true)
 
   const isAuthorized = headerData.status === 'AUTHORIZED'
 
-  // Handle download PDF
   const handleDownload = useCallback(async () => {
     setIsDownloading(true)
     try {
@@ -87,142 +81,108 @@ export function AdminCertificateClient({
   }, [certificate.id, certificate.certificateNumber])
 
   return (
-    <div className="flex h-full bg-slate-100 overflow-hidden">
-      {/* Left Side - Header + Content (Scrollable) */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Certificate Card - Bounding Box */}
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Header Section - Fixed at top of content area */}
-          <AdminCertificateHeader
-            headerData={headerData}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            isAuthorized={isAuthorized}
-            onDownload={isAuthorized ? handleDownload : undefined}
-            isDownloading={isDownloading}
-          />
+    <div className="flex h-full bg-[#f1f5f9] overflow-hidden">
+      {/* Left Side - Header + Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-auto p-6 pr-3">
+        {/* Header */}
+        <AdminCertificateHeader
+          headerData={headerData}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          isAuthorized={isAuthorized}
+          onDownload={isAuthorized ? handleDownload : undefined}
+          isDownloading={isDownloading}
+        />
 
-          {/* Content Area - Scrollable */}
-          <div className="flex-1 overflow-auto bg-slate-50/30">
-            {viewMode === 'details' ? (
-              <div className="p-3 space-y-6] bg-section-inner">
-                <AdminCertificateContent
-                  certificate={certificate}
-                  assignee={assignee}
-                />
-                <AdminHistorySection
-                  feedbacks={feedbacks}
-                  events={events}
-                  currentRevision={certificate.currentRevision}
-                />
-              </div>
-            ) : (
-              <InlinePDFViewer
-                certificateId={certificate.id}
-                certificateNumber={certificate.certificateNumber}
-              />
-            )}
+        {/* Content Area */}
+        {viewMode === 'details' ? (
+          <div className="space-y-5 mt-5">
+            <AdminCertificateContent
+              certificate={certificate}
+              assignee={assignee}
+            />
+            <AdminHistorySection
+              feedbacks={feedbacks}
+              events={events}
+              currentRevision={certificate.currentRevision}
+            />
           </div>
-        </div>
+        ) : (
+          <div className="mt-5 flex-1 bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+            <InlinePDFViewer
+              certificateId={certificate.id}
+              certificateNumber={certificate.certificateNumber}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Right Panel - Collapsible Chat, Edit & Review */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col p-3 overflow-y-auto bg-section-inner">
-        {/* Chat Section */}
-        <div className={cn(
-          'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',
-          isChatExpanded ? 'min-h-[730px] max-h-[1000px]' : 'flex-shrink-0'
-        )}>
-          {/* Chat Header - Collapsible */}
-          <button
-            onClick={() => setIsChatExpanded(!isChatExpanded)}
-            className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {isChatExpanded ? (
-                <ChevronDown className="size-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="size-4 text-slate-400" />
-              )}
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Chat</span>
-            </div>
-            {!isChatExpanded && (
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span>Eng</span>
-                <span>|</span>
-                <span>Cust</span>
+      {/* Right Panel */}
+      <div className="w-[380px] flex-shrink-0 flex flex-col gap-2.5 p-6 pl-3 overflow-y-auto">
+        {/* Chat Panel — always expanded when visible, closeable */}
+        {isChatVisible ? (
+          <div className={cn(
+            'flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden',
+            'flex-1 min-h-0'
+          )}>
+            {/* Chat Header */}
+            <div className="flex items-center justify-between px-[18px] py-[13px] bg-[#f8fafc] border-b border-[#f1f5f9] flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="size-[14px] text-[#94a3b8]" />
+                <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Chat</span>
               </div>
-            )}
-          </button>
+              <button
+                onClick={() => setIsChatVisible(false)}
+                className="p-1 text-[#94a3b8] hover:text-[#0f172a] hover:bg-[#f1f5f9] rounded-md transition-colors"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
 
-          {/* Chat Content - Only when expanded */}
-          {isChatExpanded && (
-            <div className="flex-1 min-h-0 border-t border-slate-100">
+            {/* Chat Content */}
+            <div className="flex-1 min-h-0">
               <AdminChatPanel
                 certificateId={certificate.id}
                 assignee={assignee}
                 customerName={certificate.customerName}
               />
             </div>
-          )}
+          </div>
+        ) : (
+          /* Collapsed: small button to reopen */
+          <button
+            onClick={() => setIsChatVisible(true)}
+            className="flex items-center gap-2 px-[18px] py-[13px] bg-white rounded-[14px] border border-[#e2e8f0] hover:bg-[#f8fafc] transition-colors flex-shrink-0"
+          >
+            <MessageSquare className="size-[14px] text-[#94a3b8]" />
+            <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Open Chat</span>
+          </button>
+        )}
+
+        {/* Edit Actions — always visible */}
+        <div className="flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden flex-shrink-0">
+          <div className="flex items-center gap-2 px-[18px] py-[13px] bg-[#f8fafc] border-b border-[#f1f5f9]">
+            <Pencil className="size-[14px] text-[#94a3b8]" />
+            <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Edit Actions</span>
+          </div>
+          <AdminEditPanel
+            certificate={certificate}
+            reviewer={reviewer}
+            reviewers={reviewers}
+            events={events}
+          />
         </div>
 
-        {/* Edit Section */}
-        <div className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
-          {/* Edit Header - Collapsible */}
-          <button
-            onClick={() => setIsEditExpanded(!isEditExpanded)}
-            className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {isEditExpanded ? (
-                <ChevronDown className="size-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="size-4 text-slate-400" />
-              )}
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Edit Actions</span>
-            </div>
-          </button>
-
-          {/* Edit Content - Only when expanded */}
-          {isEditExpanded && (
-            <div className="border-t border-slate-100">
-              <AdminEditPanel
-                certificate={certificate}
-                reviewer={reviewer}
-                reviewers={reviewers}
-                events={events}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Review Actions Section */}
-        <div className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
-          {/* Review Header - Collapsible */}
-          <button
-            onClick={() => setIsReviewExpanded(!isReviewExpanded)}
-            className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {isReviewExpanded ? (
-                <ChevronDown className="size-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="size-4 text-slate-400" />
-              )}
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Review Actions</span>
-            </div>
-          </button>
-
-          {/* Review Content - Only when expanded */}
-          {isReviewExpanded && (
-            <div className="border-t border-slate-100">
-              <AdminReviewActions
-                certificate={certificate}
-                assignee={assignee}
-              />
-            </div>
-          )}
+        {/* Review Actions — always visible */}
+        <div className="flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden flex-shrink-0">
+          <div className="flex items-center gap-2 px-[18px] py-[13px] bg-[#f8fafc] border-b border-[#f1f5f9]">
+            <Settings2 className="size-[14px] text-[#94a3b8]" />
+            <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Review Actions</span>
+          </div>
+          <AdminReviewActions
+            certificate={certificate}
+            assignee={assignee}
+          />
         </div>
       </div>
     </div>

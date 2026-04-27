@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { DashboardSidebar } from '@/components/layout/DashboardSidebar'
-import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { AppFooter } from '@/components/layout/AppFooter'
+import { Menu } from 'lucide-react'
 
 export default function DashboardLayout({
   children,
@@ -63,10 +63,14 @@ export default function DashboardLayout({
 
       {/* Main Area */}
       <div className="flex-1 h-full flex flex-col min-w-0">
-        {/* Header */}
-        <DashboardHeader
-          onMobileMenuToggle={handleMobileMenuToggle}
-        />
+        {/* Mobile menu button */}
+        <button
+          onClick={handleMobileMenuToggle}
+          className="lg:hidden fixed top-3 left-3 z-[55] p-2 rounded-lg bg-white border border-[#e2e8f0] text-[#64748b] shadow-sm"
+          aria-label="Toggle menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
 
         {/* Main Content */}
         <main className="flex-1 h-full min-h-0 overflow-auto flex flex-col">

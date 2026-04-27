@@ -5,8 +5,6 @@ import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect, use, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -21,7 +19,8 @@ import {
   AlertCircle,
   Wrench,
   FileText,
-  ArrowLeft,
+  ChevronLeft,
+  Loader2,
 } from 'lucide-react'
 
 interface RangeDataItem {
@@ -72,39 +71,38 @@ interface CertificateUsage {
   sopReference: string
 }
 
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'VALID':
-      return (
-        <Badge className="bg-green-100 text-green-800">
-          <CheckCircle className="h-3 w-3 mr-1" />
-          Valid
-        </Badge>
-      )
-    case 'EXPIRING_SOON':
-      return (
-        <Badge className="bg-amber-100 text-amber-800">
-          <Clock className="h-3 w-3 mr-1" />
-          Expiring
-        </Badge>
-      )
-    case 'EXPIRED':
-      return (
-        <Badge className="bg-red-100 text-red-800">
-          <AlertCircle className="h-3 w-3 mr-1" />
-          Expired
-        </Badge>
-      )
-    case 'UNDER_RECAL':
-      return (
-        <Badge className="bg-blue-100 text-blue-800">
-          <Wrench className="h-3 w-3 mr-1" />
-          Recal
-        </Badge>
-      )
-    default:
-      return <Badge>{status}</Badge>
+const STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle; bg: string; text: string; border: string }> = {
+  VALID: { label: 'Valid', icon: CheckCircle, bg: 'bg-[#f0fdf4]', text: 'text-[#16a34a]', border: 'border-[#bbf7d0]' },
+  EXPIRING_SOON: { label: 'Expiring', icon: Clock, bg: 'bg-[#fffbeb]', text: 'text-[#d97706]', border: 'border-[#fde68a]' },
+  EXPIRED: { label: 'Expired', icon: AlertCircle, bg: 'bg-[#fef2f2]', text: 'text-[#dc2626]', border: 'border-[#fecaca]' },
+  UNDER_RECAL: { label: 'Recal', icon: Wrench, bg: 'bg-[#eff6ff]', text: 'text-[#2563eb]', border: 'border-[#bfdbfe]' },
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const config = STATUS_CONFIG[status]
+  if (!config) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.05em] text-[#64748b] bg-[#f8fafc] border border-[#e2e8f0] rounded-full">
+        {status}
+      </span>
+    )
   }
+  const Icon = config.icon
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.05em] ${config.text} ${config.bg} border ${config.border} rounded-full`}>
+      <Icon className="size-3" />
+      {config.label}
+    </span>
+  )
+}
+
+function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">{label}</p>
+      <p className="text-[13px] text-[#0f172a]">{children}</p>
+    </div>
+  )
 }
 
 export default function CustomerInstrumentDetailPage({
@@ -146,38 +144,37 @@ export default function CustomerInstrumentDetailPage({
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-'
-    return new Date(dateStr).toLocaleDateString()
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    })
   }
 
   if (loading) {
     return (
-      <div className="p-3 h-full">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-          <div className="p-6 flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600"></div>
-          </div>
-        </div>
+      <div className="h-full overflow-auto bg-[#f1f5f9] flex items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
       </div>
     )
   }
 
   if (!instrument) {
     return (
-      <div className="p-3 h-full">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-          <div className="p-6 space-y-6">
-            <div className="flex items-center gap-4">
-              <Link
-                href="/customer/instruments"
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <h1 className="text-2xl font-bold text-slate-900">Instrument Not Found</h1>
-            </div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-              {error || 'The requested instrument could not be found.'}
-            </div>
+      <div className="h-full overflow-auto bg-[#f1f5f9]">
+        <div className="px-6 sm:px-9 py-8">
+          <div className="flex items-center gap-2.5 mb-6">
+            <Link
+              href="/customer/instruments"
+              className="text-[#94a3b8] hover:text-[#475569] transition-colors"
+            >
+              <ChevronLeft className="size-[18px]" strokeWidth={2} />
+            </Link>
+            <span className="text-[#e2e8f0] text-lg">|</span>
+            <h1 className="text-[18px] font-bold text-[#0f172a]">Instrument Not Found</h1>
+          </div>
+          <div className="bg-[#fef2f2] border border-[#fecaca] rounded-[14px] p-4 text-[13px] text-[#dc2626]">
+            {error || 'The requested instrument could not be found.'}
           </div>
         </div>
       </div>
@@ -185,225 +182,163 @@ export default function CustomerInstrumentDetailPage({
   }
 
   return (
-    <div className="p-3 h-full">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-        <div className="p-6 overflow-auto h-full space-y-8">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/customer/instruments"
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold text-slate-900">
-                    {instrument.description}
-                  </h1>
-                  {getStatusBadge(instrument.status)}
-                </div>
-                <p className="text-sm text-slate-600 mt-1">
-                  Asset: {instrument.assetNumber} | Category: {instrument.category}
-                </p>
-              </div>
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="px-6 sm:px-9 py-8 space-y-6">
+        {/* Header */}
+        <div>
+          <div className="flex items-center gap-2.5 mb-3">
+            <Link
+              href="/customer/instruments"
+              className="text-[#94a3b8] hover:text-[#475569] transition-colors"
+            >
+              <ChevronLeft className="size-[18px]" strokeWidth={2} />
+            </Link>
+            <span className="text-[#e2e8f0] text-lg">|</span>
+            <h1 className="text-[22px] font-extrabold tracking-tight text-[#0f172a]">
+              {instrument.description}
+            </h1>
+            <StatusBadge status={instrument.status} />
+          </div>
+          <div className="flex items-center gap-3 text-[12.5px] text-[#64748b] ml-[42px]">
+            <span>Asset: <span className="font-medium text-[#0f172a]">{instrument.assetNumber}</span></span>
+            <span className="text-[#e2e8f0]">|</span>
+            <span>Category: <span className="font-medium text-[#0f172a]">{instrument.category}</span></span>
+            <span className="text-[#e2e8f0]">|</span>
+            <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium text-[#475569] bg-[#f1f5f9] rounded-[5px]">
+              Used in {totalCertificates} cert{totalCertificates !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+
+        {/* Instrument Details */}
+        <div className="bg-white border border-[#e2e8f0] rounded-[14px] overflow-hidden">
+          {/* Basic Information */}
+          <div className="px-6 py-5 border-b border-[#f1f5f9]">
+            <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-4">
+              Basic Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <DetailField label="Category">{instrument.category}</DetailField>
+              <DetailField label="Asset Number">{instrument.assetNumber}</DetailField>
+              <DetailField label="Description">{instrument.description}</DetailField>
             </div>
-            <Badge variant="secondary" className="text-base px-3 py-1">
-              Used in {totalCertificates} of your certificate
-              {totalCertificates !== 1 ? 's' : ''}
-            </Badge>
           </div>
 
-          {/* Instrument Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Instrument Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Basic Information */}
+          {/* Equipment Details */}
+          <div className="px-6 py-5 border-b border-[#f1f5f9]">
+            <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-4">
+              Equipment Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <DetailField label="Make">{instrument.make || '-'}</DetailField>
+              <DetailField label="Model">{instrument.model || '-'}</DetailField>
+              <DetailField label="Serial Number">{instrument.serialNumber || '-'}</DetailField>
+            </div>
+          </div>
+
+          {/* Calibration Information */}
+          <div className="px-6 py-5 border-b border-[#f1f5f9]">
+            <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-4">
+              Calibration Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              <DetailField label="Calibrated At">{instrument.calibratedAtLocation || '-'}</DetailField>
+              <DetailField label="Report Number">{instrument.reportNo || '-'}</DetailField>
+              <DetailField label="Due Date">{formatDate(instrument.calibrationDueDate)}</DetailField>
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                  Basic Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-500">Category</p>
-                    <p className="text-sm text-slate-900">{instrument.category}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Asset Number</p>
-                    <p className="text-sm text-slate-900 font-mono">
-                      {instrument.assetNumber}
-                    </p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-xs text-slate-500">Description</p>
-                    <p className="text-sm text-slate-900">{instrument.description}</p>
-                  </div>
-                </div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">Status</p>
+                <StatusBadge status={instrument.status} />
               </div>
+            </div>
+          </div>
 
-              {/* Equipment Details */}
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                  Equipment Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-500">Make</p>
-                    <p className="text-sm text-slate-900">{instrument.make || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Model</p>
-                    <p className="text-sm text-slate-900">{instrument.model || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Serial Number</p>
-                    <p className="text-sm text-slate-900">
-                      {instrument.serialNumber || '-'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Calibration Information */}
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                  Calibration Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-500">Calibrated At</p>
-                    <p className="text-sm text-slate-900">
-                      {instrument.calibratedAtLocation || '-'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Report Number</p>
-                    <p className="text-sm text-slate-900">{instrument.reportNo || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Calibration Due Date</p>
-                    <p className="text-sm text-slate-900">
-                      {formatDate(instrument.calibrationDueDate)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Status</p>
-                    <div className="mt-1">{getStatusBadge(instrument.status)}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Range Data */}
-              {instrument.rangeData && instrument.rangeData.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-3">Range Data</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                            Parameter
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                            Min
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                            Max
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                            Unit
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                            Uncertainty
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-slate-200">
-                        {instrument.rangeData.map((range, idx) => (
-                          <tr key={idx}>
-                            <td className="px-4 py-2 text-sm text-slate-900">
-                              {range.parameter || '-'}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-slate-900">
-                              {range.min || '-'}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-slate-900">
-                              {range.max || '-'}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-slate-900">
-                              {range.unit || '-'}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-slate-900">
-                              {range.uncertainty || '-'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Certificates Using This Instrument */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-slate-400" />
-                Your Certificates Using This Instrument
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {certificates.length === 0 ? (
-                <p className="text-slate-500 text-sm py-4 text-center">
-                  No certificates found using this instrument.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Certificate No.</TableHead>
-                      <TableHead>UUC Description</TableHead>
-                      <TableHead>Parameter</TableHead>
-                      <TableHead>Date of Calibration</TableHead>
-                      <TableHead>Due Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {certificates.map((cert) => (
-                      <TableRow
-                        key={`${cert.id}-${cert.parameter?.id || 'no-param'}`}
-                        className="cursor-pointer hover:bg-slate-50"
-                        onClick={() => router.push(`/customer/certificates/${cert.id}`)}
-                      >
-                        <TableCell className="font-mono text-sm">
-                          {cert.certificateNumber}
-                        </TableCell>
-                        <TableCell className="text-sm max-w-[200px] truncate">
-                          {cert.uucDescription || '-'}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {cert.parameter
-                            ? `${cert.parameter.parameterName} (${cert.parameter.parameterUnit})`
-                            : '-'}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {formatDate(cert.dateOfCalibration)}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {formatDate(cert.calibrationDueDate)}
-                        </TableCell>
-                      </TableRow>
+          {/* Range Data */}
+          {instrument.rangeData && instrument.rangeData.length > 0 && (
+            <div className="px-6 py-5">
+              <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-4">
+                Range Data
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-[#f1f5f9]">
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Parameter</th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Min</th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Max</th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Unit</th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Uncertainty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {instrument.rangeData.map((range, idx) => (
+                      <tr key={idx} className="border-b border-[#f1f5f9] last:border-0">
+                        <td className="px-4 py-2.5 text-[13px] text-[#0f172a]">{range.parameter || '-'}</td>
+                        <td className="px-4 py-2.5 text-[13px] text-[#64748b]">{range.min || '-'}</td>
+                        <td className="px-4 py-2.5 text-[13px] text-[#64748b]">{range.max || '-'}</td>
+                        <td className="px-4 py-2.5 text-[13px] text-[#64748b]">{range.unit || '-'}</td>
+                        <td className="px-4 py-2.5 text-[13px] text-[#64748b]">{range.uncertainty || '-'}</td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Certificates Using This Instrument */}
+        <div className="bg-white border border-[#e2e8f0] rounded-[14px] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#f1f5f9] flex items-center gap-2.5">
+            <FileText className="size-4 text-[#94a3b8]" />
+            <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+              Your Certificates Using This Instrument
+            </span>
+          </div>
+
+          {certificates.length === 0 ? (
+            <div className="py-10 text-center">
+              <p className="text-[13px] text-[#94a3b8]">No certificates found using this instrument.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-[#f1f5f9] hover:bg-transparent">
+                  <TableHead className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] h-10">Certificate No.</TableHead>
+                  <TableHead className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] h-10">UUC Description</TableHead>
+                  <TableHead className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] h-10">Parameter</TableHead>
+                  <TableHead className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] h-10">Date of Calibration</TableHead>
+                  <TableHead className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] h-10">Due Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {certificates.map((cert) => (
+                  <TableRow
+                    key={`${cert.id}-${cert.parameter?.id || 'no-param'}`}
+                    className="cursor-pointer hover:bg-[#f8fafc] border-b border-[#f1f5f9] last:border-0"
+                    onClick={() => router.push(`/customer/certificates/${cert.id}`)}
+                  >
+                    <TableCell className="text-[13px] font-medium text-[#0f172a]">
+                      {cert.certificateNumber}
+                    </TableCell>
+                    <TableCell className="text-[13px] text-[#64748b] max-w-[200px] truncate">
+                      {cert.uucDescription || '-'}
+                    </TableCell>
+                    <TableCell className="text-[13px] text-[#64748b]">
+                      {cert.parameter
+                        ? `${cert.parameter.parameterName} (${cert.parameter.parameterUnit})`
+                        : '-'}
+                    </TableCell>
+                    <TableCell className="text-[13px] text-[#64748b]">
+                      {formatDate(cert.dateOfCalibration)}
+                    </TableCell>
+                    <TableCell className="text-[13px] text-[#64748b]">
+                      {formatDate(cert.calibrationDueDate)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </div>
     </div>

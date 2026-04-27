@@ -20,9 +20,11 @@ interface SummarySectionProps {
   reviewerName?: string | null
   feedbackSlot?: React.ReactNode
   disabled?: boolean
+  accordionStatus?: 'default' | 'locked' | 'unlocked' | 'pending'
+  hasFeedback?: boolean
 }
 
-export function SummarySection({ isNewCertificate = true, certificateId, reviewerName, feedbackSlot, disabled }: SummarySectionProps) {
+export function SummarySection({ isNewCertificate = true, certificateId, reviewerName, feedbackSlot, disabled, accordionStatus, hasFeedback }: SummarySectionProps) {
   const { formData, setFormField } = useCertificateStore()
   const [isCheckingNumber, setIsCheckingNumber] = useState(false)
   const [numberExists, setNumberExists] = useState<boolean | null>(null)
@@ -90,6 +92,8 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
       title="Summary Information"
       feedbackSlot={feedbackSlot}
       disabled={disabled}
+      accordionStatus={accordionStatus}
+      hasFeedback={hasFeedback}
     >
       <div className="space-y-4 p-5 rounded-xl border border-slate-300 bg-section-inner">
         {isNewCertificate ? (

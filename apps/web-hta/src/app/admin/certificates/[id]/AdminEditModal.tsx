@@ -3,9 +3,6 @@
 import { apiFetch } from '@/lib/api-client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -110,62 +107,63 @@ export function AdminEditModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+      <div className="bg-white rounded-[14px] shadow-2xl max-w-md w-full overflow-hidden">
         {/* Header */}
-        <div className="px-4 py-3 border-b flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-[#e2e8f0] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-amber-100 rounded-lg">
-              <Shield className="h-4 w-4 text-amber-600" />
+            <div className="p-1.5 bg-[#fef3c7] rounded-[9px]">
+              <Shield className="size-4 text-[#d97706]" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Edit {fieldLabel}</h2>
-              <p className="text-xs text-slate-500">Admin override with audit trail</p>
+              <h2 className="text-[13px] font-semibold text-[#0f172a]">Edit {fieldLabel}</h2>
+              <p className="text-[11px] text-[#94a3b8]">Admin override with audit trail</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1 hover:bg-[#f1f5f9] rounded-md transition-colors"
           >
-            <X className="h-4 w-4 text-gray-500" />
+            <X className="size-4 text-[#94a3b8]" />
           </button>
         </div>
 
         {/* Content */}
         <div className="p-4 space-y-4">
           {/* Current Value */}
-          <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-            <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">
+          <div className="bg-[#f8fafc] rounded-[9px] p-3 border border-[#e2e8f0]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">
               Current Value
             </p>
-            <p className="text-sm font-medium text-slate-900">
+            <p className="text-[13px] font-medium text-[#0f172a]">
               {getDisplayValue(currentValue)}
             </p>
           </div>
 
           {/* New Value Input */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
-              New Value <span className="text-red-500">*</span>
+            <label className="block text-[12px] font-semibold text-[#0f172a] mb-1.5">
+              New Value <span className="text-[#dc2626]">*</span>
             </label>
             {fieldType === 'text' && (
-              <Input
+              <input
+                type="text"
                 value={newValue}
                 onChange={(e) => setNewValue(e.target.value)}
                 placeholder={`Enter new ${fieldLabel.toLowerCase()}`}
-                className="text-sm"
+                className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
               />
             )}
             {fieldType === 'date' && (
-              <Input
+              <input
                 type="date"
                 value={formatDateForInput(newValue)}
                 onChange={(e) => setNewValue(e.target.value)}
-                className="text-sm"
+                className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
               />
             )}
             {fieldType === 'select' && options && (
               <Select value={newValue} onValueChange={setNewValue}>
-                <SelectTrigger className="text-sm">
+                <SelectTrigger className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed]">
                   <SelectValue placeholder={`Select ${fieldLabel.toLowerCase()}`} />
                 </SelectTrigger>
                 <SelectContent>
@@ -181,58 +179,55 @@ export function AdminEditModal({
 
           {/* Reason */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
-              Reason for Change <span className="text-red-500">*</span>
+            <label className="block text-[12px] font-semibold text-[#0f172a] mb-1.5">
+              Reason for Change <span className="text-[#dc2626]">*</span>
             </label>
-            <Textarea
+            <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Explain why this change is necessary..."
               rows={3}
-              className="resize-none text-sm"
+              className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none resize-none"
             />
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-[10px] text-[#94a3b8] mt-1">
               This will be recorded in the audit log.
             </p>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-xs text-red-700">{error}</p>
+            <div className="p-2 bg-[#fef2f2] border border-[#fecaca] rounded-[9px]">
+              <p className="text-[12px] text-[#dc2626]">{error}</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+        <div className="px-4 py-3 border-t border-[#e2e8f0] bg-[#f8fafc] flex items-center justify-end gap-2">
+          <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="text-xs"
+            className="px-3 py-1.5 text-[12.5px] font-semibold text-[#64748b] border border-[#e2e8f0] hover:bg-[#f1f5f9] rounded-[9px] transition-colors disabled:opacity-40"
           >
             Cancel
-          </Button>
-          <Button
-            size="sm"
+          </button>
+          <button
             onClick={handleSubmit}
             disabled={isSubmitting || !newValue || !reason.trim()}
-            className="bg-amber-600 hover:bg-amber-700 text-white text-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-white bg-[#d97706] hover:bg-[#b45309] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                <Loader2 className="size-3.5 animate-spin" />
                 Saving...
               </>
             ) : (
               <>
-                <Shield className="h-3.5 w-3.5 mr-1.5" />
+                <Shield className="size-3.5" />
                 Save Change
               </>
             )}
-          </Button>
+          </button>
         </div>
       </div>
     </div>

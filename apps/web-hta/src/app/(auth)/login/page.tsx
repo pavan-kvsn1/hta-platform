@@ -6,9 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import Image from 'next/image'
 import { Loader2 } from 'lucide-react'
-import { tenantConfig } from '@/config/tenant'
 
 function StaffLoginForm() {
   const router = useRouter()
@@ -23,7 +21,6 @@ function StaffLoginForm() {
   const [loginError, setLoginError] = useState<string | null>(null)
   const [csrfToken, setCsrfToken] = useState<string | undefined>()
 
-  // Fetch CSRF token on mount
   useEffect(() => {
     getCsrfToken().then(setCsrfToken)
   }, [])
@@ -49,19 +46,16 @@ function StaffLoginForm() {
           setLoginError('Invalid email or password')
         }
       } else if (result?.ok) {
-        // Check if 2FA is required by fetching session
         const sessionRes = await fetch('/api/auth/session')
         const session = await sessionRes.json()
 
         if (session?.user?.requires2FA) {
-          // 2FA required - show code input
           setRequires2FA(true)
           setTotpCode('')
           setIsLoading(false)
           return
         }
 
-        // Issue refresh token after successful login
         try {
           await fetch('/api/auth/issue-refresh-token', {
             method: 'POST',
@@ -71,7 +65,6 @@ function StaffLoginForm() {
           console.warn('Failed to issue refresh token:', err)
         }
 
-        // Route admins to admin page, others to dashboard
         const destination = searchParams.get('callbackUrl')
           || (session?.user?.role === 'ADMIN' ? '/admin' : '/dashboard')
         router.push(destination)
@@ -84,7 +77,6 @@ function StaffLoginForm() {
     }
   }
 
-  // Reset 2FA state when email changes
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value)
     if (requires2FA) {
@@ -94,37 +86,28 @@ function StaffLoginForm() {
   }
 
   return (
-    <div className="bg-card rounded-lg shadow-lg p-8">
-      {/* Logo and Header */}
-      <div className="text-center mb-8">
-        <div className="flex justify-center mb-4">
-          <Image
-            src={tenantConfig.branding.logoUrl}
-            alt={tenantConfig.branding.logoAlt}
-            width={120}
-            height={60}
-            className="object-contain"
-          />
-        </div>
-        <h1 className="text-2xl font-bold text-foreground">
-          {tenantConfig.metadata.title}
-        </h1>
-        <p className="text-muted-foreground mt-2">Staff Login</p>
-      </div>
+    <>
+      <h1 className="text-[30px] font-extrabold tracking-tight text-foreground mb-1.5">
+        Sign in
+      </h1>
+      <p className="text-[15px] text-muted-foreground mb-9 leading-relaxed">
+        Enter your staff credentials to continue
+      </p>
 
-      {/* Error Messages */}
+      {/* Error */}
       {(error || loginError) && (
-        <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+        <div className="mb-5 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
           <p className="text-sm text-destructive">
             {loginError || 'Authentication failed. Please try again.'}
           </p>
         </div>
       )}
 
-      {/* Login Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email Address</Label>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-[18px]">
+          <Label htmlFor="email" className="block text-xs font-bold text-slate-600 mb-[7px] tracking-wide">
+            Email Address
+          </Label>
           <Input
             id="email"
             type="email"
@@ -133,17 +116,16 @@ function StaffLoginForm() {
             onChange={handleEmailChange}
             required
             disabled={isLoading || requires2FA}
-            className="w-full"
+            className="h-11 rounded-[10px] border-border px-3.5 text-sm"
           />
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <a
-              href="/forgot-password"
-              className="text-sm text-primary hover:text-primary/80"
-            >
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-[7px]">
+            <Label htmlFor="password" className="text-xs font-bold text-slate-600 tracking-wide">
+              Password
+            </Label>
+            <a href="/forgot-password" className="text-xs text-primary font-semibold hover:text-primary/80">
               Forgot password?
             </a>
           </div>
@@ -155,14 +137,16 @@ function StaffLoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             disabled={isLoading || requires2FA}
-            className="w-full"
+            className="h-11 rounded-[10px] border-border px-3.5 text-sm"
           />
         </div>
 
-        {/* 2FA Code Input - shown when required */}
+        {/* 2FA */}
         {requires2FA && (
-          <div className="space-y-2">
-            <Label htmlFor="totpCode">Two-Factor Authentication Code</Label>
+          <div className="mb-8">
+            <Label htmlFor="totpCode" className="block text-xs font-bold text-slate-600 mb-[7px] tracking-wide">
+              Two-Factor Authentication Code
+            </Label>
             <p className="text-sm text-muted-foreground mb-2">
               Enter the 6-digit code from your authenticator app
             </p>
@@ -177,10 +161,10 @@ function StaffLoginForm() {
               onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
               required
               disabled={isLoading}
-              className="w-full text-center text-2xl tracking-widest"
+              className="h-11 rounded-[10px] text-center text-2xl tracking-widest"
               autoFocus
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-2">
               Lost your authenticator?{' '}
               <button
                 type="button"
@@ -195,22 +179,24 @@ function StaffLoginForm() {
 
         <Button
           type="submit"
-          className="w-full"
-          disabled={isLoading || !csrfToken || (requires2FA && totpCode.length !== 6)}
+          className="w-full h-[46px] rounded-[10px] bg-primary text-white text-[15px] font-bold mb-6"
+          disabled={isLoading || (requires2FA && totpCode.length !== 6)}
         >
+          {isLoading ? (
+            <Loader2 className="size-4 animate-spin mr-2" />
+          ) : null}
           {isLoading
             ? 'Verifying...'
             : requires2FA
               ? 'Verify & Sign In'
-              : 'Sign In'
-          }
+              : 'Sign in'}
         </Button>
 
         {requires2FA && (
           <Button
             type="button"
             variant="outline"
-            className="w-full"
+            className="w-full h-[46px] rounded-[10px] mb-6"
             onClick={() => {
               setRequires2FA(false)
               setTotpCode('')
@@ -222,38 +208,29 @@ function StaffLoginForm() {
         )}
       </form>
 
-      {/* Customer Login Link */}
-      <div className="mt-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          Customer?{' '}
-          <a
-            href="/customer/login"
-            className="text-primary hover:text-primary/80 font-medium"
-          >
-            Login here
-          </a>
-        </p>
+      {/* Customer link */}
+      <div className="mt-6 pt-5 border-t border-slate-100 text-center flex items-center justify-center gap-1.5">
+        <span className="text-[13px] text-muted-foreground">Customer?</span>
+        <a href="/customer/login" className="text-[13px] text-primary font-bold hover:text-primary/80">
+          Login here &rarr;
+        </a>
       </div>
-    </div>
+    </>
   )
 }
 
 function LoginFormSkeleton() {
   return (
-    <div className="bg-card rounded-lg shadow-lg p-8">
-      <div className="flex justify-center items-center min-h-[300px]">
-        <Loader2 className="size-8 animate-spin text-primary" />
-      </div>
+    <div className="flex justify-center items-center min-h-[300px]">
+      <Loader2 className="size-8 animate-spin text-primary" />
     </div>
   )
 }
 
 export default function LoginPage() {
   return (
-    <div className="max-w-md w-full mx-4">
-      <Suspense fallback={<LoginFormSkeleton />}>
-        <StaffLoginForm />
-      </Suspense>
-    </div>
+    <Suspense fallback={<LoginFormSkeleton />}>
+      <StaffLoginForm />
+    </Suspense>
   )
 }

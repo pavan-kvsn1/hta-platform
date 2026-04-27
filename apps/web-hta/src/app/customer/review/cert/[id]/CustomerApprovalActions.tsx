@@ -13,12 +13,11 @@ import {
   RotateCcw,
   Loader2,
   X,
-  Clock as _Clock,
   FileEdit,
   Send,
   AlertCircle,
+  FileText,
 } from 'lucide-react'
-import { cn as _cn } from '@/lib/utils'
 import type { CertificateData, CustomerData, Signature } from './CustomerCertReviewClient'
 
 interface CustomerApprovalActionsProps {
@@ -41,22 +40,17 @@ export function CustomerApprovalActions({
   const [isRequestingRevision, setIsRequestingRevision] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Modal states
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showRevisionModal, setShowRevisionModal] = useState(false)
 
-  // Form states
   const [revisionNotes, setRevisionNotes] = useState('')
 
-  // Track action taken for immediate UI feedback
   const [actionTaken, setActionTaken] = useState<'approved' | 'revision' | null>(null)
 
-  // Status checks — use actionTaken for immediate feedback, fall back to server status
   const isRevisionRequired = certificate.status === 'REVISION_REQUIRED'
   const isCustomerRevisionRequired = actionTaken === 'revision' || certificate.status === 'CUSTOMER_REVISION_REQUIRED'
   const isApproved = actionTaken === 'approved' || ['APPROVED', 'PENDING_ADMIN_AUTHORIZATION', 'PENDING_ADMIN_APPROVAL', 'AUTHORIZED'].includes(certificate.status)
 
-  // Check if customer already signed
   const customerSignature = signatures.find(s => s.signerType === 'CUSTOMER')
 
   const handleApprove = useCallback(async (data: SignatureData) => {
@@ -64,7 +58,6 @@ export function CustomerApprovalActions({
     setError(null)
 
     try {
-      // Use session-based token format: cert:ID
       const token = `cert:${certificate.id}`
       const encodedToken = encodeURIComponent(token)
 
@@ -103,7 +96,7 @@ export function CustomerApprovalActions({
     } finally {
       setIsApproving(false)
     }
-  }, [certificate.id, customer.email, router])
+  }, [certificate.id, customer.email, router, onStatusChange])
 
   const handleRequestRevision = async () => {
     if (!revisionNotes.trim()) {
@@ -115,7 +108,6 @@ export function CustomerApprovalActions({
     setError(null)
 
     try {
-      // Use session-based token format: cert:ID
       const token = `cert:${certificate.id}`
       const encodedToken = encodeURIComponent(token)
 
@@ -145,79 +137,76 @@ export function CustomerApprovalActions({
   }
 
   return (
-    <div className="px-4 pb-4 pt-3 space-y-3">
+    <div className="px-[18px] pb-[18px] pt-3 space-y-2.5">
       {error && (
-        <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
-          <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+        <div className="p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-lg text-[12px] text-[#dc2626] flex items-center gap-2">
+          <AlertCircle className="size-3.5 flex-shrink-0" />
           {error}
         </div>
       )}
 
-      {/* Customer can take action */}
+      {/* Action Buttons */}
       {canApprove && !customerSignature && (
         <div className="space-y-2">
-          {/* Primary Action - Approve */}
           <Button
             onClick={() => setShowApproveModal(true)}
             size="sm"
-            className="w-full bg-green-600 hover:bg-green-700 text-white h-9 text-xs font-medium"
+            className="w-full bg-[#16a34a] hover:bg-[#15803d] text-white h-9 rounded-[9px] text-[12.5px] font-semibold"
           >
-            <CheckCircle className="h-3.5 w-3.5 mr-2" />
+            <CheckCircle className="size-3.5 mr-1.5" />
             Approve & Sign
           </Button>
 
-          {/* Secondary Action - Request Revision */}
           <Button
             onClick={() => setShowRevisionModal(true)}
-            variant="outline"
             size="sm"
-            className="w-full bg-orange-600 hover:bg-orange-700 text-white h-9 text-xs font-medium"
+            className="w-full bg-[#d97706] hover:bg-[#b45309] text-white h-9 rounded-[9px] text-[12.5px] font-semibold"
           >
-            <RotateCcw className="h-3.5 w-3.5 mr-2" />
+            <RotateCcw className="size-3.5 mr-1.5" />
             Request Revision
           </Button>
 
-          <p className="text-[10px] text-gray-400 text-center pt-1">
+          <p className="text-[10px] text-[#94a3b8] text-center pt-0.5">
             By approving, you confirm all details are correct.
           </p>
         </div>
       )}
 
-      {/* Status Indicators for non-action states */}
+      {/* Status Indicators */}
       {isRevisionRequired && (
-        <div className="flex items-center gap-3 py-3 px-4 bg-blue-50 rounded-xl border border-blue-100">
-          <div className="size-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-            <FileEdit className="h-4 w-4 text-blue-600" />
+        <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#eff6ff] rounded-xl border border-[#bfdbfe]">
+          <div className="size-7 rounded-lg bg-[#dbeafe] flex items-center justify-center flex-shrink-0">
+            <FileEdit className="size-3.5 text-[#2563eb]" />
           </div>
           <div>
-            <p className="text-sm font-medium text-blue-800">Under Revision</p>
-            <p className="text-xs text-blue-600">The engineer is working on updates</p>
+            <p className="text-[12.5px] font-semibold text-[#1e40af]">Under Revision</p>
+            <p className="text-[11px] text-[#2563eb]">The engineer is working on updates</p>
           </div>
         </div>
       )}
 
       {isCustomerRevisionRequired && (
-        <div className="flex items-center gap-3 py-3 px-4 bg-purple-50 rounded-xl border border-purple-100">
-          <div className="size-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <Send className="h-4 w-4 text-purple-600" />
+        <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#faf5ff] rounded-xl border border-[#e9d5ff]">
+          <div className="size-7 rounded-lg bg-[#f3e8ff] flex items-center justify-center flex-shrink-0">
+            <Send className="size-3.5 text-[#7c3aed]" />
           </div>
           <div>
-            <p className="text-sm font-medium text-purple-800">Awaiting Response</p>
-            <p className="text-xs text-purple-600">HTA is reviewing your feedback</p>
+            <p className="text-[12.5px] font-semibold text-[#6b21a8]">Awaiting Response</p>
+            <p className="text-[11px] text-[#7c3aed]">HTA is reviewing your feedback</p>
           </div>
         </div>
       )}
 
       {isApproved && (
-        <div className="flex items-center gap-3 py-3 px-4 bg-green-50 rounded-xl border border-green-100">
-          <div className="size-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-            <CheckCircle className="h-4 w-4 text-green-600" />
+        <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#f0fdf4] rounded-xl border border-[#bbf7d0]">
+          <div className="size-7 rounded-lg bg-[#dcfce7] flex items-center justify-center flex-shrink-0">
+            <CheckCircle className="size-3.5 text-[#16a34a]" />
           </div>
           <div>
-            <p className="text-sm font-medium text-green-800">
+            <p className="text-[12.5px] font-semibold text-[#166534]">
               {certificate.status === 'AUTHORIZED' ? 'Certificate Completed' : 'Certificate Approved'}
             </p>
-            <p className="text-xs text-green-600">
+            <p className="text-[11px] text-[#16a34a]">
               {certificate.status === 'AUTHORIZED'
                 ? 'Fully authorized and ready for download'
                 : 'Awaiting final authorization'}
@@ -226,15 +215,14 @@ export function CustomerApprovalActions({
         </div>
       )}
 
-      {/* If customer already signed */}
       {customerSignature && !isApproved && (
-        <div className="flex items-center gap-3 py-3 px-4 bg-green-50 rounded-xl border border-green-100">
-          <div className="size-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-            <CheckCircle className="h-4 w-4 text-green-600" />
+        <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#f0fdf4] rounded-xl border border-[#bbf7d0]">
+          <div className="size-7 rounded-lg bg-[#dcfce7] flex items-center justify-center flex-shrink-0">
+            <CheckCircle className="size-3.5 text-[#16a34a]" />
           </div>
           <div>
-            <p className="text-sm font-medium text-green-800">You Signed</p>
-            <p className="text-xs text-green-600">Certificate approved by {customerSignature.signerName}</p>
+            <p className="text-[12.5px] font-semibold text-[#166534]">You Signed</p>
+            <p className="text-[11px] text-[#16a34a]">Approved by {customerSignature.signerName}</p>
           </div>
         </div>
       )}
@@ -258,57 +246,65 @@ export function CustomerApprovalActions({
 
       {/* Revision Modal */}
       {showRevisionModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-amber-100 rounded-lg">
-                  <RotateCcw className="h-4 w-4 text-amber-600" />
+            <div className="px-5 py-3.5 border-b border-[#f1f5f9] flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-[#fef3c7] rounded-[9px]">
+                  <RotateCcw className="size-4 text-[#d97706]" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-900">Request Revision</h2>
-                  <p className="text-xs text-slate-500">{certificate.certificateNumber}</p>
+                  <h2 className="text-[14px] font-semibold text-[#0f172a]">Request Revision</h2>
+                  <p className="text-[11px] text-[#94a3b8]">{certificate.certificateNumber}</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowRevisionModal(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-[#f8fafc] rounded-lg transition-colors"
               >
-                <X className="h-4 w-4 text-gray-500" />
+                <X className="size-4 text-[#94a3b8]" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Summary Strip */}
+              <div className="flex items-center gap-2 px-3.5 py-2.5 bg-[#f8fafc] border border-[#f1f5f9] rounded-lg text-[12px] text-[#64748b]">
+                <FileText className="size-3.5 text-[#94a3b8] flex-shrink-0" />
+                <span className="font-semibold text-[#0f172a]">{certificate.uucDescription || '—'}</span>
+                <span className="text-[#e2e8f0]">·</span>
+                <span>{certificate.customerName || '—'}</span>
+              </div>
+
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Please describe what needs to be revised <span className="text-red-500">*</span>
+                <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                  What needs to be revised? <span className="text-[#dc2626]">*</span>
                 </label>
                 <Textarea
                   placeholder="Describe the issues or changes you require..."
                   value={revisionNotes}
                   onChange={(e) => setRevisionNotes(e.target.value)}
                   rows={4}
-                  className="resize-none text-sm focus:ring-amber-500 focus:border-amber-500"
+                  className="resize-none text-[12.5px] md:text-[12.5px] border-[#e2e8f0] rounded-lg focus:ring-[#d97706]/20 focus:border-[#d97706] placeholder:text-[#94a3b8]"
                 />
               </div>
 
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700">
-                <p className="font-medium mb-1">What happens next?</p>
-                <p>Your feedback will be sent to the HTA team for review. They may contact you via the Discussion panel to clarify or resolve any issues.</p>
+              <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-3.5 text-[12px] text-[#1e40af]">
+                <p className="font-semibold mb-1">What happens next?</p>
+                <p className="text-[#2563eb]">Your feedback will be sent to the HTA team. They may contact you via the Discussion panel to clarify or resolve any issues.</p>
               </div>
 
               {error && (
-                <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                  <AlertCircle className="h-3.5 w-3.5 text-red-600 flex-shrink-0" />
-                  <p className="text-xs text-red-700">{error}</p>
+                <div className="flex items-center gap-2 p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-lg">
+                  <AlertCircle className="size-3.5 text-[#dc2626] flex-shrink-0" />
+                  <p className="text-[12px] text-[#dc2626]">{error}</p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-end gap-2 flex-shrink-0">
+            <div className="px-5 py-3 border-t border-[#f1f5f9] bg-[#f8fafc] flex items-center justify-end gap-2 flex-shrink-0">
               <Button
                 variant="outline"
                 size="sm"
@@ -318,7 +314,7 @@ export function CustomerApprovalActions({
                   setError(null)
                 }}
                 disabled={isRequestingRevision}
-                className='text-xs'
+                className="rounded-[9px] border-[#e2e8f0] text-[12.5px] font-semibold text-[#475569]"
               >
                 Cancel
               </Button>
@@ -326,12 +322,12 @@ export function CustomerApprovalActions({
                 size="sm"
                 onClick={handleRequestRevision}
                 disabled={isRequestingRevision || !revisionNotes.trim()}
-                className="bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                className="bg-[#d97706] hover:bg-[#b45309] text-white rounded-[9px] text-[12.5px] font-semibold"
               >
                 {isRequestingRevision ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  <Loader2 className="size-3.5 mr-1.5 animate-spin" />
                 ) : (
-                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                  <RotateCcw className="size-3.5 mr-1.5" />
                 )}
                 Submit Feedback
               </Button>

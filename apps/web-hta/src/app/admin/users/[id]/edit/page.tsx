@@ -5,9 +5,6 @@ import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -15,8 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,7 +22,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { ArrowLeft, Loader2, Users, FileText, Clock as _Clock } from 'lucide-react'
+import {
+  ChevronLeft,
+  Loader2,
+  Users,
+  FileText,
+  UserCog,
+  AlertCircle,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserTATMetrics } from '@/components/admin/UserTATMetrics'
 
@@ -36,7 +38,7 @@ interface User {
   email: string
   name: string
   role: string
-  adminType: string | null  // 'MASTER' | 'WORKER' for admins
+  adminType: string | null
   isAdmin: boolean
   isActive: boolean
   authProvider: string
@@ -149,16 +151,9 @@ export default function EditUserPage({
 
   const handleDeactivate = async () => {
     try {
-      const res = await apiFetch(`/api/admin/users/${id}`, {
-        method: 'DELETE',
-      })
-
+      const res = await apiFetch(`/api/admin/users/${id}`, { method: 'DELETE' })
       const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to deactivate user')
-      }
-
+      if (!res.ok) throw new Error(data.error || 'Failed to deactivate user')
       router.push('/admin/users')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to deactivate user')
@@ -168,22 +163,12 @@ export default function EditUserPage({
 
   const handleReactivate = async () => {
     try {
-      const res = await apiFetch(`/api/admin/users/${id}/reactivate`, {
-        method: 'PUT',
-      })
-
+      const res = await apiFetch(`/api/admin/users/${id}/reactivate`, { method: 'PUT' })
       const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to reactivate user')
-      }
-
-      // Refresh user data
+      if (!res.ok) throw new Error(data.error || 'Failed to reactivate user')
       const userRes = await apiFetch(`/api/admin/users/${id}`)
       const userData = await userRes.json()
-      if (userData.user) {
-        setUser(userData.user)
-      }
+      if (userData.user) setUser(userData.user)
       setShowReactivateDialog(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reactivate user')
@@ -193,22 +178,27 @@ export default function EditUserPage({
 
   if (loading) {
     return (
-      <div className="p-3 h-full">
-        <div className="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden h-full">
-          <div className="p-6 flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
-          </div>
-        </div>
+      <div className="h-full overflow-auto bg-[#f1f5f9] flex items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
       </div>
     )
   }
 
   if (!user) {
     return (
-      <div className="p-3 h-full">
-        <div className="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden h-full">
-          <div className="p-6">
-            <p className="text-red-600">User not found</p>
+      <div className="h-full overflow-auto bg-[#f1f5f9]">
+        <div className="px-6 sm:px-9 py-8">
+          <div className="bg-white border border-[#e2e8f0] rounded-[14px] p-8 text-center">
+            <div className="size-12 bg-[#fef2f2] rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="size-5 text-[#dc2626]" />
+            </div>
+            <p className="text-[13px] text-[#dc2626] mb-4">User not found</p>
+            <button
+              onClick={() => router.push('/admin/users')}
+              className="px-4 py-2 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors"
+            >
+              Back to Users
+            </button>
           </div>
         </div>
       </div>
@@ -216,310 +206,293 @@ export default function EditUserPage({
   }
 
   return (
-    <div className="p-3 h-full bg-section-inner">
-      {/* Master Bounding Box */}
-      <div className="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden h-full">
-        <div className="p-6 overflow-auto h-full">
-          {/* Back Link */}
-          <Link
-            href="/admin/users"
-            className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 mb-6"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Users
-          </Link>
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="px-6 sm:px-9 py-8">
+        {/* Back Link */}
+        <Link
+          href="/admin/users"
+          className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-6 transition-colors"
+        >
+          <ChevronLeft className="size-4" />
+          Back to Users
+        </Link>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Main Form */}
-              <div className="lg:col-span-2 border border-slate-300 rounded-lg">
-                <Card className="h-full">
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Edit Staff User</CardTitle>
-                    {user.isActive ? (
-                      <Button
-                        variant="outline"
-                        className="text-red-600 border-red-300 hover:bg-red-50"
-                        onClick={() => setShowDeactivateDialog(true)}
-                      >
-                        Deactivate User
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="text-green-600 border-green-300 hover:bg-green-50"
-                        onClick={() => setShowReactivateDialog(true)}
-                      >
-                        Reactivate User
-                      </Button>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                      {error && (
-                        <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-300">
-                          {error}
-                        </div>
-                      )}
-
-                      {/* Status Badge */}
-                      {!user.isActive && (
-                        <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg">
-                          <p className="text-sm text-amber-800">
-                            This user is currently deactivated and cannot log in.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Email (read-only) */}
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={user.email}
-                          disabled
-                          className="bg-slate-50 border border-slate-300"
-                        />
-                        <p className="text-xs text-slate-500">Email cannot be changed</p>
-                      </div>
-
-                      {/* Name */}
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
-                        <Input
-                          id="name"
-                          type="text"
-                          value={formData.name}
-                          onChange={(e) =>
-                            setFormData((prev) => ({ ...prev, name: e.target.value }))
-                          }
-                          required
-                          className="border border-slate-300"
-                        />
-                      </div>
-
-                      {/* Role */}
-                      <div className="space-y-2">
-                        <Label htmlFor="role">Role</Label>
-                        <Select
-                          value={formData.role}
-                          onValueChange={(value) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              role: value,
-                              assignedAdminId: value !== 'ENGINEER' ? '' : prev.assignedAdminId,
-                              adminType: value === 'ADMIN' ? prev.adminType : '',
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="border border-slate-300">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ENGINEER">Engineer</SelectItem>
-                            <SelectItem value="ADMIN">Administrator</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {user.role === 'ADMIN' && user.engineers.length > 0 && formData.role !== 'ADMIN' && (
-                          <p className="text-sm text-amber-600">
-                            This Admin has {user.engineers.length} assigned engineers. Reassign them before
-                            changing role.
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Admin Assignment (for Engineers) */}
-                      {formData.role === 'ENGINEER' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="assignedAdminId">Assign to Admin</Label>
-                          <Select
-                            value={formData.assignedAdminId}
-                            onValueChange={(value) =>
-                              setFormData((prev) => ({ ...prev, assignedAdminId: value }))
-                            }
-                          >
-                            <SelectTrigger className="border border-slate-300">
-                              <SelectValue placeholder="Select Admin..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {admins.map((admin) => (
-                                <SelectItem key={admin.id} value={admin.id}>
-                                  {admin.name}{' '}
-                                  <span className="text-slate-500">
-                                    ({admin.adminType === 'MASTER' ? 'Master' : 'Worker'} · {admin.engineerCount} engineers)
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-
-                      {/* Admin Type (for Admin role) */}
-                      {formData.role === 'ADMIN' && (
-                        <div className="space-y-2">
-                          <Label>Admin Type</Label>
-                          <div className="flex gap-4">
-                            <label className={cn(
-                              "flex-1 flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all",
-                              formData.adminType === 'MASTER'
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-slate-300 hover:border-slate-300"
-                            )}>
-                              <input
-                                type="radio"
-                                name="adminType"
-                                value="MASTER"
-                                checked={formData.adminType === 'MASTER'}
-                                onChange={(e) =>
-                                  setFormData((prev) => ({ ...prev, adminType: e.target.value as 'MASTER' | 'WORKER' }))
-                                }
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                              />
-                              <div>
-                                <span className="font-medium text-slate-900">Master Admin</span>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                  Internal + Customer requests
-                                </p>
-                              </div>
-                            </label>
-                            <label className={cn(
-                              "flex-1 flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all",
-                              formData.adminType === 'WORKER'
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-slate-300 hover:border-slate-300"
-                            )}>
-                              <input
-                                type="radio"
-                                name="adminType"
-                                value="WORKER"
-                                checked={formData.adminType === 'WORKER'}
-                                onChange={(e) =>
-                                  setFormData((prev) => ({ ...prev, adminType: e.target.value as 'MASTER' | 'WORKER' }))
-                                }
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                              />
-                              <div>
-                                <span className="font-medium text-slate-900">Worker Admin</span>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                  Internal requests only
-                                </p>
-                              </div>
-                            </label>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Actions */}
-                      <div className="flex gap-3 pt-4">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => router.push('/admin/users')}
-                          disabled={saving}
-                          className="border border-slate-300"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          className="bg-green-600 hover:bg-green-700 border border-green-600"
-                          disabled={saving}
-                        >
-                          {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                          Save Changes
-                        </Button>
-                      </div>
-                    </form>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Sidebar Info - matches form height */}
-              <div className="flex flex-col gap-4">
-                {/* User Info Card */}
-                <Card className="border border-slate-300">
-                  <CardHeader>
-                    <CardTitle className="text-base">User Info</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Status</span>
-                      <Badge
-                        className={cn(
-                          user.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-slate-100 text-slate-500'
-                        )}
-                      >
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Auth</span>
-                      <span>{user.authProvider}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Created</span>
-                      <span>{new Date(user.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Stats Card - fills remaining space */}
-                <Card className="flex-1 border border-slate-300">
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-slate-300" />
-                      Certificates
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    {stats ? (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Total Created</span>
-                          <span className="font-medium">{stats.total}</span>
-                        </div>
-                        {Object.entries(stats.byStatus).map(([status, count]) => (
-                          <div key={status} className="flex justify-between text-xs">
-                            <span className="text-slate-300">{status}</span>
-                            <span>{count}</span>
-                          </div>
-                        ))}
-                      </>
-                    ) : (
-                      <p className="text-slate-300 text-sm">No certificates yet</p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Managed Engineers (for Admins) */}
-                {user.role === 'ADMIN' && user.engineers.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Users className="h-4 w-4 text-slate-300" />
-                        Managed Engineers ({user.engineers.length})
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {user.engineers.map((eng) => (
-                        <div key={eng.id} className="text-sm">
-                          <p className="font-medium">{eng.name}</p>
-                          <p className="text-xs text-slate-500">{eng.email}</p>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Main Form */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[#f1f5f9]">
+                <div>
+                  <h1 className="text-[16px] font-bold text-[#0f172a] flex items-center gap-2">
+                    <UserCog className="size-[18px] text-[#94a3b8]" />
+                    Edit Staff User
+                  </h1>
+                </div>
+                {user.isActive ? (
+                  <button
+                    onClick={() => setShowDeactivateDialog(true)}
+                    className="px-3.5 py-1.5 text-[12px] font-semibold text-[#dc2626] border border-[#fecaca] bg-white hover:bg-[#fef2f2] rounded-[9px] transition-colors"
+                  >
+                    Deactivate User
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowReactivateDialog(true)}
+                    className="px-3.5 py-1.5 text-[12px] font-semibold text-[#16a34a] border border-[#bbf7d0] bg-white hover:bg-[#f0fdf4] rounded-[9px] transition-colors"
+                  >
+                    Reactivate User
+                  </button>
                 )}
               </div>
+
+              <form onSubmit={handleSubmit} className="p-5 space-y-5">
+                {error && (
+                  <div className="flex items-center gap-2 p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-lg">
+                    <AlertCircle className="size-3.5 text-[#dc2626] shrink-0" />
+                    <p className="text-[12px] text-[#dc2626]">{error}</p>
+                  </div>
+                )}
+
+                {!user.isActive && (
+                  <div className="flex items-center gap-2 p-2.5 bg-[#fffbeb] border border-[#fde68a] rounded-lg">
+                    <AlertCircle className="size-3.5 text-[#d97706] shrink-0" />
+                    <p className="text-[12px] text-[#92400e]">This user is currently deactivated and cannot log in.</p>
+                  </div>
+                )}
+
+                {/* Email (read-only) */}
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">Email Address</label>
+                  <input
+                    type="email"
+                    value={user.email}
+                    disabled
+                    className="w-full px-3 py-2 text-[13px] text-[#94a3b8] border border-[#e2e8f0] rounded-[9px] bg-[#f8fafc]"
+                  />
+                  <p className="text-[11px] text-[#94a3b8] mt-1.5">Email cannot be changed</p>
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                    Full Name <span className="text-[#dc2626]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
+                  />
+                </div>
+
+                {/* Role */}
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">Role</label>
+                  <Select
+                    value={formData.role}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        role: value,
+                        assignedAdminId: value !== 'ENGINEER' ? '' : prev.assignedAdminId,
+                        adminType: value === 'ADMIN' ? prev.adminType : '',
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-10 rounded-[9px] border-[#e2e8f0] bg-white text-[13px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ENGINEER">Engineer</SelectItem>
+                      <SelectItem value="ADMIN">Administrator</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {user.role === 'ADMIN' && user.engineers.length > 0 && formData.role !== 'ADMIN' && (
+                    <p className="text-[12px] text-[#d97706] mt-1.5">
+                      This Admin has {user.engineers.length} assigned engineers. Reassign them before changing role.
+                    </p>
+                  )}
+                </div>
+
+                {/* Admin Assignment (for Engineers) */}
+                {formData.role === 'ENGINEER' && (
+                  <div>
+                    <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                      Assign to Admin <span className="text-[#dc2626]">*</span>
+                    </label>
+                    <Select
+                      value={formData.assignedAdminId}
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, assignedAdminId: value }))}
+                    >
+                      <SelectTrigger className="h-10 rounded-[9px] border-[#e2e8f0] bg-white text-[13px]">
+                        <SelectValue placeholder="Select Admin..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {admins.map((admin) => (
+                          <SelectItem key={admin.id} value={admin.id}>
+                            {admin.name}{' '}
+                            <span className="text-[#94a3b8]">
+                              ({admin.adminType === 'MASTER' ? 'Master' : 'Worker'} · {admin.engineerCount} engineers)
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Admin Type (for Admin role) */}
+                {formData.role === 'ADMIN' && (
+                  <div>
+                    <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">Admin Type</label>
+                    <div className="flex gap-3">
+                      <label
+                        className={cn(
+                          'flex-1 flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all',
+                          formData.adminType === 'MASTER'
+                            ? 'border-[#7c3aed] bg-[#faf5ff]'
+                            : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="adminType"
+                          value="MASTER"
+                          checked={formData.adminType === 'MASTER'}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, adminType: e.target.value as 'MASTER' | 'WORKER' }))}
+                          className="size-4 accent-[#7c3aed]"
+                        />
+                        <div>
+                          <span className="text-[13px] font-semibold text-[#0f172a]">Master Admin</span>
+                          <p className="text-[11px] text-[#94a3b8] mt-0.5">Internal + Customer requests</p>
+                        </div>
+                      </label>
+                      <label
+                        className={cn(
+                          'flex-1 flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all',
+                          formData.adminType === 'WORKER'
+                            ? 'border-[#7c3aed] bg-[#faf5ff]'
+                            : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="adminType"
+                          value="WORKER"
+                          checked={formData.adminType === 'WORKER'}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, adminType: e.target.value as 'MASTER' | 'WORKER' }))}
+                          className="size-4 accent-[#7c3aed]"
+                        />
+                        <div>
+                          <span className="text-[13px] font-semibold text-[#0f172a]">Worker Admin</span>
+                          <p className="text-[11px] text-[#94a3b8] mt-0.5">Internal requests only</p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => router.push('/admin/users')}
+                    disabled={saving}
+                    className="px-4 py-2 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-[9px] transition-colors disabled:opacity-50"
+                  >
+                    {saving && <Loader2 className="size-3.5 animate-spin" />}
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          {/* Sidebar Info */}
+          <div className="flex flex-col gap-4">
+            {/* User Info */}
+            <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-5">
+              <h2 className="text-[14px] font-semibold text-[#0f172a] mb-4">User Info</h2>
+              <div className="divide-y divide-[#f1f5f9] text-[13px]">
+                <div className="flex justify-between py-2.5">
+                  <span className="text-[#64748b]">Status</span>
+                  <span
+                    className={cn(
+                      'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold',
+                      user.isActive
+                        ? 'bg-[#f0fdf4] text-[#16a34a]'
+                        : 'bg-[#f1f5f9] text-[#94a3b8]'
+                    )}
+                  >
+                    {user.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2.5">
+                  <span className="text-[#64748b]">Auth</span>
+                  <span className="font-medium text-[#0f172a]">{user.authProvider}</span>
+                </div>
+                <div className="flex justify-between py-2.5">
+                  <span className="text-[#64748b]">Created</span>
+                  <span className="font-medium text-[#0f172a]">{new Date(user.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
             </div>
 
-            {/* Performance Metrics - Full Width */}
-            <div className="mt-6">
-              <UserTATMetrics userId={id} userRole={user.role} adminType={user.adminType} periodDays={30} />
+            {/* Stats */}
+            <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-5 flex-1">
+              <h2 className="text-[14px] font-semibold text-[#0f172a] flex items-center gap-2 mb-4">
+                <FileText className="size-4 text-[#94a3b8]" />
+                Certificates
+              </h2>
+              {stats ? (
+                <div className="divide-y divide-[#f1f5f9] text-[13px]">
+                  <div className="flex justify-between py-2.5">
+                    <span className="text-[#64748b]">Total Created</span>
+                    <span className="font-semibold text-[#0f172a]">{stats.total}</span>
+                  </div>
+                  {Object.entries(stats.byStatus).map(([status, count]) => (
+                    <div key={status} className="flex justify-between py-2 text-[12px]">
+                      <span className="text-[#94a3b8]">{status}</span>
+                      <span className="text-[#64748b]">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[12.5px] text-[#94a3b8]">No certificates yet</p>
+              )}
             </div>
+
+            {/* Managed Engineers (for Admins) */}
+            {user.role === 'ADMIN' && user.engineers.length > 0 && (
+              <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-5">
+                <h2 className="text-[14px] font-semibold text-[#0f172a] flex items-center gap-2 mb-4">
+                  <Users className="size-4 text-[#94a3b8]" />
+                  Managed Engineers ({user.engineers.length})
+                </h2>
+                <div className="space-y-2.5">
+                  {user.engineers.map((eng) => (
+                    <div key={eng.id} className="text-[13px]">
+                      <p className="font-medium text-[#0f172a]">{eng.name}</p>
+                      <p className="text-[11px] text-[#94a3b8]">{eng.email}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Performance Metrics */}
+        <div className="mt-5">
+          <UserTATMetrics userId={id} userRole={user.role} adminType={user.adminType} periodDays={30} />
         </div>
       </div>
 
@@ -537,7 +510,7 @@ export default function EditUserPage({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeactivate}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-[#dc2626] hover:bg-[#b91c1c]"
             >
               Deactivate
             </AlertDialogAction>
@@ -558,7 +531,7 @@ export default function EditUserPage({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleReactivate}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-[#16a34a] hover:bg-[#15803d]"
             >
               Reactivate
             </AlertDialogAction>

@@ -5,13 +5,8 @@ import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import {
-  ArrowLeft,
+  ChevronLeft,
   Loader2,
   UserPlus,
   Crown,
@@ -19,6 +14,7 @@ import {
   XCircle,
   AlertTriangle,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 
 interface CustomerRequest {
@@ -112,19 +108,21 @@ export default function ReviewRequestPage({ params }: { params: Promise<{ id: st
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      <div className="h-full overflow-auto bg-[#f1f5f9] flex items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
       </div>
     )
   }
 
   if (!request) {
     return (
-      <div className="p-6">
-        <p className="text-red-600">Request not found</p>
-        <Link href="/admin/customers/requests" className="text-blue-600 hover:underline">
-          Back to requests
-        </Link>
+      <div className="h-full overflow-auto bg-[#f1f5f9] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-[14px] text-[#dc2626] mb-2">Request not found</p>
+          <Link href="/admin/customers/requests" className="text-[13px] text-[#2563eb] hover:underline">
+            Back to requests
+          </Link>
+        </div>
       </div>
     )
   }
@@ -132,267 +130,275 @@ export default function ReviewRequestPage({ params }: { params: Promise<{ id: st
   const isPending = request.status === 'PENDING'
 
   return (
-    <div className="p-3 h-full">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-        <div className="p-6 overflow-auto h-full">
-          <div className="max-w-2xl">
-            {/* Back Link */}
-            <Link
-              href="/admin/customers/requests"
-              className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 mb-6"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to Requests
-            </Link>
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="px-6 sm:px-9 py-8 max-w-[680px]">
+        {/* Back Link */}
+        <Link
+          href="/admin/customers/requests"
+          className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-6 transition-colors"
+        >
+          <ChevronLeft className="size-4" />
+          Back to Requests
+        </Link>
 
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-              {request.type === 'USER_ADDITION' ? (
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <UserPlus className="h-6 w-6 text-blue-600" />
-                </div>
-              ) : (
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Crown className="h-6 w-6 text-purple-600" />
-                </div>
-              )}
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">
-                  {request.type === 'USER_ADDITION' ? 'User Addition Request' : 'POC Change Request'}
-                </h1>
-                <p className="text-slate-500">
-                  {request.customerAccount.companyName}
-                </p>
-              </div>
-            </div>
-
-            {error && (
-              <div className="mb-6 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
-                {error}
-              </div>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className={cn(
+            'p-2 rounded-lg',
+            request.type === 'USER_ADDITION' ? 'bg-[#eff6ff]' : 'bg-[#faf5ff]'
+          )}>
+            {request.type === 'USER_ADDITION' ? (
+              <UserPlus className="size-5 text-[#2563eb]" />
+            ) : (
+              <Crown className="size-5 text-[#7c3aed]" />
             )}
-
-            {/* Request Status (if not pending) */}
-            {!isPending && (
-              <Card className="mb-6">
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-2">
-                    {request.status === 'APPROVED' ? (
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-600" />
-                    )}
-                    <span className="font-medium">
-                      {request.status === 'APPROVED' ? 'Approved' : 'Rejected'}
-                    </span>
-                    {request.reviewedBy && (
-                      <span className="text-slate-500">
-                        by {request.reviewedBy.name}
-                      </span>
-                    )}
-                    {request.reviewedAt && (
-                      <span className="text-slate-500">
-                        on {format(new Date(request.reviewedAt), 'PPP')}
-                      </span>
-                    )}
-                  </div>
-                  {request.rejectionReason && (
-                    <p className="mt-2 text-sm text-slate-600">
-                      Reason: {request.rejectionReason}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Request Details */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="text-lg">Request Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-slate-500">Company</p>
-                    <p className="font-medium">{request.customerAccount.companyName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-500">Request Date</p>
-                    <p className="font-medium">
-                      {format(new Date(request.createdAt), 'PPP p')}
-                    </p>
-                  </div>
-                  {request.requestedBy && (
-                    <div className="col-span-2">
-                      <p className="text-sm text-slate-500">Requested By</p>
-                      <p className="font-medium">
-                        {request.requestedBy.name} ({request.requestedBy.email})
-                        {request.requestedBy.id === request.customerAccount.primaryPoc?.id && (
-                          <Badge className="ml-2 bg-amber-100 text-amber-700">POC</Badge>
-                        )}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* User Addition Details */}
-            {request.type === 'USER_ADDITION' && (
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle className="text-lg">New User Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <p className="text-sm text-slate-500">Name</p>
-                    <p className="font-medium">{request.data.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-500">Email</p>
-                    <p className="font-medium">{request.data.email}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* POC Change Details */}
-            {request.type === 'POC_CHANGE' && (
-              <>
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Current POC</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {request.customerAccount.primaryPoc ? (
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 bg-amber-100 rounded-full flex items-center justify-center">
-                          <Crown className="h-5 w-5 text-amber-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{request.customerAccount.primaryPoc.name}</p>
-                          <p className="text-sm text-slate-500">{request.customerAccount.primaryPoc.email}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-slate-500">No current POC</p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Requested New POC</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {request.newPocUser ? (
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
-                          <Crown className="h-5 w-5 text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{request.newPocUser.name}</p>
-                          <p className="text-sm text-slate-500">{request.newPocUser.email}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-slate-500">User not found</p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {request.data.reason && (
-                  <Card className="mb-6">
-                    <CardHeader>
-                      <CardTitle className="text-lg">Reason for Change</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-slate-700 italic">&ldquo;{request.data.reason}&rdquo;</p>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Warning for POC Change */}
-                {isPending && (
-                  <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="flex gap-2">
-                      <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-amber-800">If approved:</p>
-                        <ul className="mt-1 text-sm text-amber-700 list-disc list-inside">
-                          <li>{request.newPocUser?.name || 'New user'} will become the new POC</li>
-                          <li>{request.customerAccount.primaryPoc?.name || 'Current POC'} will become a regular user</li>
-                          <li>Both parties will be notified via email</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Decision Section (only for pending) */}
-            {isPending && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Decision</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-4">
-                    <Button
-                      onClick={handleApprove}
-                      disabled={processing}
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                    >
-                      {processing ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                      )}
-                      Approve
-                    </Button>
-                    <Button
-                      onClick={handleReject}
-                      disabled={processing || !rejectionReason.trim()}
-                      variant="destructive"
-                      className="flex-1"
-                    >
-                      {processing ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <XCircle className="h-4 w-4 mr-2" />
-                      )}
-                      Reject
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="rejectionReason">
-                      Rejection Reason (required if rejecting)
-                    </Label>
-                    <Textarea
-                      id="rejectionReason"
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Enter reason for rejection..."
-                      rows={3}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Back button */}
-            <div className="mt-6">
-              <Link href="/admin/customers/requests">
-                <Button variant="outline">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to List
-                </Button>
-              </Link>
-            </div>
+          </div>
+          <div>
+            <h1 className="text-[22px] font-bold text-[#0f172a]">
+              {request.type === 'USER_ADDITION' ? 'User Addition Request' : 'POC Change Request'}
+            </h1>
+            <p className="text-[13px] text-[#94a3b8]">
+              {request.customerAccount.companyName}
+            </p>
           </div>
         </div>
+
+        {error && (
+          <div className="flex items-center gap-2 p-2.5 mb-5 bg-[#fef2f2] border border-[#fecaca] rounded-lg">
+            <XCircle className="size-3.5 text-[#dc2626] shrink-0" />
+            <p className="text-[12px] text-[#dc2626]">{error}</p>
+          </div>
+        )}
+
+        {/* Status Banner (if not pending) */}
+        {!isPending && (
+          <div className={cn(
+            'flex items-center gap-2.5 p-3.5 rounded-[14px] border mb-5',
+            request.status === 'APPROVED'
+              ? 'bg-[#f0fdf4] border-[#bbf7d0]'
+              : 'bg-[#fef2f2] border-[#fecaca]'
+          )}>
+            {request.status === 'APPROVED' ? (
+              <CheckCircle className="size-4 text-[#16a34a] shrink-0" />
+            ) : (
+              <XCircle className="size-4 text-[#dc2626] shrink-0" />
+            )}
+            <div>
+              <span className={cn(
+                'text-[13px] font-semibold',
+                request.status === 'APPROVED' ? 'text-[#16a34a]' : 'text-[#dc2626]'
+              )}>
+                {request.status === 'APPROVED' ? 'Approved' : 'Rejected'}
+              </span>
+              {request.reviewedBy && (
+                <span className="text-[13px] text-[#64748b]"> by {request.reviewedBy.name}</span>
+              )}
+              {request.reviewedAt && (
+                <span className="text-[13px] text-[#94a3b8]"> on {format(new Date(request.reviewedAt), 'PPP')}</span>
+              )}
+              {request.rejectionReason && (
+                <p className="text-[12px] text-[#64748b] mt-1">
+                  Reason: {request.rejectionReason}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Request Details */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden mb-5">
+          <div className="px-5 py-3.5 border-b border-[#f1f5f9] bg-[#f8fafc]">
+            <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+              Request Details
+            </h3>
+          </div>
+          <div className="p-5 grid grid-cols-2 gap-5">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">Company</p>
+              <p className="text-[13px] font-medium text-[#0f172a]">{request.customerAccount.companyName}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">Request Date</p>
+              <p className="text-[13px] font-medium text-[#0f172a]">
+                {format(new Date(request.createdAt), 'PPP p')}
+              </p>
+            </div>
+            {request.requestedBy && (
+              <div className="col-span-2">
+                <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">Requested By</p>
+                <p className="text-[13px] font-medium text-[#0f172a]">
+                  {request.requestedBy.name} ({request.requestedBy.email})
+                  {request.requestedBy.id === request.customerAccount.primaryPoc?.id && (
+                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fffbeb] text-[#d97706]">
+                      POC
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* User Addition Details */}
+        {request.type === 'USER_ADDITION' && (
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden mb-5">
+            <div className="px-5 py-3.5 border-b border-[#f1f5f9] bg-[#f8fafc]">
+              <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                New User Details
+              </h3>
+            </div>
+            <div className="p-5 grid grid-cols-2 gap-5">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">Name</p>
+                <p className="text-[13px] font-medium text-[#0f172a]">{request.data.name}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">Email</p>
+                <p className="text-[13px] font-medium text-[#0f172a]">{request.data.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* POC Change Details */}
+        {request.type === 'POC_CHANGE' && (
+          <>
+            <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden mb-5">
+              <div className="px-5 py-3.5 border-b border-[#f1f5f9] bg-[#f8fafc]">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                  Current POC
+                </h3>
+              </div>
+              <div className="p-5">
+                {request.customerAccount.primaryPoc ? (
+                  <div className="flex items-center gap-3">
+                    <div className="size-10 bg-[#fffbeb] rounded-full flex items-center justify-center">
+                      <Crown className="size-5 text-[#d97706]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium text-[#0f172a]">{request.customerAccount.primaryPoc.name}</p>
+                      <p className="text-[12px] text-[#94a3b8]">{request.customerAccount.primaryPoc.email}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-[#94a3b8]">No current POC</p>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden mb-5">
+              <div className="px-5 py-3.5 border-b border-[#f1f5f9] bg-[#f8fafc]">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                  Requested New POC
+                </h3>
+              </div>
+              <div className="p-5">
+                {request.newPocUser ? (
+                  <div className="flex items-center gap-3">
+                    <div className="size-10 bg-[#faf5ff] rounded-full flex items-center justify-center">
+                      <Crown className="size-5 text-[#7c3aed]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium text-[#0f172a]">{request.newPocUser.name}</p>
+                      <p className="text-[12px] text-[#94a3b8]">{request.newPocUser.email}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-[#94a3b8]">User not found</p>
+                )}
+              </div>
+            </div>
+
+            {request.data.reason && (
+              <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden mb-5">
+                <div className="px-5 py-3.5 border-b border-[#f1f5f9] bg-[#f8fafc]">
+                  <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                    Reason for Change
+                  </h3>
+                </div>
+                <div className="p-5">
+                  <p className="text-[13px] text-[#64748b] italic">&ldquo;{request.data.reason}&rdquo;</p>
+                </div>
+              </div>
+            )}
+
+            {/* POC Change Warning */}
+            {isPending && (
+              <div className="flex gap-2.5 p-3.5 bg-[#fffbeb] border border-[#fde68a] rounded-[14px] mb-5">
+                <AlertTriangle className="size-4 text-[#d97706] shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[13px] font-semibold text-[#92400e]">If approved:</p>
+                  <ul className="mt-1 text-[12px] text-[#a16207] list-disc list-inside space-y-0.5">
+                    <li>{request.newPocUser?.name || 'New user'} will become the new POC</li>
+                    <li>{request.customerAccount.primaryPoc?.name || 'Current POC'} will become a regular user</li>
+                    <li>Both parties will be notified via email</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Decision Section (only for pending) */}
+        {isPending && (
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden mb-5">
+            <div className="px-5 py-3.5 border-b border-[#f1f5f9] bg-[#f8fafc]">
+              <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                Decision
+              </h3>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleApprove}
+                  disabled={processing}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-[12.5px] font-semibold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-[9px] transition-colors disabled:opacity-50"
+                >
+                  {processing ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle className="size-3.5" />
+                  )}
+                  Approve
+                </button>
+                <button
+                  onClick={handleReject}
+                  disabled={processing || !rejectionReason.trim()}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-[12.5px] font-semibold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-[9px] transition-colors disabled:opacity-50"
+                >
+                  {processing ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <XCircle className="size-3.5" />
+                  )}
+                  Reject
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                  Rejection Reason <span className="text-[#94a3b8] font-normal text-[11px]">(required if rejecting)</span>
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Enter reason for rejection..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none resize-none"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Back button */}
+        <Link
+          href="/admin/customers/requests"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors"
+        >
+          <ChevronLeft className="size-3.5" />
+          Back to List
+        </Link>
       </div>
     </div>
   )

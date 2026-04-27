@@ -137,8 +137,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
     const status = query.status
     const search = query.search
-    const page = parseInt(query.page || '1')
-    const limit = parseInt(query.limit || '20')
+    const page = Math.max(1, parseInt(query.page || '1'))
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '20'), 25))
 
     const where: Record<string, unknown> = { tenantId }
 
@@ -221,81 +221,158 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     preHandler: [requireAdmin],
   }, async (request) => {
     const tenantId = request.tenantId
+    const query = request.query as { search?: string; role?: string; isActive?: string; page?: string; limit?: string }
+    const page = Math.max(1, parseInt(query.page || '1'))
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '10'), 25))
+    const skip = (page - 1) * limit
 
-    const users = await prisma.user.findMany({
-      where: { tenantId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        isAdmin: true,
-        adminType: true,
-        isActive: true,
-        signatureUrl: true,
-        createdAt: true,
-        assignedAdmin: {
-          select: { id: true, name: true, email: true },
-        },
-        _count: {
-          select: {
-            createdCertificates: true,
-            reviewedCertificates: true,
+    const where: Record<string, unknown> = { tenantId }
+    if (query.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
+      ]
+    }
+    if (query.role && query.role !== 'ALL') {
+      where.role = query.role
+    }
+    if (query.isActive !== undefined) {
+      where.isActive = query.isActive === 'true'
+    }
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isAdmin: true,
+          adminType: true,
+          isActive: true,
+          signatureUrl: true,
+          createdAt: true,
+          assignedAdmin: {
+            select: { id: true, name: true, email: true },
+          },
+          _count: {
+            select: {
+              createdCertificates: true,
+              reviewedCertificates: true,
+            },
           },
         },
-      },
-      orderBy: { name: 'asc' },
-    })
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+      }),
+      prisma.user.count({ where }),
+    ])
 
-    return { users }
+    return {
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
   })
 
-  // GET /api/admin/customers - List all customer accounts
+  // GET /api/admin/customers - List customer accounts with pagination
   fastify.get('/customers', {
     preHandler: [requireAdmin],
   }, async (request) => {
     const tenantId = request.tenantId
+    const query = request.query as { search?: string; isActive?: string; page?: string; limit?: string }
+    const page = Math.max(1, parseInt(query.page || '1'))
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '10'), 25))
+    const skip = (page - 1) * limit
 
-    const accounts = await prisma.customerAccount.findMany({
-      where: { tenantId },
-      include: {
-        primaryPoc: {
-          select: { id: true, name: true, email: true },
+    const where: Record<string, unknown> = { tenantId }
+    if (query.search) {
+      where.OR = [
+        { companyName: { contains: query.search, mode: 'insensitive' } },
+        { contactEmail: { contains: query.search, mode: 'insensitive' } },
+      ]
+    }
+    if (query.isActive !== undefined) {
+      where.isActive = query.isActive === 'true'
+    }
+
+    const [accounts, total] = await Promise.all([
+      prisma.customerAccount.findMany({
+        where,
+        include: {
+          primaryPoc: {
+            select: { id: true, name: true, email: true },
+          },
+          assignedAdmin: {
+            select: { id: true, name: true, email: true },
+          },
+          _count: {
+            select: { users: true },
+          },
         },
-        assignedAdmin: {
-          select: { id: true, name: true, email: true },
-        },
-        _count: {
-          select: { users: true },
-        },
+        orderBy: { companyName: 'asc' },
+        skip,
+        take: limit,
+      }),
+      prisma.customerAccount.count({ where }),
+    ])
+
+    return {
+      accounts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: { companyName: 'asc' },
-    })
-
-    return { accounts }
+    }
   })
 
-  // GET /api/admin/registrations - List pending customer registrations
+  // GET /api/admin/registrations - List customer registrations with pagination
   fastify.get('/registrations', {
     preHandler: [requireAdmin],
   }, async (request) => {
-    const query = request.query as { status?: string }
+    const query = request.query as { status?: string; page?: string; limit?: string }
     const status = query.status || 'PENDING'
+    const page = Math.max(1, parseInt(query.page || '1'))
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '10'), 25))
+    const skip = (page - 1) * limit
 
-    const registrations = await prisma.customerRegistration.findMany({
-      where: { status },
-      include: {
-        customerAccount: {
-          select: { id: true, companyName: true },
+    const where = { status }
+
+    const [registrations, total] = await Promise.all([
+      prisma.customerRegistration.findMany({
+        where,
+        include: {
+          customerAccount: {
+            select: { id: true, companyName: true },
+          },
+          reviewedBy: {
+            select: { id: true, name: true },
+          },
         },
-        reviewedBy: {
-          select: { id: true, name: true },
-        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.customerRegistration.count({ where }),
+    ])
+
+    return {
+      registrations,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: { createdAt: 'desc' },
-    })
-
-    return { registrations }
+    }
   })
 
   // POST /api/admin/registrations/:id/approve - Approve a registration
@@ -783,13 +860,69 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       prevCerts.length
     )
 
-    const customerRevisions = computeRevisionMetrics(
-      allFeedbacks,
-      prevFeedbacks,
-      ['CUSTOMER_REVISION_FORWARDED'],
-      currentCerts.length,
-      prevCerts.length
-    )
+    // Customer revisions: count CUSTOMER_REVISION_REQUESTED events (always logged)
+    // plus any CUSTOMER_REVISION_FORWARDED feedback for TAT / by-section detail
+    const customerRevisions = (() => {
+      const currentEventCount = allEvents.filter((e) => e.eventType === 'CUSTOMER_REVISION_REQUESTED').length
+      const prevEventCount = prevEvents.filter((e) => e.eventType === 'CUSTOMER_REVISION_REQUESTED').length
+
+      const certsWithCustomerRevision = new Set(
+        allEvents.filter((e) => e.eventType === 'CUSTOMER_REVISION_REQUESTED').map((e) => e.certificateId)
+      )
+      const prevCertsWithCustomerRevision = new Set(
+        prevEvents.filter((e) => e.eventType === 'CUSTOMER_REVISION_REQUESTED').map((e) => e.certificateId)
+      )
+
+      const total = currentEventCount
+      const avgPerCert = currentCerts.length > 0 ? Math.round((total / currentCerts.length) * 10) / 10 : 0
+      const firstPassRate = currentCerts.length > 0
+        ? Math.round(((currentCerts.length - certsWithCustomerRevision.size) / currentCerts.length) * 100)
+        : 0
+
+      // TAT from CUSTOMER_REVISION_FORWARDED feedback (when available)
+      const forwardedFeedback = allFeedbacks.filter((f) => f.feedbackType === 'CUSTOMER_REVISION_FORWARDED')
+      const resolvedForwarded = forwardedFeedback.filter((f) => f.isResolved && f.resolvedAt)
+      const tatHours = resolvedForwarded.map((f) => hoursDiff(f.createdAt, f.resolvedAt!))
+      const avgTATHours = tatHours.length > 0
+        ? Math.round((tatHours.reduce((a, b) => a + b, 0) / tatHours.length) * 10) / 10
+        : 0
+
+      // Previous period
+      const prevTotal = prevEventCount
+      const prevAvgPerCert = prevCerts.length > 0 ? Math.round((prevTotal / prevCerts.length) * 10) / 10 : 0
+      const prevFirstPassRate = prevCerts.length > 0
+        ? Math.round(((prevCerts.length - prevCertsWithCustomerRevision.size) / prevCerts.length) * 100)
+        : 0
+      const prevForwarded = prevFeedbacks.filter((f) => f.feedbackType === 'CUSTOMER_REVISION_FORWARDED')
+      const prevResolved = prevForwarded.filter((f) => f.isResolved && f.resolvedAt)
+      const prevTatHours = prevResolved.map((f) => hoursDiff(f.createdAt, f.resolvedAt!))
+      const prevAvgTATHours = prevTatHours.length > 0
+        ? Math.round((prevTatHours.reduce((a, b) => a + b, 0) / prevTatHours.length) * 10) / 10
+        : 0
+
+      // By sections: use forwarded feedback if available, otherwise use events (no section info)
+      const sectionCounts = new Map<string, number>()
+      for (const f of forwardedFeedback) {
+        const section = f.targetSection || 'general'
+        sectionCounts.set(section, (sectionCounts.get(section) || 0) + 1)
+      }
+      const bySections = Array.from(sectionCounts.entries())
+        .map(([section, count]) => ({ section, count }))
+        .sort((a, b) => b.count - a.count)
+
+      return {
+        total,
+        avgPerCert,
+        avgTATHours,
+        firstPassRate,
+        prevTotal,
+        prevAvgPerCert,
+        prevAvgTATHours,
+        prevFirstPassRate,
+        hasPrevData: prevCertIds.length > 0,
+        bySections,
+      }
+    })()
 
     // ---------- Unlock metrics ----------
     const resolvedUnlocks = allUnlockRequests.filter((r) => r.status !== 'PENDING' && r.reviewedAt)
@@ -838,6 +971,19 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         counts.reviewer++
       } else if (f.feedbackType === 'CUSTOMER_REVISION_FORWARDED') {
         counts.customer++
+      }
+    }
+    // Also count CUSTOMER_REVISION_REQUESTED events for certs that had customer
+    // revisions but were forwarded via the normal revision flow (no CUSTOMER_REVISION_FORWARDED feedback)
+    for (const ev of allEvents) {
+      if (ev.eventType === 'CUSTOMER_REVISION_REQUESTED') {
+        if (!feedbackCountsByCert.has(ev.certificateId)) {
+          feedbackCountsByCert.set(ev.certificateId, { reviewer: 0, customer: 0 })
+        }
+        const counts = feedbackCountsByCert.get(ev.certificateId)!
+        if (counts.customer === 0) {
+          counts.customer++
+        }
       }
     }
 
@@ -899,8 +1045,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const category = query.category
     const status = query.status
     const search = query.search
-    const page = parseInt(query.page || '1')
-    const limit = parseInt(query.limit || '20')
+    const page = Math.max(1, parseInt(query.page || '1'))
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '20'), 25))
     const includeInactive = query.includeInactive === 'true'
 
     const where: Record<string, unknown> = {
@@ -1758,8 +1904,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
     const status = query.status || 'PENDING'
     const type = query.type || 'ALL'
-    const page = parseInt(query.page || '1')
-    const limit = parseInt(query.limit || '15')
+    const page = Math.max(1, parseInt(query.page || '1'))
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '15'), 25))
 
     // Build where clauses
     const internalWhere: Record<string, unknown> = {}
@@ -1935,8 +2081,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
     const status = query.status || 'PENDING'
     const type = query.type
-    const page = parseInt(query.page || '1')
-    const limit = parseInt(query.limit || '20')
+    const page = Math.max(1, parseInt(query.page || '1'))
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '20'), 25))
 
     // Filter by tenant via requestedBy user
     const where: Record<string, unknown> = {
@@ -2175,8 +2321,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const status = query.status || 'PENDING_ADMIN_AUTHORIZATION'
-    const page = parseInt(query.page || '1')
-    const limit = parseInt(query.limit || '20')
+    const page = Math.max(1, parseInt(query.page || '1'))
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '20'), 25))
 
     const where: Record<string, unknown> = { tenantId }
     if (status === 'ALL') {
@@ -2924,6 +3070,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         events: {
           some: {
             eventType: 'ADMIN_AUTHORIZED',
+            userId: id,
             createdAt: { gte: startDate },
           },
         },
@@ -2952,6 +3099,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
             eventType: true,
             createdAt: true,
             certificateId: true,
+            userId: true,
           },
           orderBy: { createdAt: 'asc' },
         },
@@ -3075,7 +3223,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       INTERNAL: 0,
     }
 
-    const EXTRA_SEAT_PRICE = 5000 // ₹50/month in paise
+    // Per-resource add-on prices in paise
+    const ADD_ON_PRICES = {
+      staffSeat: 5000,        // ₹50/month
+      customerAccount: 50000, // ₹500/month
+      customerUser: 10000,    // ₹100/month
+    }
     const GST_RATE = 0.18
 
     const status = await getSubscriptionStatus(tenantId)
@@ -3098,17 +3251,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         usage,
         limits: TIER_LIMITS.STARTER, // default limits for display
         billing: { subtotal: 0, tax: 0, total: 0 },
+        addOnPrices: ADD_ON_PRICES,
       }
     }
 
     const tier = status.tier as string
     const limits = TIER_LIMITS[tier] || TIER_LIMITS.STARTER
 
-    const extraSeats = (status.extraSeats.staff || 0)
-      + (status.extraSeats.customerAccounts || 0)
-      + (status.extraSeats.customerUsers || 0)
+    const extraStaffCost = (status.extraSeats.staff || 0) * ADD_ON_PRICES.staffSeat
+    const extraAccountsCost = (status.extraSeats.customerAccounts || 0) * ADD_ON_PRICES.customerAccount
+    const extraUsersCost = (status.extraSeats.customerUsers || 0) * ADD_ON_PRICES.customerUser
     const basePrice = TIER_BASE_PRICE[tier] || 0
-    const subtotal = basePrice + extraSeats * EXTRA_SEAT_PRICE
+    const subtotal = basePrice + extraStaffCost + extraAccountsCost + extraUsersCost
     const tax = Math.round(subtotal * GST_RATE)
     const total = subtotal + tax
 
@@ -3125,7 +3279,47 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       usage,
       limits,
       billing: { subtotal, tax, total },
+      addOnPrices: ADD_ON_PRICES,
     }
+  })
+
+  // POST /api/admin/subscription/seats - Update add-on seats/accounts
+  fastify.post('/subscription/seats', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const body = request.body as {
+      extraStaffSeats?: number
+      extraCustomerAccounts?: number
+      extraCustomerUserSeats?: number
+    }
+
+    const subscription = await prisma.tenantSubscription.findUnique({
+      where: { tenantId },
+    })
+
+    if (!subscription) {
+      return reply.status(404).send({ error: 'No subscription found' })
+    }
+
+    if (['SCALE', 'INTERNAL'].includes(subscription.tier)) {
+      return reply.status(400).send({ error: 'Add-ons not available for unlimited tiers' })
+    }
+
+    const extraStaffSeats = Math.max(0, Math.floor(body.extraStaffSeats ?? subscription.extraStaffSeats))
+    const extraCustomerAccounts = Math.max(0, Math.floor(body.extraCustomerAccounts ?? subscription.extraCustomerAccounts))
+    const extraCustomerUserSeats = Math.max(0, Math.floor(body.extraCustomerUserSeats ?? subscription.extraCustomerUserSeats))
+
+    await prisma.tenantSubscription.update({
+      where: { tenantId },
+      data: {
+        extraStaffSeats,
+        extraCustomerAccounts,
+        extraCustomerUserSeats,
+      },
+    })
+
+    return { success: true }
   })
 
   // GET /api/admin/certificates/:id - Admin certificate detail view
@@ -3841,8 +4035,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const tenantId = request.tenantId
     const query = request.query as { status?: string; page?: string; limit?: string }
     const status = query.status || 'PENDING'
-    const page = parseInt(query.page || '1')
-    const limit = parseInt(query.limit || '20')
+    const page = Math.max(1, parseInt(query.page || '1'))
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '20'), 25))
 
     const where: Record<string, unknown> = {}
     if (status !== 'ALL') {

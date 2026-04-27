@@ -103,7 +103,7 @@ export function DashboardSidebar({
         {mobile && (
           <button
             onClick={onMobileClose}
-            className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-300"
+            className="p-1.5 rounded-lg hover:bg-white/5 text-slate-300"
           >
             <X className="h-5 w-5" />
           </button>
@@ -111,14 +111,14 @@ export function DashboardSidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-4">
+      <nav className="flex-1 p-2 space-y-1">
         {/* Collapse Toggle (desktop only) */}
         {!mobile && (
           <button
             onClick={toggleCollapsed}
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-slate-300 hover:bg-slate-700 hover:text-white w-full',
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-slate-300 hover:bg-white/5 hover:text-white w-full',
               isCollapsed && 'justify-center px-0'
             )}
           >
@@ -139,10 +139,10 @@ export function DashboardSidebar({
               onClick={mobile ? onMobileClose : undefined}
               title={!mobile && isCollapsed ? item.label : undefined}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors relative',
+                'flex items-center gap-3 px-3 py-3 rounded-lg transition-colors relative',
                 active
-                  ? 'bg-slate-700 text-white font-medium'
-                  : 'text-slate-300 hover:bg-slate-700 hover:text-white',
+                  ? 'bg-white/10 text-white font-medium border-l-2 border-primary'
+                  : 'text-slate-300 hover:bg-white/5 hover:text-white',
                 !mobile && isCollapsed && 'justify-center px-0'
               )}
             >
@@ -189,7 +189,7 @@ export function DashboardSidebar({
           onClick={() => signOut({ callbackUrl: '/login' })}
           title={!mobile && isCollapsed ? 'Sign out' : undefined}
           className={cn(
-            'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors',
+            'flex items-center gap-3 w-full px-3 py-3 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white transition-colors',
             !mobile && isCollapsed && 'justify-center px-0'
           )}
         >
@@ -207,7 +207,7 @@ export function DashboardSidebar({
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'hidden lg:flex flex-col bg-slate-800 shrink-0 transition-all duration-200',
+          'hidden lg:flex flex-col bg-[#0f1e2e] shrink-0 transition-all duration-200',
           isCollapsed ? 'w-16' : 'w-56'
         )}
       >
@@ -223,7 +223,7 @@ export function DashboardSidebar({
             onClick={onMobileClose}
           />
           {/* Mobile Sidebar */}
-          <aside className="absolute inset-y-0 left-0 w-64 flex flex-col bg-slate-800 shadow-xl">
+          <aside className="absolute inset-y-0 left-0 w-64 flex flex-col bg-[#0f1e2e] shadow-xl">
             <SidebarContent mobile={true} />
           </aside>
         </div>

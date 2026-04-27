@@ -63,7 +63,6 @@ export function NotificationBell({ userRole }: NotificationBellProps) {
       if (res.ok) {
         const data = await res.json()
         setNotifications(data.notifications)
-        setUnreadCount(data.unreadCount)
       }
     } catch (error) {
       console.error('Error fetching notifications:', error)
@@ -131,7 +130,7 @@ export function NotificationBell({ userRole }: NotificationBellProps) {
 
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Handle click outside - at parent level to include both button and dropdown
+  // Handle click outside
   useEffect(() => {
     if (!isOpen) return
 
@@ -141,7 +140,6 @@ export function NotificationBell({ userRole }: NotificationBellProps) {
       }
     }
 
-    // Use setTimeout to avoid the current click from triggering close
     const timeoutId = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside)
     }, 0)
@@ -157,16 +155,16 @@ export function NotificationBell({ userRole }: NotificationBellProps) {
       <button
         onClick={handleToggle}
         type="button"
-        className={`relative p-2 rounded-lg hover:bg-gray-100 transition-colors ${
+        className={`relative p-2 rounded-lg hover:bg-[#f1f5f9] transition-colors ${
           hasNewNotification ? 'animate-bounce' : ''
         }`}
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
       >
-        <Bell className="h-5 w-5 text-gray-600" />
+        <Bell className="size-5 text-[#64748b]" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 h-5 w-5 flex items-center justify-center">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping" />
-            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-700 text-[10px] font-bold text-white items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 size-5 flex items-center justify-center">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-[#f87171] opacity-75 animate-ping" />
+            <span className="relative inline-flex rounded-full size-4 bg-[#dc2626] text-[10px] font-bold text-white items-center justify-center">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           </span>

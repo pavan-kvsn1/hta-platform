@@ -9,7 +9,7 @@ import { CustomerApprovalActions } from './CustomerApprovalActions'
 import { CustomerChatContainer } from '@/components/chat/CustomerChatContainer'
 import { InlinePDFViewer } from '@/app/(dashboard)/dashboard/reviewer/[id]/InlinePDFViewer'
 import { cn } from '@/lib/utils'
-import { ChevronDown, ChevronRight, Clock, AlertTriangle } from 'lucide-react'
+import { MessageSquare, Settings2, Clock, AlertTriangle } from 'lucide-react'
 import type {
   CertificateData,
   CertificateSignature,
@@ -30,16 +30,6 @@ interface CustomerCertReviewClientProps {
   headerData: HeaderData
   expiresAt: string | null
   sentAt: string | null
-}
-
-function _formatDate(dateString: string | null): string {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
 }
 
 function formatTATTime(ms: number): { hours: number; minutes: number } {
@@ -66,7 +56,7 @@ function TATBanner({ sentAt, targetHours = 48 }: { sentAt: string; targetHours?:
       if (remainingMs <= 0) {
         setRemaining({ hours: 0, minutes: 0 })
         setStatus('critical')
-      } else if (remainingMs <= 6 * 60 * 60 * 1000) { // < 6 hours
+      } else if (remainingMs <= 6 * 60 * 60 * 1000) {
         setRemaining(formatTATTime(remainingMs))
         setStatus('warning')
       } else {
@@ -76,38 +66,33 @@ function TATBanner({ sentAt, targetHours = 48 }: { sentAt: string; targetHours?:
     }
 
     calculateTAT()
-    const interval = setInterval(calculateTAT, 60000) // Update every minute
-
+    const interval = setInterval(calculateTAT, 60000)
     return () => clearInterval(interval)
   }, [sentAt, targetHours])
 
-  const statusColors = {
-    good: 'bg-green-50 border-green-200 text-green-800',
-    warning: 'bg-amber-50 border-amber-200 text-amber-800',
-    critical: 'bg-red-50 border-red-200 text-red-800',
+  const config = {
+    good: { bg: 'bg-[#f0fdf4]', border: 'border-[#bbf7d0]', text: 'text-[#166534]', icon: <Clock className="size-3.5 text-[#16a34a]" /> },
+    warning: { bg: 'bg-[#fffbeb]', border: 'border-[#fde68a]', text: 'text-[#92400e]', icon: <AlertTriangle className="size-3.5 text-[#d97706]" /> },
+    critical: { bg: 'bg-[#fef2f2]', border: 'border-[#fecaca]', text: 'text-[#991b1b]', icon: <AlertTriangle className="size-3.5 text-[#dc2626]" /> },
   }
 
-  const statusIcons = {
-    good: <Clock className="h-4 w-4 text-green-600" />,
-    warning: <AlertTriangle className="h-4 w-4 text-amber-600" />,
-    critical: <AlertTriangle className="h-4 w-4 text-red-600" />,
-  }
+  const c = config[status]
 
   return (
-    <div className={`px-4 py-2 rounded-lg border ${statusColors[status]} flex items-center justify-between text-sm mb-3`}>
+    <div className={cn('mx-2.5 mb-1 px-4 py-2 rounded-xl border flex items-center justify-between text-[12.5px]', c.bg, c.border, c.text)}>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          {statusIcons[status]}
-          <span className="font-medium">
+          {c.icon}
+          <span className="font-semibold">
             TAT: {elapsed.hours}h {elapsed.minutes}m elapsed
           </span>
         </div>
-        <span className="text-gray-500">|</span>
+        <span className="text-[#e2e8f0]">|</span>
         <span>Target: {targetHours}h</span>
       </div>
       <div>
         {status === 'critical' ? (
-          <span className="font-medium text-red-700">Target exceeded</span>
+          <span className="font-semibold">Target exceeded</span>
         ) : (
           <span>
             {remaining.hours}h {remaining.minutes}m remaining
@@ -127,7 +112,6 @@ export function CustomerCertReviewClient({
   expiresAt,
   sentAt,
 }: CustomerCertReviewClientProps) {
-  // View mode state: 'details' shows certificate content, 'pdf' shows PDF preview
   const [viewMode, setViewMode] = useState<'details' | 'pdf'>('details')
   const [isDownloading, setIsDownloading] = useState(false)
 
@@ -135,31 +119,22 @@ export function CustomerCertReviewClient({
   const [isChatExpanded, setIsChatExpanded] = useState(true)
   const [isActionsExpanded, setIsActionsExpanded] = useState(true)
 
-  // Track local status after customer takes action (immediate UI update)
+  // Track local status after customer takes action
   const [localStatus, setLocalStatus] = useState<string | null>(null)
   const effectiveStatus = localStatus || certificate.status
 
-  // Check if customer can take action — only when pending their approval
   const canApprove = effectiveStatus === 'PENDING_CUSTOMER_APPROVAL'
   const isAuthorized = effectiveStatus === 'AUTHORIZED'
-
-  // Check if certificate is completed (read-only)
   const isCompleted = ['APPROVED', 'PENDING_ADMIN_AUTHORIZATION', 'PENDING_ADMIN_APPROVAL', 'AUTHORIZED'].includes(effectiveStatus)
 
-
-  // Handle download PDF (only for authorized certificates)
   const handleDownload = useCallback(async () => {
     setIsDownloading(true)
     try {
-      // Fetch certificate data for PDF generation
       const response = await apiFetch(`/api/certificates/${certificate.id}/pdf-data`)
-      if (!response.ok) {
-        throw new Error('Failed to fetch certificate data')
-      }
+      if (!response.ok) throw new Error('Failed to fetch certificate data')
       const data = await response.json()
       const { signatures, ...certData } = data
 
-      // Generate PDF client-side
       const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
       const result = await generatePDFWithOptimalSpacing(certData, signatures)
 
@@ -181,133 +156,122 @@ export function CustomerCertReviewClient({
   }, [certificate.id, certificate.certificateNumber])
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] bg-slate-100 pt-3 overflow-hidden">
-      {/* TAT Banner - Only show when not completed and has sentAt */}
-      {sentAt && !isCompleted && (
-        <div className="flex-shrink-0">
-          <TATBanner sentAt={sentAt} />
-        </div>
-      )}
+    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
+      {/* Left Side - Header + Content */}
+      <div className="flex-1 flex flex-col min-w-0 p-2.5 pr-0 overflow-hidden">
+        {/* TAT Banner */}
+        {sentAt && !isCompleted && (
+          <div className="flex-shrink-0 mb-1.5">
+            <TATBanner sentAt={sentAt} />
+          </div>
+        )}
 
-      {/* Main Content Area */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left Side - Certificate with scrollable content */}
-        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-          {/* Certificate Card */}
-          <div className="flex-1 flex flex-col rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            {/* Header Section - Fixed */}
-            <div className="flex-shrink-0">
-              <CustomerCertificateHeader
-                headerData={headerData}
-                viewMode={viewMode}
-                onViewModeChange={setViewMode}
-                isAuthorized={isAuthorized}
-                onDownload={isAuthorized ? handleDownload : undefined}
-                isDownloading={isDownloading}
-                expiresAt={expiresAt}
-              />
-            </div>
+        {/* Certificate Card */}
+        <div className="flex-1 flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          {/* Header */}
+          <div className="flex-shrink-0">
+            <CustomerCertificateHeader
+              headerData={headerData}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              isAuthorized={isAuthorized}
+              onDownload={isAuthorized ? handleDownload : undefined}
+              isDownloading={isDownloading}
+              expiresAt={expiresAt}
+            />
+          </div>
 
-            {/* Content Area - Scrollable */}
-            <div className="flex-1 overflow-y-auto bg-section-inner">
-              {viewMode === 'details' ? (
-                <div className="p-4 space-y-6">
-                  <CustomerCertificateContent
-                    certificate={certificate}
-                    signatures={signatures}
-                  />
-                </div>
-              ) : (
-                <InlinePDFViewer
-                  certificateId={certificate.id}
-                  certificateNumber={certificate.certificateNumber}
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-5">
+            {viewMode === 'details' ? (
+              <div className="space-y-6">
+                <CustomerCertificateContent
+                  certificate={certificate}
+                  signatures={signatures}
                 />
-              )}
-            </div>
+              </div>
+            ) : (
+              <InlinePDFViewer
+                certificateId={certificate.id}
+                certificateNumber={certificate.certificateNumber}
+              />
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Right Panel - Chat & Actions, fixed to viewport height */}
-        <div className="w-[380px] flex-shrink-0 flex flex-col p-2 gap-3 h-full overflow-hidden bg-section-inner">
-          {/* ===== CHAT SECTION ===== */}
-          <div className={cn(
-            'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',
-            isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
-          )}>
-            {/* Chat Header - Collapsible */}
-            <button
-              onClick={() => setIsChatExpanded(!isChatExpanded)}
-              className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                {isChatExpanded ? (
-                  <ChevronDown className="size-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="size-4 text-slate-400" />
-                )}
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Discussion</span>
-              </div>
-            </button>
+      {/* Right Panel - Chat & Actions */}
+      <div className="w-[380px] flex-shrink-0 flex flex-col gap-2.5 p-2.5 pl-0 h-full overflow-hidden">
+        {/* ===== CHAT SECTION ===== */}
+        <div className={cn(
+          'flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden',
+          isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
+        )}>
+          <button
+            onClick={() => setIsChatExpanded(!isChatExpanded)}
+            className="flex items-center justify-between px-[18px] py-[13px] hover:bg-[#f8fafc] transition-colors flex-shrink-0"
+          >
+            <div className="flex items-center gap-2">
+              <MessageSquare className="size-[14px] text-[#94a3b8]" />
+              <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Discussion</span>
+            </div>
+          </button>
 
-            {/* Chat Content - Only when expanded */}
-            {isChatExpanded && (
-              <div className="flex-1 flex flex-col min-h-0">
-                {/* Reviewer Info Header */}
-                <div className="flex-shrink-0 px-4 py-3 border-t border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
-                      HTA
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        HTA Calibration Team
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Certificate Review Discussion
-                      </p>
-                    </div>
+          {isChatExpanded && (
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* HTA Team Header */}
+              <div className="flex-shrink-0 px-[18px] py-[14px] border-b border-[#f8fafc]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-[38px] h-[38px] rounded-full bg-[#0f1e2e] text-white flex items-center justify-center font-bold text-[13px] flex-shrink-0">
+                    HTA
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-bold text-[#0f172a] truncate">
+                      HTA Calibration Team
+                    </p>
+                    <p className="text-[12px] text-[#94a3b8] flex items-center gap-[5px] mt-px">
+                      <span>Certificate Review</span>
+                      <span className="w-[7px] h-[7px] rounded-full bg-[#22c55e] inline-block flex-shrink-0" />
+                      <span className="text-[#22c55e]">Online</span>
+                    </p>
                   </div>
                 </div>
-
-                {/* Chat Messages Area */}
-                <div className="flex-1 min-h-0 overflow-hidden text-xs">
-                  <CustomerChatContainer
-                    token={`cert:${certificate.id}`}
-                    className="h-full border-0 rounded-none"
-                  />
-                </div>
               </div>
-            )}
-          </div>
 
-          {/* ===== REVIEW ACTIONS SECTION ===== */}
-          <div className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
-            <button
-              onClick={() => setIsActionsExpanded(!isActionsExpanded)}
-              className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                {isActionsExpanded ? (
-                  <ChevronDown className="size-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="size-4 text-slate-400" />
-                )}
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Your Actions</span>
-              </div>
-            </button>
-
-            {isActionsExpanded && (
-              <div className="border-t border-slate-100">
-                <CustomerApprovalActions
-                  certificate={certificate}
-                  customer={customer}
-                  signatures={signatures}
-                  canApprove={canApprove}
-                  onStatusChange={setLocalStatus}
+              {/* Chat Area */}
+              <div className="flex-1 min-h-0 overflow-hidden text-xs">
+                <CustomerChatContainer
+                  token={`cert:${certificate.id}`}
+                  className="h-full border-0 rounded-none"
                 />
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
+
+        {/* ===== ACTIONS SECTION ===== */}
+        <div className="flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden flex-shrink-0">
+          <button
+            onClick={() => setIsActionsExpanded(!isActionsExpanded)}
+            className="flex items-center justify-between px-[18px] py-[13px] hover:bg-[#f8fafc] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Settings2 className="size-[14px] text-[#94a3b8]" />
+              <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Your Actions</span>
+            </div>
+          </button>
+
+          {isActionsExpanded && (
+            <div className="border-t border-[#f1f5f9]">
+              <CustomerApprovalActions
+                certificate={certificate}
+                customer={customer}
+                signatures={signatures}
+                canApprove={canApprove}
+                onStatusChange={setLocalStatus}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

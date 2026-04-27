@@ -5,10 +5,7 @@ import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -19,7 +16,7 @@ import {
 import {
   Loader2,
   Crown,
-  ArrowLeft,
+  ChevronLeft,
   AlertCircle,
   AlertTriangle,
   CheckCircle,
@@ -71,13 +68,11 @@ export default function ChangePocPage() {
         }
         const data = await res.json()
 
-        // Non-POC users should be redirected to dashboard
         if (!data.isPrimaryPoc) {
           router.push('/customer/dashboard')
           return
         }
 
-        // If there's already a pending POC change, redirect to settings
         if (data.pendingRequests.some((r: { type: string }) => r.type === 'POC_CHANGE')) {
           router.push('/customer/settings')
           return
@@ -94,7 +89,6 @@ export default function ChangePocPage() {
     fetchTeamData()
   }, [router])
 
-  // Get eligible users for POC transfer (active users except current user)
   const eligiblePocUsers = teamData?.users.filter(
     (user) => user.id !== teamData.currentUserId && user.isActive
   ) || []
@@ -136,24 +130,27 @@ export default function ChangePocPage() {
 
   if (loading) {
     return (
-      <div className="p-3 h-full">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-        </div>
+      <div className="h-full overflow-auto bg-[#f1f5f9] flex items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
       </div>
     )
   }
 
   if (error || !teamData) {
     return (
-      <div className="p-3 h-full">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-          <div className="p-6 text-center">
-            <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-            <p className="text-red-600 mb-4">{error || 'Failed to load data'}</p>
-            <Button variant="outline" onClick={() => router.push('/customer/settings')}>
+      <div className="h-full overflow-auto bg-[#f1f5f9]">
+        <div className="px-6 sm:px-9 py-8">
+          <div className="bg-white border border-[#e2e8f0] rounded-[14px] p-8 text-center">
+            <div className="size-12 bg-[#fef2f2] rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="size-5 text-[#dc2626]" />
+            </div>
+            <p className="text-[13px] text-[#dc2626] mb-4">{error || 'Failed to load data'}</p>
+            <button
+              onClick={() => router.push('/customer/settings')}
+              className="px-4 py-2 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors"
+            >
               Back to Settings
-            </Button>
+            </button>
           </div>
         </div>
       </div>
@@ -162,25 +159,21 @@ export default function ChangePocPage() {
 
   if (submitted) {
     return (
-      <div className="p-3 h-full">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-          <div className="p-6 flex items-center justify-center h-full">
-            <div className="text-center max-w-md">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900 mb-2">Request Submitted</h2>
-              <p className="text-slate-600 mb-6">
-                Your POC transfer request has been submitted for admin review.
-                You will be notified once the request is processed.
-              </p>
-              <Link href="/customer/settings">
-                <Button className="bg-green-600 hover:bg-green-700">
-                  Back to Settings
-                </Button>
-              </Link>
-            </div>
+      <div className="h-full overflow-auto bg-[#f1f5f9] flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <div className="size-14 bg-[#dcfce7] rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="size-6 text-[#16a34a]" />
           </div>
+          <h2 className="text-[18px] font-bold text-[#0f172a] mb-2">Request Submitted</h2>
+          <p className="text-[13px] text-[#64748b] mb-6">
+            Your POC transfer request has been submitted for admin review.
+            You will be notified once the request is processed.
+          </p>
+          <Link href="/customer/settings">
+            <button className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-[9px] transition-colors">
+              Back to Settings
+            </button>
+          </Link>
         </div>
       </div>
     )
@@ -188,29 +181,29 @@ export default function ChangePocPage() {
 
   if (eligiblePocUsers.length === 0) {
     return (
-      <div className="p-3 h-full">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-          <div className="p-6">
-            <Link
-              href="/customer/settings"
-              className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 mb-6"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to Settings
-            </Link>
+      <div className="h-full overflow-auto bg-[#f1f5f9]">
+        <div className="px-6 sm:px-9 py-8">
+          <Link
+            href="/customer/settings"
+            className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-6 transition-colors"
+          >
+            <ChevronLeft className="size-4" />
+            Back to Settings
+          </Link>
 
-            <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-              <h2 className="text-lg font-bold text-slate-900 mb-2">No Eligible Users</h2>
-              <p className="text-slate-600 mb-6">
-                You need at least one other active team member to transfer the POC role.
-              </p>
-              <Link href="/customer/users">
-                <Button variant="outline">
-                  Manage Users
-                </Button>
-              </Link>
+          <div className="bg-white border border-[#e2e8f0] rounded-[14px] p-8 text-center">
+            <div className="size-12 bg-[#f1f5f9] rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="size-5 text-[#94a3b8]" />
             </div>
+            <h2 className="text-[16px] font-bold text-[#0f172a] mb-2">No Eligible Users</h2>
+            <p className="text-[13px] text-[#64748b] mb-6">
+              You need at least one other active team member to transfer the POC role.
+            </p>
+            <Link href="/customer/users">
+              <button className="px-4 py-2 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors">
+                Manage Users
+              </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -218,140 +211,135 @@ export default function ChangePocPage() {
   }
 
   return (
-    <div className="p-3 h-full">
-      {/* Master Bounding Box */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-        <div className="p-6 overflow-auto h-full">
-          {/* Back Link */}
-          <Link
-            href="/customer/settings"
-            className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 mb-6"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Settings
-          </Link>
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="px-6 sm:px-9 py-8 max-w-[620px]">
+        {/* Back Link */}
+        <Link
+          href="/customer/settings"
+          className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-6 transition-colors"
+        >
+          <ChevronLeft className="size-4" />
+          Back to Settings
+        </Link>
 
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <Crown className="h-6 w-6 text-purple-600" />
-              Transfer POC Role
-            </h1>
-            <p className="text-slate-500 mt-1">
-              Transfer your Primary Point of Contact role to another team member
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-[22px] font-bold text-[#0f172a] flex items-center gap-2.5">
+            <Crown className="size-[22px] text-[#7c3aed]" />
+            Transfer POC Role
+          </h1>
+          <p className="text-[13px] text-[#94a3b8] mt-1">
+            Transfer your Primary Point of Contact role to another team member
+          </p>
+        </div>
+
+        {/* Warning Banner */}
+        <div className="p-4 bg-[#fffbeb] border border-[#fde68a] rounded-[14px] mb-6">
+          <div className="flex gap-3">
+            <AlertTriangle className="size-4 text-[#d97706] flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-[13px] font-semibold text-[#92400e]">Important</p>
+              <p className="text-[12.5px] text-[#92400e] mt-1">
+                After the transfer is approved, you will lose:
+              </p>
+              <ul className="text-[12.5px] text-[#92400e] mt-1 list-disc list-inside">
+                <li>Ability to request new team members</li>
+                <li>Access to settings</li>
+                <li>Ability to transfer POC role</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Form Card */}
+        <div className="bg-white border border-[#e2e8f0] rounded-[14px] overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#f1f5f9]">
+            <h2 className="text-[14px] font-semibold text-[#0f172a]">Select New POC</h2>
+            <p className="text-[12.5px] text-[#94a3b8] mt-0.5">
+              Choose who will take over as the Primary Point of Contact
             </p>
           </div>
 
-          {/* Warning Banner */}
-          <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
-            <div className="flex gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-amber-800">Important</p>
-                <p className="text-sm text-amber-700 mt-1">
-                  After the transfer is approved, you will lose:
-                </p>
-                <ul className="text-sm text-amber-700 mt-1 list-disc list-inside">
-                  <li>Ability to request new team members</li>
-                  <li>Access to settings</li>
-                  <li>Ability to transfer POC role</li>
-                </ul>
+          <form onSubmit={handleSubmit} className="p-5 space-y-5">
+            {submitError && (
+              <div className="flex items-center gap-2 p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-lg">
+                <AlertCircle className="size-3.5 text-[#dc2626] flex-shrink-0" />
+                <p className="text-[12px] text-[#dc2626]">{submitError}</p>
               </div>
+            )}
+
+            <div>
+              <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                New Primary POC <span className="text-[#dc2626]">*</span>
+              </label>
+              <Select value={newPocUserId} onValueChange={setNewPocUserId}>
+                <SelectTrigger className="h-10 rounded-[9px] border-border bg-white text-sm">
+                  <SelectValue placeholder="Select a team member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eligiblePocUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      <div className="flex items-center gap-2">
+                        <User className="size-3.5 text-[#94a3b8]" />
+                        <span>{user.name}</span>
+                        <span className="text-[#94a3b8]">({user.email})</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </div>
 
-          {/* Form */}
-          <Card className="max-w-lg">
-            <CardHeader>
-              <CardTitle>Select New POC</CardTitle>
-              <CardDescription>
-                Choose who will take over as the Primary Point of Contact
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {submitError && (
-                  <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
-                    {submitError}
-                  </div>
+            {selectedUser && (
+              <div className="p-3 bg-[#faf5ff] border border-[#e9d5ff] rounded-xl">
+                <p className="text-[12.5px] text-[#6b21a8]">
+                  <span className="font-semibold text-[#0f172a]">{selectedUser.name}</span> will become the new POC and will be able to manage team members and settings.
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                Reason for Transfer <span className="text-[#dc2626]">*</span>
+              </label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g., Role change, leaving company, transferring responsibilities..."
+                rows={3}
+                required
+                disabled={submitting}
+                className="resize-none text-[12.5px] md:text-[12.5px] border-[#e2e8f0] rounded-lg placeholder:text-[#94a3b8]"
+              />
+              <p className="text-[11px] text-[#94a3b8] mt-1.5">
+                This helps the admin understand and approve your request.
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <Link href="/customer/settings" className="flex-1">
+                <button
+                  type="button"
+                  disabled={submitting}
+                  className="w-full px-4 py-2 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </Link>
+              <button
+                type="submit"
+                disabled={submitting || !newPocUserId || !reason.trim()}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] rounded-[9px] transition-colors disabled:opacity-50"
+              >
+                {submitting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Crown className="size-3.5" />
                 )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="newPoc">New Primary POC *</Label>
-                  <Select value={newPocUserId} onValueChange={setNewPocUserId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a team member" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {eligiblePocUsers.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-slate-400" />
-                            <span>{user.name}</span>
-                            <span className="text-slate-400">({user.email})</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedUser && (
-                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
-                    <p className="text-sm text-purple-700">
-                      <strong>{selectedUser.name}</strong> will become the new POC and will be able to manage team members and settings.
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="reason">Reason for Transfer *</Label>
-                  <Textarea
-                    id="reason"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="e.g., Role change, leaving company, transferring responsibilities..."
-                    rows={3}
-                    required
-                    disabled={submitting}
-                  />
-                  <p className="text-xs text-slate-500">
-                    This helps the admin understand and approve your request.
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
-                  <Link href="/customer/settings" className="flex-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full"
-                      disabled={submitting}
-                    >
-                      Cancel
-                    </Button>
-                  </Link>
-                  <Button
-                    type="submit"
-                    className="flex-1 bg-purple-600 hover:bg-purple-700"
-                    disabled={submitting || !newPocUserId || !reason.trim()}
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <Crown className="h-4 w-4 mr-2" />
-                        Submit Request
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+                {submitting ? 'Submitting...' : 'Submit Request'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

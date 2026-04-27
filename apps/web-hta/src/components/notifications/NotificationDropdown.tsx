@@ -57,16 +57,14 @@ export function NotificationDropdown({
   }
 
   return (
-    <div
-      className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden"
-    >
+    <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-[#e2e8f0] z-50 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
-        <h3 className="font-semibold text-gray-900">Notifications</h3>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#e2e8f0] bg-[#f8fafc]">
+        <h3 className="text-[13px] font-semibold text-[#0f172a]">Notifications</h3>
         {unreadCount > 0 && (
           <button
             onClick={onMarkAllAsRead}
-            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            className="text-[11px] font-semibold text-[#2563eb] hover:text-[#1d4ed8] transition-colors"
           >
             Mark all as read
           </button>
@@ -77,12 +75,12 @@ export function NotificationDropdown({
       <div className="max-h-[400px] overflow-y-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+            <div className="animate-spin rounded-full size-6 border-b-2 border-[#2563eb]" />
           </div>
         ) : notifications.length === 0 ? (
           <div className="py-8 px-4 text-center">
             <div className="text-3xl mb-2">🔔</div>
-            <p className="text-sm text-gray-500">No notifications yet</p>
+            <p className="text-[13px] text-[#94a3b8]">No notifications yet</p>
           </div>
         ) : (
           <div className="flex flex-col w-full">
@@ -101,10 +99,10 @@ export function NotificationDropdown({
 
       {/* Footer */}
       {notifications.length > 0 && (
-        <div className="border-t border-gray-200 px-4 py-2 bg-gray-50">
+        <div className="border-t border-[#e2e8f0] px-4 py-2 bg-[#f8fafc]">
           <button
             onClick={handleViewAll}
-            className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium py-1"
+            className="w-full text-center text-[12.5px] font-semibold text-[#2563eb] hover:text-[#1d4ed8] py-1 transition-colors"
           >
             View All Notifications
           </button>

@@ -69,12 +69,13 @@ export default function RegistrationsPage() {
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
-    limit: 20,
+    limit: 10,
     total: 0,
     totalPages: 0,
   })
   const [statusFilter, setStatusFilter] = useState('PENDING')
   const [processing, setProcessing] = useState<string | null>(null)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   // Reject dialog state
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
@@ -86,7 +87,7 @@ export default function RegistrationsPage() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '20',
+        limit: rowsPerPage.toString(),
         status,
       })
       const res = await apiFetch(`/api/admin/registrations?${params}`)
@@ -100,7 +101,7 @@ export default function RegistrationsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter])
+  }, [statusFilter, rowsPerPage])
 
   useEffect(() => {
     fetchRegistrations()
@@ -342,23 +343,37 @@ export default function RegistrationsPage() {
                         {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
                         {pagination.total} registrations
                       </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fetchRegistrations(pagination.page - 1)}
-                          disabled={pagination.page === 1}
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fetchRegistrations(pagination.page + 1)}
-                          disabled={pagination.page === pagination.totalPages}
-                        >
-                          Next
-                        </Button>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[12px] text-slate-400">Rows</span>
+                          <select
+                            value={rowsPerPage}
+                            onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                            className="h-7 px-1.5 border border-slate-200 rounded-md text-[12.5px] text-slate-900 bg-white outline-none"
+                          >
+                            {[10, 15, 25].map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fetchRegistrations(pagination.page - 1)}
+                            disabled={pagination.page === 1}
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fetchRegistrations(pagination.page + 1)}
+                            disabled={pagination.page === pagination.totalPages}
+                          >
+                            Next
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}

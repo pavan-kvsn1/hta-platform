@@ -47,24 +47,24 @@ export function CustomerCertificateHeader({
   expiresAt,
 }: CustomerCertificateHeaderProps) {
   return (
-    <div className="flex-shrink-0 border-b border-slate-200 px-6 py-4">
+    <div className="flex-shrink-0 border-b border-[#e2e8f0] px-5 py-3.5">
       {/* Header Content */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
           <Link
             href="/customer/dashboard"
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-[#94a3b8] hover:text-[#475569] transition-colors flex-shrink-0"
           >
-            <ChevronLeft className="size-6" strokeWidth={2} />
+            <ChevronLeft className="size-[18px]" strokeWidth={2} />
           </Link>
-          <span className="text-slate-300 text-xl">|</span>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+          <span className="text-[#e2e8f0] text-lg flex-shrink-0">|</span>
+          <h1 className="text-[15px] font-medium text-[#0f172a] tracking-[0.01em] truncate">
             {headerData.certificateNumber}
           </h1>
           <Badge
             variant="outline"
             className={cn(
-              'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+              'px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.05em] flex-shrink-0',
               headerData.statusClassName
             )}
           >
@@ -72,12 +72,11 @@ export function CustomerCertificateHeader({
           </Badge>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Expiry info */}
+        <div className="flex items-center gap-2.5 flex-shrink-0">
           {expiresAt && (
-            <div className="hidden md:flex items-center gap-2 text-xs text-slate-500">
-              <Clock className="h-3.5 w-3.5" />
-              <span>Link expires: {formatDate(expiresAt)}</span>
+            <div className="hidden md:flex items-center gap-1.5 text-[11px] text-[#94a3b8]">
+              <Clock className="size-3" />
+              <span>Expires: {formatDate(expiresAt)}</span>
             </div>
           )}
           <ViewToggleButton
@@ -91,13 +90,11 @@ export function CustomerCertificateHeader({
       </div>
 
       {/* Meta Info Row */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm mt-3">
+      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12.5px] text-[#64748b] mt-2">
         <MetaInfoItem icon={Building2} emphasized>{headerData.customerName || '-'}</MetaInfoItem>
         <MetaInfoItem icon={Calendar}>Calibrated: {formatDate(headerData.dateOfCalibration)}</MetaInfoItem>
-        <div className="flex items-center gap-2 text-slate-500">
-          <span className="text-slate-300">|</span>
-          <span>Revision {headerData.currentRevision}</span>
-        </div>
+        <span className="text-[#e2e8f0]">|</span>
+        <span>Revision {headerData.currentRevision}</span>
       </div>
     </div>
   )

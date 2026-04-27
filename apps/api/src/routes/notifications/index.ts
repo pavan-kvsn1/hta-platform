@@ -15,8 +15,8 @@ const notificationRoutes: FastifyPluginAsync = async (fastify) => {
       unreadOnly?: string
     }
 
-    const limit = parseInt(query.limit || '10', 10)
-    const offset = parseInt(query.offset || '0', 10)
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '10', 10), 50))
+    const offset = Math.max(0, parseInt(query.offset || '0', 10))
     const unreadOnly = query.unreadOnly === 'true'
 
     const isCustomer = userRole === 'CUSTOMER'
@@ -59,6 +59,7 @@ const notificationRoutes: FastifyPluginAsync = async (fastify) => {
         type: n.type,
         title: n.title,
         message: n.message,
+        read: !!n.readAt,
         createdAt: n.createdAt.toISOString(),
         readAt: n.readAt?.toISOString() || null,
         data: n.data ? (typeof n.data === 'string' ? JSON.parse(n.data) : n.data) : null,

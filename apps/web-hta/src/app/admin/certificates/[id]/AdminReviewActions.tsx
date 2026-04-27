@@ -4,8 +4,6 @@ import { apiFetch } from '@/lib/api-client'
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import {
   CheckCircle,
   RotateCcw,
@@ -36,25 +34,23 @@ export function AdminReviewActions({
 }: AdminReviewActionsProps) {
   const router = useRouter()
 
-  // Action states
   const [_isApproving, setIsApproving] = useState(false)
   const [isRequestingRevision, setIsRequestingRevision] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Modal states
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showRevisionModal, setShowRevisionModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
 
-  // Form states
   const [sectionFeedbackEntries, setSectionFeedbackEntries] = useState<
     { id: string; section: string; comment: string }[]
   >([{ id: crypto.randomUUID(), section: '', comment: '' }])
   const [generalNotes, setGeneralNotes] = useState('')
   const [rejectReason, setRejectReason] = useState('')
+  const [rejectStep, setRejectStep] = useState<'reason' | 'confirm'>('reason')
+  const [rejectConfirmText, setRejectConfirmText] = useState('')
 
-  // Determine reviewability based on status
   const canReview = certificate.status === 'PENDING_REVIEW'
   const isRevisionRequired = certificate.status === 'REVISION_REQUIRED'
   const isPendingCustomer = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
@@ -62,7 +58,6 @@ export function AdminReviewActions({
   const isApproved = certificate.status === 'APPROVED'
   const isRejected = certificate.status === 'REJECTED'
 
-  // Approval data type
   interface ApprovalData {
     comment?: string
     sendToCustomer?: {
@@ -114,10 +109,9 @@ export function AdminReviewActions({
     const validSectionFeedbacks = sectionFeedbackEntries.filter(
       e => e.section && e.comment.trim()
     )
-    const hasGeneralNotes = generalNotes.trim().length > 0
 
-    if (validSectionFeedbacks.length === 0 && !hasGeneralNotes) {
-      setError('Please provide at least one section feedback or general notes')
+    if (validSectionFeedbacks.length === 0) {
+      setError('Please select at least one section and provide feedback for it')
       return
     }
 
@@ -180,6 +174,8 @@ export function AdminReviewActions({
 
       setShowRejectModal(false)
       setRejectReason('')
+      setRejectStep('reason')
+      setRejectConfirmText('')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -188,7 +184,6 @@ export function AdminReviewActions({
     }
   }
 
-  // Section feedback handlers
   const addSectionEntry = () => {
     setSectionFeedbackEntries(prev => [
       ...prev,
@@ -220,123 +215,117 @@ export function AdminReviewActions({
 
   return (
     <>
-      <div className="px-4 pb-4 pt-3 space-y-3">
+      <div className="px-[18px] pb-[18px] pt-3 space-y-3">
         {error && (
-          <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+          <div className="p-2 bg-[#fef2f2] border border-[#fecaca] rounded-[9px] text-[12px] text-[#dc2626]">
             {error}
           </div>
         )}
 
-        {/* Review action buttons - only when reviewable */}
+        {/* Review action buttons */}
         {canReview && (
           <div className="space-y-2">
-            <Button
+            <button
               onClick={() => setShowApproveModal(true)}
-              size="sm"
-              className="w-full bg-green-600 hover:bg-green-700 text-white h-9 text-xs font-medium"
+              className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-[9px] transition-colors"
             >
-              <CheckCircle className="h-3.5 w-3.5 mr-2" />
-              Approve & Authorize
-            </Button>
+              <CheckCircle className="size-3.5" />
+              Approve &amp; Send
+            </button>
 
-            <Button
+            <button
               onClick={() => setShowRevisionModal(true)}
-              variant="outline"
-              size="sm"
-              className="w-full border-amber-300 text-amber-700 hover:bg-amber-50 h-9 text-xs font-medium"
+              className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#d97706] hover:bg-[#b45309] rounded-[9px] transition-colors"
             >
-              <RotateCcw className="h-3.5 w-3.5 mr-2" />
+              <RotateCcw className="size-3.5" />
               Request Revision
-            </Button>
+            </button>
 
-            <Button
+            <button
               onClick={() => setShowRejectModal(true)}
-              variant="outline"
-              size="sm"
-              className="w-full border-red-300 text-red-700 hover:bg-red-50 h-9 text-xs font-medium"
+              className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-[9px] transition-colors"
             >
-              <XCircle className="h-3.5 w-3.5 mr-2" />
+              <XCircle className="size-3.5" />
               Reject
-            </Button>
+            </button>
           </div>
         )}
 
-        {/* Status indicators for non-reviewable states */}
+        {/* Status indicators */}
         {isRevisionRequired && (
-          <div className="flex items-center gap-3 py-3 px-4 bg-amber-50 rounded-xl border border-amber-100">
-            <div className="size-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <Clock className="h-4 w-4 text-amber-600" />
+          <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#fffbeb] rounded-xl border border-[#fde68a]">
+            <div className="size-7 rounded-lg bg-[#fef3c7] flex items-center justify-center flex-shrink-0">
+              <Clock className="size-3.5 text-[#d97706]" />
             </div>
             <div>
-              <p className="text-sm font-medium text-amber-800">Waiting for Engineer</p>
-              <p className="text-xs text-amber-600">{assignee.name} is working on revisions</p>
+              <p className="text-[12.5px] font-semibold text-[#92400e]">Waiting for Engineer</p>
+              <p className="text-[11px] text-[#d97706]">{assignee.name} is working on revisions</p>
             </div>
           </div>
         )}
 
         {isPendingCustomer && (
-          <div className="flex items-center gap-3 py-3 px-4 bg-blue-50 rounded-xl border border-blue-100">
-            <div className="size-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <Send className="h-4 w-4 text-blue-600" />
+          <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#eff6ff] rounded-xl border border-[#bfdbfe]">
+            <div className="size-7 rounded-lg bg-[#dbeafe] flex items-center justify-center flex-shrink-0">
+              <Send className="size-3.5 text-[#2563eb]" />
             </div>
             <div>
-              <p className="text-sm font-medium text-blue-800">Sent to Customer</p>
-              <p className="text-xs text-blue-600">Awaiting customer approval</p>
+              <p className="text-[12.5px] font-semibold text-[#1e40af]">Sent to Customer</p>
+              <p className="text-[11px] text-[#2563eb]">Awaiting customer approval</p>
             </div>
           </div>
         )}
 
         {isCustomerRevisionRequired && (
-          <div className="flex items-center gap-3 py-3 px-4 bg-pink-50 rounded-xl border border-pink-100">
-            <div className="size-8 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
-              <RotateCcw className="h-4 w-4 text-pink-600" />
+          <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#fdf2f8] rounded-xl border border-[#fbcfe8]">
+            <div className="size-7 rounded-lg bg-[#fce7f3] flex items-center justify-center flex-shrink-0">
+              <RotateCcw className="size-3.5 text-[#db2777]" />
             </div>
             <div>
-              <p className="text-sm font-medium text-pink-800">Customer Revision Requested</p>
-              <p className="text-xs text-pink-600">Awaiting engineer response</p>
+              <p className="text-[12.5px] font-semibold text-[#831843]">Customer Revision Requested</p>
+              <p className="text-[11px] text-[#db2777]">Awaiting engineer response</p>
             </div>
           </div>
         )}
 
         {isApproved && (
-          <div className="flex items-center gap-3 py-3 px-4 bg-green-50 rounded-xl border border-green-100">
-            <div className="size-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-              <CheckCircle className="h-4 w-4 text-green-600" />
+          <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#f0fdf4] rounded-xl border border-[#bbf7d0]">
+            <div className="size-7 rounded-lg bg-[#dcfce7] flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="size-3.5 text-[#16a34a]" />
             </div>
             <div>
-              <p className="text-sm font-medium text-green-800">Certificate Authorized</p>
-              <p className="text-xs text-green-600">Finalized and complete</p>
+              <p className="text-[12.5px] font-semibold text-[#166534]">Certificate Authorized</p>
+              <p className="text-[11px] text-[#16a34a]">Finalized and complete</p>
             </div>
           </div>
         )}
 
         {isRejected && (
-          <div className="flex items-center gap-3 py-3 px-4 bg-red-50 rounded-xl border border-red-100">
-            <div className="size-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-              <XCircle className="h-4 w-4 text-red-600" />
+          <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#fef2f2] rounded-xl border border-[#fecaca]">
+            <div className="size-7 rounded-lg bg-[#fee2e2] flex items-center justify-center flex-shrink-0">
+              <XCircle className="size-3.5 text-[#dc2626]" />
             </div>
             <div>
-              <p className="text-sm font-medium text-red-800">Certificate Rejected</p>
-              <p className="text-xs text-red-600">Permanently rejected</p>
+              <p className="text-[12.5px] font-semibold text-[#991b1b]">Certificate Rejected</p>
+              <p className="text-[11px] text-[#dc2626]">Permanently rejected</p>
             </div>
           </div>
         )}
 
-        {/* Draft state */}
         {certificate.status === 'DRAFT' && (
-          <div className="flex items-center gap-3 py-3 px-4 bg-slate-50 rounded-xl border border-slate-200">
-            <div className="size-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-              <Clock className="h-4 w-4 text-slate-600" />
+          <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#f8fafc] rounded-xl border border-[#e2e8f0]">
+            <div className="size-7 rounded-lg bg-[#f1f5f9] flex items-center justify-center flex-shrink-0">
+              <Clock className="size-3.5 text-[#64748b]" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-800">Draft</p>
-              <p className="text-xs text-slate-600">Not yet submitted for review</p>
+              <p className="text-[12.5px] font-semibold text-[#0f172a]">Draft</p>
+              <p className="text-[11px] text-[#64748b]">Not yet submitted for review</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Approve Modal */}
+      {/* Approve Modal — shared with reviewer */}
       <ReviewerApproveModal
         isOpen={showApproveModal}
         onClose={() => {
@@ -346,88 +335,111 @@ export function AdminReviewActions({
         certificateId={certificate.id}
         certificateNumber={certificate.certificateNumber}
         uucDescription={certificate.uucDescription}
-        customerName={certificate.customerName}
+        customerName={certificate.customerContactName || certificate.customerName}
+        customerEmail={certificate.customerContactEmail}
         onApprove={handleApprove}
       />
 
-      {/* Revision Modal */}
+      {/* Revision Modal — aligned with reviewer */}
       {showRevisionModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden flex flex-col">
-            <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-orange-100 rounded-lg">
-                  <RotateCcw className="h-4 w-4 text-orange-600" />
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="px-5 py-3.5 border-b border-[#f1f5f9] flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-[#fef3c7] rounded-[9px]">
+                  <RotateCcw className="size-4 text-[#d97706]" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-900">Request Revision</h2>
-                  <p className="text-xs text-slate-500">{certificate.certificateNumber}</p>
+                  <h2 className="text-[14px] font-semibold text-[#0f172a]">Request Revision</h2>
+                  <p className="text-[11px] font-mono text-[#94a3b8]">{certificate.certificateNumber}</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowRevisionModal(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-[#f8fafc] rounded-lg transition-colors"
               >
-                <X className="h-4 w-4 text-gray-500" />
+                <X className="size-4 text-[#94a3b8]" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Summary Strip */}
+              <div className="flex items-center gap-2 px-3.5 py-2.5 bg-[#f8fafc] border border-[#f1f5f9] rounded-lg text-[12px] text-[#64748b]">
+                <span className="font-semibold text-[#0f172a]">{certificate.uucDescription || '\u2014'}</span>
+                <span className="text-[#e2e8f0]">&middot;</span>
+                <span>{certificate.customerName || '\u2014'}</span>
+                <span className="text-[#e2e8f0]">&middot;</span>
+                <span>{assignee.name}</span>
+              </div>
+
+              {/* Section Feedback */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold text-gray-700">Section Feedback</label>
-                  <span className="text-[10px] text-gray-500">
+                <div className="flex items-center justify-between mb-2.5">
+                  <label className="text-[12.5px] font-semibold text-[#0f172a]">
+                    Section Feedback <span className="text-[#dc2626]">*</span>
+                  </label>
+                  <span className="text-[10px] font-mono text-[#94a3b8]">
                     {sectionFeedbackEntries.filter(e => e.section && e.comment.trim()).length} of {sectionFeedbackEntries.length} complete
                   </span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {sectionFeedbackEntries.map((entry) => {
                     const availableSections = getAvailableSections(entry.id)
                     const currentSection = REVISION_SECTIONS.find(s => s.id === entry.section)
+                    const isComplete = !!(entry.section && entry.comment.trim())
 
                     return (
                       <div
                         key={entry.id}
                         className={cn(
-                          'border rounded-lg p-3 transition-colors',
-                          entry.section && entry.comment.trim()
-                            ? 'border-orange-200 bg-orange-50/50'
-                            : 'border-gray-200 bg-white'
+                          'border rounded-xl p-3 transition-colors',
+                          isComplete
+                            ? 'border-[#fde68a] bg-[#fffbeb]'
+                            : 'border-[#e2e8f0] bg-white'
                         )}
                       >
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1 space-y-2">
-                            <div>
-                              <label className="text-xs font-medium text-gray-600 mb-0.5 block pb-2">Section</label>
-                              <select
-                                value={entry.section}
-                                onChange={(e) => updateSectionEntry(entry.id, 'section', e.target.value)}
-                                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              >
-                                <option value="">Select a section...</option>
-                                {(currentSection ? [currentSection, ...availableSections.filter(s => s.id !== currentSection.id)] : availableSections).map((section) => (
-                                  <option key={section.id} value={section.id}>{section.label}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-xs font-medium text-gray-600 mb-0.5 block py-2">Feedback</label>
-                              <Textarea
-                                placeholder="Describe what needs to be revised..."
-                                value={entry.comment}
-                                onChange={(e) => updateSectionEntry(entry.id, 'comment', e.target.value)}
-                                rows={2}
-                                className="resize-none text-xs focus:ring-orange-500 focus:border-orange-500"
-                              />
-                            </div>
+                        <div className="flex items-start gap-3">
+                          {/* Section dropdown */}
+                          <div className="w-[180px] flex-shrink-0">
+                            <select
+                              value={entry.section}
+                              onChange={(e) => updateSectionEntry(entry.id, 'section', e.target.value)}
+                              className="w-full px-2.5 py-2 text-[12.5px] border border-[#e2e8f0] rounded-lg bg-white text-[#0f172a] focus:ring-2 focus:ring-[#d97706]/20 focus:border-[#d97706]"
+                            >
+                              <option value="">Select section...</option>
+                              {(currentSection ? [currentSection, ...availableSections.filter(s => s.id !== currentSection.id)] : availableSections).map((section) => (
+                                <option key={section.id} value={section.id}>
+                                  {section.label}
+                                </option>
+                              ))}
+                            </select>
+                            {isComplete && (
+                              <span className="text-[10px] text-[#16a34a] font-medium mt-1 block">Complete</span>
+                            )}
                           </div>
+
+                          {/* Feedback textarea */}
+                          <div className="flex-1 min-w-0">
+                            <textarea
+                              placeholder="Describe what needs to be revised..."
+                              value={entry.comment}
+                              onChange={(e) => updateSectionEntry(entry.id, 'comment', e.target.value)}
+                              rows={2}
+                              className="w-full px-3 py-2 text-[12.5px] text-[#0f172a] border border-[#e2e8f0] rounded-lg placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#d97706]/20 focus:border-[#d97706] outline-none resize-none"
+                            />
+                          </div>
+
+                          {/* Delete button */}
                           <button
                             type="button"
                             onClick={() => removeSectionEntry(entry.id)}
-                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors mt-4"
+                            className="p-1.5 text-[#94a3b8] hover:text-[#dc2626] hover:bg-[#fef2f2] rounded-lg transition-colors flex-shrink-0 mt-1"
+                            title="Remove entry"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="size-3.5" />
                           </button>
                         </div>
                       </div>
@@ -439,39 +451,40 @@ export function AdminReviewActions({
                   <button
                     type="button"
                     onClick={addSectionEntry}
-                    className="mt-2 flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium px-2 py-1.5 hover:bg-orange-50 rounded transition-colors"
+                    className="mt-2 flex items-center gap-1.5 text-[12px] text-[#d97706] hover:text-[#b45309] font-semibold px-2.5 py-1.5 hover:bg-[#fffbeb] rounded-lg transition-colors"
                   >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className="size-3.5" />
                     Add Another Section
                   </button>
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1 pb-2">
-                  General Notes <span className="text-gray-400 font-normal ml-1">(optional)</span>
+              {/* General Notes */}
+              <div className="pt-3 border-t border-[#f1f5f9]">
+                <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                  General Notes
+                  <span className="text-[#94a3b8] font-normal ml-1">(optional)</span>
                 </label>
-                <Textarea
+                <textarea
                   placeholder="Any overall feedback or notes..."
                   value={generalNotes}
                   onChange={(e) => setGeneralNotes(e.target.value)}
                   rows={2}
-                  className="resize-none text-xs focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 text-[12.5px] text-[#0f172a] border border-[#e2e8f0] rounded-lg placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#d97706]/20 focus:border-[#d97706] outline-none resize-none"
                 />
               </div>
 
               {error && (
-                <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                  <XCircle className="h-3.5 w-3.5 text-red-600 flex-shrink-0" />
-                  <p className="text-xs text-red-700">{error}</p>
+                <div className="flex items-center gap-2 p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-lg">
+                  <XCircle className="size-3.5 text-[#dc2626] flex-shrink-0" />
+                  <p className="text-[12px] text-[#dc2626]">{error}</p>
                 </div>
               )}
             </div>
 
-            <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-end gap-2 flex-shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-[#f1f5f9] bg-[#f8fafc] flex items-center justify-end gap-2 flex-shrink-0">
+              <button
                 onClick={() => {
                   setShowRevisionModal(false)
                   setSectionFeedbackEntries([{ id: crypto.randomUUID(), section: '', comment: '' }])
@@ -479,114 +492,194 @@ export function AdminReviewActions({
                   setError(null)
                 }}
                 disabled={isRequestingRevision}
-                className="text-xs"
+                className="px-3 py-1.5 text-[12.5px] font-semibold text-[#64748b] border border-[#e2e8f0] hover:bg-[#f1f5f9] rounded-[9px] transition-colors disabled:opacity-40"
               >
                 Cancel
-              </Button>
-              <Button
-                size="sm"
+              </button>
+              <button
                 onClick={handleRequestRevision}
-                disabled={isRequestingRevision || (
-                  sectionFeedbackEntries.every(e => !e.section || !e.comment.trim()) &&
-                  !generalNotes.trim()
-                )}
-                className="bg-orange-600 hover:bg-orange-700 text-white text-xs"
+                disabled={isRequestingRevision || sectionFeedbackEntries.every(e => !e.section || !e.comment.trim())}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-white bg-[#d97706] hover:bg-[#b45309] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isRequestingRevision ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  <Loader2 className="size-3.5 animate-spin" />
                 ) : (
-                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                  <RotateCcw className="size-3.5" />
                 )}
                 Request Revision
-              </Button>
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Reject Modal */}
+      {/* Reject Modal — Two-Step Confirmation aligned with reviewer */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
-            <div className="px-4 py-3 border-b flex items-center justify-between sticky top-0 bg-white z-10">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-red-100 rounded-lg">
-                  <XCircle className="h-4 w-4 text-red-600" />
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="px-5 py-3.5 border-b border-[#f1f5f9] flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-[#fee2e2] rounded-[9px]">
+                  <XCircle className="size-4 text-[#dc2626]" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-900">Reject Certificate</h2>
-                  <p className="text-xs text-slate-500">{certificate.certificateNumber}</p>
+                  <h2 className="text-[14px] font-semibold text-[#0f172a]">Reject Certificate</h2>
+                  <p className="text-[11px] font-mono text-[#94a3b8]">{certificate.certificateNumber}</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-[#f8fafc] rounded-lg transition-colors"
               >
-                <X className="h-4 w-4 text-gray-500" />
+                <X className="size-4 text-[#94a3b8]" />
               </button>
             </div>
 
-            <div className="p-4 space-y-3">
-              <div className="flex gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex-shrink-0">
-                  <svg className="h-4 w-4 text-red-600" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-red-800">This action is permanent</h4>
-                  <p className="text-xs text-red-700">The certificate will be permanently rejected.</p>
-                </div>
+            {/* Content */}
+            <div className="p-5 space-y-4">
+              {/* Summary Strip */}
+              <div className="flex items-center gap-2 px-3.5 py-2.5 bg-[#f8fafc] border border-[#f1f5f9] rounded-lg text-[12px] text-[#64748b]">
+                <span className="font-semibold text-[#0f172a]">{certificate.uucDescription || '\u2014'}</span>
+                <span className="text-[#e2e8f0]">&middot;</span>
+                <span>{certificate.customerName || '\u2014'}</span>
+                <span className="text-[#e2e8f0]">&middot;</span>
+                <span>{assignee.name}</span>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1 py-0.5">
-                  Rejection Reason <span className="text-red-500">*</span>
-                </label>
-                <Textarea
-                  placeholder="Explain why this certificate is being rejected..."
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  rows={3}
-                  className="resize-none text-xs focus:ring-red-500 focus:border-red-500"
-                />
-              </div>
+              {/* Step 1: Reason */}
+              {rejectStep === 'reason' && (
+                <>
+                  <div className="flex gap-2.5 p-3 bg-[#fef2f2] border border-[#fecaca] rounded-xl">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <svg className="size-4 text-[#dc2626]" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-[12px] font-semibold text-[#991b1b]">This action is permanent</h4>
+                      <p className="text-[12px] text-[#dc2626]">
+                        The certificate will be permanently rejected and cannot be recovered.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                      Rejection Reason <span className="text-[#dc2626]">*</span>
+                    </label>
+                    <textarea
+                      placeholder="Explain why this certificate is being rejected..."
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 text-[12.5px] text-[#0f172a] border border-[#e2e8f0] rounded-lg placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#dc2626]/20 focus:border-[#dc2626] outline-none resize-none"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Step 2: Confirm */}
+              {rejectStep === 'confirm' && (
+                <>
+                  <div className="bg-[#fef2f2] border border-[#fecaca] rounded-xl p-4 text-center space-y-2">
+                    <svg className="size-8 text-[#dc2626] mx-auto" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-[13px] font-semibold text-[#991b1b]">
+                      You are about to permanently reject<br />
+                      certificate <span className="font-mono">{certificate.certificateNumber}</span>
+                    </p>
+                    <div className="bg-white/60 rounded-lg px-3 py-2 mt-2 text-left">
+                      <p className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Your reason</p>
+                      <p className="text-[12.5px] text-[#0f172a] italic">&ldquo;{rejectReason.trim()}&rdquo;</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                      Type <span className="font-mono text-[#dc2626]">{certificate.certificateNumber}</span> to confirm
+                    </label>
+                    <input
+                      type="text"
+                      value={rejectConfirmText}
+                      onChange={(e) => setRejectConfirmText(e.target.value)}
+                      placeholder={certificate.certificateNumber}
+                      className="w-full px-3 py-2 text-[12.5px] font-mono border border-[#e2e8f0] rounded-lg bg-white text-[#0f172a] focus:ring-2 focus:ring-[#dc2626]/20 focus:border-[#dc2626] placeholder:text-[#cbd5e1]"
+                    />
+                  </div>
+                </>
+              )}
 
               {error && (
-                <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                  <XCircle className="h-3.5 w-3.5 text-red-600 flex-shrink-0" />
-                  <p className="text-xs text-red-700">{error}</p>
+                <div className="flex items-center gap-2 p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-lg">
+                  <XCircle className="size-3.5 text-[#dc2626] flex-shrink-0" />
+                  <p className="text-[12px] text-[#dc2626]">{error}</p>
                 </div>
               )}
             </div>
 
-            <div className="px-4 py-3 border-t bg-gray-50 flex justify-end gap-2 sticky bottom-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowRejectModal(false)
-                  setRejectReason('')
-                  setError(null)
-                }}
-                disabled={isRejecting}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleReject}
-                disabled={isRejecting || !rejectReason.trim()}
-                className="bg-red-600 hover:bg-red-700 text-white text-xs"
-              >
-                {isRejecting ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <XCircle className="h-3.5 w-3.5 mr-1.5" />
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-[#f1f5f9] bg-[#f8fafc] flex items-center justify-between flex-shrink-0">
+              <div>
+                {rejectStep === 'confirm' && (
+                  <button
+                    onClick={() => {
+                      setRejectStep('reason')
+                      setRejectConfirmText('')
+                      setError(null)
+                    }}
+                    disabled={isRejecting}
+                    className="text-[12.5px] font-semibold text-[#475569] hover:text-[#0f172a] px-3 py-1.5 hover:bg-[#f1f5f9] rounded-[9px] transition-colors disabled:opacity-40"
+                  >
+                    Back
+                  </button>
                 )}
-                Reject Certificate
-              </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowRejectModal(false)
+                    setRejectReason('')
+                    setRejectStep('reason')
+                    setRejectConfirmText('')
+                    setError(null)
+                  }}
+                  disabled={isRejecting}
+                  className="px-3 py-1.5 text-[12.5px] font-semibold text-[#64748b] border border-[#e2e8f0] hover:bg-[#f1f5f9] rounded-[9px] transition-colors disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+                {rejectStep === 'reason' ? (
+                  <button
+                    onClick={() => {
+                      if (!rejectReason.trim()) {
+                        setError('Please provide a rejection reason')
+                        return
+                      }
+                      setError(null)
+                      setRejectStep('confirm')
+                    }}
+                    disabled={!rejectReason.trim()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-white bg-[#0f172a] hover:bg-[#1e293b] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Continue
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleReject}
+                    disabled={isRejecting || rejectConfirmText !== certificate.certificateNumber}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isRejecting ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <XCircle className="size-3.5" />
+                    )}
+                    Reject Forever
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -5,12 +5,8 @@ import { apiFetch } from '@/lib/api-client'
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import {
-  ArrowLeft,
+  ChevronLeft,
   Loader2,
   Unlock,
   CheckCircle,
@@ -106,212 +102,207 @@ export function InternalRequestClient({
   }
 
   return (
-    <div className="flex h-full bg-slate-100 p-3 gap-3 overflow-hidden">
+    <div className="flex h-full bg-[#f1f5f9] overflow-hidden">
       {/* Left Side - Certificate Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Header */}
-          <div className="flex-shrink-0 border-b border-slate-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/admin/requests"
-                  className="text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <ArrowLeft className="size-5" strokeWidth={2} />
-                </Link>
-                <span className="text-slate-300 text-xl">|</span>
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Unlock className="size-5 text-blue-600" />
-                </div>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                  Section Unlock Request
-                </h1>
-                <Badge className={cn(
-                  'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
-                  isPending && 'bg-amber-50 text-amber-700 border-amber-200',
-                  request.status === 'APPROVED' && 'bg-green-50 text-green-700 border-green-200',
-                  request.status === 'REJECTED' && 'bg-red-50 text-red-700 border-red-200'
-                )}>
-                  {request.status}
-                </Badge>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setViewMode(viewMode === 'details' ? 'pdf' : 'details')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-700"
-              >
-                {viewMode === 'details' ? (
-                  <>
-                    <Eye className="size-4" />
-                    Preview PDF
-                  </>
-                ) : (
-                  <>
-                    <FileText className="size-4" />
-                    View Details
-                  </>
-                )}
-              </Button>
-            </div>
+      <div className="flex-1 flex flex-col min-w-0 overflow-auto p-6 pr-3">
+        {/* Header */}
+        <div className="mb-5">
+          <Link
+            href="/admin/requests"
+            className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-4 transition-colors"
+          >
+            <ChevronLeft className="size-4" />
+            Back to Requests
+          </Link>
 
-            {/* Meta Info */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm mt-3">
-              <div className="flex items-center gap-2 text-slate-600">
-                <FileText className="size-4 text-slate-400" />
-                <span className="font-semibold">{certificate.certificateNumber}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-[#dbeafe] rounded-[9px]">
+                <Unlock className="size-5 text-[#2563eb]" />
               </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <User className="size-4 text-slate-400" />
-                <span>{certificate.customerName || 'No customer'}</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <MapPin className="size-4 text-slate-400" />
-                <span>{certificate.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-500">
-                <span className="text-slate-300">|</span>
-                <span>Revision {certificate.currentRevision}</span>
-              </div>
+              <h1 className="text-[22px] font-bold text-[#0f172a]">
+                Section Unlock Request
+              </h1>
+              <span className={cn(
+                'px-2 py-0.5 rounded-md text-[11px] font-semibold',
+                isPending && 'bg-[#fffbeb] text-[#d97706]',
+                request.status === 'APPROVED' && 'bg-[#f0fdf4] text-[#16a34a]',
+                request.status === 'REJECTED' && 'bg-[#fef2f2] text-[#dc2626]'
+              )}>
+                {request.status}
+              </span>
             </div>
+            <button
+              onClick={() => setViewMode(viewMode === 'details' ? 'pdf' : 'details')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-[#64748b] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors"
+            >
+              {viewMode === 'details' ? (
+                <>
+                  <Eye className="size-4" />
+                  Preview PDF
+                </>
+              ) : (
+                <>
+                  <FileText className="size-4" />
+                  View Details
+                </>
+              )}
+            </button>
           </div>
 
-          {/* Content Area - Scrollable */}
-          <div className="flex-1 overflow-auto bg-slate-50/30">
-            {viewMode === 'details' ? (
-              <div className="p-6 space-y-6">
-                {/* Unlock Request Banner */}
-                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200 overflow-hidden">
-                  <div className="px-5 py-4 border-b border-indigo-200 bg-indigo-100/50">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-indigo-200 rounded-lg">
-                        <Unlock className="size-5 text-indigo-700" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-indigo-900">Sections Requested for Unlock</h3>
-                        <p className="text-xs text-indigo-600">
-                          Requested by {request.requestedBy.name} • {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </div>
+          {/* Meta Info */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] mt-3">
+            <div className="flex items-center gap-2 text-[#64748b]">
+              <FileText className="size-4 text-[#94a3b8]" />
+              <span className="font-semibold text-[#0f172a]">{certificate.certificateNumber}</span>
+            </div>
+            <div className="flex items-center gap-2 text-[#64748b]">
+              <User className="size-4 text-[#94a3b8]" />
+              <span>{certificate.customerName || 'No customer'}</span>
+            </div>
+            <div className="flex items-center gap-2 text-[#64748b]">
+              <MapPin className="size-4 text-[#94a3b8]" />
+              <span>{certificate.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}</span>
+            </div>
+            <span className="text-[#cbd5e1]">|</span>
+            <span className="text-[#94a3b8]">Revision {certificate.currentRevision}</span>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        {viewMode === 'details' ? (
+          <div className="space-y-5">
+            {/* Unlock Request Banner */}
+            <div className="bg-[#eff6ff] rounded-[14px] border border-[#bfdbfe] overflow-hidden">
+              <div className="px-5 py-3 border-b border-[#bfdbfe] bg-[#dbeafe]/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#bfdbfe] rounded-[9px]">
+                    <Unlock className="size-5 text-[#1d4ed8]" />
                   </div>
-                  <div className="p-5">
-                    {/* Requested Sections */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {request.data.sections.map((sectionId) => (
+                  <div>
+                    <h3 className="font-bold text-[13px] text-[#1e3a5f]">Sections Requested for Unlock</h3>
+                    <p className="text-[12px] text-[#2563eb]">
+                      Requested by {request.requestedBy.name} &bull; {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-5">
+                {/* Requested Sections */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {request.data.sections.map((sectionId) => (
+                    <div
+                      key={sectionId}
+                      className="flex items-center gap-2 px-3 py-2 bg-white rounded-[9px] border border-[#bfdbfe]"
+                    >
+                      <Unlock className="size-4 text-[#3b82f6]" />
+                      <span className="text-[12px] font-semibold text-[#0f172a]">
+                        {SECTION_LABELS[sectionId] || sectionId}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Reason */}
+                <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2">Reason for Request</p>
+                  <p className="text-[13px] text-[#64748b] whitespace-pre-wrap">{request.data.reason}</p>
+                </div>
+
+                {/* Currently Unlocked Sections */}
+                {currentlyUnlockedSections.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-[#bfdbfe]">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2">
+                      Already Unlocked (from reviewer feedback)
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {currentlyUnlockedSections.map((sectionId) => (
                         <div
                           key={sectionId}
-                          className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-indigo-200 shadow-sm"
+                          className="flex items-center gap-1.5 px-2 py-1 bg-[#f0fdf4] rounded border border-[#bbf7d0] text-[11px] text-[#16a34a] font-medium"
                         >
-                          <Unlock className="size-4 text-indigo-500" />
-                          <span className="text-xs font-semibold text-slate-700">
-                            {SECTION_LABELS[sectionId] || sectionId}
-                          </span>
+                          <CheckCircle className="size-3" />
+                          {SECTION_LABELS[sectionId] || sectionId}
                         </div>
                       ))}
                     </div>
-
-                    {/* Reason */}
-                    <div className="bg-white rounded-lg border border-slate-200 p-4">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Reason for Request</p>
-                      <p className="text-slate-700 whitespace-pre-wrap text-xs">{request.data.reason}</p>
-                    </div>
-
-                    {/* Currently Unlocked Sections */}
-                    {currentlyUnlockedSections.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-indigo-200">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                          Already Unlocked (from reviewer feedback)
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {currentlyUnlockedSections.map((sectionId) => (
-                            <div
-                              key={sectionId}
-                              className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded border border-green-200 text-xs text-green-700"
-                            >
-                              <CheckCircle className="size-3" />
-                              {SECTION_LABELS[sectionId] || sectionId}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
-                </div>
-
-                {/* Certificate Content - Reusing admin component */}
-                <AdminCertificateContent
-                  certificate={certificate}
-                  assignee={assignee}
-                />
-
-                {/* History Section - Reusing admin component */}
-                <AdminHistorySection
-                  feedbacks={feedbacks}
-                  events={events}
-                  currentRevision={certificate.currentRevision}
-                />
+                )}
               </div>
-            ) : (
-              <InlinePDFViewer
-                certificateId={certificate.id}
-                certificateNumber={certificate.certificateNumber}
-              />
-            )}
+            </div>
+
+            {/* Certificate Content - Reusing admin component */}
+            <AdminCertificateContent
+              certificate={certificate}
+              assignee={assignee}
+            />
+
+            {/* History Section - Reusing admin component */}
+            <AdminHistorySection
+              feedbacks={feedbacks}
+              events={events}
+              currentRevision={certificate.currentRevision}
+            />
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+            <InlinePDFViewer
+              certificateId={certificate.id}
+              certificateNumber={certificate.certificateNumber}
+            />
+          </div>
+        )}
       </div>
 
       {/* Right Panel - Decision Panel */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col gap-3 overflow-y-auto">
-        <div className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="w-[380px] flex-shrink-0 p-6 pl-3 overflow-y-auto">
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
           <button
             onClick={() => setIsDecisionExpanded(!isDecisionExpanded)}
-            className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+            className="w-full flex items-center justify-between px-5 py-3 bg-[#f8fafc] hover:bg-[#f1f5f9] transition-colors"
           >
             <div className="flex items-center gap-2">
               {isDecisionExpanded ? (
-                <ChevronDown className="size-4 text-slate-400" />
+                <ChevronDown className="size-4 text-[#94a3b8]" />
               ) : (
-                <ChevronRight className="size-4 text-slate-400" />
+                <ChevronRight className="size-4 text-[#94a3b8]" />
               )}
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-[#0f172a] uppercase tracking-[0.07em]">
                 Decision Panel
               </span>
             </div>
-            <Badge className={cn(
-              'text-[10px]',
-              isPending && 'bg-amber-100 text-amber-700',
-              request.status === 'APPROVED' && 'bg-green-100 text-green-700',
-              request.status === 'REJECTED' && 'bg-red-100 text-red-700'
+            <span className={cn(
+              'px-2 py-0.5 rounded-md text-[10px] font-semibold',
+              isPending && 'bg-[#fffbeb] text-[#d97706]',
+              request.status === 'APPROVED' && 'bg-[#f0fdf4] text-[#16a34a]',
+              request.status === 'REJECTED' && 'bg-[#fef2f2] text-[#dc2626]'
             )}>
               {request.status}
-            </Badge>
+            </span>
           </button>
 
           {isDecisionExpanded && (
-            <div className="border-t border-slate-100">
+            <div className="border-t border-[#e2e8f0]">
               {/* Request Info */}
-              <div className="p-4 bg-slate-50/50 border-b border-slate-100">
-                <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="p-4 bg-[#f8fafc] border-b border-[#f1f5f9]">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Requested</p>
-                    <p className="font-medium text-slate-700 mt-0.5 text-xs">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Requested</p>
+                    <p className="font-medium text-[#0f172a] mt-0.5 text-[12px]">
                       {format(new Date(request.createdAt), 'PPp')}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">By</p>
-                    <p className="font-medium text-slate-700 mt-0.5 text-xs">{request.requestedBy.name}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">By</p>
+                    <p className="font-medium text-[#0f172a] mt-0.5 text-[12px]">{request.requestedBy.name}</p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Sections ({request.data.sections.length})</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Sections ({request.data.sections.length})</p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {request.data.sections.map((sectionId) => (
                         <span
                           key={sectionId}
-                          className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-medium"
+                          className="px-2 py-0.5 bg-[#dbeafe] text-[#1d4ed8] rounded text-[11px] font-medium"
                         >
                           {SECTION_LABELS[sectionId]?.replace('Section ', 'S') || sectionId}
                         </span>
@@ -322,25 +313,25 @@ export function InternalRequestClient({
               </div>
 
               <div className="p-4">
-                {/* Status Info for processed requests */}
+                {/* Status for processed requests */}
                 {!isPending && (
                   <div className={cn(
-                    'p-4 rounded-lg',
-                    request.status === 'APPROVED' && 'bg-green-50 border border-green-200',
-                    request.status === 'REJECTED' && 'bg-red-50 border border-red-200'
+                    'p-4 rounded-[9px]',
+                    request.status === 'APPROVED' && 'bg-[#f0fdf4] border border-[#bbf7d0]',
+                    request.status === 'REJECTED' && 'bg-[#fef2f2] border border-[#fecaca]'
                   )}>
-                    <div className="flex items-center gap-2 mb-2 text-xs">
+                    <div className="flex items-center gap-2 mb-2 text-[13px]">
                       {request.status === 'APPROVED' ? (
-                        <CheckCircle className="size-5 text-green-600" />
+                        <CheckCircle className="size-5 text-[#16a34a]" />
                       ) : (
-                        <XCircle className="size-5 text-red-600" />
+                        <XCircle className="size-5 text-[#dc2626]" />
                       )}
-                      <span className="font-semibold text-slate-900">
+                      <span className="font-semibold text-[#0f172a]">
                         {request.status === 'APPROVED' ? 'Approved' : 'Rejected'}
                       </span>
                     </div>
                     {request.reviewedBy && (
-                      <p className="text-xs text-slate-600">
+                      <p className="text-[12px] text-[#64748b]">
                         by {request.reviewedBy.name}
                         {request.reviewedAt && (
                           <span> on {format(new Date(request.reviewedAt), 'PPP')}</span>
@@ -348,7 +339,7 @@ export function InternalRequestClient({
                       </p>
                     )}
                     {request.adminNote && (
-                      <p className="mt-2 text-sm text-slate-600 italic">
+                      <p className="mt-2 text-[12px] text-[#64748b] italic">
                         &ldquo;{request.adminNote}&rdquo;
                       </p>
                     )}
@@ -359,55 +350,54 @@ export function InternalRequestClient({
                 {isPending && (
                   <>
                     {error && (
-                      <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+                      <div className="mb-4 p-3 text-[12px] text-[#dc2626] bg-[#fef2f2] rounded-[9px] border border-[#fecaca]">
                         {error}
                       </div>
                     )}
 
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="adminNote" className="text-xs font-medium text-slate-700">
+                        <label htmlFor="adminNote" className="block text-[12px] font-semibold text-[#0f172a] mb-2">
                           Message to Engineer (optional)
-                        </Label>
-                        <Textarea
+                        </label>
+                        <textarea
                           id="adminNote"
                           value={adminNote}
                           onChange={(e) => setAdminNote(e.target.value)}
                           placeholder="Add a note for the engineer..."
                           rows={3}
-                          className="mt-2 text-sm"
+                          className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none resize-none"
                         />
                       </div>
 
                       <div className="flex gap-3">
-                        <Button
+                        <button
                           onClick={() => handleReview('reject')}
                           disabled={processing}
-                          variant="outline"
-                          className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold border border-[#fecaca] text-[#dc2626] hover:bg-[#fef2f2] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {processing ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            <Loader2 className="size-4 animate-spin" />
                           ) : (
-                            <XCircle className="h-4 w-4 mr-2" />
+                            <XCircle className="size-4" />
                           )}
                           Reject
-                        </Button>
-                        <Button
+                        </button>
+                        <button
                           onClick={() => handleReview('approve')}
                           disabled={processing}
-                          className="flex-1 bg-green-600 hover:bg-green-700"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {processing ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            <Loader2 className="size-4 animate-spin" />
                           ) : (
-                            <CheckCircle className="h-4 w-4 mr-2" />
+                            <CheckCircle className="size-4" />
                           )}
                           Approve
-                        </Button>
+                        </button>
                       </div>
 
-                      <p className="text-[10px] text-slate-400 text-center">
+                      <p className="text-[10px] text-[#94a3b8] text-center">
                         Approving will allow the engineer to edit the requested sections.
                       </p>
                     </div>

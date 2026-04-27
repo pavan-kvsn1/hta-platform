@@ -5,9 +5,6 @@ import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -15,9 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react'
+import {
+  ChevronLeft,
+  Loader2,
+  Mail,
+  CheckCircle,
+  UserPlus,
+  AlertCircle,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Admin {
   id: string
@@ -43,7 +46,6 @@ export default function CreateUserPage() {
   })
 
   useEffect(() => {
-    // Fetch Admins for assignment dropdown
     apiFetch('/api/admin/users/admins')
       .then((res) => res.json())
       .then((data) => setAdmins(data.admins || []))
@@ -91,51 +93,39 @@ export default function CreateUserPage() {
 
   if (success) {
     return (
-      <div className="p-3 h-full">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-          <div className="p-6 overflow-auto h-full">
-            <div className="max-w-md mx-auto mt-12">
-              <div className="text-center">
-                <div className="size-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-2">
-                  User Created Successfully
-                </h2>
-                <p className="text-slate-600 mb-6">
-                  An activation email has been sent to{' '}
-                  <strong>{success.email}</strong>
-                </p>
-                <Alert className="mb-6 text-left">
-                  <Mail className="h-4 w-4" />
-                  <AlertDescription>
-                    The user will need to click the activation link in their email
-                    to set their password and activate their account. The link
-                    expires in 24 hours.
-                  </AlertDescription>
-                </Alert>
-                <div className="flex gap-3 justify-center">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSuccess(null)
-                      setFormData({
-                        email: '',
-                        name: '',
-                        role: 'ENGINEER',
-                        assignedAdminId: '',
-                        adminType: 'WORKER',
-                      })
-                    }}
-                  >
-                    Create Another User
-                  </Button>
-                  <Button onClick={() => router.push('/admin/users')}>
-                    Back to Users
-                  </Button>
-                </div>
-              </div>
-            </div>
+      <div className="h-full overflow-auto bg-[#f1f5f9] flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <div className="size-14 bg-[#dcfce7] rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="size-6 text-[#16a34a]" />
+          </div>
+          <h2 className="text-[18px] font-bold text-[#0f172a] mb-2">User Created Successfully</h2>
+          <p className="text-[13px] text-[#64748b] mb-5">
+            An activation email has been sent to <span className="font-semibold text-[#0f172a]">{success.email}</span>
+          </p>
+
+          <div className="flex items-start gap-2.5 p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-left mb-6">
+            <Mail className="size-4 text-[#2563eb] shrink-0 mt-0.5" />
+            <p className="text-[12.5px] text-[#1e40af]">
+              The user will need to click the activation link in their email to set their password and activate their account. The link expires in 24 hours.
+            </p>
+          </div>
+
+          <div className="flex gap-2.5 justify-center">
+            <button
+              onClick={() => {
+                setSuccess(null)
+                setFormData({ email: '', name: '', role: 'ENGINEER', assignedAdminId: '', adminType: 'WORKER' })
+              }}
+              className="px-4 py-2 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors"
+            >
+              Create Another User
+            </button>
+            <button
+              onClick={() => router.push('/admin/users')}
+              className="px-4 py-2 text-[12.5px] font-semibold text-white bg-[#0f172a] hover:bg-[#1e293b] rounded-[9px] transition-colors"
+            >
+              Back to Users
+            </button>
           </div>
         </div>
       </div>
@@ -143,190 +133,190 @@ export default function CreateUserPage() {
   }
 
   return (
-    <div className="p-3 h-full">
-      {/* Master Bounding Box */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-        <div className="p-6 overflow-auto h-full">
-          <div className="border border-slate-300 rounded-lg">
-            {/* Back Link */}
-            <Link
-              href="/admin/users"
-              className="inline-flex items-center text-lg font-semibold text-slate-1000 hover:text-slate-600 mb-6 pt-6 pl-6"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to Users
-            </Link>
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="px-6 sm:px-9 py-8 max-w-[620px]">
+        {/* Back Link */}
+        <Link
+          href="/admin/users"
+          className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-6 transition-colors"
+        >
+          <ChevronLeft className="size-4" />
+          Back to Users
+        </Link>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Create Staff User</CardTitle>
-                <p className="text-sm text-slate-500 mt-1">
-                  An activation email will be sent to the user to set their password.
-                </p>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {error && (
-                    <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
-                      {error}
-                    </div>
-                  )}
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-[22px] font-bold text-[#0f172a] flex items-center gap-2.5">
+            <UserPlus className="size-[22px] text-[#94a3b8]" />
+            Create Staff User
+          </h1>
+          <p className="text-[13px] text-[#94a3b8] mt-1">
+            An activation email will be sent to the user to set their password.
+          </p>
+        </div>
 
-                  {/* Email */}
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="user@htaipl.com"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, email: e.target.value }))
-                      }
-                      required
-                      className='border border-slate-300 rounded-sm'
+        {/* Form Card */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          <form onSubmit={handleSubmit} className="p-5 space-y-5">
+            {error && (
+              <div className="flex items-center gap-2 p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-lg">
+                <AlertCircle className="size-3.5 text-[#dc2626] shrink-0" />
+                <p className="text-[12px] text-[#dc2626]">{error}</p>
+              </div>
+            )}
+
+            {/* Email */}
+            <div>
+              <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                Email Address <span className="text-[#dc2626]">*</span>
+              </label>
+              <input
+                type="email"
+                placeholder="user@htaipl.com"
+                value={formData.email}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                required
+                className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
+              />
+              <p className="text-[11px] text-[#94a3b8] mt-1.5">Activation link will be sent to this email</p>
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                Full Name <span className="text-[#dc2626]">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="John Doe"
+                value={formData.name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                required
+                className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
+              />
+            </div>
+
+            {/* Role */}
+            <div>
+              <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">Role</label>
+              <Select
+                value={formData.role}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, role: value, assignedAdminId: '', adminType: 'WORKER' }))
+                }
+              >
+                <SelectTrigger className="h-10 rounded-[9px] border-[#e2e8f0] bg-white text-[13px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ENGINEER">Engineer</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Admin Assignment (for Engineers) */}
+            {formData.role === 'ENGINEER' && (
+              <div>
+                <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                  Assign to Admin <span className="text-[#dc2626]">*</span>
+                </label>
+                <Select
+                  value={formData.assignedAdminId}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, assignedAdminId: value }))}
+                >
+                  <SelectTrigger className="h-10 rounded-[9px] border-[#e2e8f0] bg-white text-[13px]">
+                    <SelectValue placeholder="Select Admin..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {admins.map((admin) => (
+                      <SelectItem key={admin.id} value={admin.id}>
+                        {admin.name} <span className="text-[#94a3b8]">({admin.engineerCount} engineers)</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {admins.length === 0 && (
+                  <p className="text-[12px] text-[#d97706] mt-1.5">No Admins available. Create an Admin first.</p>
+                )}
+              </div>
+            )}
+
+            {/* Admin Type (for Admin role) */}
+            {formData.role === 'ADMIN' && (
+              <div>
+                <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">Admin Type</label>
+                <div className="flex gap-3">
+                  <label
+                    className={cn(
+                      'flex-1 flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all',
+                      formData.adminType === 'MASTER'
+                        ? 'border-[#7c3aed] bg-[#faf5ff]'
+                        : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="adminType"
+                      value="MASTER"
+                      checked={formData.adminType === 'MASTER'}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, adminType: e.target.value }))}
+                      className="size-4 text-[#7c3aed] accent-[#7c3aed]"
                     />
-                    <p className="text-xs text-slate-500">
-                      Activation link will be sent to this email
-                    </p>
-                  </div>
-
-                  {/* Name */}
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      type="text"
-                      placeholder="John Doe"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, name: e.target.value }))
-                      }
-                      required
-                      className='border border-slate-300 rounded-sm'
+                    <div>
+                      <span className="text-[13px] font-semibold text-[#0f172a]">Master Admin</span>
+                      <p className="text-[11px] text-[#94a3b8] mt-0.5">Internal + Customer requests</p>
+                    </div>
+                  </label>
+                  <label
+                    className={cn(
+                      'flex-1 flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all',
+                      formData.adminType === 'WORKER'
+                        ? 'border-[#7c3aed] bg-[#faf5ff]'
+                        : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="adminType"
+                      value="WORKER"
+                      checked={formData.adminType === 'WORKER'}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, adminType: e.target.value }))}
+                      className="size-4 text-[#7c3aed] accent-[#7c3aed]"
                     />
-                  </div>
-
-                  {/* Role */}
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Select
-                      value={formData.role}
-                      onValueChange={(value) =>
-                        setFormData((prev) => ({ ...prev, role: value, assignedAdminId: '', adminType: 'WORKER' }))
-                      }
-                    >
-                      <SelectTrigger className="border border-slate-300 rounded-sm si">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ENGINEER">Engineer</SelectItem>
-                        <SelectItem value="ADMIN">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Admin Assignment (for Engineers) */}
-                  {formData.role === 'ENGINEER' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="assignedAdminId">Assign to Admin</Label>
-                      <Select
-                        value={formData.assignedAdminId}
-                        onValueChange={(value) =>
-                          setFormData((prev) => ({ ...prev, assignedAdminId: value }))
-                        }
-                      >
-                        <SelectTrigger className="border border-slate-300 rounded-sm">
-                          <SelectValue placeholder="Select Admin..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {admins.map((admin) => (
-                            <SelectItem key={admin.id} value={admin.id}>
-                              {admin.name}{' '}
-                              <span className="text-slate-500">
-                                ({admin.engineerCount} engineers)
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {admins.length === 0 && (
-                        <p className="text-sm text-amber-600">
-                          No Admins available. Create an Admin first.
-                        </p>
-                      )}
+                    <div>
+                      <span className="text-[13px] font-semibold text-[#0f172a]">Worker Admin</span>
+                      <p className="text-[11px] text-[#94a3b8] mt-0.5">Internal requests only</p>
                     </div>
-                  )}
+                  </label>
+                </div>
+              </div>
+            )}
 
-                  {/* Admin Type (for Admin role) */}
-                  {formData.role === 'ADMIN' && (
-                    <div className="space-y-2">
-                      <Label>Admin Type</Label>
-                      <div className="flex gap-4">
-                        <label className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${formData.adminType === 'MASTER' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}>
-                          <input
-                            type="radio"
-                            name="adminType"
-                            value="MASTER"
-                            checked={formData.adminType === 'MASTER'}
-                            onChange={(e) => setFormData((prev) => ({ ...prev, adminType: e.target.value }))}
-                            className="h-4 w-4 text-blue-600"
-                          />
-                          <div>
-                            <span className="font-medium">Master Admin</span>
-                            <p className="text-xs text-slate-500">Internal + Customer requests</p>
-                          </div>
-                        </label>
-                        <label className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${formData.adminType === 'WORKER' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}>
-                          <input
-                            type="radio"
-                            name="adminType"
-                            value="WORKER"
-                            checked={formData.adminType === 'WORKER'}
-                            onChange={(e) => setFormData((prev) => ({ ...prev, adminType: e.target.value }))}
-                            className="h-4 w-4 text-blue-600"
-                          />
-                          <div>
-                            <span className="font-medium">Worker Admin</span>
-                            <p className="text-xs text-slate-500">Internal requests only</p>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => router.push('/admin/users')}
-                      disabled={loading}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="bg-green-600 hover:bg-green-700"
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        <>
-                          <Mail className="h-4 w-4 mr-2" />
-                          Create & Send Activation Email
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
+            {/* Actions */}
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => router.push('/admin/users')}
+                disabled={loading}
+                className="px-4 py-2 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-[9px] transition-colors disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Mail className="size-3.5" />
+                )}
+                {loading ? 'Creating...' : 'Create & Send Activation Email'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

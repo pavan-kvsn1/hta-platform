@@ -5,31 +5,13 @@ import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   UserPlus,
   Crown,
   Eye,
-  ChevronLeft,
-  ChevronRight,
   Inbox,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -70,6 +52,7 @@ export default function CustomerRequestsPage() {
   const [statusFilter, setStatusFilter] = useState('PENDING')
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [page, setPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   const fetchRequests = useCallback(async () => {
     setLoading(true)
@@ -78,7 +61,7 @@ export default function CustomerRequestsPage() {
       params.set('status', statusFilter)
       if (typeFilter !== 'ALL') params.set('type', typeFilter)
       params.set('page', page.toString())
-      params.set('limit', '15')
+      params.set('limit', rowsPerPage.toString())
 
       const res = await apiFetch(`/api/admin/customers/requests?${params}`)
       if (res.ok) {
@@ -92,223 +75,195 @@ export default function CustomerRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, typeFilter, page])
+  }, [statusFilter, typeFilter, page, rowsPerPage])
 
   useEffect(() => {
     fetchRequests()
   }, [statusFilter, typeFilter, page, fetchRequests])
 
-  const _getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'USER_ADDITION':
-        return <UserPlus className="h-4 w-4" />
-      case 'POC_CHANGE':
-        return <Crown className="h-4 w-4" />
-      default:
-        return null
-    }
-  }
-
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case 'USER_ADDITION':
-        return (
-          <Badge className="bg-blue-100 text-blue-700">
-            <UserPlus className="h-3 w-3 mr-1" />
-            User Addition
-          </Badge>
-        )
-      case 'POC_CHANGE':
-        return (
-          <Badge className="bg-purple-100 text-purple-700">
-            <Crown className="h-3 w-3 mr-1" />
-            POC Change
-          </Badge>
-        )
-      default:
-        return <Badge>{type}</Badge>
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return <Badge className="bg-amber-100 text-amber-700">Pending</Badge>
-      case 'APPROVED':
-        return <Badge className="bg-green-100 text-green-700">Approved</Badge>
-      case 'REJECTED':
-        return <Badge className="bg-red-100 text-red-700">Rejected</Badge>
-      default:
-        return <Badge>{status}</Badge>
-    }
-  }
-
-  const getRequestDetails = (request: CustomerRequest) => {
-    if (request.type === 'USER_ADDITION') {
-      return (
-        <span>
-          {request.data.name} ({request.data.email})
-        </span>
-      )
-    } else if (request.type === 'POC_CHANGE') {
-      return <span>POC change requested</span>
-    }
-    return '-'
-  }
-
   return (
-    <div className="p-3 h-full">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-        <div className="p-6 overflow-auto h-full">
-          {/* Back Link */}
-          <Link
-            href="/admin/customers"
-            className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 mb-4"
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="px-6 sm:px-9 py-8">
+        {/* Back Link */}
+        <Link
+          href="/admin/customers"
+          className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-6 transition-colors"
+        >
+          <ChevronLeft className="size-4" />
+          Back to Customers
+        </Link>
+
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-[22px] font-bold text-[#0f172a] flex items-center gap-2.5">
+            <Inbox className="size-[22px] text-[#94a3b8]" />
+            Customer Requests
+          </h1>
+          <p className="text-[13px] text-[#94a3b8] mt-1">
+            Review and manage user addition and POC change requests
+          </p>
+        </div>
+
+        {/* Status Tabs */}
+        <div className="flex gap-1 mb-5 border-b border-[#e2e8f0]">
+          {([
+            { key: 'PENDING', label: 'Pending', count: counts.pending, activeColor: 'border-[#d97706] text-[#d97706]' },
+            { key: 'APPROVED', label: 'Approved', count: counts.approved, activeColor: 'border-[#16a34a] text-[#16a34a]' },
+            { key: 'REJECTED', label: 'Rejected', count: counts.rejected, activeColor: 'border-[#dc2626] text-[#dc2626]' },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => { setStatusFilter(tab.key); setPage(1) }}
+              className={cn(
+                'px-4 py-2.5 text-[13px] font-semibold border-b-2 -mb-px transition-colors',
+                statusFilter === tab.key
+                  ? tab.activeColor
+                  : 'border-transparent text-[#94a3b8] hover:text-[#64748b]'
+              )}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+
+        {/* Type Filter */}
+        <div className="mb-5">
+          <select
+            value={typeFilter}
+            onChange={(e) => { setTypeFilter(e.target.value); setPage(1) }}
+            className="px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
           >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Customers
-          </Link>
+            <option value="ALL">All Types</option>
+            <option value="USER_ADDITION">User Addition</option>
+            <option value="POC_CHANGE">POC Change</option>
+          </select>
+        </div>
 
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-900">Customer Requests</h1>
-            <p className="text-slate-500 mt-1">
-              Review and manage user addition and POC change requests
-            </p>
-          </div>
-
-          {/* Status Tabs */}
-          <div className="flex gap-2 mb-6 border-b">
-            <button
-              onClick={() => { setStatusFilter('PENDING'); setPage(1) }}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 -mb-px',
-                statusFilter === 'PENDING'
-                  ? 'border-amber-500 text-amber-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              )}
-            >
-              Pending ({counts.pending})
-            </button>
-            <button
-              onClick={() => { setStatusFilter('APPROVED'); setPage(1) }}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 -mb-px',
-                statusFilter === 'APPROVED'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              )}
-            >
-              Approved ({counts.approved})
-            </button>
-            <button
-              onClick={() => { setStatusFilter('REJECTED'); setPage(1) }}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 -mb-px',
-                statusFilter === 'REJECTED'
-                  ? 'border-red-500 text-red-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              )}
-            >
-              Rejected ({counts.rejected})
-            </button>
-          </div>
-
-          {/* Filters */}
-          <div className="flex gap-4 mb-6">
-            <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1) }}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Types</SelectItem>
-                <SelectItem value="USER_ADDITION">User Addition</SelectItem>
-                <SelectItem value="POC_CHANGE">POC Change</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Table */}
-          <div className="bg-white rounded-lg border shadow-sm">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-              </div>
-            ) : requests.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
-                <Inbox className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                <p>No {statusFilter.toLowerCase()} requests found</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Details</TableHead>
-                    <TableHead>Requested</TableHead>
-                    {statusFilter !== 'PENDING' && <TableHead>Status</TableHead>}
-                    <TableHead className="w-[80px]">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+        {/* Table */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
+            </div>
+          ) : requests.length === 0 ? (
+            <div className="text-center py-16">
+              <Inbox className="size-10 mx-auto mb-3 text-[#e2e8f0]" />
+              <p className="text-[13px] text-[#94a3b8]">No {statusFilter.toLowerCase()} requests found</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Company</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Type</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Details</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Requested</th>
+                    {statusFilter !== 'PENDING' && (
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Status</th>
+                    )}
+                    <th className="text-center py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[60px]">View</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {requests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell>
-                        <span className="font-medium">{request.customerAccount.companyName}</span>
-                      </TableCell>
-                      <TableCell>{getTypeBadge(request.type)}</TableCell>
-                      <TableCell>{getRequestDetails(request)}</TableCell>
-                      <TableCell className="text-slate-500 text-sm">
+                    <tr
+                      key={request.id}
+                      className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors"
+                    >
+                      <td className="py-2.5 px-4 font-medium text-[#0f172a]">
+                        {request.customerAccount.companyName}
+                      </td>
+                      <td className="py-2.5 px-4">
+                        {request.type === 'USER_ADDITION' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#eff6ff] text-[#1d4ed8]">
+                            <UserPlus className="size-3" />
+                            User Addition
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#faf5ff] text-[#7c3aed]">
+                            <Crown className="size-3" />
+                            POC Change
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-4 text-[#64748b]">
+                        {request.type === 'USER_ADDITION'
+                          ? `${request.data.name} (${request.data.email})`
+                          : 'POC change requested'}
+                      </td>
+                      <td className="py-2.5 px-4 text-[#94a3b8]">
                         {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                      </TableCell>
+                      </td>
                       {statusFilter !== 'PENDING' && (
-                        <TableCell>{getStatusBadge(request.status)}</TableCell>
+                        <td className="py-2.5 px-4">
+                          <span
+                            className={cn(
+                              'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold',
+                              request.status === 'APPROVED' && 'bg-[#f0fdf4] text-[#16a34a]',
+                              request.status === 'REJECTED' && 'bg-[#fef2f2] text-[#dc2626]',
+                              request.status === 'PENDING' && 'bg-[#fffbeb] text-[#d97706]'
+                            )}
+                          >
+                            {request.status === 'APPROVED' ? 'Approved' : request.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                          </span>
+                        </td>
                       )}
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                      <td className="py-2.5 px-4 text-center">
+                        <button
                           onClick={() => router.push(`/admin/customers/requests/${request.id}`)}
+                          className="p-1.5 text-[#94a3b8] hover:text-[#0f172a] hover:bg-[#f1f5f9] rounded-md transition-colors"
                         >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                          <Eye className="size-3.5" />
+                        </button>
+                      </td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
-            )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-            {/* Pagination */}
-            {pagination && pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t">
-                <p className="text-sm text-slate-500">
-                  Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
-                  {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                  {pagination.total} requests
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#f1f5f9]">
+              <p className="text-[12.5px] text-[#94a3b8]">
+                Showing {(pagination.page - 1) * pagination.limit + 1}&ndash;
+                {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                {pagination.total} requests
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[12px] text-[#94a3b8]">Rows</span>
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(1) }}
+                    className="h-7 px-1.5 border border-[#e2e8f0] rounded-[7px] text-[12.5px] text-[#0f172a] bg-white outline-none"
+                  >
+                    {[10, 15, 25].map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
                     disabled={page === 1}
                     onClick={() => setPage((p) => p - 1)}
+                    className="px-2.5 py-1.5 text-[12px] border border-[#e2e8f0] rounded-[7px] hover:bg-[#f8fafc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                    <ChevronLeft className="size-3.5" />
+                  </button>
+                  <button
                     disabled={page >= pagination.totalPages}
                     onClick={() => setPage((p) => p + 1)}
+                    className="px-2.5 py-1.5 text-[12px] border border-[#e2e8f0] rounded-[7px] hover:bg-[#f8fafc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                    <ChevronRight className="size-3.5" />
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

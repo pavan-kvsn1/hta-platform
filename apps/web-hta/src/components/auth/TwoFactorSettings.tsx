@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { TwoFactorSetup } from './TwoFactorSetup'
 import { TwoFactorDisable } from './TwoFactorDisable'
 import {
@@ -82,74 +80,69 @@ export function TwoFactorSettings() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Shield className="h-5 w-5 text-slate-400" />
-            Two-Factor Authentication
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-white rounded-xl border border-[#e2e8f0] p-6">
+        <h2 className="text-[15px] font-semibold text-[#0f172a] flex items-center gap-2 mb-5">
+          <Shield className="size-[18px] text-[#94a3b8]" />
+          Two-Factor Authentication
+        </h2>
+        <div className="flex justify-center py-8">
+          <Loader2 className="size-5 animate-spin text-[#94a3b8]" />
+        </div>
+      </div>
     )
   }
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Shield className="h-5 w-5 text-slate-400" />
-            Two-Factor Authentication
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4">
-            <p className="text-destructive mb-4">{error}</p>
-            <Button variant="outline" onClick={fetchStatus}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Retry
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-white rounded-xl border border-[#e2e8f0] p-6">
+        <h2 className="text-[15px] font-semibold text-[#0f172a] flex items-center gap-2 mb-5">
+          <Shield className="size-[18px] text-[#94a3b8]" />
+          Two-Factor Authentication
+        </h2>
+        <div className="text-center py-4">
+          <p className="text-destructive text-[13px] mb-4">{error}</p>
+          <Button variant="outline" size="sm" onClick={fetchStatus} className="rounded-lg border-[#e2e8f0] text-[13px]">
+            <RefreshCw className="mr-1.5 size-3.5" />
+            Retry
+          </Button>
+        </div>
+      </div>
     )
   }
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Shield className="h-5 w-5 text-slate-400" />
-            Two-Factor Authentication
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="bg-white rounded-xl border border-[#e2e8f0] p-6">
+        <h2 className="text-[15px] font-semibold text-[#0f172a] flex items-center gap-2 mb-5">
+          <Shield className="size-[18px] text-[#94a3b8]" />
+          Two-Factor Authentication
+        </h2>
+
+        <div className="space-y-0">
           {/* Status */}
-          <div className="flex items-center justify-between py-2 border-b border-slate-100">
+          <div className="flex items-center justify-between py-3 border-b border-[#f1f5f9]">
             <div className="flex items-center gap-2">
               {status?.enabled ? (
-                <ShieldCheck className="h-5 w-5 text-green-500" />
+                <ShieldCheck className="size-4 text-[#16a34a]" />
               ) : (
-                <ShieldOff className="h-5 w-5 text-slate-400" />
+                <ShieldOff className="size-4 text-[#94a3b8]" />
               )}
-              <span className="text-slate-700">Status</span>
+              <span className="text-[13px] text-[#64748b]">Status</span>
             </div>
-            <Badge variant={status?.enabled ? 'default' : 'secondary'}>
+            <span className={
+              status?.enabled
+                ? 'text-[12px] font-medium text-[#16a34a] bg-[#f0fdf4] border border-[#bbf7d0] px-2.5 py-0.5 rounded-full'
+                : 'text-[12px] font-medium text-[#dc2626] bg-[#fef2f2] border border-[#fecaca] px-2.5 py-0.5 rounded-full'
+            }>
               {status?.enabled ? 'Enabled' : 'Disabled'}
-            </Badge>
+            </span>
           </div>
 
           {/* Enabled At */}
           {status?.enabled && status.enabledAt && (
-            <div className="flex items-center justify-between py-2 border-b border-slate-100">
-              <span className="text-slate-500">Enabled Since</span>
-              <span className="text-slate-700">
+            <div className="flex items-center justify-between py-3 border-b border-[#f1f5f9]">
+              <span className="text-[13px] text-[#64748b]">Enabled Since</span>
+              <span className="text-[13px] font-medium text-[#0f172a]">
                 {new Date(status.enabledAt).toLocaleDateString()}
               </span>
             </div>
@@ -157,64 +150,65 @@ export function TwoFactorSettings() {
 
           {/* Backup Codes */}
           {status?.enabled && (
-            <div className="flex items-center justify-between py-2 border-b border-slate-100">
+            <div className="flex items-center justify-between py-3 border-b border-[#f1f5f9]">
               <div className="flex items-center gap-2">
-                <Key className="h-4 w-4 text-slate-400" />
-                <span className="text-slate-500">Backup Codes</span>
+                <Key className="size-3.5 text-[#94a3b8]" />
+                <span className="text-[13px] text-[#64748b]">Backup Codes</span>
               </div>
               <div className="flex items-center gap-2">
-                <span
-                  className={
-                    (status.remainingBackupCodes ?? 0) < 3
-                      ? 'text-amber-600 font-medium'
-                      : 'text-slate-700'
-                  }
-                >
+                <span className={
+                  (status.remainingBackupCodes ?? 0) < 3
+                    ? 'text-[13px] font-medium text-amber-600'
+                    : 'text-[13px] font-medium text-[#0f172a]'
+                }>
                   {status.remainingBackupCodes} remaining
                 </span>
                 {(status.remainingBackupCodes ?? 0) < 3 && (
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertTriangle className="size-3.5 text-amber-500" />
                 )}
               </div>
             </div>
           )}
+        </div>
 
-          {/* Actions */}
-          <div className="pt-2 space-y-2">
-            {status?.enabled ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowRegenerateBackup(true)}
-                  className="w-full"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Regenerate Backup Codes
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDisable(true)}
-                  className="w-full text-destructive hover:text-destructive"
-                >
-                  <ShieldOff className="mr-2 h-4 w-4" />
-                  Disable 2FA
-                </Button>
-              </>
-            ) : (
-              <div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Add an extra layer of security to your account by enabling
-                  two-factor authentication.
-                </p>
-                <Button onClick={() => setShowSetup(true)} className="w-full">
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                  Enable 2FA
-                </Button>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        {/* Actions */}
+        <div className="mt-5 space-y-2.5">
+          {status?.enabled ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setShowRegenerateBackup(true)}
+                className="w-full rounded-lg border-[#e2e8f0] text-[13px] font-medium text-[#475569] h-10"
+              >
+                <RefreshCw className="mr-1.5 size-3.5" />
+                Regenerate Backup Codes
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowDisable(true)}
+                className="w-full rounded-lg border-[#e2e8f0] text-[13px] font-medium text-destructive hover:text-destructive h-10"
+              >
+                <ShieldOff className="mr-1.5 size-3.5" />
+                Disable 2FA
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-[13px] text-[#94a3b8]">
+                Add an extra layer of security to your account by enabling two-factor authentication.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => setShowSetup(true)}
+                className="w-full rounded-lg border-[#e2e8f0] text-[13px] font-medium text-[#475569] h-10"
+              >
+                <ShieldCheck className="mr-1.5 size-3.5" />
+                Enable 2FA
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Setup Dialog */}
       <TwoFactorSetup

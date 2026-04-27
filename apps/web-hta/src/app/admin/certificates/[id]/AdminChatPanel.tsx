@@ -21,31 +21,27 @@ export function AdminChatPanel({
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Person Header */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+      <div className="flex-shrink-0 px-[18px] py-[14px] border-b border-[#f8fafc]">
         <div className="flex items-center gap-3">
-          {/* Avatar */}
-          <div className="size-10 rounded-full bg-slate-700 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
+          <div className="size-10 rounded-full bg-[#334155] text-white flex items-center justify-center font-semibold text-[13px] flex-shrink-0">
             {activeChatTab === 'engineer'
               ? assignee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
               : (customerName || 'C').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
             }
           </div>
-          {/* Name & Status */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900 truncate">
+            <p className="text-[13px] font-semibold text-[#0f172a] truncate">
               {activeChatTab === 'engineer' ? assignee.name : (customerName || 'Customer')}
             </p>
-            <p className="text-xs text-slate-500 flex items-center gap-1.5">
+            <p className="text-[12px] text-[#94a3b8] flex items-center gap-1.5">
               {activeChatTab === 'engineer' ? (
                 <>
                   <span>Engineer</span>
-                  <span className="size-1.5 rounded-full bg-green-500" />
-                  <span className="text-green-600">Online</span>
+                  <span className="size-1.5 rounded-full bg-[#22c55e]" />
+                  <span className="text-[#16a34a]">Online</span>
                 </>
               ) : (
-                <>
-                  <span>{customerName ? 'Customer' : 'No customer assigned'}</span>
-                </>
+                <span>{customerName ? 'Customer' : 'No customer assigned'}</span>
               )}
             </p>
           </div>
@@ -53,15 +49,15 @@ export function AdminChatPanel({
       </div>
 
       {/* Pill-Style Tab Switcher */}
-      <div className="flex-shrink-0 px-4 py-2 border-b border-slate-200 bg-white">
-        <div className="flex bg-slate-100 rounded-full p-1">
+      <div className="flex-shrink-0 px-[18px] py-2.5 border-b border-[#f1f5f9] bg-white">
+        <div className="flex bg-[#f1f5f9] rounded-full p-1">
           <button
             onClick={() => setActiveChatTab('engineer')}
             className={cn(
-              'flex-1 px-4 py-1.5 text-xs font-medium rounded-full transition-all',
+              'flex-1 px-4 py-1.5 text-[12px] font-medium rounded-full transition-all',
               activeChatTab === 'engineer'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-white text-[#0f172a] shadow-sm'
+                : 'text-[#94a3b8] hover:text-[#64748b]'
             )}
           >
             Engineer
@@ -69,10 +65,10 @@ export function AdminChatPanel({
           <button
             onClick={() => setActiveChatTab('customer')}
             className={cn(
-              'flex-1 px-4 py-1.5 text-xs font-medium rounded-full transition-all',
+              'flex-1 px-4 py-1.5 text-[12px] font-medium rounded-full transition-all',
               activeChatTab === 'customer'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-white text-[#0f172a] shadow-sm'
+                : 'text-[#94a3b8] hover:text-[#64748b]'
             )}
           >
             Customer

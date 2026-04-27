@@ -10,11 +10,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Mail,
   Send,
@@ -143,7 +138,7 @@ export function SendDownloadLinkModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-blue-600" />
+            <Mail className="h-5 w-5 text-[#2563eb]" />
             Send Download Link to Customer
           </DialogTitle>
           <DialogDescription>
@@ -154,125 +149,129 @@ export function SendDownloadLinkModal({
         {success ? (
           <div className="py-4">
             <div className="text-center mb-4">
-              <div className="size-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-                <CheckCircle className="h-6 w-6 text-green-600" />
+              <div className="size-12 rounded-full bg-[#dcfce7] flex items-center justify-center mx-auto mb-3">
+                <CheckCircle className="h-6 w-6 text-[#16a34a]" />
               </div>
-              <p className="text-sm font-medium text-green-800">Download Link Sent!</p>
-              <p className="text-xs text-green-600 mt-1">
+              <p className="text-sm font-medium text-[#166534]">Download Link Sent!</p>
+              <p className="text-xs text-[#16a34a] mt-1">
                 An email has been sent to {customerEmail}
               </p>
             </div>
 
-            <div className="bg-slate-50 rounded-lg p-3 text-xs">
-              <p className="text-slate-600 mb-2">Download Link:</p>
+            <div className="bg-[#f8fafc] rounded-xl p-3 text-xs">
+              <p className="text-[#475569] mb-2">Download Link:</p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 bg-white p-2 rounded border text-slate-700 break-all">
+                <code className="flex-1 bg-white p-2 rounded-[7px] border border-[#e2e8f0] text-[#334155] break-all">
                   {success.downloadUrl}
                 </code>
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={() => window.open(success.downloadUrl, '_blank')}
+                  className="p-2 border border-[#e2e8f0] rounded-[7px] hover:bg-[#f8fafc] transition-colors"
                 >
-                  <ExternalLink className="h-3 w-3" />
-                </Button>
+                  <ExternalLink className="size-3" />
+                </button>
               </div>
             </div>
 
             <div className="flex gap-2 mt-4">
-              <Button
-                variant="outline"
-                className="flex-1"
+              <button
                 onClick={() => {
                   setSuccess(null)
                   setCustomerEmail('')
                   setCustomerName('')
                 }}
+                className="flex-1 px-4 py-2 text-[12.5px] font-semibold text-[#0f172a] border border-[#e2e8f0] rounded-[9px] hover:bg-[#f8fafc] transition-colors"
               >
                 Send Another
-              </Button>
-              <Button className="flex-1" onClick={onClose}>
+              </button>
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#0f172a] hover:bg-[#1e293b] rounded-[9px] transition-colors"
+              >
                 Done
-              </Button>
+              </button>
             </div>
           </div>
         ) : (
           <>
             <div className="space-y-4 py-2">
               <div>
-                <Label htmlFor="customerEmail">Customer Email *</Label>
-                <Input
+                <label htmlFor="customerEmail" className="text-sm font-medium text-[#0f172a]">
+                  Customer Email *
+                </label>
+                <input
                   id="customerEmail"
                   type="email"
                   placeholder="customer@example.com"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 w-full px-3 py-2 text-sm text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
                 />
               </div>
 
               <div>
-                <Label htmlFor="customerName">Customer Name *</Label>
-                <Input
+                <label htmlFor="customerName" className="text-sm font-medium text-[#0f172a]">
+                  Customer Name *
+                </label>
+                <input
                   id="customerName"
                   type="text"
                   placeholder="John Smith"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 w-full px-3 py-2 text-sm text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
                 />
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="ccAdmin"
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
                   checked={ccAdmin}
-                  onCheckedChange={(checked) => setCcAdmin(checked === true)}
+                  onChange={(e) => setCcAdmin(e.target.checked)}
+                  className="size-4 rounded border-[#cbd5e1] text-[#7c3aed] focus:ring-[#7c3aed]/20"
                 />
-                <Label htmlFor="ccAdmin" className="text-sm font-normal cursor-pointer">
-                  CC: Send a copy to me
-                </Label>
-              </div>
+                <span className="text-sm text-[#0f172a]">CC: Send a copy to me</span>
+              </label>
 
               {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+                <div className="px-3 py-2.5 text-sm text-[#dc2626] bg-[#fef2f2] border border-[#fee2e2] rounded-[9px]">
+                  {error}
+                </div>
               )}
             </div>
 
             {/* Previously Sent Section */}
             {history.length > 0 && (
-              <div className="border-t pt-4">
-                <p className="text-xs font-medium text-slate-700 mb-2">Previously Sent</p>
+              <div className="border-t border-[#e2e8f0] pt-4">
+                <p className="text-xs font-medium text-[#334155] mb-2">Previously Sent</p>
                 <div className="space-y-2 max-h-32 overflow-y-auto">
                   {history.map((token) => (
                     <div
                       key={token.id}
-                      className={`text-xs p-2 rounded border ${
+                      className={`text-xs p-2 rounded-lg border ${
                         token.isExpired || token.isExhausted
-                          ? 'bg-slate-50 border-slate-200'
-                          : 'bg-green-50 border-green-200'
+                          ? 'bg-[#f8fafc] border-[#e2e8f0]'
+                          : 'bg-[#f0fdf4] border-[#bbf7d0]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">{token.customerEmail}</span>
-                        <span className="text-slate-500">
+                        <span className="font-medium text-[#0f172a]">{token.customerEmail}</span>
+                        <span className="text-[#64748b]">
                           {formatDate(token.createdAt)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-slate-500">
+                      <div className="flex items-center gap-3 mt-1 text-[#64748b]">
                         <span className="flex items-center gap-1">
-                          <Download className="h-3 w-3" />
+                          <Download className="size-3" />
                           {token.downloadCount}/{token.maxDownloads}
                         </span>
                         {token.isExpired ? (
-                          <span className="text-red-500">Expired</span>
+                          <span className="text-[#dc2626]">Expired</span>
                         ) : token.isExhausted ? (
-                          <span className="text-amber-500">Limit reached</span>
+                          <span className="text-[#d97706]">Limit reached</span>
                         ) : (
-                          <span className="flex items-center gap-1 text-green-600">
-                            <Clock className="h-3 w-3" />
+                          <span className="flex items-center gap-1 text-[#16a34a]">
+                            <Clock className="size-3" />
                             Active
                           </span>
                         )}
@@ -284,26 +283,29 @@ export function SendDownloadLinkModal({
             )}
 
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" className="flex-1" onClick={onClose}>
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 text-[12.5px] font-semibold text-[#0f172a] border border-[#e2e8f0] rounded-[9px] hover:bg-[#f8fafc] transition-colors"
+              >
                 Cancel
-              </Button>
-              <Button
-                className="flex-1"
+              </button>
+              <button
                 onClick={handleSend}
                 disabled={isSending || !customerEmail.trim() || !customerName.trim()}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#0f172a] hover:bg-[#1e293b] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isSending ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="size-4 animate-spin" />
                     Sending...
                   </>
                 ) : (
                   <>
-                    <Send className="h-4 w-4 mr-2" />
+                    <Send className="size-4" />
                     Send Download Link
                   </>
                 )}
-              </Button>
+              </button>
             </div>
           </>
         )}

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma, Prisma } from '@hta/database'
 import { requireStaff, requireAuth, requireAdmin } from '../../middleware/auth.js'
+import { parsePagination, paginationResponse } from '../../lib/pagination.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 import { queueCertificateSubmittedEmail, queueCertificateReviewedEmail, queueCustomerReviewEmail, enqueueNotification } from '../../services/queue.js'
 import certificateImagesRoutes from './images/index.js'
@@ -168,6 +169,208 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     return certificates
+  })
+
+  // GET /api/certificates/engineer/counts - Stats for engineer dashboard
+  fastify.get('/engineer/counts', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const userId = request.user!.sub
+
+    const [draft, pending, approved, revision] = await Promise.all([
+      prisma.certificate.count({
+        where: { createdById: userId, status: 'DRAFT' },
+      }),
+      prisma.certificate.count({
+        where: {
+          createdById: userId,
+          status: { in: ['PENDING_REVIEW', 'PENDING_CUSTOMER_APPROVAL'] },
+        },
+      }),
+      prisma.certificate.count({
+        where: { createdById: userId, status: 'APPROVED' },
+      }),
+      prisma.certificate.count({
+        where: {
+          createdById: userId,
+          status: { in: ['REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED'] },
+        },
+      }),
+    ])
+
+    return { draft, pending, approved, revision }
+  })
+
+  // GET /api/certificates/reviewer/counts - Stats for reviewer dashboard
+  fastify.get('/reviewer/counts', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const userId = request.user!.sub
+
+    const [pendingReview, revisionRequested, approved, total] = await Promise.all([
+      prisma.certificate.count({
+        where: { reviewerId: userId, status: 'PENDING_REVIEW' },
+      }),
+      prisma.certificate.count({
+        where: { reviewerId: userId, status: 'REVISION_REQUIRED' },
+      }),
+      prisma.certificate.count({
+        where: {
+          reviewerId: userId,
+          status: { in: ['PENDING_CUSTOMER_APPROVAL', 'APPROVED'] },
+        },
+      }),
+      prisma.certificate.count({
+        where: { reviewerId: userId },
+      }),
+    ])
+
+    return { pendingReview, revisionRequested, approved, total }
+  })
+
+  // GET /api/certificates/engineer - Paginated certificates for the current engineer
+  fastify.get('/engineer', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const query = request.query as {
+      page?: string; limit?: string; status?: string
+      search?: string; dateFrom?: string; dateTo?: string; sort?: string
+    }
+
+    const { page, limit, skip } = parsePagination(query)
+
+    const where: Prisma.CertificateWhereInput = {
+      tenantId,
+      createdById: userId,
+    }
+
+    if (query.status && query.status !== 'all') {
+      where.status = query.status
+    }
+
+    if (query.search) {
+      where.OR = [
+        { certificateNumber: { contains: query.search, mode: 'insensitive' } },
+        { customerName: { contains: query.search, mode: 'insensitive' } },
+        { uucDescription: { contains: query.search, mode: 'insensitive' } },
+        { reviewer: { name: { contains: query.search, mode: 'insensitive' } } },
+      ]
+    }
+
+    if (query.dateFrom || query.dateTo) {
+      const dateFilter: Prisma.DateTimeNullableFilter = {}
+      if (query.dateFrom) dateFilter.gte = new Date(query.dateFrom)
+      if (query.dateTo) {
+        const to = new Date(query.dateTo)
+        to.setHours(23, 59, 59, 999)
+        dateFilter.lte = to
+      }
+      where.dateOfCalibration = dateFilter
+    }
+
+    const orderBy: Prisma.CertificateOrderByWithRelationInput =
+      query.sort === 'updatedAt_asc' ? { updatedAt: 'asc' } : { updatedAt: 'desc' }
+
+    const [certificates, total] = await Promise.all([
+      prisma.certificate.findMany({
+        where,
+        include: {
+          reviewer: { select: { id: true, name: true } },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.certificate.count({ where }),
+    ])
+
+    return {
+      certificates: certificates.map((cert) => ({
+        id: cert.id,
+        certificateNumber: cert.certificateNumber,
+        status: cert.status,
+        customerName: cert.customerName || '-',
+        uucDescription: cert.uucDescription || '-',
+        dateOfCalibration: cert.dateOfCalibration?.toISOString() || '',
+        currentVersion: cert.currentRevision,
+        createdAt: cert.createdAt.toISOString(),
+        reviewerName: cert.reviewer?.name || undefined,
+      })),
+      pagination: paginationResponse(page, limit, total),
+    }
+  })
+
+  // GET /api/certificates/reviewer - Paginated certificates for the current reviewer
+  fastify.get('/reviewer', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const query = request.query as {
+      page?: string; limit?: string; status?: string; search?: string; sort?: string
+    }
+
+    const { page, limit, skip } = parsePagination(query)
+
+    const where: Prisma.CertificateWhereInput = {
+      tenantId,
+      reviewerId: userId,
+    }
+
+    if (query.status && query.status !== 'all') {
+      where.status = query.status
+    }
+
+    if (query.search) {
+      where.OR = [
+        { certificateNumber: { contains: query.search, mode: 'insensitive' } },
+        { customerName: { contains: query.search, mode: 'insensitive' } },
+        { uucDescription: { contains: query.search, mode: 'insensitive' } },
+        { createdBy: { name: { contains: query.search, mode: 'insensitive' } } },
+      ]
+    }
+
+    const orderBy: Prisma.CertificateOrderByWithRelationInput =
+      query.sort === 'updatedAt_asc' ? { updatedAt: 'asc' } : { updatedAt: 'desc' }
+
+    const [certificates, total] = await Promise.all([
+      prisma.certificate.findMany({
+        where,
+        include: {
+          createdBy: { select: { name: true, email: true } },
+          events: {
+            where: {
+              eventType: { in: ['SUBMITTED_FOR_REVIEW', 'RESUBMITTED_FOR_REVIEW'] },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.certificate.count({ where }),
+    ])
+
+    return {
+      certificates: certificates.map((cert) => ({
+        id: cert.id,
+        certificateNumber: cert.certificateNumber,
+        status: cert.status,
+        customerName: cert.customerName || '-',
+        uucDescription: cert.uucDescription || '-',
+        dateOfCalibration: cert.dateOfCalibration?.toISOString() || '',
+        currentVersion: cert.currentRevision,
+        createdAt: cert.createdAt.toISOString(),
+        submittedAt: cert.events[0]?.createdAt?.toISOString() || null,
+        assigneeName: cert.createdBy?.name || '-',
+        assigneeEmail: cert.createdBy?.email || '',
+      })),
+      pagination: paginationResponse(page, limit, total),
+    }
   })
 
   // POST /api/certificates - Create a new certificate

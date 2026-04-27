@@ -5,29 +5,10 @@ import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import {
   Plus,
   Search,
   Users,
-  Shield as _Shield,
   UserCog,
   Loader2,
   ChevronLeft,
@@ -59,11 +40,6 @@ const roleIcons: Record<string, typeof Users> = {
   ADMIN: UserCog,
 }
 
-const roleColors: Record<string, string> = {
-  ENGINEER: 'bg-blue-100 text-blue-800',
-  ADMIN: 'bg-orange-100 text-orange-800',
-}
-
 export function UserListClient() {
   const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
@@ -73,6 +49,7 @@ export function UserListClient() {
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [activeFilter, setActiveFilter] = useState('true')
   const [page, setPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -82,7 +59,7 @@ export function UserListClient() {
       if (roleFilter !== 'ALL') params.set('role', roleFilter)
       params.set('isActive', activeFilter)
       params.set('page', page.toString())
-      params.set('limit', '15')
+      params.set('limit', rowsPerPage.toString())
 
       const res = await apiFetch(`/api/admin/users?${params}`)
       if (res.ok) {
@@ -95,13 +72,12 @@ export function UserListClient() {
     } finally {
       setLoading(false)
     }
-  }, [search, roleFilter, activeFilter, page])
+  }, [search, roleFilter, activeFilter, page, rowsPerPage])
 
   useEffect(() => {
     fetchUsers()
-  }, [roleFilter, activeFilter, page, fetchUsers])
+  }, [roleFilter, activeFilter, page, rowsPerPage, fetchUsers])
 
-  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       setPage(1)
@@ -111,179 +87,209 @@ export function UserListClient() {
   }, [search, fetchUsers])
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Staff Users</h1>
-          <p className="text-slate-500 mt-1">
-            Manage engineers and admin accounts
-          </p>
-        </div>
-        <Link href="/admin/users/new">
-          <Button className="bg-green-600 hover:bg-green-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Create User
-          </Button>
-        </Link>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            placeholder="Search by name or email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 border-slate-300"
-          />
-        </div>
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-[250px] border-slate-300">
-            <SelectValue placeholder="Role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Roles</SelectItem>
-            <SelectItem value="ENGINEER">Engineer</SelectItem>
-            <SelectItem value="ADMIN">Admin</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={activeFilter} onValueChange={setActiveFilter}>
-          <SelectTrigger className="w-[250px] border-slate-300">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="true">Active</SelectItem>
-            <SelectItem value="false">Inactive</SelectItem>
-            <SelectItem value="ALL">All</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-lg border shadow-sm border-slate-300">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-          </div>
-        ) : users.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">
-            <Users className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-            <p>No users found</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader className="border-slate-300">
-              <TableRow className="border-slate-300">
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Assigned Admin</TableHead>
-                <TableHead>Auth</TableHead>
-                <TableHead>Certificates</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => {
-                const RoleIcon = roleIcons[user.role] || Users
-                return (
-                  <TableRow
-                    key={user.id}
-                    className="cursor-pointer hover:bg-slate-300"
-                    onClick={() => router.push(`/admin/users/${user.id}/edit`)}
-                  >
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell className="text-slate-500">{user.email}</TableCell>
-                    <TableCell>
-                      <Badge className={cn('font-normal', roleColors[user.role])}>
-                        <RoleIcon className="h-3 w-3 mr-1" />
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-slate-500">
-                      {user.assignedAdmin?.name || '-'}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-                          user.authProvider === 'GOOGLE'
-                            ? 'bg-red-50 text-red-700'
-                            : 'bg-slate-100 text-slate-700'
-                        )}
-                      >
-                        {user.authProvider === 'GOOGLE' ? 'G' : 'P'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-slate-500">
-                      {user.certificateCount}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={user.isActive ? 'default' : 'secondary'}
-                        className={cn(
-                          user.isActive
-                            ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                            : 'bg-slate-100 text-slate-500'
-                        )}
-                      >
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        )}
-
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t">
-            <p className="text-sm text-slate-500">
-              Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
-              {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-              {pagination.total} users
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="px-6 sm:px-9 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-[22px] font-bold text-[#0f172a] flex items-center gap-2.5">
+              <Users className="size-[22px] text-[#94a3b8]" />
+              Staff Users
+            </h1>
+            <p className="text-[13px] text-[#94a3b8] mt-1">
+              Manage engineers and admin accounts
             </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
+          </div>
+          <Link
+            href="/admin/users/new"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-[9px] transition-colors"
+          >
+            <Plus className="size-3.5" />
+            Create User
+          </Link>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-4 mb-5">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-[#94a3b8]" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Role</label>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="block px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
               >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= pagination.totalPages}
-                onClick={() => setPage((p) => p + 1)}
+                <option value="ALL">All Roles</option>
+                <option value="ENGINEER">Engineer</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Status</label>
+              <select
+                value={activeFilter}
+                onChange={(e) => setActiveFilter(e.target.value)}
+                className="block px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
               >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+                <option value="ALL">All</option>
+              </select>
             </div>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Legend */}
-      <div className="mt-4 flex gap-4 text-xs text-slate-500">
-        <span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded bg-red-50 text-red-700 font-medium mr-1">
-            G
+        {/* Table */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
+            </div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-16">
+              <Users className="size-10 mx-auto mb-3 text-[#e2e8f0]" />
+              <p className="text-[13px] text-[#94a3b8]">No users found</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Name</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Email</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Role</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Assigned Admin</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Auth</th>
+                    <th className="text-right py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Certs</th>
+                    <th className="text-center py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => {
+                    const RoleIcon = roleIcons[user.role] || Users
+                    return (
+                      <tr
+                        key={user.id}
+                        className="border-b border-[#f1f5f9] cursor-pointer hover:bg-[#f8fafc] transition-colors"
+                        onClick={() => router.push(`/admin/users/${user.id}/edit`)}
+                      >
+                        <td className="py-2.5 px-4 font-medium text-[#0f172a]">{user.name}</td>
+                        <td className="py-2.5 px-4 text-[#64748b]">{user.email}</td>
+                        <td className="py-2.5 px-4">
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold',
+                              user.role === 'ADMIN'
+                                ? 'bg-[#fff7ed] text-[#c2410c]'
+                                : 'bg-[#eff6ff] text-[#1d4ed8]'
+                            )}
+                          >
+                            <RoleIcon className="size-3" />
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-4 text-[#64748b]">
+                          {user.assignedAdmin?.name || <span className="text-[#cbd5e1]">—</span>}
+                        </td>
+                        <td className="py-2.5 px-4">
+                          <span
+                            className={cn(
+                              'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold',
+                              user.authProvider === 'GOOGLE'
+                                ? 'bg-[#fef2f2] text-[#dc2626]'
+                                : 'bg-[#f1f5f9] text-[#64748b]'
+                            )}
+                          >
+                            {user.authProvider === 'GOOGLE' ? 'G' : 'P'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-4 text-right text-[#64748b]">
+                          {user.certificateCount}
+                        </td>
+                        <td className="py-2.5 px-4 text-center">
+                          <span
+                            className={cn(
+                              'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold',
+                              user.isActive
+                                ? 'bg-[#f0fdf4] text-[#16a34a]'
+                                : 'bg-[#f1f5f9] text-[#94a3b8]'
+                            )}
+                          >
+                            {user.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#f1f5f9]">
+              <p className="text-[12.5px] text-[#94a3b8]">
+                Showing {(pagination.page - 1) * pagination.limit + 1}–
+                {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                {pagination.total}
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[12px] text-[#94a3b8]">Rows</span>
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(1) }}
+                    className="h-7 px-1.5 border border-[#e2e8f0] rounded-[7px] text-[12.5px] text-[#0f172a] bg-white outline-none"
+                  >
+                    {[10, 15, 25].map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    disabled={page === 1}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="px-2.5 py-1.5 text-[12px] border border-[#e2e8f0] rounded-[7px] hover:bg-[#f8fafc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft className="size-3.5" />
+                  </button>
+                  <button
+                    disabled={page >= pagination.totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="px-2.5 py-1.5 text-[12px] border border-[#e2e8f0] rounded-[7px] hover:bg-[#f8fafc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Legend */}
+        <div className="mt-3 flex gap-4 text-[11px] text-[#94a3b8]">
+          <span>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#fef2f2] text-[#dc2626] font-bold text-[10px] mr-1">G</span>
+            = Google auth
           </span>
-          = Google auth
-        </span>
-        <span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium mr-1">
-            P
+          <span>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#f1f5f9] text-[#64748b] font-bold text-[10px] mr-1">P</span>
+            = Password auth
           </span>
-          = Password auth
-        </span>
-        <span className="ml-auto">Click row to edit user</span>
+          <span className="ml-auto">Click row to edit user</span>
+        </div>
       </div>
     </div>
   )

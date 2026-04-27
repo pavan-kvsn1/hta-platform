@@ -4,11 +4,7 @@ import { apiFetch } from '@/lib/api-client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ShieldCheck, CheckCircle, ChevronDown, ChevronRight, User, Mail, Send as _Send } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
+import { ShieldCheck, CheckCircle, ChevronDown, ChevronRight, User, Mail } from 'lucide-react'
 import { SignatureModal } from '@/components/signatures'
 import { SendDownloadLinkModal } from './SendDownloadLinkModal'
 import type { SignatureData } from '@/types/signatures'
@@ -102,144 +98,142 @@ export function AdminAuthorizationPanel({
 
   return (
     <>
-      <div className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
+      <div className="flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden flex-shrink-0">
         {/* Header - Collapsible */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className={cn(
-            'flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors',
-            isAuthorized ? 'bg-green-50' : ''
+            'flex items-center justify-between px-4 py-3 hover:bg-[#f8fafc] transition-colors',
+            isAuthorized ? 'bg-[#f0fdf4]' : ''
           )}
         >
           <div className="flex items-center gap-2">
             {isExpanded ? (
-              <ChevronDown className="size-4 text-slate-400" />
+              <ChevronDown className="size-4 text-[#94a3b8]" />
             ) : (
-              <ChevronRight className="size-4 text-slate-400" />
+              <ChevronRight className="size-4 text-[#94a3b8]" />
             )}
             <span
               className={cn(
                 'text-xs font-bold uppercase tracking-wider',
-                isAuthorized ? 'text-green-700' : 'text-slate-700'
+                isAuthorized ? 'text-[#15803d]' : 'text-[#334155]'
               )}
             >
               Authorization
             </span>
             {isAuthorized && (
-              <CheckCircle className="size-4 text-green-600" />
+              <CheckCircle className="size-4 text-[#16a34a]" />
             )}
           </div>
         </button>
 
         {/* Content - Only when expanded */}
         {isExpanded && (
-          <div className="border-t border-slate-100">
+          <div className="border-t border-[#f1f5f9]">
             <div className="p-4">
               {isAuthorized ? (
                 <div className="text-center py-2">
-                  <div className="size-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
+                  <div className="size-12 rounded-full bg-[#dcfce7] flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle className="h-6 w-6 text-[#16a34a]" />
                   </div>
-                  <p className="text-sm font-medium text-green-800">Certificate Authorized</p>
-                  <p className="text-xs text-green-600 mt-1">
+                  <p className="text-sm font-medium text-[#166534]">Certificate Authorized</p>
+                  <p className="text-xs text-[#16a34a] mt-1">
                     This certificate has been authorized and is now complete.
                   </p>
 
                   {/* Option to send download link after authorization */}
-                  <div className="mt-4 pt-4 border-t border-slate-100">
-                    <Button
-                      variant="outline"
-                      size="sm"
+                  <div className="mt-4 pt-4 border-t border-[#f1f5f9]">
+                    <button
                       onClick={() => setShowSendLinkModal(true)}
-                      className="w-full"
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-[12.5px] font-semibold text-[#0f172a] border border-[#e2e8f0] rounded-[9px] hover:bg-[#f8fafc] transition-colors"
                     >
-                      <Mail className="h-4 w-4 mr-2" />
+                      <Mail className="size-4" />
                       Send Download Link to Customer
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ) : (
                 <>
-                  <p className="text-xs text-slate-500 mb-4 text-center">
+                  <p className="text-xs text-[#64748b] mb-4 text-center">
                     By authorizing, you confirm this certificate is complete and has been approved
                     by the customer.
                   </p>
 
                   {/* Send Download Link Option */}
-                  <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                    <div className="flex items-start gap-2 mb-3">
-                      <Checkbox
-                        id="sendDownloadLink"
+                  <div className="mb-4 p-3 bg-[#eff6ff] rounded-xl border border-[#dbeafe]">
+                    <label className="flex items-start gap-2 mb-3 cursor-pointer">
+                      <input
+                        type="checkbox"
                         checked={sendDownloadLink}
-                        onCheckedChange={(checked) => setSendDownloadLink(checked === true)}
-                        className="mt-0.5"
+                        onChange={(e) => setSendDownloadLink(e.target.checked)}
+                        className="mt-1 size-4 rounded border-[#cbd5e1] text-[#2563eb] focus:ring-[#2563eb]/20"
                       />
                       <div className="flex-1">
-                        <Label htmlFor="sendDownloadLink" className="text-sm font-medium text-blue-900 cursor-pointer">
+                        <span className="text-sm font-medium text-[#1e3a5f]">
                           Send download link to customer
-                        </Label>
-                        <p className="text-xs text-blue-700 mt-0.5">
+                        </span>
+                        <p className="text-xs text-[#1d4ed8] mt-0.5">
                           Email the finalized certificate to the customer after authorization
                         </p>
                       </div>
-                    </div>
+                    </label>
 
                     {sendDownloadLink && (
                       <div className="space-y-3 pl-6">
                         <div>
-                          <Label htmlFor="customerEmail" className="text-xs text-blue-800">
+                          <label htmlFor="customerEmail" className="text-xs font-medium text-[#1e40af]">
                             Customer Email *
-                          </Label>
-                          <Input
+                          </label>
+                          <input
                             id="customerEmail"
                             type="email"
                             placeholder="customer@example.com"
                             value={customerEmail}
                             onChange={(e) => setCustomerEmail(e.target.value)}
-                            className="mt-1 h-8 text-sm bg-white"
+                            className="mt-1 w-full h-8 px-3 text-sm text-[#0f172a] bg-white border border-[#e2e8f0] rounded-[7px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="customerName" className="text-xs text-blue-800">
+                          <label htmlFor="customerName" className="text-xs font-medium text-[#1e40af]">
                             Customer Name *
-                          </Label>
-                          <Input
+                          </label>
+                          <input
                             id="customerName"
                             type="text"
                             placeholder="John Smith"
                             value={customerName}
                             onChange={(e) => setCustomerName(e.target.value)}
-                            className="mt-1 h-8 text-sm bg-white"
+                            className="mt-1 w-full h-8 px-3 text-sm text-[#0f172a] bg-white border border-[#e2e8f0] rounded-[7px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
                           />
                         </div>
                       </div>
                     )}
                   </div>
 
-                  <Button
+                  <button
                     onClick={() => setShowAuthorizeModal(true)}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-sm h-10"
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-[12.5px] font-semibold text-white bg-[#2563eb] hover:bg-[#1d4ed8] rounded-[9px] transition-colors"
                   >
-                    <ShieldCheck className="h-4 w-4 mr-2" />
+                    <ShieldCheck className="size-4" />
                     {sendDownloadLink && customerEmail && customerName
                       ? 'Authorize & Send to Customer'
                       : 'Authorize & Sign'}
-                  </Button>
+                  </button>
                 </>
               )}
             </div>
 
             {/* Certificate Info */}
-            <div className="px-4 py-3 border-t bg-slate-50">
-              <div className="flex items-center gap-4 text-xs text-slate-600">
+            <div className="px-4 py-3 border-t border-[#f1f5f9] bg-[#f8fafc]">
+              <div className="flex items-center gap-4 text-xs text-[#475569]">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400">Revision:</span>
+                  <span className="text-[#94a3b8]">Revision:</span>
                   <span className="font-medium">{currentRevision}</span>
                 </div>
-                <div className="h-3 w-px bg-slate-300" />
+                <div className="h-3 w-px bg-[#cbd5e1]" />
                 <div className="flex items-center gap-1.5">
-                  <User className="size-3 text-slate-400" />
-                  <span className="text-slate-400">Created by:</span>
+                  <User className="size-3 text-[#94a3b8]" />
+                  <span className="text-[#94a3b8]">Created by:</span>
                   <span className="font-medium">{createdByName || '-'}</span>
                 </div>
               </div>

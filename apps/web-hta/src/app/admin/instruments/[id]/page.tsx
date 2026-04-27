@@ -5,14 +5,18 @@ import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect, use, useCallback } from 'react'
 import Link from 'next/link'
 import {
+  ChevronLeft,
   ChevronDown,
   ChevronUp,
   Pencil,
   Trash2,
-  ArrowLeft,
   Loader2,
   AlertTriangle,
+  User,
+  Tag,
+  Hash,
 } from 'lucide-react'
+import { MetaInfoItem } from '@/components/certificate/MetaInfoItem'
 
 interface RangeDataItem {
   parameter?: string
@@ -75,21 +79,16 @@ const PARAMETER_CAPABILITIES: Record<string, string> = {
 }
 
 function getStatusBadge(status: string) {
-  const styles: Record<string, string> = {
-    VALID: 'bg-green-100 text-green-700',
-    EXPIRING_SOON: 'bg-yellow-100 text-yellow-700',
-    EXPIRED: 'bg-red-100 text-red-700',
-    UNDER_RECAL: 'bg-blue-100 text-blue-700',
+  const config: Record<string, { className: string; label: string }> = {
+    VALID: { className: 'bg-[#dcfce7] text-[#15803d] border-[#bbf7d0]', label: 'Valid' },
+    EXPIRING_SOON: { className: 'bg-[#fef3c7] text-[#92400e] border-[#fde68a]', label: 'Expiring Soon' },
+    EXPIRED: { className: 'bg-[#fee2e2] text-[#991b1b] border-[#fecaca]', label: 'Expired' },
+    UNDER_RECAL: { className: 'bg-[#dbeafe] text-[#1e40af] border-[#bfdbfe]', label: 'Under Recal' },
   }
-  const labels: Record<string, string> = {
-    VALID: 'Valid',
-    EXPIRING_SOON: 'Expiring Soon',
-    EXPIRED: 'Expired',
-    UNDER_RECAL: 'Under Recal',
-  }
+  const c = config[status]
   return (
-    <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status] || 'bg-slate-100 text-slate-700'}`}>
-      {labels[status] || status}
+    <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md border ${c?.className || 'bg-[#f1f5f9] text-[#64748b] border-[#e2e8f0]'}`}>
+      {c?.label || status}
     </span>
   )
 }
@@ -106,19 +105,19 @@ function CollapsibleSection({
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+    <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full px-4 py-3 flex items-center justify-between bg-primary hover:bg-primary/90 transition-colors"
+        className="w-full px-[18px] py-[13px] flex items-center justify-between bg-[#f8fafc] border-b border-[#f1f5f9] hover:bg-[#f1f5f9] transition-colors"
       >
-        <span className="font-semibold text-primary-foreground text-sm">{title}</span>
+        <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">{title}</span>
         {isExpanded ? (
-          <ChevronUp className="h-5 w-5 text-primary-foreground/70" />
+          <ChevronUp className="size-4 text-[#94a3b8]" />
         ) : (
-          <ChevronDown className="h-5 w-5 text-primary-foreground/70" />
+          <ChevronDown className="size-4 text-[#94a3b8]" />
         )}
       </button>
-      {isExpanded && <div className="p-4 bg-white">{children}</div>}
+      {isExpanded && <div className="p-5">{children}</div>}
     </div>
   )
 }
@@ -126,8 +125,8 @@ function CollapsibleSection({
 function InfoField({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
-      <dt className="text-xs font-semibold text-slate-600 tracking-wider">{label}</dt>
-      <dd className="mt-1 text-sm text-slate-900">{value || '-'}</dd>
+      <dt className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">{label}</dt>
+      <dd className="mt-1 text-[13px] text-[#0f172a]">{value || '-'}</dd>
     </div>
   )
 }
@@ -218,10 +217,10 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-100">
+      <div className="h-full flex items-center justify-center bg-[#f1f5f9]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-slate-600">Loading instrument...</p>
+          <Loader2 className="size-8 animate-spin text-[#94a3b8] mx-auto mb-4" />
+          <p className="text-[#64748b]">Loading instrument...</p>
         </div>
       </div>
     )
@@ -229,17 +228,17 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
 
   if (error || !instrument) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-100">
+      <div className="h-full flex items-center justify-center bg-[#f1f5f9]">
         <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">
+          <AlertTriangle className="size-12 text-[#d97706] mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-[#0f172a] mb-2">
             {error || 'Instrument not found'}
           </h2>
           <Link
             href="/admin/instruments"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+            className="inline-flex items-center gap-2 px-4 py-2 text-[12.5px] font-semibold bg-white border border-[#e2e8f0] rounded-[9px] hover:bg-[#f8fafc] transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ChevronLeft className="size-4" />
             Back to Instruments
           </Link>
         </div>
@@ -248,27 +247,27 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="flex h-full bg-slate-100">
+    <div className="flex h-full bg-[#f1f5f9] overflow-hidden">
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Deactivate Instrument?</h3>
-            <p className="text-slate-600 mb-4">
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-[#0f172a] mb-2">Deactivate Instrument?</h3>
+            <p className="text-[#64748b] text-sm mb-4">
               This will mark the instrument as inactive. It will no longer appear in the active
               instruments list but can be restored later.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+                className="px-4 py-2 text-[12.5px] font-semibold text-[#0f172a] bg-white border border-[#e2e8f0] rounded-[9px] hover:bg-[#f8fafc] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2 text-[12.5px] font-semibold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-[9px] disabled:opacity-50 transition-colors"
               >
                 {deleting ? 'Deactivating...' : 'Deactivate'}
               </button>
@@ -277,266 +276,251 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
-      {/* Left Column - Specs */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Header */}
-          <div className="flex-shrink-0 border-b border-slate-200 pl-6 pb-5 pt-5 pr-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/admin/instruments"
-                  className="text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <ArrowLeft className="size-5" strokeWidth={2} />
-                </Link>
-                <span className="text-slate-300 text-xl">|</span>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                  {instrument.description}
-                </h1>
-                {getStatusBadge(instrument.status)}
-                {!instrument.isActive && (
-                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600">
-                    Inactive
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/admin/instruments/${id}/edit`}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                >
-                  <Pencil className="w-4 h-4" />
-                  Edit
-                </Link>
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors text-sm"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Deactivate
-                </button>
-              </div>
+      {/* Left Side - Header + Content (Scrollable) */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-auto p-6 pr-3">
+        {/* Header */}
+        <div className="flex-shrink-0 mb-5">
+          {/* Back Link */}
+          <Link
+            href="/admin/instruments"
+            className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-4 transition-colors"
+          >
+            <ChevronLeft className="size-4" />
+            Back to Instruments
+          </Link>
+
+          {/* Title Row */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <h1 className="text-[22px] font-bold text-[#0f172a] tracking-tight">
+                {instrument.description}
+              </h1>
+              {getStatusBadge(instrument.status)}
+              {!instrument.isActive && (
+                <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md border bg-[#f1f5f9] text-[#475569] border-[#e2e8f0]">
+                  Inactive
+                </span>
+              )}
             </div>
 
-            {/* Meta Info Row */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm mt-3">
-              <div className="flex items-center gap-2 text-slate-600">
-                <span className="text-slate-400">Asset:</span>
-                <span className="font-medium text-slate-700">{instrument.assetNumber}</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <span className="text-slate-400">Category:</span>
-                <span>{instrument.category}</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <span className="text-slate-400">Version:</span>
-                <span>v{instrument.version}</span>
-              </div>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/admin/instruments/${id}/edit`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#0f172a] hover:bg-[#1e293b] rounded-[9px] transition-colors"
+              >
+                <Pencil className="size-3.5" />
+                Edit
+              </Link>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-[#dc2626] bg-[#fef2f2] hover:bg-[#fee2e2] rounded-[9px] transition-colors"
+              >
+                <Trash2 className="size-3.5" />
+                Deactivate
+              </button>
             </div>
           </div>
 
-          {/* Content - Scrollable */}
-          <div className="flex-1 overflow-auto bg-slate-50/30">
-            <div className="p-3 space-y-2 bg-section-inner">
-              {/* Identity Section */}
-              <CollapsibleSection
-                title="Identity"
-                isExpanded={expandedSections.identity}
-                onToggle={() => toggleSection('identity')}
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InfoField label="Asset Number" value={instrument.assetNumber} />
-                  <InfoField label="Category" value={instrument.category} />
-                  <div className="md:col-span-2">
-                    <InfoField label="Description" value={instrument.description} />
-                  </div>
-                </div>
-              </CollapsibleSection>
-
-              {/* Equipment Section */}
-              <CollapsibleSection
-                title="Equipment Details"
-                isExpanded={expandedSections.equipment}
-                onToggle={() => toggleSection('equipment')}
-              >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <InfoField label="Make" value={instrument.make} />
-                  <InfoField label="Model" value={instrument.model} />
-                  <InfoField label="Serial Number" value={instrument.serialNumber} />
-                </div>
-              </CollapsibleSection>
-
-              {/* Parameters Section */}
-              <CollapsibleSection
-                title="Parameter Information"
-                isExpanded={expandedSections.parameters}
-                onToggle={() => toggleSection('parameters')}
-              >
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InfoField label="Parameter Group" value={instrument.parameterGroup} />
-                    <div>
-                      <dt className="text-xs font-semibold text-slate-600 tracking-wider">Parameter Roles</dt>
-                      <dd className="mt-1 text-sm text-slate-900">
-                        {(instrument.parameterRoles || []).length > 0
-                          ? instrument.parameterRoles.map(r => PARAMETER_ROLES[r] || r).join(', ')
-                          : '-'}
-                      </dd>
-                    </div>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold text-slate-600 tracking-wider">Parameter Capabilities</dt>
-                    <dd className="mt-2 flex flex-wrap gap-1.5">
-                      {(instrument.parameterCapabilities || []).length > 0 ? (
-                        instrument.parameterCapabilities.map(cap => (
-                          <span key={cap} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
-                            {PARAMETER_CAPABILITIES[cap] || cap}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-slate-500">-</span>
-                      )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold text-slate-600 tracking-wider">SOP References</dt>
-                    <dd className="mt-2 flex flex-wrap gap-1.5">
-                      {(instrument.sopReferences || []).length > 0 ? (
-                        instrument.sopReferences.map((sop, idx) => (
-                          <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-full">
-                            {sop}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-slate-500">-</span>
-                      )}
-                    </dd>
-                  </div>
-                </div>
-              </CollapsibleSection>
-
-              {/* Calibration Section */}
-              <CollapsibleSection
-                title="Calibration Information"
-                isExpanded={expandedSections.calibration}
-                onToggle={() => toggleSection('calibration')}
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InfoField label="Usage" value={instrument.usage} />
-                  <InfoField label="Calibrated At" value={instrument.calibratedAtLocation} />
-                  <InfoField label="Report Number" value={instrument.reportNo} />
-                  <div>
-                    <dt className="text-xs font-semibold text-slate-600 tracking-wider">Calibration Due Date</dt>
-                    <dd className="mt-1 text-sm text-slate-900">
-                      {instrument.calibrationDueDate
-                        ? new Date(instrument.calibrationDueDate).toLocaleDateString()
-                        : '-'}
-                    </dd>
-                  </div>
-                  {instrument.daysUntilExpiry !== 999 && (
-                    <div>
-                      <dt className="text-xs font-semibold text-slate-600 tracking-wider">Days Until Expiry</dt>
-                      <dd className={`mt-1 text-sm font-medium ${
-                        instrument.daysUntilExpiry < 0 ? 'text-red-600' :
-                        instrument.daysUntilExpiry <= 30 ? 'text-yellow-600' : 'text-green-600'
-                      }`}>
-                        {instrument.daysUntilExpiry < 0
-                          ? `${Math.abs(instrument.daysUntilExpiry)} days overdue`
-                          : `${instrument.daysUntilExpiry} days`}
-                      </dd>
-                    </div>
-                  )}
-                  <div className="md:col-span-2">
-                    <InfoField label="Remarks" value={instrument.remarks} />
-                  </div>
-                </div>
-              </CollapsibleSection>
-
-              {/* Range Data Section */}
-              <CollapsibleSection
-                title="Range Data"
-                isExpanded={expandedSections.ranges}
-                onToggle={() => toggleSection('ranges')}
-              >
-                {instrument.rangeData && instrument.rangeData.length > 0 ? (
-                  <div className="overflow-x-auto rounded-lg border border-slate-200">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Parameter
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Min
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Max
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Unit
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Uncertainty
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Reference
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {instrument.rangeData.map((range, idx) => (
-                          <tr key={idx}>
-                            <td className="px-4 py-2 text-slate-900">{range.parameter || '-'}</td>
-                            <td className="px-4 py-2 text-slate-700">{range.min || '-'}</td>
-                            <td className="px-4 py-2 text-slate-700">{range.max || '-'}</td>
-                            <td className="px-4 py-2 text-slate-700">{range.unit || '-'}</td>
-                            <td className="px-4 py-2 text-slate-700">{range.uncertainty || '-'}</td>
-                            <td className="px-4 py-2 text-slate-700">{range.referencedoc || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-slate-500 text-sm">No range data available.</p>
-                )}
-              </CollapsibleSection>
-
-              {/* Record Information Section */}
-              <CollapsibleSection
-                title="Record Information"
-                isExpanded={expandedSections.record}
-                onToggle={() => toggleSection('record')}
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InfoField label="Version" value={`v${instrument.version}`} />
-                  <InfoField
-                    label="Last Updated"
-                    value={new Date(instrument.createdAt).toLocaleString()}
-                  />
-                  {instrument.createdBy && (
-                    <InfoField label="Modified By" value={instrument.createdBy.name} />
-                  )}
-                  {instrument.changeReason && (
-                    <InfoField label="Change Reason" value={instrument.changeReason} />
-                  )}
-                </div>
-              </CollapsibleSection>
+          {/* Meta Info Row */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] mt-3">
+            <MetaInfoItem icon={Hash} emphasized>{instrument.assetNumber}</MetaInfoItem>
+            <MetaInfoItem icon={Tag}>{instrument.category}</MetaInfoItem>
+            {instrument.createdBy && (
+              <MetaInfoItem icon={User}>{instrument.createdBy.name}</MetaInfoItem>
+            )}
+            <div className="flex items-center gap-2 text-[#94a3b8]">
+              <span className="text-[#cbd5e1]">|</span>
+              <span>Version {instrument.version}</span>
             </div>
           </div>
         </div>
+
+        {/* Content Sections */}
+        <div className="space-y-3">
+          {/* Identity Section */}
+          <CollapsibleSection
+            title="Identity"
+            isExpanded={expandedSections.identity}
+            onToggle={() => toggleSection('identity')}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InfoField label="Asset Number" value={instrument.assetNumber} />
+              <InfoField label="Category" value={instrument.category} />
+              <div className="md:col-span-2">
+                <InfoField label="Description" value={instrument.description} />
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          {/* Equipment Section */}
+          <CollapsibleSection
+            title="Equipment Details"
+            isExpanded={expandedSections.equipment}
+            onToggle={() => toggleSection('equipment')}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <InfoField label="Make" value={instrument.make} />
+              <InfoField label="Model" value={instrument.model} />
+              <InfoField label="Serial Number" value={instrument.serialNumber} />
+            </div>
+          </CollapsibleSection>
+
+          {/* Parameters Section */}
+          <CollapsibleSection
+            title="Parameter Information"
+            isExpanded={expandedSections.parameters}
+            onToggle={() => toggleSection('parameters')}
+          >
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InfoField label="Parameter Group" value={instrument.parameterGroup} />
+                <div>
+                  <dt className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Parameter Roles</dt>
+                  <dd className="mt-1 text-[13px] text-[#0f172a]">
+                    {(instrument.parameterRoles || []).length > 0
+                      ? instrument.parameterRoles.map(r => PARAMETER_ROLES[r] || r).join(', ')
+                      : '-'}
+                  </dd>
+                </div>
+              </div>
+              <div>
+                <dt className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Parameter Capabilities</dt>
+                <dd className="mt-2 flex flex-wrap gap-1.5">
+                  {(instrument.parameterCapabilities || []).length > 0 ? (
+                    instrument.parameterCapabilities.map(cap => (
+                      <span key={cap} className="px-2 py-0.5 bg-[#eff6ff] text-[#1d4ed8] text-xs rounded-full">
+                        {PARAMETER_CAPABILITIES[cap] || cap}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-[13px] text-[#64748b]">-</span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">SOP References</dt>
+                <dd className="mt-2 flex flex-wrap gap-1.5">
+                  {(instrument.sopReferences || []).length > 0 ? (
+                    instrument.sopReferences.map((sop, idx) => (
+                      <span key={idx} className="px-2 py-0.5 bg-[#f1f5f9] text-[#334155] text-xs rounded-full">
+                        {sop}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-[13px] text-[#64748b]">-</span>
+                  )}
+                </dd>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          {/* Calibration Section */}
+          <CollapsibleSection
+            title="Calibration Information"
+            isExpanded={expandedSections.calibration}
+            onToggle={() => toggleSection('calibration')}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InfoField label="Usage" value={instrument.usage} />
+              <InfoField label="Calibrated At" value={instrument.calibratedAtLocation} />
+              <InfoField label="Report Number" value={instrument.reportNo} />
+              <div>
+                <dt className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Calibration Due Date</dt>
+                <dd className="mt-1 text-[13px] text-[#0f172a]">
+                  {instrument.calibrationDueDate
+                    ? new Date(instrument.calibrationDueDate).toLocaleDateString()
+                    : '-'}
+                </dd>
+              </div>
+              {instrument.daysUntilExpiry !== 999 && (
+                <div>
+                  <dt className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Days Until Expiry</dt>
+                  <dd className={`mt-1 text-[13px] font-medium ${
+                    instrument.daysUntilExpiry < 0 ? 'text-[#dc2626]' :
+                    instrument.daysUntilExpiry <= 30 ? 'text-[#d97706]' : 'text-[#16a34a]'
+                  }`}>
+                    {instrument.daysUntilExpiry < 0
+                      ? `${Math.abs(instrument.daysUntilExpiry)} days overdue`
+                      : `${instrument.daysUntilExpiry} days`}
+                  </dd>
+                </div>
+              )}
+              <div className="md:col-span-2">
+                <InfoField label="Remarks" value={instrument.remarks} />
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          {/* Range Data Section */}
+          <CollapsibleSection
+            title="Range Data"
+            isExpanded={expandedSections.ranges}
+            onToggle={() => toggleSection('ranges')}
+          >
+            {instrument.rangeData && instrument.rangeData.length > 0 ? (
+              <div className="overflow-x-auto rounded-xl border border-[#e2e8f0]">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
+                      <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Parameter</th>
+                      <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Min</th>
+                      <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Max</th>
+                      <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Unit</th>
+                      <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Uncertainty</th>
+                      <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Reference</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#f1f5f9]">
+                    {instrument.rangeData.map((range, idx) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-2 text-[#0f172a]">{range.parameter || '-'}</td>
+                        <td className="px-4 py-2 text-[#64748b]">{range.min || '-'}</td>
+                        <td className="px-4 py-2 text-[#64748b]">{range.max || '-'}</td>
+                        <td className="px-4 py-2 text-[#64748b]">{range.unit || '-'}</td>
+                        <td className="px-4 py-2 text-[#64748b]">{range.uncertainty || '-'}</td>
+                        <td className="px-4 py-2 text-[#64748b]">{range.referencedoc || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-[#64748b] text-[13px]">No range data available.</p>
+            )}
+          </CollapsibleSection>
+
+          {/* Record Information Section */}
+          <CollapsibleSection
+            title="Record Information"
+            isExpanded={expandedSections.record}
+            onToggle={() => toggleSection('record')}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InfoField label="Version" value={`v${instrument.version}`} />
+              <InfoField
+                label="Last Updated"
+                value={new Date(instrument.createdAt).toLocaleString()}
+              />
+              {instrument.createdBy && (
+                <InfoField label="Modified By" value={instrument.createdBy.name} />
+              )}
+              {instrument.changeReason && (
+                <InfoField label="Change Reason" value={instrument.changeReason} />
+              )}
+            </div>
+          </CollapsibleSection>
+        </div>
       </div>
 
-      {/* Right Column - PDF Viewer */}
-      <div className="w-[45%] flex-shrink-0 flex flex-col">
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Right Panel - PDF Viewer */}
+      <div className="w-[45%] flex-shrink-0 flex flex-col p-6 pl-3">
+        <div className="flex-1 flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
           {/* PDF Header */}
-          <div className="flex-shrink-0 px-4 py-3 border-b border-slate-200 bg-primary">
-            <h2 className="font-semibold text-primary-foreground text-sm">Calibration Certificate</h2>
+          <div className="flex items-center gap-2 px-[18px] py-[13px] bg-[#f8fafc] border-b border-[#f1f5f9] flex-shrink-0">
+            <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Calibration Certificate</span>
           </div>
           {/* PDF Viewer */}
-          <div className="flex-1 bg-slate-100">
+          <div className="flex-1 bg-[#f1f5f9]">
             {pdfUrl ? (
               <iframe
                 src={pdfUrl}
@@ -544,7 +528,7 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
                 title="Calibration Certificate"
               />
             ) : (
-              <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+              <div className="flex items-center justify-center h-full text-[#94a3b8] text-[13px]">
                 No certificate available
               </div>
             )}

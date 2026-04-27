@@ -5,6 +5,21 @@ import { apiFetch } from '@/lib/api-client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import {
+  ChevronLeft,
+  X,
+  Plus,
+  Trash2,
+} from 'lucide-react'
+
+interface RangeDataItem {
+  parameter?: string
+  min?: string
+  max?: string
+  unit?: string
+  uncertainty?: string
+  referencedoc?: string
+}
 
 interface InstrumentFormData {
   category: string
@@ -18,6 +33,11 @@ interface InstrumentFormData {
   reportNo: string
   calibrationDueDate: string
   remarks: string
+  rangeData: RangeDataItem[]
+  parameterGroup: string
+  parameterCapabilities: string[]
+  parameterRoles: string[]
+  sopReferences: string[]
 }
 
 const CATEGORIES = [
@@ -33,6 +53,93 @@ const CATEGORIES = [
   'CHEMICAL',
   'OTHER',
 ]
+
+const PARAMETER_GROUPS = [
+  'Electrical (multi-function)',
+  'Voltage & Current',
+  'Resistance',
+  'Temperature',
+  'Temperature & Humidity',
+  'Temperature (readout)',
+  'Pressure',
+  'Mass',
+  'Force',
+  'Flow',
+  'Time',
+  'Frequency',
+  'Power',
+  'Conductivity',
+  'Dimensional',
+  'Optical',
+  'Other',
+]
+
+const PARAMETER_ROLES = [
+  { value: 'source', label: 'Source' },
+  { value: 'measuring', label: 'Measuring' },
+]
+
+const PARAMETER_CAPABILITIES = [
+  { value: 'rtd', label: 'RTD' },
+  { value: 'thermocouple', label: 'Thermocouple' },
+  { value: 'ac_voltage', label: 'AC Voltage' },
+  { value: 'dc_voltage', label: 'DC Voltage' },
+  { value: 'ac_current', label: 'AC Current' },
+  { value: 'dc_current', label: 'DC Current' },
+  { value: 'frequency', label: 'Frequency' },
+  { value: 'resistance', label: 'Resistance' },
+  { value: 'capacitance', label: 'Capacitance' },
+  { value: 'temperature', label: 'Temperature' },
+  { value: 'humidity', label: 'Humidity' },
+  { value: 'pressure', label: 'Pressure' },
+  { value: 'power', label: 'Power' },
+  { value: 'conductivity', label: 'Conductivity' },
+  { value: 'time', label: 'Time' },
+]
+
+const CAPABILITY_UNITS: Record<string, string[]> = {
+  rtd: ['°C', '°F', 'K', 'Ω'],
+  thermocouple: ['°C', '°F', 'K', 'mV'],
+  ac_voltage: ['V', 'mV', 'kV'],
+  dc_voltage: ['V', 'mV', 'kV'],
+  ac_current: ['A', 'mA', 'µA'],
+  dc_current: ['A', 'mA', 'µA'],
+  frequency: ['Hz', 'kHz', 'MHz', 'GHz'],
+  resistance: ['Ω', 'kΩ', 'MΩ'],
+  capacitance: ['F', 'µF', 'nF', 'pF'],
+  temperature: ['°C', '°F', 'K'],
+  humidity: ['%RH'],
+  pressure: ['Pa', 'kPa', 'MPa', 'bar', 'mbar', 'psi', 'mmHg'],
+  power: ['W', 'mW', 'kW', 'dBm'],
+  conductivity: ['S/m', 'mS/cm', 'µS/cm'],
+  time: ['s', 'ms', 'µs', 'min'],
+}
+
+function getAvailableUnits(selectedCapabilities: string[]): string[] {
+  const units = new Set<string>()
+  for (const cap of selectedCapabilities) {
+    const capUnits = CAPABILITY_UNITS[cap]
+    if (capUnits) capUnits.forEach(u => units.add(u))
+  }
+  return Array.from(units).sort()
+}
+
+const inputClass = 'w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-[13px] text-[#0f172a] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none'
+
+function SectionCard({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-[#e2e8f0] p-6">
+      <h2 className="text-[15px] font-semibold text-[#0f172a] mb-5">{title}</h2>
+      {children}
+    </div>
+  )
+}
 
 export default function NewInstrumentPage() {
   const router = useRouter()
@@ -51,6 +158,11 @@ export default function NewInstrumentPage() {
     reportNo: '',
     calibrationDueDate: '',
     remarks: '',
+    rangeData: [],
+    parameterGroup: '',
+    parameterCapabilities: [],
+    parameterRoles: [],
+    sopReferences: [],
   })
 
   const handleChange = (
@@ -72,6 +184,7 @@ export default function NewInstrumentPage() {
         body: JSON.stringify({
           ...formData,
           calibrationDueDate: formData.calibrationDueDate || null,
+          parameterGroup: formData.parameterGroup || null,
         }),
       })
 
@@ -89,45 +202,61 @@ export default function NewInstrumentPage() {
     }
   }
 
+  // Range data handlers
+  const addRangeItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      rangeData: [...prev.rangeData, { parameter: '', min: '', max: '', unit: '', uncertainty: '', referencedoc: '' }],
+    }))
+  }
+
+  const updateRangeItem = (index: number, field: keyof RangeDataItem, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      rangeData: prev.rangeData.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      ),
+    }))
+  }
+
+  const removeRangeItem = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      rangeData: prev.rangeData.filter((_, i) => i !== index),
+    }))
+  }
+
   return (
-    <div className="p-3 h-full">
-      {/* Master Bounding Box */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-        <div className="p-6 overflow-auto h-full">
-          <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          href="/admin/instruments"
-          className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Add New Instrument</h1>
-          <p className="text-sm text-slate-600 mt-1">Create a new master instrument record</p>
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="p-8 max-w-[820px] mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <Link
+            href="/admin/instruments"
+            className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] transition-colors mb-4"
+          >
+            <ChevronLeft className="size-4" />
+            Back to Instruments
+          </Link>
+          <h1 className="text-[22px] font-bold text-[#0f172a] tracking-tight">Add New Instrument</h1>
+          <p className="text-[13px] text-[#94a3b8] mt-1">Create a new master instrument record</p>
         </div>
-      </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-          {error}
-        </div>
-      )}
+        {/* Error Message */}
+        {error && (
+          <div className="bg-[#fef2f2] border border-[#fee2e2] rounded-lg p-4 text-[#dc2626] text-[13px] mb-5">
+            {error}
+          </div>
+        )}
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg border shadow-sm">
-        <div className="p-6 space-y-6">
-          {/* Basic Information */}
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Basic Information</h2>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Identity */}
+          <SectionCard title="Identity">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="category" className="block text-sm font-medium text-slate-700 mb-1">
-                  Category <span className="text-red-500">*</span>
+                <label htmlFor="category" className="block text-[13px] text-[#64748b] mb-1.5">
+                  Category <span className="text-[#ef4444]">*</span>
                 </label>
                 <select
                   id="category"
@@ -135,7 +264,7 @@ export default function NewInstrumentPage() {
                   value={formData.category}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                 >
                   <option value="">Select category</option>
                   {CATEGORIES.map(cat => (
@@ -145,8 +274,8 @@ export default function NewInstrumentPage() {
               </div>
 
               <div>
-                <label htmlFor="assetNumber" className="block text-sm font-medium text-slate-700 mb-1">
-                  Asset Number <span className="text-red-500">*</span>
+                <label htmlFor="assetNumber" className="block text-[13px] text-[#64748b] mb-1.5">
+                  Asset Number <span className="text-[#ef4444]">*</span>
                 </label>
                 <input
                   type="text"
@@ -155,14 +284,14 @@ export default function NewInstrumentPage() {
                   value={formData.assetNumber}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                   placeholder="e.g., HTA-001"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-1">
-                  Description <span className="text-red-500">*</span>
+                <label htmlFor="description" className="block text-[13px] text-[#64748b] mb-1.5">
+                  Description <span className="text-[#ef4444]">*</span>
                 </label>
                 <input
                   type="text"
@@ -171,19 +300,18 @@ export default function NewInstrumentPage() {
                   value={formData.description}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                   placeholder="e.g., Digital Multimeter"
                 />
               </div>
             </div>
-          </div>
+          </SectionCard>
 
           {/* Equipment Details */}
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Equipment Details</h2>
+          <SectionCard title="Equipment Details">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label htmlFor="make" className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="make" className="block text-[13px] text-[#64748b] mb-1.5">
                   Make
                 </label>
                 <input
@@ -192,13 +320,13 @@ export default function NewInstrumentPage() {
                   name="make"
                   value={formData.make}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                   placeholder="e.g., Fluke"
                 />
               </div>
 
               <div>
-                <label htmlFor="model" className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="model" className="block text-[13px] text-[#64748b] mb-1.5">
                   Model
                 </label>
                 <input
@@ -207,13 +335,13 @@ export default function NewInstrumentPage() {
                   name="model"
                   value={formData.model}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                   placeholder="e.g., 87V"
                 />
               </div>
 
               <div>
-                <label htmlFor="serialNumber" className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="serialNumber" className="block text-[13px] text-[#64748b] mb-1.5">
                   Serial Number
                 </label>
                 <input
@@ -222,19 +350,153 @@ export default function NewInstrumentPage() {
                   name="serialNumber"
                   value={formData.serialNumber}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                   placeholder="e.g., SN123456"
                 />
               </div>
             </div>
-          </div>
+          </SectionCard>
+
+          {/* Parameter Information */}
+          <SectionCard title="Parameter Information">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="parameterGroup" className="block text-[13px] text-[#64748b] mb-1.5">
+                    Parameter Group
+                  </label>
+                  <select
+                    id="parameterGroup"
+                    name="parameterGroup"
+                    value={formData.parameterGroup}
+                    onChange={handleChange}
+                    className={inputClass}
+                  >
+                    <option value="">Select parameter group</option>
+                    {PARAMETER_GROUPS.map(group => (
+                      <option key={group} value={group}>{group}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[13px] text-[#64748b] mb-1.5">
+                    Parameter Roles
+                  </label>
+                  <div className="flex flex-wrap gap-3 py-2">
+                    {PARAMETER_ROLES.map(role => (
+                      <label key={role.value} className="inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.parameterRoles.includes(role.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData(prev => ({
+                                ...prev,
+                                parameterRoles: [...prev.parameterRoles, role.value]
+                              }))
+                            } else {
+                              setFormData(prev => ({
+                                ...prev,
+                                parameterRoles: prev.parameterRoles.filter(r => r !== role.value)
+                              }))
+                            }
+                          }}
+                          className="rounded border-[#cbd5e1] text-[#7c3aed] focus:ring-[#7c3aed]/20"
+                        />
+                        <span className="ml-2 text-[13px] text-[#0f172a]">{role.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[13px] text-[#64748b] mb-1.5">
+                  Parameter Capabilities
+                </label>
+                <div className="flex flex-wrap gap-3 py-2">
+                  {PARAMETER_CAPABILITIES.map(cap => (
+                    <label key={cap.value} className="inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.parameterCapabilities.includes(cap.value)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData(prev => ({
+                              ...prev,
+                              parameterCapabilities: [...prev.parameterCapabilities, cap.value]
+                            }))
+                          } else {
+                            setFormData(prev => ({
+                              ...prev,
+                              parameterCapabilities: prev.parameterCapabilities.filter(c => c !== cap.value)
+                            }))
+                          }
+                        }}
+                        className="rounded border-[#cbd5e1] text-[#7c3aed] focus:ring-[#7c3aed]/20"
+                      />
+                      <span className="ml-2 text-[13px] text-[#0f172a]">{cap.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[13px] text-[#64748b] mb-1.5">
+                  SOP References
+                </label>
+                <div className="space-y-2">
+                  {formData.sopReferences.map((sop, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={sop}
+                        onChange={(e) => {
+                          const newSops = [...formData.sopReferences]
+                          newSops[idx] = e.target.value
+                          setFormData(prev => ({ ...prev, sopReferences: newSops }))
+                        }}
+                        className={`flex-1 ${inputClass}`}
+                        placeholder="e.g., NLAB/CAL/ET1/R01"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            sopReferences: prev.sopReferences.filter((_, i) => i !== idx)
+                          }))
+                        }}
+                        className="px-3 py-2 text-[#dc2626] hover:bg-[#fef2f2] rounded-lg transition-colors"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        sopReferences: [...prev.sopReferences, '']
+                      }))
+                    }}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium bg-[#eff6ff] text-[#1d4ed8] rounded-lg hover:bg-[#dbeafe] transition-colors"
+                  >
+                    <Plus className="size-4" />
+                    Add SOP Reference
+                  </button>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
 
           {/* Calibration Information */}
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Calibration Information</h2>
+          <SectionCard title="Calibration Information">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="usage" className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="usage" className="block text-[13px] text-[#64748b] mb-1.5">
                   Usage
                 </label>
                 <input
@@ -243,13 +505,13 @@ export default function NewInstrumentPage() {
                   name="usage"
                   value={formData.usage}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                   placeholder="e.g., Reference Standard"
                 />
               </div>
 
               <div>
-                <label htmlFor="calibratedAtLocation" className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="calibratedAtLocation" className="block text-[13px] text-[#64748b] mb-1.5">
                   Calibrated At
                 </label>
                 <input
@@ -258,13 +520,13 @@ export default function NewInstrumentPage() {
                   name="calibratedAtLocation"
                   value={formData.calibratedAtLocation}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                   placeholder="e.g., NABL Lab"
                 />
               </div>
 
               <div>
-                <label htmlFor="reportNo" className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="reportNo" className="block text-[13px] text-[#64748b] mb-1.5">
                   Report Number
                 </label>
                 <input
@@ -273,13 +535,13 @@ export default function NewInstrumentPage() {
                   name="reportNo"
                   value={formData.reportNo}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                   placeholder="e.g., CAL-2024-001"
                 />
               </div>
 
               <div>
-                <label htmlFor="calibrationDueDate" className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="calibrationDueDate" className="block text-[13px] text-[#64748b] mb-1.5">
                   Calibration Due Date
                 </label>
                 <input
@@ -288,48 +550,141 @@ export default function NewInstrumentPage() {
                   name="calibrationDueDate"
                   value={formData.calibrationDueDate}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label htmlFor="remarks" className="block text-[13px] text-[#64748b] mb-1.5">
+                  Remarks
+                </label>
+                <textarea
+                  id="remarks"
+                  name="remarks"
+                  value={formData.remarks}
+                  onChange={handleChange}
+                  rows={3}
+                  className={inputClass}
+                  placeholder="Any additional notes..."
                 />
               </div>
             </div>
-          </div>
+          </SectionCard>
 
-          {/* Remarks */}
-          <div>
-            <label htmlFor="remarks" className="block text-sm font-medium text-slate-700 mb-1">
-              Remarks
-            </label>
-            <textarea
-              id="remarks"
-              name="remarks"
-              value={formData.remarks}
-              onChange={handleChange}
-              rows={3}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Any additional notes..."
-            />
-          </div>
-        </div>
+          {/* Range Data */}
+          <SectionCard title="Range Data">
+            <div className="space-y-4">
+              {formData.rangeData.length === 0 ? (
+                <p className="text-[13px] text-[#94a3b8]">No range data. Click &quot;Add Range&quot; to add parameters.</p>
+              ) : (
+                formData.rangeData.map((range, idx) => (
+                  <div key={idx} className="p-4 bg-[#f8fafc] rounded-xl border border-[#e2e8f0] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-[#0f172a]">Range {idx + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeRangeItem(idx)}
+                        className="text-[#dc2626] hover:text-[#b91c1c] transition-colors"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[13px] text-[#64748b] mb-1.5">Parameter</label>
+                        <input
+                          type="text"
+                          value={range.parameter || ''}
+                          onChange={(e) => updateRangeItem(idx, 'parameter', e.target.value)}
+                          placeholder="e.g., Temperature"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] text-[#64748b] mb-1.5">Min</label>
+                        <input
+                          type="text"
+                          value={range.min || ''}
+                          onChange={(e) => updateRangeItem(idx, 'min', e.target.value)}
+                          placeholder="e.g., 0"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] text-[#64748b] mb-1.5">Max</label>
+                        <input
+                          type="text"
+                          value={range.max || ''}
+                          onChange={(e) => updateRangeItem(idx, 'max', e.target.value)}
+                          placeholder="e.g., 100"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] text-[#64748b] mb-1.5">Unit</label>
+                        <select
+                          value={range.unit || ''}
+                          onChange={(e) => updateRangeItem(idx, 'unit', e.target.value)}
+                          className={inputClass}
+                        >
+                          <option value="">Select unit</option>
+                          {getAvailableUnits(formData.parameterCapabilities).map(unit => (
+                            <option key={unit} value={unit}>{unit}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[13px] text-[#64748b] mb-1.5">Uncertainty</label>
+                        <input
+                          type="text"
+                          value={range.uncertainty || ''}
+                          onChange={(e) => updateRangeItem(idx, 'uncertainty', e.target.value)}
+                          placeholder="e.g., ±0.5"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] text-[#64748b] mb-1.5">Reference Doc</label>
+                        <input
+                          type="text"
+                          value={range.referencedoc || ''}
+                          onChange={(e) => updateRangeItem(idx, 'referencedoc', e.target.value)}
+                          placeholder="e.g., ISO 12345"
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+              <button
+                type="button"
+                onClick={addRangeItem}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium bg-[#eff6ff] text-[#1d4ed8] rounded-lg hover:bg-[#dbeafe] transition-colors"
+              >
+                <Plus className="size-4" />
+                Add Range
+              </button>
+            </div>
+          </SectionCard>
 
-        {/* Actions */}
-        <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3 rounded-b-lg">
-          <Link
-            href="/admin/instruments"
-            className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-          >
-            Cancel
-          </Link>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {saving ? 'Creating...' : 'Create Instrument'}
-          </button>
-        </div>
-      </form>
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-2">
+            <Link
+              href="/admin/instruments"
+              className="px-4 py-2 text-[13px] font-medium text-[#0f172a] bg-white border border-[#e2e8f0] rounded-lg hover:bg-[#f8fafc] transition-colors"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 text-[13px] font-medium text-white bg-[#0f172a] hover:bg-[#1e293b] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {saving ? 'Creating...' : 'Create Instrument'}
+            </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   )

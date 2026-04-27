@@ -664,9 +664,11 @@ function ParameterCard({
 interface UUCSectionProps {
   feedbackSlot?: React.ReactNode
   disabled?: boolean
+  accordionStatus?: 'default' | 'locked' | 'unlocked' | 'pending'
+  hasFeedback?: boolean
 }
 
-export function UUCSection({ feedbackSlot, disabled }: UUCSectionProps = {}) {
+export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedback }: UUCSectionProps = {}) {
   const { formData, setFormField, setParameter, addParameter, removeParameter, setParameterMasterInstrument, certificateId, saveDraft } = useCertificateStore()
 
   // Image management hook
@@ -726,10 +728,12 @@ export function UUCSection({ feedbackSlot, disabled }: UUCSectionProps = {}) {
       title="Unit Under Calibration (UUC) Details"
       feedbackSlot={feedbackSlot}
       disabled={disabled}
+      accordionStatus={accordionStatus}
+      hasFeedback={hasFeedback}
     >
       <div className="space-y-4 p-5 rounded-xl border border-slate-300 bg-section-inner">
         {/* UUC Details Card */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200">
+        <div className="bg-white rounded-xl p-5 border border-slate-200 space-y-6">
           {/* UUC Basic Info Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>

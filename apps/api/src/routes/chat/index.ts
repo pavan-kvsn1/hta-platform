@@ -110,7 +110,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(403).send({ error: 'Access denied' })
     }
 
-    const limit = parseInt(query.limit || '50', 10)
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '50', 10), 50))
     const cursor = query.cursor
 
     const result = await getMessages(threadId, { limit, cursor })

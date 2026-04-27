@@ -827,6 +827,8 @@ function ResultsTable({
 interface ResultsSectionProps {
   feedbackSlot?: React.ReactNode
   disabled?: boolean
+  accordionStatus?: 'default' | 'locked' | 'unlocked' | 'pending'
+  hasFeedback?: boolean
 }
 
 interface ImageModalState {
@@ -835,7 +837,7 @@ interface ImageModalState {
   pointNumber: number
 }
 
-export function ResultsSection({ feedbackSlot, disabled }: ResultsSectionProps = {}) {
+export function ResultsSection({ feedbackSlot, disabled, accordionStatus, hasFeedback }: ResultsSectionProps = {}) {
   const { formData, certificateId, setResult, setPointCount, setParameter, saveDraft } = useCertificateStore()
 
   // Image modal state
@@ -972,7 +974,7 @@ export function ResultsSection({ feedbackSlot, disabled }: ResultsSectionProps =
   )
 
   return (
-    <FormSection id="results" sectionNumber="Section 05" title="Calibration Results" feedbackSlot={feedbackSlot} disabled={disabled}>
+    <FormSection id="results" sectionNumber="Section 05" title="Calibration Results" feedbackSlot={feedbackSlot} disabled={disabled} accordionStatus={accordionStatus} hasFeedback={hasFeedback}>
       <div className="space-y-4 p-5 rounded-xl border border-slate-300 bg-section-inner">
         {formData.parameters.map((parameter, parameterIndex) => (
           <ResultsTable

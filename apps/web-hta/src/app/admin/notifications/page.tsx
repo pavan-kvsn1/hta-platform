@@ -1,10 +1,14 @@
 'use client'
 
 import { apiFetch } from '@/lib/api-client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { NotificationItem } from '@/components/notifications/NotificationItem'
-import { Button } from '@/components/ui/button'
 import { Bell, CheckCheck, Loader2 } from 'lucide-react'
+import {
+  isToday,
+  isYesterday,
+  differenceInCalendarDays,
+} from 'date-fns'
 
 interface Notification {
   id: string
@@ -20,19 +24,50 @@ interface Notification {
   } | null
 }
 
-interface NotificationsResponse {
+interface DateGroup {
+  label: string
   notifications: Notification[]
-  total: number
-  unreadCount: number
 }
+
+function groupByDate(notifications: Notification[]): DateGroup[] {
+  const groups: Record<string, Notification[]> = {}
+  const order: string[] = []
+
+  for (const n of notifications) {
+    const date = new Date(n.createdAt)
+    let label: string
+
+    if (isToday(date)) {
+      label = 'Today'
+    } else if (isYesterday(date)) {
+      label = 'Yesterday'
+    } else if (differenceInCalendarDays(new Date(), date) <= 7) {
+      label = 'This Week'
+    } else {
+      label = 'Earlier'
+    }
+
+    if (!groups[label]) {
+      groups[label] = []
+      order.push(label)
+    }
+    groups[label].push(n)
+  }
+
+  return order.map((label) => ({ label, notifications: groups[label] }))
+}
+
+type Tab = 'unread' | 'read'
 
 export default function AdminNotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [total, setTotal] = useState(0)
-  const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [offset, setOffset] = useState(0)
+  const [activeTab, setActiveTab] = useState<Tab>('unread')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isMarkingRead, setIsMarkingRead] = useState(false)
   const limit = 50
 
   const fetchNotifications = useCallback(async (reset = false) => {
@@ -52,7 +87,7 @@ export default function AdminNotificationsPage() {
       const response = await apiFetch(`/api/notifications?${params}`)
       if (!response.ok) throw new Error('Failed to fetch')
 
-      const data: NotificationsResponse = await response.json()
+      const data = await response.json()
 
       if (reset) {
         setNotifications(data.notifications)
@@ -62,7 +97,6 @@ export default function AdminNotificationsPage() {
         setOffset((prev) => prev + limit)
       }
       setTotal(data.total)
-      setUnreadCount(data.unreadCount)
     } catch (error) {
       console.error('Error fetching notifications:', error)
     } finally {
@@ -86,7 +120,6 @@ export default function AdminNotificationsPage() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       )
-      setUnreadCount((prev) => Math.max(0, prev - 1))
     } catch (error) {
       console.error('Error marking notification as read:', error)
     }
@@ -100,118 +133,223 @@ export default function AdminNotificationsPage() {
       await apiFetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notificationIds: unreadIds }),
+        body: JSON.stringify({ notificationIds: 'all' }),
       })
 
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-      setUnreadCount(0)
+      setSelectedIds(new Set())
     } catch (error) {
       console.error('Error marking all notifications as read:', error)
     }
   }
 
-  const unreadNotifications = notifications.filter((n) => !n.read)
-  const readNotifications = notifications.filter((n) => n.read)
+  const handleMarkSelectedAsRead = async () => {
+    if (selectedIds.size === 0) return
+    setIsMarkingRead(true)
+    try {
+      const ids = Array.from(selectedIds)
+      await apiFetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationIds: ids }),
+      })
+
+      setNotifications((prev) =>
+        prev.map((n) => (selectedIds.has(n.id) ? { ...n, read: true } : n))
+      )
+      setSelectedIds(new Set())
+    } catch (error) {
+      console.error('Error marking selected as read:', error)
+    } finally {
+      setIsMarkingRead(false)
+    }
+  }
+
+  const unreadNotifications = useMemo(() => notifications.filter((n) => !n.read), [notifications])
+  const readNotifications = useMemo(() => notifications.filter((n) => n.read), [notifications])
+
+  const activeNotifications = activeTab === 'unread' ? unreadNotifications : readNotifications
+  const dateGroups = useMemo(() => groupByDate(activeNotifications), [activeNotifications])
   const hasMore = notifications.length < total
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === unreadNotifications.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(unreadNotifications.map((n) => n.id)))
+    }
+  }
+
+  const allSelected = unreadNotifications.length > 0 && selectedIds.size === unreadNotifications.length
+
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab)
+    setSelectedIds(new Set())
+  }
 
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Bell className="h-6 w-6 text-blue-600" />
-            </div>
+          <div className="flex items-center gap-2.5">
+            <Bell className="size-[22px] text-[#94a3b8]" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-              <p className="text-sm text-gray-500">
-                {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
+              <h1 className="text-[22px] font-bold text-[#0f172a]">Notifications</h1>
+              <p className="text-[13px] text-[#94a3b8]">
+                {unreadNotifications.length > 0 ? `${unreadNotifications.length} unread` : 'All caught up!'}
               </p>
             </div>
           </div>
 
-          {unreadCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
+          {unreadNotifications.length > 0 && (
+            <button
               onClick={handleMarkAllAsRead}
-              className="flex items-center gap-2"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] border border-[#e2e8f0] text-[12.5px] font-semibold text-[#475569] hover:bg-[#f8fafc] transition-colors"
             >
-              <CheckCheck className="h-4 w-4" />
-              Mark all as read
-            </Button>
+              <CheckCheck className="size-3.5" />
+              Mark all read
+            </button>
           )}
         </div>
 
+        {/* Tabs */}
+        <div className="flex items-center gap-0 mb-4 border-b border-[#e2e8f0]">
+          <button
+            onClick={() => handleTabChange('unread')}
+            className={`px-4 py-2.5 text-[13px] font-semibold border-b-2 transition-colors -mb-px ${
+              activeTab === 'unread'
+                ? 'border-[#0f172a] text-[#0f172a]'
+                : 'border-transparent text-[#94a3b8] hover:text-[#64748b]'
+            }`}
+          >
+            Unread
+            {unreadNotifications.length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-[#ef4444] text-white">
+                {unreadNotifications.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => handleTabChange('read')}
+            className={`px-4 py-2.5 text-[13px] font-semibold border-b-2 transition-colors -mb-px ${
+              activeTab === 'read'
+                ? 'border-[#0f172a] text-[#0f172a]'
+                : 'border-transparent text-[#94a3b8] hover:text-[#64748b]'
+            }`}
+          >
+            Read
+          </button>
+        </div>
+
+        {/* Selection action bar (unread tab only) */}
+        {activeTab === 'unread' && unreadNotifications.length > 0 && (
+          <div className="flex items-center justify-between mb-3 px-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className="size-4 rounded border-[#cbd5e1] text-[#2563eb] focus:ring-[#2563eb]/20"
+              />
+              <span className="text-[12px] text-[#64748b]">
+                {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
+              </span>
+            </label>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleMarkSelectedAsRead}
+                disabled={isMarkingRead}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[12.5px] font-semibold text-white bg-[#0f172a] hover:bg-[#1e293b] disabled:opacity-50 transition-colors"
+              >
+                {isMarkingRead ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Marking...
+                  </>
+                ) : (
+                  <>
+                    <CheckCheck className="size-3.5" />
+                    Mark as read
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Notifications List */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
           </div>
-        ) : notifications.length === 0 ? (
-          <div className="bg-white rounded-lg border p-12 text-center">
-            <Bell className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No notifications yet</h3>
-            <p className="text-sm text-gray-500">
-              You&apos;ll see notifications here when there&apos;s activity on certificates.
+        ) : activeNotifications.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#e2e8f0] p-16 text-center">
+            <Bell className="size-10 text-[#cbd5e1] mx-auto mb-3" />
+            <h3 className="text-[15px] font-semibold text-[#0f172a] mb-1">
+              {activeTab === 'unread' ? 'No unread notifications' : 'No read notifications'}
+            </h3>
+            <p className="text-[13px] text-[#94a3b8]">
+              {activeTab === 'unread'
+                ? 'You\u2019re all caught up!'
+                : 'Notifications you\u2019ve read will appear here.'}
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {unreadNotifications.length > 0 && (
-              <div>
-                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  Unread ({unreadNotifications.length})
-                </h2>
-                <div className="space-y-3">
-                  {unreadNotifications.map((notification) => (
-                    <NotificationItem
-                      key={notification.id}
-                      notification={notification}
-                      userRole="ADMIN"
-                      onMarkAsRead={handleMarkAsRead}
-                    />
-                  ))}
+          <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
+            {dateGroups.map((group, groupIndex) => (
+              <div key={group.label}>
+                {/* Date group header */}
+                <div className={`px-4 py-2 bg-[#f8fafc] ${groupIndex > 0 ? 'border-t border-[#e2e8f0]' : ''}`}>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                    {group.label}
+                  </span>
                 </div>
-              </div>
-            )}
 
-            {readNotifications.length > 0 && (
-              <div>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                  Earlier ({readNotifications.length})
-                </h2>
-                <div className="space-y-3">
-                  {readNotifications.map((notification) => (
-                    <NotificationItem
-                      key={notification.id}
-                      notification={notification}
-                      userRole="ADMIN"
-                      onMarkAsRead={handleMarkAsRead}
-                    />
-                  ))}
-                </div>
+                {/* Notification rows */}
+                {group.notifications.map((notification) => (
+                  <NotificationItem
+                    key={notification.id}
+                    notification={notification}
+                    userRole="ADMIN"
+                    onMarkAsRead={handleMarkAsRead}
+                    selectable={activeTab === 'unread'}
+                    selected={selectedIds.has(notification.id)}
+                    onSelect={toggleSelect}
+                  />
+                ))}
               </div>
-            )}
+            ))}
 
+            {/* Load More */}
             {hasMore && (
-              <div className="pt-4 text-center">
-                <Button
-                  variant="outline"
+              <div className="py-3 text-center border-t border-[#f1f5f9]">
+                <button
                   onClick={() => fetchNotifications(false)}
                   disabled={isLoadingMore}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-[12.5px] font-semibold text-[#64748b] hover:text-[#0f172a] disabled:opacity-50 transition-colors"
                 >
                   {isLoadingMore ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <Loader2 className="size-3.5 animate-spin" />
                       Loading...
                     </>
                   ) : (
                     'Load More'
                   )}
-                </Button>
+                </button>
               </div>
             )}
           </div>

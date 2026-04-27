@@ -5,12 +5,8 @@ import { apiFetch } from '@/lib/api-client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import {
-  ArrowLeft,
+  ChevronLeft,
   Loader2,
   UserPlus,
   Crown,
@@ -129,353 +125,332 @@ export function CustomerRequestView({
   }
 
   return (
-    <div className="flex h-full p-3 overflow-hidden bg-section-inner">
+    <div className="flex h-full overflow-hidden bg-[#f1f5f9]">
       {/* Left Side - Request Details */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Header */}
-          <div className="flex-shrink-0 border-b border-slate-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/admin/requests"
-                  className="text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <ArrowLeft className="size-5" strokeWidth={2} />
-                </Link>
-                <span className="text-slate-300 text-xl">|</span>
-                <div className={cn(
-                  'p-2 rounded-lg',
-                  isUserAddition ? 'bg-green-100' : 'bg-purple-100'
-                )}>
-                  {isUserAddition ? (
-                    <UserPlus className="size-5 text-green-600" />
-                  ) : (
-                    <Crown className="size-5 text-purple-600" />
-                  )}
-                </div>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                  {isUserAddition ? 'User Addition Request' : 'POC Change Request'}
-                </h1>
-                <Badge className={cn(
-                  'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
-                  isPending && 'bg-amber-50 text-amber-700 border-amber-200',
-                  request.status === 'APPROVED' && 'bg-green-50 text-green-700 border-green-200',
-                  request.status === 'REJECTED' && 'bg-red-50 text-red-700 border-red-200'
-                )}>
-                  {request.status}
-                </Badge>
-              </div>
-            </div>
+      <div className="flex-1 flex flex-col min-w-0 overflow-auto p-6 pr-3">
+        {/* Header */}
+        <div className="mb-5">
+          <Link
+            href="/admin/requests"
+            className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-4 transition-colors"
+          >
+            <ChevronLeft className="size-4" />
+            Back to Requests
+          </Link>
 
-            {/* Meta Info */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm mt-3">
-              <div className="flex items-center gap-2 text-slate-600">
-                <Building2 className="size-4 text-slate-400" />
-                <span className="font-semibold">{request.customerAccount.companyName}</span>
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              'p-2 rounded-[9px]',
+              isUserAddition ? 'bg-[#dcfce7]' : 'bg-[#ede9fe]'
+            )}>
+              {isUserAddition ? (
+                <UserPlus className="size-5 text-[#16a34a]" />
+              ) : (
+                <Crown className="size-5 text-[#7c3aed]" />
+              )}
+            </div>
+            <h1 className="text-[22px] font-bold text-[#0f172a]">
+              {isUserAddition ? 'User Addition Request' : 'POC Change Request'}
+            </h1>
+            <span className={cn(
+              'px-2 py-0.5 rounded-md text-[11px] font-semibold',
+              isPending && 'bg-[#fffbeb] text-[#d97706]',
+              request.status === 'APPROVED' && 'bg-[#f0fdf4] text-[#16a34a]',
+              request.status === 'REJECTED' && 'bg-[#fef2f2] text-[#dc2626]'
+            )}>
+              {request.status}
+            </span>
+          </div>
+
+          {/* Meta */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] mt-3">
+            <div className="flex items-center gap-2 text-[#64748b]">
+              <Building2 className="size-4 text-[#94a3b8]" />
+              <span className="font-semibold text-[#0f172a]">{request.customerAccount.companyName}</span>
+            </div>
+            <div className="flex items-center gap-2 text-[#94a3b8]">
+              <Clock className="size-4" />
+              <span>{formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Request Summary Banner */}
+        <div className={cn(
+          'rounded-[14px] border overflow-hidden mb-5',
+          isUserAddition ? 'bg-[#f0fdf4] border-[#bbf7d0]' : 'bg-[#faf5ff] border-[#e9d5ff]'
+        )}>
+          <div className={cn(
+            'px-5 py-3 border-b',
+            isUserAddition ? 'border-[#bbf7d0] bg-[#dcfce7]/50' : 'border-[#e9d5ff] bg-[#ede9fe]/50'
+          )}>
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                'p-2 rounded-[9px]',
+                isUserAddition ? 'bg-[#bbf7d0]' : 'bg-[#ddd6fe]'
+              )}>
+                {isUserAddition ? (
+                  <UserPlus className="size-5 text-[#15803d]" />
+                ) : (
+                  <Crown className="size-5 text-[#6d28d9]" />
+                )}
               </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <Clock className="size-4 text-slate-400" />
-                <span>{formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}</span>
+              <div>
+                <h3 className={cn(
+                  'font-bold text-[13px]',
+                  isUserAddition ? 'text-[#14532d]' : 'text-[#3b0764]'
+                )}>
+                  {isUserAddition ? 'New User Details' : 'POC Change Details'}
+                </h3>
+                <p className={cn(
+                  'text-[12px]',
+                  isUserAddition ? 'text-[#16a34a]' : 'text-[#7c3aed]'
+                )}>
+                  {request.requestedBy
+                    ? `Requested by ${request.requestedBy.name}`
+                    : 'System request'} &bull; {format(new Date(request.createdAt), 'PPp')}
+                </p>
               </div>
             </div>
           </div>
-
-          {/* Content Area - Scrollable */}
-          <div className="flex-1 overflow-auto bg-slate-50/30">
-            <div className="p-6 space-y-6">
-              {/* Request Summary Banner */}
-              <div className={cn(
-                'rounded-xl border-2 overflow-hidden',
-                isUserAddition
-                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
-                  : 'bg-gradient-to-r from-purple-50 to-violet-50 border-purple-200'
-              )}>
-                <div className={cn(
-                  'px-5 py-4 border-b',
-                  isUserAddition ? 'border-green-200 bg-green-100/50' : 'border-purple-200 bg-purple-100/50'
-                )}>
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      'p-2 rounded-lg',
-                      isUserAddition ? 'bg-green-200' : 'bg-purple-200'
-                    )}>
-                      {isUserAddition ? (
-                        <UserPlus className={cn('size-5', isUserAddition ? 'text-green-700' : 'text-purple-700')} />
-                      ) : (
-                        <Crown className="size-5 text-purple-700" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className={cn(
-                        'font-bold',
-                        isUserAddition ? 'text-green-900' : 'text-purple-900'
-                      )}>
-                        {isUserAddition ? 'New User Details' : 'POC Change Details'}
-                      </h3>
-                      <p className={cn(
-                        'text-xs',
-                        isUserAddition ? 'text-green-600' : 'text-purple-600'
-                      )}>
-                        {request.requestedBy
-                          ? `Requested by ${request.requestedBy.name}`
-                          : 'System request'} • {format(new Date(request.createdAt), 'PPp')}
-                      </p>
-                    </div>
+          <div className="p-5">
+            {isUserAddition ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">Name</p>
+                    <p className="text-[13px] font-semibold text-[#0f172a]">{request.data.name}</p>
+                  </div>
+                  <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">Email</p>
+                    <p className="text-[13px] font-semibold text-[#0f172a]">{request.data.email}</p>
                   </div>
                 </div>
-                <div className="p-5">
-                  {isUserAddition ? (
-                    /* User Addition Details */
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white rounded-lg border border-slate-200 p-4">
-                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Name</p>
-                          <p className="text-sm font-semibold text-slate-900">{request.data.name}</p>
+                <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 className="size-4 text-[#94a3b8]" />
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Company Info</p>
+                  </div>
+                  <p className="text-[13px] font-semibold text-[#0f172a]">{request.customerAccount.companyName}</p>
+                  <p className="text-[12px] text-[#64748b] mt-1">
+                    Current users: {companyUsers.length} | POC: {request.customerAccount.primaryPoc?.name || 'None'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-3">Current POC</p>
+                    {request.customerAccount.primaryPoc ? (
+                      <div className="flex items-center gap-3">
+                        <div className="size-10 bg-[#fef3c7] rounded-full flex items-center justify-center">
+                          <Crown className="size-5 text-[#d97706]" />
                         </div>
-                        <div className="bg-white rounded-lg border border-slate-200 p-4">
-                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Email</p>
-                          <p className="text-sm font-semibold text-slate-900">{request.data.email}</p>
+                        <div>
+                          <p className="font-semibold text-[#0f172a] text-[13px]">{request.customerAccount.primaryPoc.name}</p>
+                          <p className="text-[12px] text-[#94a3b8]">{request.customerAccount.primaryPoc.email}</p>
                         </div>
                       </div>
+                    ) : (
+                      <p className="text-[#94a3b8] text-[13px]">No current POC</p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className="text-[#cbd5e1] text-3xl">&rarr;</div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-[9px] border-2 border-[#e9d5ff] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#7c3aed] mb-3">Requested New POC</p>
+                  {request.newPocUser ? (
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 bg-[#ede9fe] rounded-full flex items-center justify-center">
+                        <Crown className="size-5 text-[#7c3aed]" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[#0f172a] text-[13px]">{request.newPocUser.name}</p>
+                        <p className="text-[12px] text-[#94a3b8]">{request.newPocUser.email}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[#94a3b8] text-[13px]">User not found</p>
+                  )}
+                </div>
+                {request.data.reason && (
+                  <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2">Reason for Change</p>
+                    <p className="text-[13px] text-[#64748b] italic">&ldquo;{request.data.reason}&rdquo;</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
 
-                      {/* Company Info */}
-                      <div className="bg-white rounded-lg border border-slate-200 p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Building2 className="size-4 text-slate-500" />
-                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Company Info</p>
-                        </div>
-                        <p className="text-sm font-semibold text-slate-900">{request.customerAccount.companyName}</p>
-                        <p className="text-sm text-slate-500 mt-1">
-                          Current users: {companyUsers.length} | POC: {request.customerAccount.primaryPoc?.name || 'None'}
+        {/* Company Users */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden mb-5">
+          <button
+            onClick={() => setIsCompanyUsersExpanded(!isCompanyUsersExpanded)}
+            className="w-full px-5 py-3 bg-[#f8fafc] flex items-center justify-between hover:bg-[#f1f5f9] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              {isCompanyUsersExpanded ? (
+                <ChevronDown className="size-4 text-[#94a3b8]" />
+              ) : (
+                <ChevronRight className="size-4 text-[#94a3b8]" />
+              )}
+              <Users className="size-4 text-[#64748b]" />
+              <h3 className="font-semibold text-[#0f172a] text-[13px]">Company Users ({companyUsers.length})</h3>
+            </div>
+          </button>
+          {isCompanyUsersExpanded && (
+            companyUsers.length > 0 ? (
+              <div className="divide-y divide-[#f1f5f9] border-t border-[#e2e8f0]">
+                {companyUsers.map((user) => (
+                  <div key={user.id} className="px-5 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        'size-8 rounded-full flex items-center justify-center',
+                        user.isPoc ? 'bg-[#fef3c7]' : 'bg-[#f1f5f9]'
+                      )}>
+                        {user.isPoc ? (
+                          <Crown className="size-4 text-[#d97706]" />
+                        ) : (
+                          <span className="text-[12px] font-medium text-[#64748b]">
+                            {user.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-[#0f172a] text-[13px]">
+                          {user.name}
+                          {user.isPoc && (
+                            <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fef3c7] text-[#d97706]">POC</span>
+                          )}
+                        </p>
+                        <p className="text-[12px] text-[#94a3b8]">{user.email}</p>
+                      </div>
+                    </div>
+                    <span className={cn(
+                      'px-2 py-0.5 rounded-md text-[10px] font-semibold',
+                      user.isActive ? 'bg-[#f0fdf4] text-[#16a34a]' : 'bg-[#f1f5f9] text-[#94a3b8]'
+                    )}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="px-5 py-8 text-center border-t border-[#e2e8f0]">
+                <p className="text-[13px] text-[#94a3b8]">No users in this company</p>
+              </div>
+            )
+          )}
+        </div>
+
+        {/* Recent Requests */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          <button
+            onClick={() => setIsRecentRequestsExpanded(!isRecentRequestsExpanded)}
+            className="w-full px-5 py-3 bg-[#f8fafc] flex items-center justify-between hover:bg-[#f1f5f9] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              {isRecentRequestsExpanded ? (
+                <ChevronDown className="size-4 text-[#94a3b8]" />
+              ) : (
+                <ChevronRight className="size-4 text-[#94a3b8]" />
+              )}
+              <Clock className="size-4 text-[#64748b]" />
+              <h3 className="font-semibold text-[#0f172a] text-[13px]">Recent Requests ({recentRequests.length})</h3>
+            </div>
+          </button>
+          {isRecentRequestsExpanded && (
+            recentRequests.length > 0 ? (
+              <div className="divide-y divide-[#f1f5f9] border-t border-[#e2e8f0]">
+                {recentRequests.map((req) => (
+                  <div key={req.id} className="px-5 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {req.status === 'APPROVED' ? (
+                        <CheckCircle className="size-4 text-[#16a34a]" />
+                      ) : req.status === 'REJECTED' ? (
+                        <XCircle className="size-4 text-[#dc2626]" />
+                      ) : (
+                        <Clock className="size-4 text-[#d97706]" />
+                      )}
+                      <div>
+                        <p className="text-[13px] text-[#0f172a]">{req.details}</p>
+                        <p className="text-[11px] text-[#94a3b8]">
+                          {formatDistanceToNow(new Date(req.createdAt), { addSuffix: true })}
                         </p>
                       </div>
                     </div>
-                  ) : (
-                    /* POC Change Details */
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Current POC */}
-                        <div className="bg-white rounded-lg border border-slate-200 p-4">
-                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Current POC</p>
-                          {request.customerAccount.primaryPoc ? (
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 bg-amber-100 rounded-full flex items-center justify-center">
-                                <Crown className="h-5 w-5 text-amber-600" />
-                              </div>
-                              <div>
-                                <p className="font-semibold text-slate-900">{request.customerAccount.primaryPoc.name}</p>
-                                <p className="text-sm text-slate-500">{request.customerAccount.primaryPoc.email}</p>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-slate-500">No current POC</p>
-                          )}
-                        </div>
-
-                        {/* Arrow */}
-                        <div className="flex items-center justify-center">
-                          <div className="text-slate-300 text-3xl">→</div>
-                        </div>
-                      </div>
-
-                      {/* New POC */}
-                      <div className="bg-white rounded-lg border-2 border-purple-200 p-4">
-                        <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-3">Requested New POC</p>
-                        {request.newPocUser ? (
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
-                              <Crown className="h-5 w-5 text-purple-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-slate-900">{request.newPocUser.name}</p>
-                              <p className="text-sm text-slate-500">{request.newPocUser.email}</p>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-slate-500">User not found</p>
-                        )}
-                      </div>
-
-                      {/* Reason */}
-                      {request.data.reason && (
-                        <div className="bg-white rounded-lg border border-slate-200 p-4">
-                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Reason for Change</p>
-                          <p className="text-slate-700 italic">&ldquo;{request.data.reason}&rdquo;</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Company Users Section */}
-              <div className="bg-white rounded-lg border border-slate-300 overflow-hidden">
-                <button
-                  onClick={() => setIsCompanyUsersExpanded(!isCompanyUsersExpanded)}
-                  className="w-full px-5 py-3 bg-slate-50 flex items-center justify-between hover:bg-slate-100 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    {isCompanyUsersExpanded ? (
-                      <ChevronDown className="size-4 text-slate-400" />
-                    ) : (
-                      <ChevronRight className="size-4 text-slate-400" />
-                    )}
-                    <Users className="size-4 text-slate-500" />
-                    <h3 className="font-semibold text-slate-700 text-sm">Company Users ({companyUsers.length})</h3>
+                    <span className={cn(
+                      'px-2 py-0.5 rounded-md text-[10px] font-semibold',
+                      req.status === 'APPROVED' && 'bg-[#f0fdf4] text-[#16a34a]',
+                      req.status === 'REJECTED' && 'bg-[#fef2f2] text-[#dc2626]',
+                      req.status === 'PENDING' && 'bg-[#fffbeb] text-[#d97706]'
+                    )}>
+                      {req.status}
+                    </span>
                   </div>
-                </button>
-                {isCompanyUsersExpanded && (
-                  companyUsers.length > 0 ? (
-                    <div className="divide-y divide-slate-100 border-t border-slate-200">
-                      {companyUsers.map((user) => (
-                        <div key={user.id} className="px-5 py-3 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={cn(
-                              'h-8 w-8 rounded-full flex items-center justify-center',
-                              user.isPoc ? 'bg-amber-100' : 'bg-slate-100'
-                            )}>
-                              {user.isPoc ? (
-                                <Crown className="h-4 w-4 text-amber-600" />
-                              ) : (
-                                <span className="text-sm font-medium text-slate-500">
-                                  {user.name.charAt(0).toUpperCase()}
-                                </span>
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium text-slate-900 text-sm">
-                                {user.name}
-                                {user.isPoc && (
-                                  <Badge className="ml-2 bg-amber-100 text-amber-700 text-[10px]">POC</Badge>
-                                )}
-                              </p>
-                              <p className="text-xs text-slate-500">{user.email}</p>
-                            </div>
-                          </div>
-                          <Badge className={cn(
-                            'text-[10px]',
-                            user.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-                          )}>
-                            {user.isActive ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="px-5 py-8 text-center border-t border-slate-200">
-                      <p className="text-sm text-slate-400">No users in this company</p>
-                    </div>
-                  )
-                )}
+                ))}
               </div>
-
-              {/* Recent Requests Section */}
-              <div className="bg-white rounded-lg border border-slate-300 overflow-hidden">
-                <button
-                  onClick={() => setIsRecentRequestsExpanded(!isRecentRequestsExpanded)}
-                  className="w-full px-5 py-3 bg-slate-50 flex items-center justify-between hover:bg-slate-100 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    {isRecentRequestsExpanded ? (
-                      <ChevronDown className="size-4 text-slate-400" />
-                    ) : (
-                      <ChevronRight className="size-4 text-slate-400" />
-                    )}
-                    <Clock className="size-4 text-slate-500" />
-                    <h3 className="font-semibold text-slate-700 text-sm">Recent Requests ({recentRequests.length})</h3>
-                  </div>
-                </button>
-                {isRecentRequestsExpanded && (
-                  recentRequests.length > 0 ? (
-                    <div className="divide-y divide-slate-100 border-t border-slate-200">
-                      {recentRequests.map((req) => (
-                        <div key={req.id} className="px-5 py-3 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {req.status === 'APPROVED' ? (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            ) : req.status === 'REJECTED' ? (
-                              <XCircle className="h-4 w-4 text-red-500" />
-                            ) : (
-                              <Clock className="h-4 w-4 text-amber-500" />
-                            )}
-                            <div>
-                              <p className="text-sm text-slate-700">{req.details}</p>
-                              <p className="text-xs text-slate-400">
-                                {formatDistanceToNow(new Date(req.createdAt), { addSuffix: true })}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge className={cn(
-                            'text-[10px]',
-                            req.status === 'APPROVED' && 'bg-green-100 text-green-700',
-                            req.status === 'REJECTED' && 'bg-red-100 text-red-700',
-                            req.status === 'PENDING' && 'bg-amber-100 text-amber-700'
-                          )}>
-                            {req.status}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="px-5 py-8 text-center border-t border-slate-200">
-                      <p className="text-sm text-slate-400">No previous requests from this company</p>
-                    </div>
-                  )
-                )}
+            ) : (
+              <div className="px-5 py-8 text-center border-t border-[#e2e8f0]">
+                <p className="text-[13px] text-[#94a3b8]">No previous requests from this company</p>
               </div>
-            </div>
-          </div>
+            )
+          )}
         </div>
       </div>
 
       {/* Right Panel - Decision */}
-      <div className="w-[500px] flex-shrink-0 flex flex-col px-3 overflow-y-auto">
-        <div className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="w-[420px] flex-shrink-0 p-6 pl-3 overflow-y-auto">
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
           <button
             onClick={() => setIsDecisionExpanded(!isDecisionExpanded)}
-            className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+            className="w-full flex items-center justify-between px-5 py-3 bg-[#f8fafc] hover:bg-[#f1f5f9] transition-colors"
           >
             <div className="flex items-center gap-2">
               {isDecisionExpanded ? (
-                <ChevronDown className="size-4 text-slate-400" />
+                <ChevronDown className="size-4 text-[#94a3b8]" />
               ) : (
-                <ChevronRight className="size-4 text-slate-400" />
+                <ChevronRight className="size-4 text-[#94a3b8]" />
               )}
-              <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-[#0f172a] uppercase tracking-[0.07em]">
                 Decision Panel
               </span>
             </div>
-            <Badge className={cn(
-              'text-[10px]',
-              isPending && 'bg-amber-100 text-amber-700',
-              request.status === 'APPROVED' && 'bg-green-100 text-green-700',
-              request.status === 'REJECTED' && 'bg-red-100 text-red-700'
+            <span className={cn(
+              'px-2 py-0.5 rounded-md text-[10px] font-semibold',
+              isPending && 'bg-[#fffbeb] text-[#d97706]',
+              request.status === 'APPROVED' && 'bg-[#f0fdf4] text-[#16a34a]',
+              request.status === 'REJECTED' && 'bg-[#fef2f2] text-[#dc2626]'
             )}>
               {request.status}
-            </Badge>
+            </span>
           </button>
 
           {isDecisionExpanded && (
-            <div className="border-t border-slate-100">
+            <div className="border-t border-[#e2e8f0]">
               {/* Request Info */}
-              <div className="p-4 bg-slate-50/50 border-b border-slate-100">
-                <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="p-4 bg-[#f8fafc] border-b border-[#f1f5f9]">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-[12px] font-medium text-slate-400 uppercase tracking-wider">Requested</p>
-                    <p className="font-medium text-slate-700 mt-0.5 text-sm">
-                      {format(new Date(request.createdAt), 'PPp')}3
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Requested</p>
+                    <p className="font-medium text-[#0f172a] mt-0.5 text-[12px]">
+                      {format(new Date(request.createdAt), 'PPp')}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[12px] font-medium text-slate-400 uppercase tracking-wider">By</p>
-                    <p className="font-medium text-slate-700 mt-0.5 text-sm">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">By</p>
+                    <p className="font-medium text-[#0f172a] mt-0.5 text-[12px]">
                       {request.requestedBy?.name || 'System'}
                     </p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-[12px] font-medium text-slate-400 uppercase tracking-wider">Company</p>
-                    <p className="font-medium text-slate-700 mt-0.5 text-sm">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Company</p>
+                    <p className="font-medium text-[#0f172a] mt-0.5 text-[12px]">
                       {request.customerAccount.companyName}
                     </p>
                   </div>
@@ -483,25 +458,25 @@ export function CustomerRequestView({
               </div>
 
               <div className="p-4">
-                {/* Status Info for processed requests */}
+                {/* Status for processed requests */}
                 {!isPending && (
                   <div className={cn(
-                    'p-4 rounded-lg',
-                    request.status === 'APPROVED' && 'bg-green-50 border border-green-200',
-                    request.status === 'REJECTED' && 'bg-red-50 border border-red-200'
+                    'p-4 rounded-[9px]',
+                    request.status === 'APPROVED' && 'bg-[#f0fdf4] border border-[#bbf7d0]',
+                    request.status === 'REJECTED' && 'bg-[#fef2f2] border border-[#fecaca]'
                   )}>
-                    <div className="flex items-center gap-2 mb-2 text-sm">
+                    <div className="flex items-center gap-2 mb-2 text-[13px]">
                       {request.status === 'APPROVED' ? (
-                        <CheckCircle className="size-5 text-green-600" />
+                        <CheckCircle className="size-5 text-[#16a34a]" />
                       ) : (
-                        <XCircle className="size-5 text-red-600" />
+                        <XCircle className="size-5 text-[#dc2626]" />
                       )}
-                      <span className="font-semibold text-slate-900">
+                      <span className="font-semibold text-[#0f172a]">
                         {request.status === 'APPROVED' ? 'Approved' : 'Rejected'}
                       </span>
                     </div>
                     {request.reviewedBy && (
-                      <p className="text-sm text-slate-600">
+                      <p className="text-[12px] text-[#64748b]">
                         by {request.reviewedBy.name}
                         {request.reviewedAt && (
                           <span> on {format(new Date(request.reviewedAt), 'PPP')}</span>
@@ -509,24 +484,24 @@ export function CustomerRequestView({
                       </p>
                     )}
                     {request.rejectionReason && (
-                      <p className="mt-2 text-sm text-slate-600 italic">
+                      <p className="mt-2 text-[12px] text-[#64748b] italic">
                         &ldquo;{request.rejectionReason}&rdquo;
                       </p>
                     )}
                   </div>
                 )}
 
-                {/* Action Form (only for pending) */}
+                {/* Pending action form */}
                 {isPending && (
                   <>
                     {/* Warning for POC Change */}
                     {!isUserAddition && (
-                      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="mb-4 p-3 bg-[#fffbeb] border border-[#fde68a] rounded-[9px]">
                         <div className="flex gap-2">
-                          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-sm">
-                            <p className="font-medium text-amber-800">If approved:</p>
-                            <ul className="mt-1 text-amber-700 list-disc list-inside space-y-0.5">
+                          <AlertTriangle className="size-4 text-[#d97706] flex-shrink-0 mt-0.5" />
+                          <div className="text-[12px]">
+                            <p className="font-semibold text-[#92400e]">If approved:</p>
+                            <ul className="mt-1 text-[#d97706] list-disc list-inside space-y-0.5">
                               <li>{request.newPocUser?.name || 'New user'} becomes POC</li>
                               <li>{request.customerAccount.primaryPoc?.name || 'Current POC'} becomes regular</li>
                               <li>Both will be notified</li>
@@ -538,12 +513,12 @@ export function CustomerRequestView({
 
                     {/* Info for User Addition */}
                     {isUserAddition && (
-                      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="mb-4 p-3 bg-[#f0fdf4] border border-[#bbf7d0] rounded-[9px]">
                         <div className="flex gap-2">
-                          <Mail className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-sm">
-                            <p className="font-medium text-green-800">If approved:</p>
-                            <ul className="mt-1 text-green-700 list-disc list-inside space-y-0.5">
+                          <Mail className="size-4 text-[#16a34a] flex-shrink-0 mt-0.5" />
+                          <div className="text-[12px]">
+                            <p className="font-semibold text-[#14532d]">If approved:</p>
+                            <ul className="mt-1 text-[#16a34a] list-disc list-inside space-y-0.5">
                               <li>User account will be created</li>
                               <li>Invite email sent to {request.data.email}</li>
                               <li>User can access certificates</li>
@@ -554,52 +529,51 @@ export function CustomerRequestView({
                     )}
 
                     {error && (
-                      <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+                      <div className="mb-4 p-3 text-[12px] text-[#dc2626] bg-[#fef2f2] rounded-[9px] border border-[#fecaca]">
                         {error}
                       </div>
                     )}
 
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="rejectionReason" className="text-sm font-medium text-slate-700">
+                        <label htmlFor="rejectionReason" className="block text-[12px] font-semibold text-[#0f172a] mb-2">
                           Rejection Reason (required if rejecting)
-                        </Label>
-                        <Textarea
+                        </label>
+                        <textarea
                           id="rejectionReason"
                           value={rejectionReason}
                           onChange={(e) => setRejectionReason(e.target.value)}
                           placeholder="Enter reason for rejection..."
                           rows={6}
-                          className="mt-2 text-sm border border-slate-300"
+                          className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none resize-none"
                         />
                       </div>
 
                       <div className="flex gap-3">
-                        <Button
+                        <button
                           onClick={handleReject}
                           disabled={processing || !rejectionReason.trim()}
-                          variant="outline"
-                          className="flex-1 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold border border-[#fecaca] text-[#dc2626] hover:bg-[#fef2f2] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {processing ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            <Loader2 className="size-4 animate-spin" />
                           ) : (
-                            <XCircle className="h-4 w-4 mr-2" />
+                            <XCircle className="size-4" />
                           )}
                           Reject
-                        </Button>
-                        <Button
+                        </button>
+                        <button
                           onClick={handleApprove}
                           disabled={processing}
-                          className="flex-1 bg-green-600 hover:bg-green-700"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {processing ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            <Loader2 className="size-4 animate-spin" />
                           ) : (
-                            <CheckCircle className="h-4 w-4 mr-2" />
+                            <CheckCircle className="size-4" />
                           )}
                           Approve
-                        </Button>
+                        </button>
                       </div>
                     </div>
                   </>

@@ -58,9 +58,11 @@ const DEFAULT_REQUIREMENTS = {
 interface EnvironmentalSectionProps {
   feedbackSlot?: React.ReactNode
   disabled?: boolean
+  accordionStatus?: 'default' | 'locked' | 'unlocked' | 'pending'
+  hasFeedback?: boolean
 }
 
-export function EnvironmentalSection({ feedbackSlot, disabled }: EnvironmentalSectionProps = {}) {
+export function EnvironmentalSection({ feedbackSlot, disabled, accordionStatus, hasFeedback }: EnvironmentalSectionProps = {}) {
   const { formData, setFormField } = useCertificateStore()
 
   // Get unique categories from selected master instruments
@@ -164,6 +166,8 @@ export function EnvironmentalSection({ feedbackSlot, disabled }: EnvironmentalSe
       title="Environmental Conditions"
       feedbackSlot={feedbackSlot}
       disabled={disabled}
+      accordionStatus={accordionStatus}
+      hasFeedback={hasFeedback}
     >
       <div className="space-y-4 p-5 rounded-xl border border-slate-300 bg-section-inner">
         {/* Category-based requirements info */}

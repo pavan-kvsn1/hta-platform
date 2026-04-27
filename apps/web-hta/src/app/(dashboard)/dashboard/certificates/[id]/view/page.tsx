@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
-  ChevronRight,
   User,
   Building2,
   MapPin,
@@ -146,8 +145,6 @@ export default function CertificateViewPage() {
     feedback: true,
   })
 
-  // Chat panel state
-  const [isChatExpanded, setIsChatExpanded] = useState(true)
   const [customerFeedback, setCustomerFeedback] = useState<{
     notes: string
     sectionFeedbacks: { section: string; comment: string }[] | null
@@ -363,78 +360,64 @@ export default function CertificateViewPage() {
   const hasReviewer = !!certificate.reviewer
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-slate-100 p-3 gap-3 overflow-hidden">
-      {/* Left Side - Certificate Card */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Header Section */}
-          <div className="flex-shrink-0 border-b border-slate-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/dashboard"
-                  className="text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <ArrowLeft className="size-5" strokeWidth={2} />
-                </Link>
-                <span className="text-slate-300 text-xl">|</span>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                  {certificate.certificateNumber}
-                </h1>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
-                    statusConfig.className
-                  )}
-                >
-                  {statusConfig.label}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-3">
-                {(certificate.status === 'APPROVED' || certificate.status === 'AUTHORIZED') && (
-                  <a href={`/api/certificates/${certificate.id}/download-signed`} download>
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-8 text-xs">
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                      Download PDF
-                    </Button>
-                  </a>
-                )}
-              </div>
-            </div>
+    <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+      {/* Header Row */}
+      <div className="flex-shrink-0 px-7 py-[14px] bg-white border-b border-[#e2e8f0] flex items-center gap-3.5">
+        <Link
+          href="/dashboard"
+          className="w-9 h-9 rounded-lg border border-[#e2e8f0] bg-white flex items-center justify-center hover:bg-[#f8fafc] transition-colors flex-shrink-0"
+        >
+          <ArrowLeft className="size-[14px] text-[#64748b]" />
+        </Link>
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <h1 className="text-[20px] font-extrabold tracking-[-0.025em] text-[#0f172a]">
+            {certificate.certificateNumber}
+          </h1>
+          <Badge
+            variant="outline"
+            className={cn(
+              'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+              statusConfig.className
+            )}
+          >
+            {statusConfig.label}
+          </Badge>
+        </div>
+        {(certificate.status === 'APPROVED' || certificate.status === 'AUTHORIZED') && (
+          <a href={`/api/certificates/${certificate.id}/download-signed`} download className="flex-shrink-0">
+            <Button size="sm" className="h-[38px] px-[18px] rounded-[9px] bg-primary hover:bg-primary/90 text-white text-[13px] font-bold">
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              Download PDF
+            </Button>
+          </a>
+        )}
+      </div>
 
-            {/* Meta Info Row */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm mt-3">
-              <div className="flex items-center gap-2 text-slate-600">
-                <div className="p-1 rounded bg-slate-100">
-                  <User className="size-3 text-slate-500" />
-                </div>
-                <span className="font-medium text-slate-700">
-                  {certificate.createdBy?.name || 'Unknown'}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <div className="p-1 rounded bg-slate-100">
-                  <Building2 className="size-3 text-slate-500" />
-                </div>
-                <span>{certificate.customerName || '-'}</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <div className="p-1 rounded bg-slate-100">
-                  <MapPin className="size-3 text-slate-500" />
-                </div>
-                <span>{certificate.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-500">
-                <span className="text-slate-300">|</span>
-                <span>Revision {certificate.currentRevision}</span>
-              </div>
-            </div>
-          </div>
+      {/* Breadcrumb Row */}
+      <div className="flex-shrink-0 px-7 py-[9px] bg-white border-b border-[#f1f5f9] flex items-center">
+        <div className="flex items-center gap-[5px] text-[13px] text-[#64748b]">
+          <User className="size-[13px] text-[#94a3b8]" />
+          <span>{certificate.createdBy?.name || 'Unknown'}</span>
+        </div>
+        <span className="text-[#e2e8f0] mx-3">|</span>
+        <div className="flex items-center gap-[5px] text-[13px] text-[#64748b]">
+          <Building2 className="size-[13px] text-[#94a3b8]" />
+          <span>{certificate.customerName || '-'}</span>
+        </div>
+        <span className="text-[#e2e8f0] mx-3">|</span>
+        <div className="flex items-center gap-[5px] text-[13px] text-[#64748b]">
+          <MapPin className="size-[13px] text-[#94a3b8]" />
+          <span>{certificate.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}</span>
+        </div>
+        <span className="text-[#e2e8f0] mx-3">|</span>
+        <span className="text-[13px] text-[#64748b]">Revision {certificate.currentRevision}</span>
+      </div>
 
-          {/* Content Area - Scrollable */}
-          <div className="flex-1 overflow-auto bg-slate-50/30">
-            <div className="p-6 space-y-3 bg-section-inner">
+      {/* Body — left sections + right chat */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+      {/* Left Side - Scrollable Sections */}
+      <div className="flex-1 overflow-auto min-w-0">
+          <div className="p-6 space-y-2.5 bg-[#f1f5f9]">
               {/* Out of Limit Warning */}
               {hasOutOfLimitResults && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
@@ -496,7 +479,7 @@ export default function CertificateViewPage() {
                       e.stopPropagation()
                       fetchUucImages()
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-white/90 border border-white/20 rounded-lg hover:bg-white transition-colors"
+                    className="flex items-center gap-[5px] px-[11px] py-[5px] border border-[#e2e8f0] rounded-[7px] bg-white text-[12px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors"
                   >
                     <ImageIcon className="size-3.5" />
                     View Images
@@ -598,7 +581,7 @@ export default function CertificateViewPage() {
                         e.stopPropagation()
                         fetchReadingImages()
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-white/90 border border-white/20 rounded-lg hover:bg-white transition-colors"
+                      className="flex items-center gap-[5px] px-[11px] py-[5px] border border-[#e2e8f0] rounded-[7px] bg-white text-[12px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors"
                     >
                       <ImageIcon className="size-3.5" />
                       View Images
@@ -768,81 +751,55 @@ export default function CertificateViewPage() {
                 />
               )}
             </div>
-          </div>
-        </div>
-      </div>
+      </div>{/* end left panel */}
 
       {/* Right Panel - Chat */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col gap-3 h-full overflow-hidden">
-        {/* Chat Section */}
-        <div className={cn(
-          'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',
-          isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
-        )}>
-          {/* Chat Header - Collapsible */}
-          <button
-            onClick={() => setIsChatExpanded(!isChatExpanded)}
-            className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {isChatExpanded ? (
-                <ChevronDown className="size-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="size-4 text-slate-400" />
-              )}
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Chat with Reviewer</span>
+      <div className="w-[380px] flex-shrink-0 flex flex-col border-l border-[#e2e8f0] bg-white h-full overflow-hidden">
+        {/* Chat Header */}
+        <div className="flex-shrink-0 px-[18px] py-[13px] border-b border-[#f1f5f9] flex items-center gap-2">
+          <MessageSquare className="size-[14px] text-[#94a3b8]" />
+          <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Chat with Reviewer</span>
+        </div>
+
+        {/* Reviewer Info */}
+        {hasReviewer && (
+          <div className="flex-shrink-0 px-[18px] py-[14px] border-b border-[#f8fafc] flex items-center gap-2.5">
+            <div className="w-[38px] h-[38px] rounded-full bg-[#0f1e2e] flex items-center justify-center text-[13px] font-bold text-[#93c5fd] flex-shrink-0">
+              {(certificate.reviewer?.name || 'R').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
             </div>
-          </button>
+            <div>
+              <div className="text-[14px] font-bold text-[#0f172a]">
+                {certificate.reviewer?.name || 'Reviewer'}
+              </div>
+              <div className="text-[12px] text-[#94a3b8] flex items-center gap-[5px] mt-px">
+                <span className="w-[7px] h-[7px] rounded-full bg-[#22c55e] inline-block flex-shrink-0" />
+                Reviewer · Online
+              </div>
+            </div>
+          </div>
+        )}
 
-          {/* Chat Content - Only when expanded */}
-          {isChatExpanded && (
-            <div className="flex-1 flex flex-col min-h-0">
-              {/* Person Header */}
-              {hasReviewer && (
-                <div className="flex-shrink-0 px-4 py-3 border-t border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="size-10 rounded-full bg-slate-700 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
-                      {(certificate.reviewer?.name || 'R').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                    </div>
-                    {/* Name & Status */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {certificate.reviewer?.name || 'Reviewer'}
-                      </p>
-                      <p className="text-xs text-slate-500 flex items-center gap-1.5">
-                        <span>Reviewer</span>
-                        <span className="size-1.5 rounded-full bg-green-500" />
-                        <span className="text-green-600">Online</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Chat Messages Area */}
-              <div className="flex-1 min-h-0 overflow-hidden text-xs">
-                {hasReviewer ? (
-                  <ChatSidebar
-                    isOpen={true}
-                    onClose={() => {}}
-                    certificateId={certificate.id}
-                    threadType="ASSIGNEE_REVIEWER"
-                    embedded={true}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-slate-400 text-xs p-4 text-center">
-                    <div>
-                      <MessageSquare className="size-8 mx-auto mb-2 text-slate-300" />
-                      <p>No reviewer assigned yet</p>
-                      <p className="text-[10px] mt-1">Chat will be available once a reviewer is assigned</p>
-                    </div>
-                  </div>
-                )}
+        {/* Chat Messages Area */}
+        <div className="flex-1 min-h-0 overflow-hidden text-xs">
+          {hasReviewer ? (
+            <ChatSidebar
+              isOpen={true}
+              onClose={() => {}}
+              certificateId={certificate.id}
+              threadType="ASSIGNEE_REVIEWER"
+              embedded={true}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-[#94a3b8] text-xs p-4 text-center">
+              <div>
+                <MessageSquare className="size-8 mx-auto mb-2 text-[#cbd5e1]" />
+                <p>No reviewer assigned yet</p>
+                <p className="text-[10px] mt-1">Chat will be available once a reviewer is assigned</p>
               </div>
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {/* Image Modals */}
@@ -868,6 +825,17 @@ export default function CertificateViewPage() {
 }
 
 // Helper Components
+
+function extractSectionNumber(title: string): string | null {
+  const match = title.match(/Section\s+(\d+)/i)
+  return match ? match[1] : null
+}
+
+function extractSectionLabel(title: string): string {
+  const match = title.match(/Section\s+\d+:\s*(.+)/i)
+  return match ? match[1] : title
+}
+
 function CollapsibleSection({
   title,
   isExpanded,
@@ -883,32 +851,42 @@ function CollapsibleSection({
   badge?: React.ReactNode
   actionButton?: React.ReactNode
 }) {
+  const sectionNum = extractSectionNumber(title)
+  const sectionLabel = extractSectionLabel(title)
+
   return (
-    <div className="rounded-lg border border-slate-200 overflow-hidden shadow-sm">
-      {/* Section Header - Primary Color */}
-      <div className="flex items-center justify-between bg-primary">
+    <div className="bg-white border border-[#e2e8f0] rounded-[14px] overflow-hidden">
+      <div
+        className={`flex items-center justify-between cursor-pointer transition-colors duration-100 ${isExpanded ? 'bg-[#f8fafc] border-b border-[#e2e8f0]' : 'bg-white'}`}
+      >
         <button
           onClick={onToggle}
-          className="flex-1 px-4 py-3 flex items-center justify-between hover:bg-primary/90 transition-colors"
+          className="flex-1 px-5 py-[14px] flex items-center justify-between"
         >
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-primary-foreground text-sm">{title}</span>
+          <div className="flex items-center gap-2.5">
+            {sectionNum && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#94a3b8] px-2 py-[3px] bg-[#f1f5f9] rounded-[5px]">
+                §{sectionNum}
+              </span>
+            )}
+            <span className="text-[15px] font-bold text-[#0f172a] tracking-[-0.01em]">
+              {sectionLabel}
+            </span>
             {badge}
           </div>
           {isExpanded ? (
-            <ChevronUp className="h-5 w-5 text-primary-foreground/70" />
+            <ChevronUp className="h-[15px] w-[15px] text-[#94a3b8]" />
           ) : (
-            <ChevronDown className="h-5 w-5 text-primary-foreground/70" />
+            <ChevronDown className="h-[15px] w-[15px] text-[#94a3b8]" />
           )}
         </button>
         {actionButton && (
-          <div className="pr-3">
+          <div className="pr-4">
             {actionButton}
           </div>
         )}
       </div>
-      {/* Section Content - White Background */}
-      {isExpanded && <div className="p-4 bg-white">{children}</div>}
+      {isExpanded && <div className="p-5 bg-white">{children}</div>}
     </div>
   )
 }
@@ -922,8 +900,10 @@ function InfoField({
 }) {
   return (
     <div>
-      <dt className="text-xs font-semibold text-slate-600 tracking-wider">{label}</dt>
-      <dd className="mt-1 text-xs text-slate-900">{value || '-'}</dd>
+      <div className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#94a3b8] mb-[5px]">{label}</div>
+      <div className="text-[14px] text-[#0f172a]">
+        {value || <span className="text-[#cbd5e1]">&mdash;</span>}
+      </div>
     </div>
   )
 }

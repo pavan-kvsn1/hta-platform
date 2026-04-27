@@ -2,17 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { AdminHeader } from './AdminHeader'
 import { AppFooter } from '@/components/layout/AppFooter'
 
 const STORAGE_KEY = 'admin-sidebar-collapsed'
 
 interface AdminLayoutWrapperProps {
   children: React.ReactNode
-  showEngineerSwitch?: boolean
 }
 
-export function AdminLayoutWrapper({ children, showEngineerSwitch = false }: AdminLayoutWrapperProps) {
+export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   // Sync with sidebar state from localStorage
@@ -51,9 +49,6 @@ export function AdminLayoutWrapper({ children, showEngineerSwitch = false }: Adm
         isCollapsed ? 'ml-16' : 'ml-56'
       )}
     >
-      {/* Title Bar */}
-      <AdminHeader showEngineerSwitch={showEngineerSwitch} />
-
       {/* Main Content */}
       <main className="flex-1 overflow-auto bg-section-inner flex flex-col">
         <div className="flex-1">{children}</div>

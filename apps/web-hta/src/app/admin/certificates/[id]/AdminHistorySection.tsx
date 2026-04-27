@@ -350,20 +350,20 @@ export function AdminHistorySection({
 
   if (timeline.length === 0) {
     return (
-      <div className={cn('bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden', className)}>
+      <div className={cn('bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden', className)}>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#f8fafc] transition-colors"
         >
           <div className="flex items-center gap-2">
-            {isExpanded ? <ChevronDown className="size-4 text-slate-400" /> : <ChevronRight className="size-4 text-slate-400" />}
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Audit History</span>
+            {isExpanded ? <ChevronDown className="size-4 text-[#94a3b8]" /> : <ChevronRight className="size-4 text-[#94a3b8]" />}
+            <span className="text-xs font-bold text-[#334155] uppercase tracking-wider">Audit History</span>
           </div>
         </button>
         {isExpanded && (
-          <div className="px-4 py-8 text-center border-t border-slate-100">
-            <Clock className="size-8 mx-auto mb-2 text-slate-300" />
-            <p className="text-sm font-medium text-slate-600">No history yet</p>
+          <div className="px-4 py-8 text-center border-t border-[#f1f5f9]">
+            <Clock className="size-8 mx-auto mb-2 text-[#cbd5e1]" />
+            <p className="text-sm font-medium text-[#64748b]">No history yet</p>
           </div>
         )}
       </div>
@@ -371,25 +371,25 @@ export function AdminHistorySection({
   }
 
   return (
-    <div className={cn('bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden', className)}>
+    <div className={cn('bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden', className)}>
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#f8fafc] transition-colors"
       >
         <div className="flex items-center gap-2">
-          {isExpanded ? <ChevronDown className="size-4 text-slate-400" /> : <ChevronRight className="size-4 text-slate-400" />}
-          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Audit History</span>
+          {isExpanded ? <ChevronDown className="size-4 text-[#94a3b8]" /> : <ChevronRight className="size-4 text-[#94a3b8]" />}
+          <span className="text-xs font-bold text-[#334155] uppercase tracking-wider">Audit History</span>
         </div>
-        <span className="text-xs text-slate-500">{timeline.length} items</span>
+        <span className="text-xs text-[#64748b]">{timeline.length} items</span>
       </button>
 
       {/* Timeline */}
       {isExpanded && (
-        <div className="border-t border-slate-100">
+        <div className="border-t border-[#f1f5f9]">
           <div className="relative px-4 py-4">
             {/* Vertical line */}
-            <div className="absolute left-[27px] top-4 bottom-4 w-px bg-slate-200" />
+            <div className="absolute left-[27px] top-4 bottom-4 w-px bg-[#e2e8f0]" />
 
             {/* Timeline items */}
             <div className="space-y-4">

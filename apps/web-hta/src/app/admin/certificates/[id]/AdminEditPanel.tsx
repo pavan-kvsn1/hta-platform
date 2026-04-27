@@ -14,9 +14,6 @@ import {
   ArrowRight,
   Save,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -107,11 +104,9 @@ export function AdminEditPanel({
   const getDisplayValue = (fieldId: string, value: string): string => {
     if (!value) return 'Not set'
     if (fieldId === 'reviewerId') {
-      // Check current reviewer first
       if (reviewer?.id === value) {
         return reviewer.name
       }
-      // Then check reviewers list
       const rev = reviewers.find(r => r.id === value)
       return rev?.name || value
     }
@@ -261,11 +256,11 @@ export function AdminEditPanel({
     <div className="p-4 space-y-4">
       {/* Select Section */}
       <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1.5">
+        <label className="block text-[12px] font-semibold text-[#0f172a] mb-1.5">
           Select Section
         </label>
         <Select value={selectedSection} onValueChange={handleSectionChange}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed]">
             <SelectValue placeholder="Choose a section..." />
           </SelectTrigger>
           <SelectContent>
@@ -281,11 +276,11 @@ export function AdminEditPanel({
       {/* Select Field */}
       {selectedSection && (
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#0f172a] mb-1.5">
             Select Field
           </label>
           <Select value={selectedField} onValueChange={handleFieldChange}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed]">
               <SelectValue placeholder="Choose a field..." />
             </SelectTrigger>
             <SelectContent>
@@ -302,10 +297,10 @@ export function AdminEditPanel({
       {/* Current Value */}
       {selectedField && (
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#0f172a] mb-1.5">
             Current Value
           </label>
-          <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-md text-sm text-slate-700">
+          <div className="w-full px-3 py-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-[9px] text-[13px] text-[#64748b]">
             {getDisplayValue(selectedField, getCurrentValue(selectedField))}
           </div>
         </div>
@@ -314,17 +309,17 @@ export function AdminEditPanel({
       {/* New Value */}
       {selectedField && (
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#0f172a] mb-1.5">
             New Value
           </label>
           {fieldType === 'select' ? (
             reviewers.length === 0 ? (
-              <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-md text-sm text-slate-500">
+              <div className="w-full px-3 py-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-[9px] text-[13px] text-[#94a3b8]">
                 No reviewers available
               </div>
             ) : (
               <Select value={newValue} onValueChange={setNewValue}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed]">
                   <SelectValue placeholder="Select new value..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -337,18 +332,19 @@ export function AdminEditPanel({
               </Select>
             )
           ) : fieldType === 'date' ? (
-            <Input
+            <input
               type="date"
               value={formatDateForInput(newValue)}
               onChange={(e) => setNewValue(e.target.value)}
-              className="w-full"
+              className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
             />
           ) : (
-            <Input
+            <input
+              type="text"
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
               placeholder="Enter new value..."
-              className="w-full"
+              className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
             />
           )}
         </div>
@@ -357,44 +353,44 @@ export function AdminEditPanel({
       {/* Reason */}
       {selectedField && (
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">
-            Reason for Change <span className="text-red-500">*</span>
+          <label className="block text-[12px] font-semibold text-[#0f172a] mb-1.5">
+            Reason for Change <span className="text-[#dc2626]">*</span>
           </label>
-          <Textarea
+          <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Explain why this change is necessary..."
             rows={2}
-            className="w-full resize-none"
+            className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none resize-none"
           />
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <div className="p-2 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-xs text-red-700">{error}</p>
+        <div className="p-2 bg-[#fef2f2] border border-[#fecaca] rounded-[9px]">
+          <p className="text-[12px] text-[#dc2626]">{error}</p>
         </div>
       )}
 
       {/* Add to Queue Button */}
       {selectedField && (
-        <Button
+        <button
           onClick={handleApplyChange}
           disabled={!reason.trim() || !newValue}
-          className="w-full"
+          className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#0f172a] hover:bg-[#1e293b] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <Plus className="h-4 w-4 mr-1.5" />
+          <Plus className="size-4" />
           Add to Queue
-        </Button>
+        </button>
       )}
 
       {/* Pending Changes */}
       {pendingChanges.length > 0 && (
-        <div className="border-t border-slate-200 pt-4 space-y-3">
+        <div className="border-t border-[#e2e8f0] pt-4 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-slate-600">Pending Changes</span>
-            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-semibold rounded">
+            <span className="text-[12px] font-semibold text-[#0f172a]">Pending Changes</span>
+            <span className="px-1.5 py-0.5 bg-[#fef3c7] text-[#d97706] text-[10px] font-bold rounded">
               {pendingChanges.length}
             </span>
           </div>
@@ -403,70 +399,70 @@ export function AdminEditPanel({
             {pendingChanges.map(change => (
               <div
                 key={change.id}
-                className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md"
+                className="flex items-center gap-2 p-2 bg-[#fffbeb] border border-[#fde68a] rounded-[9px]"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-amber-900">{change.fieldLabel}</p>
-                  <div className="flex items-center gap-1 text-[11px] text-amber-700">
+                  <p className="text-[12px] font-medium text-[#92400e]">{change.fieldLabel}</p>
+                  <div className="flex items-center gap-1 text-[11px] text-[#d97706]">
                     <span className="truncate max-w-[100px]">{getDisplayValue(change.field, change.fromValue)}</span>
-                    <ArrowRight className="h-3 w-3 flex-shrink-0" />
+                    <ArrowRight className="size-3 flex-shrink-0" />
                     <span className="truncate max-w-[100px] font-medium">{getDisplayValue(change.field, change.toValue)}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => handleRemoveChange(change.id)}
-                  className="p-1 text-amber-500 hover:text-red-600 hover:bg-red-50 rounded"
+                  className="p-1 text-[#d97706] hover:text-[#dc2626] hover:bg-[#fef2f2] rounded transition-colors"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="size-4" />
                 </button>
               </div>
             ))}
           </div>
 
-          <Button
+          <button
             onClick={handleSaveAllChanges}
             disabled={isSaving}
-            className="w-full bg-amber-600 hover:bg-amber-700"
+            className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#d97706] hover:bg-[#b45309] rounded-[9px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isSaving ? (
               <>
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
                 Saving...
               </>
             ) : (
               <>
-                <Save className="h-4 w-4 mr-1.5" />
+                <Save className="size-4" />
                 Save All Changes
               </>
             )}
-          </Button>
+          </button>
         </div>
       )}
 
       {/* Edit History */}
-      <div className="border-t border-slate-200 pt-4">
+      <div className="border-t border-[#e2e8f0] pt-4">
         <button
           onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
           className="flex items-center justify-between w-full text-left"
         >
           <div className="flex items-center gap-2">
-            <History className="h-4 w-4 text-slate-400" />
-            <span className="text-xs font-medium text-slate-600">Edit History</span>
+            <History className="size-4 text-[#94a3b8]" />
+            <span className="text-[12px] font-semibold text-[#0f172a]">Edit History</span>
             {editEvents.length > 0 && (
-              <span className="text-[10px] text-slate-400">({editEvents.length})</span>
+              <span className="text-[10px] text-[#94a3b8]">({editEvents.length})</span>
             )}
           </div>
           {isHistoryExpanded ? (
-            <ChevronUp className="h-4 w-4 text-slate-400" />
+            <ChevronUp className="size-4 text-[#94a3b8]" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-slate-400" />
+            <ChevronDown className="size-4 text-[#94a3b8]" />
           )}
         </button>
 
         {isHistoryExpanded && (
           <div className="mt-3 space-y-2 max-h-[200px] overflow-y-auto">
             {editEvents.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-2">No edit history</p>
+              <p className="text-[12px] text-[#94a3b8] text-center py-2">No edit history</p>
             ) : (
               editEvents.map(event => {
                 let eventData: Record<string, unknown> = {}
@@ -479,23 +475,23 @@ export function AdminEditPanel({
                 return (
                   <div
                     key={event.id}
-                    className="p-2 bg-slate-50 border border-slate-200 rounded-md"
+                    className="p-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-[9px]"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-slate-700">
+                      <span className="text-[12px] font-medium text-[#0f172a]">
                         {String(eventData.field || 'Field')}
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-[#94a3b8]">
                         {formatEventDate(event.createdAt)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 text-[11px] text-slate-600 mt-0.5">
+                    <div className="flex items-center gap-1 text-[11px] text-[#64748b] mt-0.5">
                       <span>{String(eventData.from || 'empty')}</span>
-                      <ArrowRight className="h-3 w-3 text-slate-400" />
+                      <ArrowRight className="size-3 text-[#94a3b8]" />
                       <span>{String(eventData.to || 'empty')}</span>
                     </div>
                     {typeof eventData.reason === 'string' && eventData.reason && (
-                      <p className="text-[10px] text-slate-400 mt-0.5 italic">
+                      <p className="text-[10px] text-[#94a3b8] mt-0.5 italic">
                         &ldquo;{eventData.reason}&rdquo;
                       </p>
                     )}

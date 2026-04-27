@@ -80,51 +80,48 @@ export function AdminAuthorizationClient({
   }, [certificate.id, certificate.certificateNumber])
 
   return (
-    <div className="flex h-full bg-slate-100 overflow-hidden">
+    <div className="flex h-full bg-[#f1f5f9] overflow-hidden">
       {/* Left Side - Header + Signatures + Content (Scrollable) */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Certificate Card - Bounding Box */}
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Header Section - Fixed at top of content area */}
-          <AdminAuthHeader
-            headerData={headerData}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            onDownload={isAuthorized ? handleDownload : undefined}
-            isDownloading={isDownloading}
-          />
+        {/* Header Section - Fixed at top of content area */}
+        <AdminAuthHeader
+          headerData={headerData}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onDownload={isAuthorized ? handleDownload : undefined}
+          isDownloading={isDownloading}
+        />
 
-          {/* Signature Status Bar - Fixed below header */}
-          <SignatureStatusBar
-            signatures={signatures}
-            showAdminPending={!isAuthorized}
-          />
+        {/* Signature Status Bar - Fixed below header */}
+        <SignatureStatusBar
+          signatures={signatures}
+          showAdminPending={!isAuthorized}
+        />
 
-          {/* Content Area - Scrollable */}
-          <div className="flex-1 overflow-auto bg-slate-50/30">
-            {viewMode === 'details' ? (
-              <div className="p-3 space-y-6 bg-section-inner">
-                <AdminAuthContent formData={formData} certificateId={certificate.id} />
+        {/* Content Area - Scrollable */}
+        <div className="flex-1 overflow-auto bg-[#f8fafc]">
+          {viewMode === 'details' ? (
+            <div className="p-3 space-y-6">
+              <AdminAuthContent formData={formData} certificateId={certificate.id} />
 
-                {/* Audit History Section - at the bottom */}
-                <AdminHistorySection
-                  feedbacks={feedbacks}
-                  events={events}
-                  currentRevision={certificate.currentRevision}
-                />
-              </div>
-            ) : (
-              <InlinePDFViewer
-                certificateId={certificate.id}
-                certificateNumber={certificate.certificateNumber}
+              {/* Audit History Section - at the bottom */}
+              <AdminHistorySection
+                feedbacks={feedbacks}
+                events={events}
+                currentRevision={certificate.currentRevision}
               />
-            )}
-          </div>
+            </div>
+          ) : (
+            <InlinePDFViewer
+              certificateId={certificate.id}
+              certificateNumber={certificate.certificateNumber}
+            />
+          )}
         </div>
       </div>
 
       {/* Right Panel - Chat & Authorization */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col p-2 overflow-y-auto bg-section-inner">
+      <div className="w-[380px] flex-shrink-0 flex flex-col p-2 overflow-y-auto bg-[#f1f5f9]">
         {/* Chat Panel */}
         <AdminAuthChatPanel
           certificateId={certificate.id}

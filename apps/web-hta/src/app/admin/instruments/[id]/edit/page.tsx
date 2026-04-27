@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft,
+  ChevronLeft,
   Loader2,
   AlertTriangle,
   Upload,
@@ -136,6 +136,35 @@ const PARAMETER_CAPABILITIES = [
   { value: 'time', label: 'Time' },
 ]
 
+const CAPABILITY_UNITS: Record<string, string[]> = {
+  rtd: ['°C', '°F', 'K', 'Ω'],
+  thermocouple: ['°C', '°F', 'K', 'mV'],
+  ac_voltage: ['V', 'mV', 'kV'],
+  dc_voltage: ['V', 'mV', 'kV'],
+  ac_current: ['A', 'mA', 'µA'],
+  dc_current: ['A', 'mA', 'µA'],
+  frequency: ['Hz', 'kHz', 'MHz', 'GHz'],
+  resistance: ['Ω', 'kΩ', 'MΩ'],
+  capacitance: ['F', 'µF', 'nF', 'pF'],
+  temperature: ['°C', '°F', 'K'],
+  humidity: ['%RH'],
+  pressure: ['Pa', 'kPa', 'MPa', 'bar', 'mbar', 'psi', 'mmHg'],
+  power: ['W', 'mW', 'kW', 'dBm'],
+  conductivity: ['S/m', 'mS/cm', 'µS/cm'],
+  time: ['s', 'ms', 'µs', 'min'],
+}
+
+function getAvailableUnits(selectedCapabilities: string[]): string[] {
+  const units = new Set<string>()
+  for (const cap of selectedCapabilities) {
+    const capUnits = CAPABILITY_UNITS[cap]
+    if (capUnits) capUnits.forEach(u => units.add(u))
+  }
+  return Array.from(units).sort()
+}
+
+const inputClass = 'w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-[13px] text-[#0f172a] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none'
+
 function SectionCard({
   title,
   children,
@@ -144,11 +173,9 @@ function SectionCard({
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 overflow-hidden shadow-sm">
-      <div className="px-4 py-3 bg-primary">
-        <h2 className="font-semibold text-primary-foreground text-sm">{title}</h2>
-      </div>
-      <div className="p-4 bg-white">{children}</div>
+    <div className="bg-white rounded-xl border border-[#e2e8f0] p-6">
+      <h2 className="text-[15px] font-semibold text-[#0f172a] mb-5">{title}</h2>
+      {children}
     </div>
   )
 }
@@ -347,10 +374,10 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-100">
+      <div className="h-full flex items-center justify-center bg-[#f1f5f9]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-slate-600">Loading instrument...</p>
+          <Loader2 className="size-8 animate-spin text-[#94a3b8] mx-auto mb-4" />
+          <p className="text-[#64748b]">Loading instrument...</p>
         </div>
       </div>
     )
@@ -358,17 +385,17 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
 
   if (error && !instrument) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-100">
+      <div className="h-full flex items-center justify-center bg-[#f1f5f9]">
         <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">
+          <AlertTriangle className="size-12 text-[#d97706] mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-[#0f172a] mb-2">
             {error || 'Instrument not found'}
           </h2>
           <Link
             href="/admin/instruments"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+            className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ChevronLeft className="size-4" />
             Back to Instruments
           </Link>
         </div>
@@ -377,35 +404,29 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="h-full bg-slate-100">
-      <div className="h-full flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="p-8 max-w-[820px] mx-auto">
         {/* Header */}
-        <div className="flex-shrink-0 border-b border-slate-200 px-3 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link
-                href={`/admin/instruments/${id}`}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <ArrowLeft className="size-5" strokeWidth={2} />
-              </Link>
-              <span className="text-slate-300 text-xl">|</span>
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                Edit Instrument 
-              </h1>
-            </div>
-          </div>
-          <p className="mt-1 text-lg font-bold text-slate-500 pt-5">
-           <span className="ml-2 text-slate-900">{instrument?.description}</span> | Asset: {instrument?.assetNumber}
+        <div className="mb-8">
+          <Link
+            href={`/admin/instruments/${id}`}
+            className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] transition-colors mb-4"
+          >
+            <ChevronLeft className="size-4" />
+            Back to Instrument
+          </Link>
+          <h1 className="text-[22px] font-bold text-[#0f172a] tracking-tight">
+            Edit Instrument
+          </h1>
+          <p className="text-[13px] text-[#94a3b8] mt-1">
+            {instrument?.description} &middot; Asset: {instrument?.assetNumber}
           </p>
         </div>
 
-        {/* Form Content - Scrollable */}
-        <div className="flex-1 overflow-auto bg-section-inner">
-          <form onSubmit={handleSubmit} className="p-3 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+              <div className="bg-[#fef2f2] border border-[#fee2e2] rounded-lg p-4 text-[#dc2626] text-[13px]">
                 {error}
               </div>
             )}
@@ -414,8 +435,8 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
             <SectionCard title="Identity">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="category" className="block text-sm font-medium text-slate-700 mb-1">
-                    Category <span className="text-red-500">*</span>
+                  <label htmlFor="category" className="block text-[13px] text-[#64748b] mb-1.5">
+                    Category <span className="text-[#ef4444]">*</span>
                   </label>
                   <select
                     id="category"
@@ -423,7 +444,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     value={formData.category}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   >
                     <option value="">Select category</option>
                     {CATEGORIES.map(cat => (
@@ -433,8 +454,8 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                 </div>
 
                 <div>
-                  <label htmlFor="assetNumber" className="block text-sm font-medium text-slate-700 mb-1">
-                    Asset Number <span className="text-red-500">*</span>
+                  <label htmlFor="assetNumber" className="block text-[13px] text-[#64748b] mb-1.5">
+                    Asset Number <span className="text-[#ef4444]">*</span>
                   </label>
                   <input
                     type="text"
@@ -443,13 +464,13 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     value={formData.assetNumber}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-1">
-                    Description <span className="text-red-500">*</span>
+                  <label htmlFor="description" className="block text-[13px] text-[#64748b] mb-1.5">
+                    Description <span className="text-[#ef4444]">*</span>
                   </label>
                   <input
                     type="text"
@@ -458,7 +479,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     value={formData.description}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   />
                 </div>
               </div>
@@ -468,7 +489,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
             <SectionCard title="Equipment Details">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="make" className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="make" className="block text-[13px] text-[#64748b] mb-1.5">
                     Make
                   </label>
                   <input
@@ -477,12 +498,12 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     name="make"
                     value={formData.make}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="model" className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="model" className="block text-[13px] text-[#64748b] mb-1.5">
                     Model
                   </label>
                   <input
@@ -491,12 +512,12 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     name="model"
                     value={formData.model}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="serialNumber" className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="serialNumber" className="block text-[13px] text-[#64748b] mb-1.5">
                     Serial Number
                   </label>
                   <input
@@ -505,7 +526,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     name="serialNumber"
                     value={formData.serialNumber}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   />
                 </div>
               </div>
@@ -516,7 +537,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="parameterGroup" className="block text-sm font-medium text-slate-700 mb-1">
+                    <label htmlFor="parameterGroup" className="block text-[13px] text-[#64748b] mb-1.5">
                       Parameter Group
                     </label>
                     <select
@@ -524,7 +545,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                       name="parameterGroup"
                       value={formData.parameterGroup}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      className={inputClass}
                     >
                       <option value="">Select parameter group</option>
                       {PARAMETER_GROUPS.map(group => (
@@ -534,12 +555,12 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <label className="block text-[13px] text-[#64748b] mb-1.5">
                       Parameter Roles
                     </label>
                     <div className="flex flex-wrap gap-3 py-2">
                       {PARAMETER_ROLES.map(role => (
-                        <label key={role.value} className="inline-flex items-center">
+                        <label key={role.value} className="inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
                             checked={(formData.parameterRoles || []).includes(role.value)}
@@ -556,9 +577,9 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                                 }))
                               }
                             }}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-[#cbd5e1] text-[#7c3aed] focus:ring-[#7c3aed]/20"
                           />
-                          <span className="ml-2 text-sm text-slate-700">{role.label}</span>
+                          <span className="ml-2 text-[13px] text-[#0f172a]">{role.label}</span>
                         </label>
                       ))}
                     </div>
@@ -566,12 +587,12 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-[13px] text-[#64748b] mb-1.5">
                     Parameter Capabilities
                   </label>
                   <div className="flex flex-wrap gap-3 py-2">
                     {PARAMETER_CAPABILITIES.map(cap => (
-                      <label key={cap.value} className="inline-flex items-center">
+                      <label key={cap.value} className="inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
                           checked={(formData.parameterCapabilities || []).includes(cap.value)}
@@ -588,16 +609,16 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                               }))
                             }
                           }}
-                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          className="rounded border-[#cbd5e1] text-[#7c3aed] focus:ring-[#7c3aed]/20"
                         />
-                        <span className="ml-2 text-sm text-slate-700">{cap.label}</span>
+                        <span className="ml-2 text-[13px] text-[#0f172a]">{cap.label}</span>
                       </label>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-[13px] text-[#64748b] mb-1.5">
                     SOP References
                   </label>
                   <div className="space-y-2">
@@ -611,7 +632,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                             newSops[idx] = e.target.value
                             setFormData(prev => ({ ...prev, sopReferences: newSops }))
                           }}
-                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          className={`flex-1 ${inputClass}`}
                           placeholder="e.g., NLAB/CAL/ET1/R01"
                         />
                         <button
@@ -622,9 +643,9 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                               sopReferences: prev.sopReferences.filter((_, i) => i !== idx)
                             }))
                           }}
-                          className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          className="px-3 py-2 text-[#dc2626] hover:bg-[#fef2f2] rounded-lg transition-colors"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="size-4" />
                         </button>
                       </div>
                     ))}
@@ -636,9 +657,9 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                           sopReferences: [...(prev.sopReferences || []), '']
                         }))
                       }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium bg-[#eff6ff] text-[#1d4ed8] rounded-lg hover:bg-[#dbeafe] transition-colors"
                     >
-                      <Plus className="w-4 h-4" />
+                      <Plus className="size-4" />
                       Add SOP Reference
                     </button>
                   </div>
@@ -650,7 +671,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
             <SectionCard title="Calibration Information">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="usage" className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="usage" className="block text-[13px] text-[#64748b] mb-1.5">
                     Usage
                   </label>
                   <input
@@ -659,12 +680,12 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     name="usage"
                     value={formData.usage}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="calibratedAtLocation" className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="calibratedAtLocation" className="block text-[13px] text-[#64748b] mb-1.5">
                     Calibrated At
                   </label>
                   <input
@@ -673,12 +694,12 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     name="calibratedAtLocation"
                     value={formData.calibratedAtLocation}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="reportNo" className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="reportNo" className="block text-[13px] text-[#64748b] mb-1.5">
                     Report Number
                   </label>
                   <input
@@ -687,12 +708,12 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     name="reportNo"
                     value={formData.reportNo}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="calibrationDueDate" className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="calibrationDueDate" className="block text-[13px] text-[#64748b] mb-1.5">
                     Calibration Due Date
                   </label>
                   <input
@@ -701,12 +722,12 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     name="calibrationDueDate"
                     value={formData.calibrationDueDate}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="status" className="block text-[13px] text-[#64748b] mb-1.5">
                     Status
                   </label>
                   <select
@@ -714,19 +735,19 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     name="status"
                     value={formData.status}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   >
                     {STATUS_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-[12px] text-[#94a3b8] mt-1.5">
                     &quot;Active&quot; status is computed from calibration due date
                   </p>
                 </div>
 
                 <div className="md:col-span-2">
-                  <label htmlFor="remarks" className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="remarks" className="block text-[13px] text-[#64748b] mb-1.5">
                     Remarks
                   </label>
                   <textarea
@@ -735,7 +756,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     value={formData.remarks}
                     onChange={handleChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={inputClass}
                   />
                 </div>
               </div>
@@ -745,79 +766,82 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
             <SectionCard title="Range Data">
               <div className="space-y-4">
                 {formData.rangeData.length === 0 ? (
-                  <p className="text-slate-500 text-sm">No range data. Click &quot;Add Range&quot; to add parameters.</p>
+                  <p className="text-[13px] text-[#94a3b8]">No range data. Click &quot;Add Range&quot; to add parameters.</p>
                 ) : (
                   formData.rangeData.map((range, idx) => (
-                    <div key={idx} className="p-4 bg-slate-50 rounded-lg border space-y-3">
+                    <div key={idx} className="p-4 bg-[#f8fafc] rounded-xl border border-[#e2e8f0] space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-700">Range {idx + 1}</span>
+                        <span className="text-[13px] font-medium text-[#0f172a]">Range {idx + 1}</span>
                         <button
                           type="button"
                           onClick={() => removeRangeItem(idx)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-[#dc2626] hover:text-[#b91c1c] transition-colors"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="size-4" />
                         </button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-1">Parameter</label>
+                          <label className="block text-[13px] text-[#64748b] mb-1.5">Parameter</label>
                           <input
                             type="text"
                             value={range.parameter || ''}
                             onChange={(e) => updateRangeItem(idx, 'parameter', e.target.value)}
                             placeholder="e.g., Temperature"
-                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className={inputClass}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-1">Min</label>
+                          <label className="block text-[13px] text-[#64748b] mb-1.5">Min</label>
                           <input
                             type="text"
                             value={range.min || ''}
                             onChange={(e) => updateRangeItem(idx, 'min', e.target.value)}
                             placeholder="e.g., 0"
-                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className={inputClass}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-1">Max</label>
+                          <label className="block text-[13px] text-[#64748b] mb-1.5">Max</label>
                           <input
                             type="text"
                             value={range.max || ''}
                             onChange={(e) => updateRangeItem(idx, 'max', e.target.value)}
                             placeholder="e.g., 100"
-                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className={inputClass}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-1">Unit</label>
-                          <input
-                            type="text"
+                          <label className="block text-[13px] text-[#64748b] mb-1.5">Unit</label>
+                          <select
                             value={range.unit || ''}
                             onChange={(e) => updateRangeItem(idx, 'unit', e.target.value)}
-                            placeholder="e.g., °C"
-                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
+                            className={inputClass}
+                          >
+                            <option value="">Select unit</option>
+                            {getAvailableUnits(formData.parameterCapabilities).map(unit => (
+                              <option key={unit} value={unit}>{unit}</option>
+                            ))}
+                          </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-1">Uncertainty</label>
+                          <label className="block text-[13px] text-[#64748b] mb-1.5">Uncertainty</label>
                           <input
                             type="text"
                             value={range.uncertainty || ''}
                             onChange={(e) => updateRangeItem(idx, 'uncertainty', e.target.value)}
                             placeholder="e.g., ±0.5"
-                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className={inputClass}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-1">Reference Doc</label>
+                          <label className="block text-[13px] text-[#64748b] mb-1.5">Reference Doc</label>
                           <input
                             type="text"
                             value={range.referencedoc || ''}
                             onChange={(e) => updateRangeItem(idx, 'referencedoc', e.target.value)}
                             placeholder="e.g., ISO 12345"
-                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className={inputClass}
                           />
                         </div>
                       </div>
@@ -827,9 +851,9 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                 <button
                   type="button"
                   onClick={addRangeItem}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium bg-[#eff6ff] text-[#1d4ed8] rounded-lg hover:bg-[#dbeafe] transition-colors"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="size-4" />
                   Add Range
                 </button>
               </div>
@@ -839,12 +863,12 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
             <SectionCard title="Upload New Certificate">
               <div className="space-y-4">
                 {certUploadError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  <div className="p-3 bg-[#fef2f2] border border-[#fee2e2] rounded-lg text-[#dc2626] text-[13px]">
                     {certUploadError}
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-[13px] text-[#64748b] mb-1.5">
                     Certificate File (PDF)
                   </label>
                   <input
@@ -852,14 +876,14 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                     type="file"
                     accept=".pdf,application/pdf"
                     onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    className="w-full text-[13px] text-[#64748b] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-[13px] file:font-medium file:bg-[#eff6ff] file:text-[#1d4ed8] hover:file:bg-[#dbeafe]"
                   />
                 </div>
                 {selectedFile && (
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                        <label className="block text-[13px] text-[#64748b] mb-1.5">
                           Report Number
                         </label>
                         <input
@@ -867,29 +891,29 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                           value={certFormData.reportNo}
                           onChange={(e) => setCertFormData(prev => ({ ...prev, reportNo: e.target.value }))}
                           placeholder="e.g., CAL-2024-001"
-                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className={inputClass}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                        <label className="block text-[13px] text-[#64748b] mb-1.5">
                           Valid From
                         </label>
                         <input
                           type="date"
                           value={certFormData.validFrom}
                           onChange={(e) => setCertFormData(prev => ({ ...prev, validFrom: e.target.value }))}
-                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className={inputClass}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                        <label className="block text-[13px] text-[#64748b] mb-1.5">
                           Valid Until
                         </label>
                         <input
                           type="date"
                           value={certFormData.validUntil}
                           onChange={(e) => setCertFormData(prev => ({ ...prev, validUntil: e.target.value }))}
-                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className={inputClass}
                         />
                       </div>
                     </div>
@@ -897,16 +921,16 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                       type="button"
                       onClick={handleCertUpload}
                       disabled={uploadingCert}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+                      className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-[#16a34a] hover:bg-[#15803d] rounded-lg disabled:opacity-50 transition-colors"
                     >
                       {uploadingCert ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="size-4 animate-spin" />
                           Uploading...
                         </>
                       ) : (
                         <>
-                          <Upload className="w-4 h-4" />
+                          <Upload className="size-4" />
                           Upload Certificate
                         </>
                       )}
@@ -919,7 +943,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
             {/* Change Reason Section */}
             <SectionCard title="Change Reason">
               <div>
-                <label htmlFor="changeReason" className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="changeReason" className="block text-[13px] text-[#64748b] mb-1.5">
                   Reason for Change
                 </label>
                 <input
@@ -929,28 +953,28 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                   value={formData.changeReason}
                   onChange={handleChange}
                   placeholder="e.g., Updated calibration data, Corrected range values"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className={inputClass}
                 />
-                <p className="text-xs text-slate-500 mt-1">This will be recorded in the version history.</p>
+                <p className="text-[12px] text-[#94a3b8] mt-1.5">This will be recorded in the version history.</p>
               </div>
             </SectionCard>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-3 pt-2">
               <Link
                 href={`/admin/instruments/${id}`}
-                className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors text-sm"
+                className="px-4 py-2 text-[13px] font-medium text-[#0f172a] bg-white border border-[#e2e8f0] rounded-lg hover:bg-[#f8fafc] transition-colors"
               >
                 Cancel
               </Link>
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-[#0f172a] hover:bg-[#1e293b] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {saving ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="size-4 animate-spin" />
                     Saving...
                   </>
                 ) : (
@@ -958,8 +982,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                 )}
               </button>
             </div>
-          </form>
-        </div>
+        </form>
       </div>
     </div>
   )

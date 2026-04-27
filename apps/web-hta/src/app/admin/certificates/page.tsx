@@ -4,10 +4,7 @@ import { apiFetch } from '@/lib/api-client'
 
 import { useState, useEffect, Suspense, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-// import { PDFPreviewButton } from '@/app/(dashboard)/hod/review/[id]/PDFPreviewButton'
-import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -15,21 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/dashboard/StatusBadge'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import {
   Loader2,
   Search,
   FileText,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Certificate {
   id: string
@@ -63,7 +55,7 @@ interface Certificate {
 interface Stats {
   total: number
   draft: number
-  pendingHodReview: number
+  pendingReview: number
   revisionRequired: number
   pendingCustomerApproval: number
   customerRevisionRequired: number
@@ -91,6 +83,18 @@ const STATUS_OPTIONS = [
   { value: 'REJECTED', label: 'Rejected' },
 ]
 
+const STAT_CARDS = [
+  { key: 'total', field: 'total' as const, label: 'Total', borderColor: 'border-l-[#94a3b8]', countColor: 'text-[#0f172a]', filter: 'ALL' },
+  { key: 'draft', field: 'draft' as const, label: 'Draft', borderColor: 'border-l-[#94a3b8]', countColor: 'text-[#475569]', filter: 'DRAFT' },
+  { key: 'pendingReview', field: 'pendingReview' as const, label: 'Pending Review', borderColor: 'border-l-[#eab308]', countColor: 'text-[#a16207]', filter: 'PENDING_REVIEW' },
+  { key: 'revision', field: 'revisionRequired' as const, label: 'Revision Req.', borderColor: 'border-l-[#f97316]', countColor: 'text-[#c2410c]', filter: 'REVISION_REQUIRED' },
+  { key: 'customer', field: 'pendingCustomerApproval' as const, label: 'With Customer', borderColor: 'border-l-[#3b82f6]', countColor: 'text-[#1d4ed8]', filter: 'PENDING_CUSTOMER_APPROVAL' },
+  { key: 'custRevision', field: 'customerRevisionRequired' as const, label: 'Cust. Revision', borderColor: 'border-l-[#a855f7]', countColor: 'text-[#7c3aed]', filter: 'CUSTOMER_REVISION_REQUIRED' },
+  { key: 'pendingAuth', field: 'pendingAdminAuthorization' as const, label: 'Pending Auth', borderColor: 'border-l-[#6366f1]', countColor: 'text-[#4f46e5]', filter: 'PENDING_ADMIN_AUTHORIZATION' },
+  { key: 'authorized', field: 'authorized' as const, label: 'Authorized', borderColor: 'border-l-[#22c55e]', countColor: 'text-[#15803d]', filter: 'AUTHORIZED' },
+  { key: 'rejected', field: 'rejected' as const, label: 'Rejected', borderColor: 'border-l-[#ef4444]', countColor: 'text-[#dc2626]', filter: 'REJECTED' },
+]
+
 function AdminCertificatesContent() {
   const searchParams = useSearchParams()
   const initialStatus = searchParams.get('status') || 'ALL'
@@ -100,22 +104,22 @@ function AdminCertificatesContent() {
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
-    limit: 20,
+    limit: 10,
     total: 0,
     totalPages: 0,
   })
 
-  // Filters
   const [statusFilter, setStatusFilter] = useState(initialStatus)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   const fetchCertificates = useCallback(async (page = 1) => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '20',
+        limit: rowsPerPage.toString(),
       })
 
       if (statusFilter !== 'ALL') {
@@ -137,7 +141,7 @@ function AdminCertificatesContent() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, searchQuery])
+  }, [statusFilter, searchQuery, rowsPerPage])
 
   useEffect(() => {
     fetchCertificates()
@@ -153,238 +157,198 @@ function AdminCertificatesContent() {
   }
 
   return (
-    <div className="p-3 h-full">
-      {/* Master Bounding Box */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-        <div className="p-6 overflow-auto h-full">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">All Certificates</h1>
-              <p className="text-slate-600 mt-1">
-                View and manage all certificates in the system
-              </p>
-            </div>
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="px-6 sm:px-9 py-8">
+        {/* Back Link */}
+        <Link
+          href="/admin"
+          className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-6 transition-colors"
+        >
+          <ChevronLeft className="size-4" />
+          Back to Admin
+        </Link>
+
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-[22px] font-bold text-[#0f172a] flex items-center gap-2.5">
+            <FileText className="size-[22px] text-[#94a3b8]" />
+            All Certificates
+          </h1>
+          <p className="text-[13px] text-[#94a3b8] mt-1">
+            View and manage all certificates in the system
+          </p>
+        </div>
+
+        {/* Stats Cards */}
+        {stats && (
+          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3 mb-6">
+            {STAT_CARDS.map((card) => (
+              <button
+                key={card.key}
+                onClick={() => setStatusFilter(card.filter)}
+                className={cn(
+                  'border border-[#e2e8f0] rounded-xl px-4 py-4 border-l-[3px] text-left transition-all',
+                  card.borderColor,
+                  statusFilter === card.filter
+                    ? 'bg-[#f8fafc] ring-1 ring-[#e2e8f0]'
+                    : 'bg-white hover:bg-[#f8fafc]'
+                )}
+              >
+                <div className={cn('text-2xl font-extrabold leading-none tracking-tight', card.countColor)}>
+                  {stats[card.field]}
+                </div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mt-2">{card.label}</div>
+              </button>
+            ))}
           </div>
+        )}
 
-          {/* Stats Cards */}
-          {stats && (
-            <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3 mb-6">
-              <Card className="cursor-pointer hover:border-slate-400" onClick={() => setStatusFilter('ALL')}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-                    <p className="text-xs text-slate-500">Total</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:border-gray-400" onClick={() => setStatusFilter('DRAFT')}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-600">{stats.draft}</p>
-                    <p className="text-xs text-slate-500">Draft</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:border-yellow-400" onClick={() => setStatusFilter('PENDING_REVIEW')}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-yellow-600">{stats.pendingHodReview}</p>
-                    <p className="text-xs text-slate-500">Pending Review</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:border-orange-400" onClick={() => setStatusFilter('REVISION_REQUIRED')}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-orange-600">{stats.revisionRequired}</p>
-                    <p className="text-xs text-slate-500">Revision Req.</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:border-blue-400" onClick={() => setStatusFilter('PENDING_CUSTOMER_APPROVAL')}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-600">{stats.pendingCustomerApproval}</p>
-                    <p className="text-xs text-slate-500">With Customer</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:border-purple-400" onClick={() => setStatusFilter('CUSTOMER_REVISION_REQUIRED')}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-purple-600">{stats.customerRevisionRequired}</p>
-                    <p className="text-xs text-slate-500">Cust. Revision</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:border-indigo-400" onClick={() => setStatusFilter('PENDING_ADMIN_AUTHORIZATION')}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-indigo-600">{stats.pendingAdminAuthorization}</p>
-                    <p className="text-xs text-slate-500">Pending Auth</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:border-emerald-400" onClick={() => setStatusFilter('AUTHORIZED')}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-emerald-600">{stats.authorized}</p>
-                    <p className="text-xs text-slate-500">Authorized</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:border-red-400" onClick={() => setStatusFilter('REJECTED')}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
-                    <p className="text-xs text-slate-500">Rejected</p>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Filters */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-4 mb-5">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-[#94a3b8]" />
+              <input
+                type="text"
+                placeholder="Search by certificate number, customer, description..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="w-full pl-9 pr-4 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
+              />
             </div>
-          )}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[200px] px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <button
+              onClick={handleSearch}
+              className="px-4 py-2 text-[12.5px] font-semibold text-white bg-[#0f172a] hover:bg-[#1e293b] rounded-[9px] transition-colors"
+            >
+              Search
+            </button>
+          </div>
+        </div>
 
-          {/* Filters */}
-          <Card className="mb-6">
-            <CardContent className="pt-4">
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex-1 min-w-[200px]">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                      placeholder="Search by certificate number, customer, description..."
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      className="pl-10"
-                    />
+        {/* Certificates Table */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
+            </div>
+          ) : certificates.length === 0 ? (
+            <div className="text-center py-16">
+              <FileText className="size-10 mx-auto mb-3 text-[#e2e8f0]" />
+              <p className="text-[13px] text-[#94a3b8]">No certificates found</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Cert No.</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Customer</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">UUC Description</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Cal Date</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Engineer</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Admin</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Status</th>
+                      <th className="text-center py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[60px]">View</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {certificates.map((cert) => (
+                      <tr
+                        key={cert.id}
+                        className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors"
+                      >
+                        <td className="py-2.5 px-4 font-mono font-medium text-[#0f172a]">
+                          {cert.certificateNumber}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#0f172a]">
+                          {cert.customerName}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#64748b]">
+                          {cert.uucDescription}
+                          {cert.uucMake && ` - ${cert.uucMake}`}
+                          {cert.uucModel && ` ${cert.uucModel}`}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#64748b]">
+                          {formatDate(cert.dateOfCalibration)}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#64748b]">
+                          {cert.createdBy.name}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#64748b]">
+                          {cert.assignedAdmin?.name || <span className="text-[#cbd5e1]">&mdash;</span>}
+                        </td>
+                        <td className="py-2.5 px-4">
+                          <StatusBadge status={cert.status} />
+                        </td>
+                        <td className="py-2.5 px-4 text-center">
+                          <Link href={`/admin/certificates/${cert.id}`}>
+                            <button className="p-1.5 text-[#94a3b8] hover:text-[#0f172a] hover:bg-[#f1f5f9] rounded-md transition-colors">
+                              <Eye className="size-3.5" />
+                            </button>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#f1f5f9]">
+                  <p className="text-[12.5px] text-[#94a3b8]">
+                    Showing {(pagination.page - 1) * pagination.limit + 1}&ndash;
+                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                    {pagination.total} certificates
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[12px] text-[#94a3b8]">Rows</span>
+                      <select
+                        value={rowsPerPage}
+                        onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                        className="h-7 px-1.5 border border-[#e2e8f0] rounded-[7px] text-[12.5px] text-[#0f172a] bg-white outline-none"
+                      >
+                        {[10, 15, 25].map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        disabled={pagination.page === 1}
+                        onClick={() => fetchCertificates(pagination.page - 1)}
+                        className="px-2.5 py-1.5 text-[12px] border border-[#e2e8f0] rounded-[7px] hover:bg-[#f8fafc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="size-3.5" />
+                      </button>
+                      <button
+                        disabled={pagination.page === pagination.totalPages}
+                        onClick={() => fetchCertificates(pagination.page + 1)}
+                        className="px-2.5 py-1.5 text-[12px] border border-[#e2e8f0] rounded-[7px] hover:bg-[#f8fafc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight className="size-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleSearch}>Search</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Certificates Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-slate-400" />
-                Certificates
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-                </div>
-              ) : certificates.length === 0 ? (
-                <div className="text-center py-8 text-slate-500">
-                  No certificates found
-                </div>
-              ) : (
-                <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Certificate No.</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>UUC Description</TableHead>
-                        <TableHead>Calibration Date</TableHead>
-                        <TableHead>Engineer</TableHead>
-                        <TableHead>Admin</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-[120px]">Preview</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {certificates.map((cert) => (
-                        <TableRow key={cert.id}>
-                          <TableCell className="font-mono font-medium">
-                            {cert.certificateNumber}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {cert.customerName}
-                          </TableCell>
-                          <TableCell className="text-sm text-slate-600">
-                            {cert.uucDescription}
-                            {cert.uucMake && ` - ${cert.uucMake}`}
-                            {cert.uucModel && ` ${cert.uucModel}`}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {formatDate(cert.dateOfCalibration)}
-                          </TableCell>
-                          <TableCell className="text-sm text-slate-600">
-                            {cert.createdBy.name}
-                          </TableCell>
-                          <TableCell className="text-sm text-slate-600">
-                            {cert.assignedAdmin?.name || '-'}
-                          </TableCell>
-                          <TableCell><StatusBadge status={cert.status} /></TableCell>
-                          <TableCell>
-                            <Link href={`/admin/certificates/${cert.id}`}>
-                              <Button variant="outline" size="sm">
-                                View
-                              </Button>
-                            </Link>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-
-                  {/* Pagination */}
-                  {pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-between pt-4 border-t mt-4">
-                      <p className="text-sm text-slate-500">
-                        Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
-                        {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                        {pagination.total} certificates
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fetchCertificates(pagination.page - 1)}
-                          disabled={pagination.page === 1}
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fetchCertificates(pagination.page + 1)}
-                          disabled={pagination.page === pagination.totalPages}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
               )}
-            </CardContent>
-          </Card>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -394,11 +358,9 @@ function AdminCertificatesContent() {
 export default function AdminCertificatesPage() {
   return (
     <Suspense fallback={
-      <div className="p-3 h-full">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-          <div className="p-6 flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-          </div>
+      <div className="h-full overflow-auto bg-[#f1f5f9]">
+        <div className="px-6 sm:px-9 py-8 flex items-center justify-center h-full">
+          <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
         </div>
       </div>
     }>

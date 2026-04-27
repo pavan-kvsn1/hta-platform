@@ -12,15 +12,15 @@ export const dynamic = 'force-dynamic'
 
 // Status badge configuration
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: 'Draft', className: 'bg-amber-50 text-amber-600 border-amber-100' },
-  PENDING_REVIEW: { label: 'Pending Review', className: 'bg-blue-50 text-blue-600 border-blue-100' },
-  REVISION_REQUIRED: { label: 'Revision Required', className: 'bg-orange-50 text-orange-600 border-orange-100' },
-  PENDING_CUSTOMER_APPROVAL: { label: 'Pending Customer', className: 'bg-purple-50 text-purple-600 border-purple-100' },
-  CUSTOMER_REVISION_REQUIRED: { label: 'Customer Revision', className: 'bg-pink-50 text-pink-600 border-pink-100' },
-  PENDING_ADMIN_AUTHORIZATION: { label: 'Pending Authorization', className: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
-  APPROVED: { label: 'Approved', className: 'bg-green-50 text-green-600 border-green-100' },
-  AUTHORIZED: { label: 'Authorized', className: 'bg-green-50 text-green-600 border-green-100' },
-  REJECTED: { label: 'Rejected', className: 'bg-red-50 text-red-600 border-red-100' },
+  DRAFT: { label: 'Draft', className: 'bg-[#fffbeb] text-[#d97706] border-[#fef3c7]' },
+  PENDING_REVIEW: { label: 'Pending Review', className: 'bg-[#eff6ff] text-[#2563eb] border-[#dbeafe]' },
+  REVISION_REQUIRED: { label: 'Revision Required', className: 'bg-[#fff7ed] text-[#ea580c] border-[#ffedd5]' },
+  PENDING_CUSTOMER_APPROVAL: { label: 'Pending Customer', className: 'bg-[#faf5ff] text-[#9333ea] border-[#f3e8ff]' },
+  CUSTOMER_REVISION_REQUIRED: { label: 'Customer Revision', className: 'bg-[#fdf2f8] text-[#db2777] border-[#fce7f3]' },
+  PENDING_ADMIN_AUTHORIZATION: { label: 'Pending Authorization', className: 'bg-[#eef2ff] text-[#4f46e5] border-[#e0e7ff]' },
+  APPROVED: { label: 'Approved', className: 'bg-[#f0fdf4] text-[#16a34a] border-[#dcfce7]' },
+  AUTHORIZED: { label: 'Authorized', className: 'bg-[#f0fdf4] text-[#16a34a] border-[#dcfce7]' },
+  REJECTED: { label: 'Rejected', className: 'bg-[#fef2f2] text-[#dc2626] border-[#fee2e2]' },
 }
 
 interface Props {

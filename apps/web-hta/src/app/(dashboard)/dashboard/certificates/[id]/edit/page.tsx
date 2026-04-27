@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Send, Save, Loader2, AlertTriangle, MessageSquare, User, ChevronDown, ChevronUp, ChevronRight, Calendar, ArrowRight, MapPin } from 'lucide-react'
+import { ArrowLeft, Send, Save, Loader2, AlertTriangle, MessageSquare, User, ChevronDown, ChevronUp, ChevronRight, Calendar, ArrowRight, MapPin, Lock, Clock, CheckCircle } from 'lucide-react'
 import {
   SummarySection,
   UUCSection,
@@ -350,6 +350,156 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
   }
 }
 
+// ── Progress Sidebar ────────────────────────────────────────────────────
+interface ProgressSidebarProps {
+  sections: typeof SECTIONS
+  activeSection: string
+  status: string
+  editableSections: string[]
+  unlockedSections: string[]
+  sectionsWithFeedback: string[]
+  pendingSections: string[]
+  onSectionClick: (sectionId: string) => void
+  completedSections?: string[]
+}
+
+function ProgressSidebar({
+  sections,
+  activeSection,
+  status,
+  editableSections,
+  unlockedSections,
+  sectionsWithFeedback,
+  pendingSections,
+  onSectionClick,
+  completedSections = [],
+}: ProgressSidebarProps) {
+  const isDraft = status === 'DRAFT'
+  const isRevision = status === 'REVISION_REQUIRED' || status === 'CUSTOMER_REVISION_REQUIRED'
+
+  const formSections = sections.filter(s => s.id !== 'feedback-history' && s.id !== 'submit')
+  const editableCount = isRevision ? editableSections.length : 0
+  const pendingCount = isRevision ? pendingSections.length : 0
+  const completedCount = isDraft ? completedSections.length : 0
+
+  return (
+    <div className="w-[180px] flex-shrink-0 bg-white rounded-[14px] border border-[#e2e8f0] flex flex-col p-4 overflow-hidden">
+      <div className="font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-[#94a3b8] px-2 mb-3">
+        {isRevision ? 'Sections' : 'Sections'}
+      </div>
+
+      <div className="flex flex-col gap-[2px]">
+        {formSections.map((section) => {
+          const isActive = activeSection === section.id
+          const isEditable = editableSections.includes(section.id)
+          const _isUnlocked = unlockedSections.includes(section.id)
+          const isPending = pendingSections.includes(section.id)
+          const _hasFeedback = sectionsWithFeedback.includes(section.id)
+          const isCompleted = completedSections.includes(section.id)
+
+          if (isRevision) {
+            // Revision mode: lock/unlock/pending icons
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => onSectionClick(section.id)}
+                className={cn(
+                  'flex items-center gap-2 px-2.5 py-[7px] rounded-[7px] text-[12.5px] font-medium text-left transition-colors',
+                  isEditable ? 'bg-[#f0fdf4] text-[#0f172a] font-semibold' : 'text-[#64748b]',
+                  isPending && 'text-[#d97706]',
+                  isActive && isEditable && 'ring-1 ring-[#16a34a]/30',
+                )}
+              >
+                <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+                  {isEditable ? (
+                    <CheckCircle className="size-3.5 text-[#16a34a]" />
+                  ) : isPending ? (
+                    <Clock className="size-3.5 text-[#d97706]" />
+                  ) : (
+                    <Lock className="size-3.5 text-[#94a3b8] opacity-50" />
+                  )}
+                </span>
+                <span className="truncate">{section.label}</span>
+              </button>
+            )
+          }
+
+          // Draft mode: completion dots
+          return (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => onSectionClick(section.id)}
+              className={cn(
+                'flex items-center gap-2.5 px-2.5 py-2 rounded-[7px] text-[12.5px] font-medium text-left transition-colors',
+                isActive ? 'bg-primary text-white font-semibold' : 'text-[#64748b] hover:bg-[#f8fafc]',
+              )}
+            >
+              <span className={cn(
+                'flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center',
+                isActive ? 'border-white/40 bg-white/20' : isCompleted ? 'border-[#16a34a] bg-[#16a34a]' : 'border-[#e2e8f0]',
+              )}>
+                {isCompleted && !isActive && (
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.5"><path d="M2 4l1.5 1.5L6 3"/></svg>
+                )}
+              </span>
+              <span className="truncate">{section.label}</span>
+            </button>
+          )
+        })}
+
+        {/* Feedback History link - only in non-draft */}
+        {status !== 'DRAFT' && (
+          <button
+            type="button"
+            onClick={() => onSectionClick('feedback-history')}
+            className={cn(
+              'flex items-center gap-2.5 px-2.5 py-2 rounded-[7px] text-[12.5px] font-medium text-left transition-colors mt-1',
+              activeSection === 'feedback-history' ? 'bg-[#7c3aed] text-white font-semibold' : 'text-[#7c3aed] hover:bg-[#faf5ff]',
+            )}
+          >
+            <span className={cn(
+              'flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold',
+              activeSection === 'feedback-history' ? 'bg-white/20 text-white' : 'bg-[rgba(124,58,237,0.1)] text-[#7c3aed]',
+            )}>
+              H
+            </span>
+            <span>History</span>
+          </button>
+        )}
+      </div>
+
+      {/* Bottom summary */}
+      <div className="mt-auto pt-3">
+        {isDraft ? (
+          <div className="bg-[#f8fafc] rounded-[9px] border border-[#f1f5f9] p-2.5">
+            <div className="text-[11px] font-semibold text-[#475569] mb-1.5">Completion</div>
+            <div className="h-1 rounded-full bg-[#e2e8f0]">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${formSections.length > 0 ? (completedCount / formSections.length) * 100 : 0}%` }}
+              />
+            </div>
+            <div className="text-[10px] text-[#94a3b8] mt-1.5">
+              {completedCount} of {formSections.length} sections
+            </div>
+          </div>
+        ) : isRevision ? (
+          <div className="bg-[#f8fafc] rounded-[9px] border border-[#f1f5f9] p-2.5">
+            <div className="text-[11px] font-semibold text-[#475569]">
+              {editableCount} editable {pendingCount > 0 ? `· ${pendingCount} pending` : ''}
+            </div>
+            <div className="text-[10px] text-[#94a3b8] mt-1">
+              {formSections.length - editableCount - pendingCount} sections locked
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function formatDateDisplay(dateStr: string | null): string {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
@@ -460,6 +610,7 @@ export default function EditCertificatePage() {
   const [reviewerName, setReviewerName] = useState<string | null>(null)
   const [isChatExpanded, setIsChatExpanded] = useState(true)
   const [unlockedSections, setUnlockedSections] = useState<string[]>([])
+  const [pendingSections, setPendingSections] = useState<string[]>([])
   const [customerFeedback, setCustomerFeedback] = useState<{
     notes: string
     sectionFeedbacks: { section: string; comment: string }[] | null
@@ -481,6 +632,7 @@ export default function EditCertificatePage() {
     async function fetchUnlockRequests() {
       if (formData.status !== 'REVISION_REQUIRED') {
         setUnlockedSections([])
+        setPendingSections([])
         return
       }
 
@@ -489,6 +641,11 @@ export default function EditCertificatePage() {
         if (response.ok) {
           const data = await response.json()
           setUnlockedSections(data.unlockedSections?.all || [])
+          // Extract pending sections from requests
+          const pending = (data.requests || [])
+            .filter((r: { status: string }) => r.status === 'PENDING')
+            .flatMap((r: { data: { sections: string[] } }) => r.data.sections)
+          setPendingSections(pending)
         }
       } catch (error) {
         console.error('Error fetching unlock requests:', error)
@@ -519,6 +676,48 @@ export default function EditCertificatePage() {
     // Section is editable if it has feedback or approved unlock
     return !editableSections.includes(sectionId)
   }
+
+  // Helper to get accordion visual status
+  const getAccordionStatus = (sectionId: string): 'default' | 'locked' | 'unlocked' | 'pending' => {
+    if (formData.status !== 'REVISION_REQUIRED') return 'default'
+    if (editableSections.includes(sectionId)) return 'unlocked'
+    if (pendingSections.includes(sectionId)) return 'pending'
+    return 'locked'
+  }
+
+  // Compute completed sections for draft progress sidebar
+  const completedSections = (() => {
+    const completed: string[] = []
+    // Section 1: Summary — needs customer name and date of calibration at minimum
+    if (formData.customerName && formData.dateOfCalibration) {
+      completed.push('summary')
+    }
+    // Section 2: UUC — needs description and at least one parameter
+    if (formData.uucDescription && formData.parameters.length > 0) {
+      completed.push('uuc-details')
+    }
+    // Section 3: Master Instruments — needs at least one selected
+    if (formData.masterInstruments.length > 0) {
+      completed.push('master-inst')
+    }
+    // Section 4: Environment — needs both temperature and humidity
+    if (formData.ambientTemperature && formData.relativeHumidity) {
+      completed.push('environment')
+    }
+    // Section 5: Results — needs at least one parameter with at least one result filled
+    if (formData.parameters.some(p => p.results.some(r => r.standardReading !== null && r.standardReading !== ''))) {
+      completed.push('results')
+    }
+    // Section 6: Remarks — needs calibration status selected
+    if (formData.calibrationStatus.length > 0) {
+      completed.push('remarks')
+    }
+    // Section 7: Conclusion — needs at least one conclusion statement
+    if (formData.selectedConclusionStatements.length > 0) {
+      completed.push('conclusion')
+    }
+    return completed
+  })()
 
   // Fetch certificate data on mount
   useEffect(() => {
@@ -700,111 +899,98 @@ export default function EditCertificatePage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-slate-100 p-3 gap-3 overflow-hidden">
-      {/* Left Side - Certificate Card */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Header Section */}
-          <div className="flex-shrink-0 border-b border-slate-200">
-            {/* Top Row - Back, Title, Status, Actions */}
-            <div className="px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Link
-                    href="/dashboard"
-                    className="text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    <ArrowLeft className="size-5" strokeWidth={2} />
-                  </Link>
-                  <span className="text-slate-300 text-xl">|</span>
-                  <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                    {formData.certificateNumber || 'New Certificate'}
-                  </h1>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
-                      statusConfig.className
-                    )}
-                  >
-                    {statusConfig.label}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-500">
-                    Saved {formatLastSaved()}
-                  </span>
-                  <Button
-                    onClick={autoSave}
-                    disabled={isSaving || !isDirty}
-                    size="sm"
-                    variant="outline"
-                    className="h-8"
-                  >
-                    <Save className="size-3.5 mr-1.5" />
-                    {isSaving ? 'Saving...' : 'Save'}
-                  </Button>
-                  <Button
-                    onClick={() => scrollToSection('submit')}
-                    size="sm"
-                    className="h-8 bg-primary text-white"
-                  >
-                    <Send className="size-3.5 mr-1.5" />
-                    Submit
-                  </Button>
-                </div>
-              </div>
+    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
+      {/* Progress Sidebar */}
+      <div className="flex-shrink-0 p-2.5 pr-0">
+        <ProgressSidebar
+          sections={SECTIONS.filter(section => !section.showWhenNotDraft || formData.status !== 'DRAFT')}
+          activeSection={activeSection}
+          status={formData.status}
+          editableSections={editableSections}
+          unlockedSections={unlockedSections}
+          sectionsWithFeedback={sectionsWithFeedback}
+          pendingSections={pendingSections}
+          onSectionClick={scrollToSection}
+          completedSections={completedSections}
+        />
+      </div>
 
-              {/* Meta Info Row */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm mt-3">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <div className="p-1 rounded bg-slate-100">
-                    <User className="size-3 text-slate-500" />
-                  </div>
-                  <span className="font-medium text-slate-700">
-                    {formData.customerName || 'No customer'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-600">
-                  <div className="p-1 rounded bg-slate-100">
-                    <MapPin className="size-3 text-slate-500" />
-                  </div>
-                  <span>{formData.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-500">
-                  <span className="text-slate-300">|</span>
-                  <span>Revision {currentRevision}</span>
-                </div>
+      {/* Form Card */}
+      <div className="flex-1 min-w-0 p-2.5">
+        <div className="h-full flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          {/* Header */}
+          <div className="flex-shrink-0 border-b border-[#e2e8f0] px-5 py-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Link href="/dashboard" className="text-[#94a3b8] hover:text-[#475569] transition-colors flex-shrink-0">
+                  <ArrowLeft className="size-[18px]" strokeWidth={2} />
+                </Link>
+                <span className="text-[#e2e8f0] text-lg flex-shrink-0">|</span>
+                <h1 className="text-[15px] font-mono font-medium text-[#0f172a] tracking-[0.01em] truncate">
+                  {formData.certificateNumber || 'New Certificate'}
+                </h1>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'px-2.5 py-0.5 text-[10px] font-mono font-medium uppercase tracking-[0.05em] flex-shrink-0',
+                    statusConfig.className
+                  )}
+                >
+                  {statusConfig.label}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-[11px] text-[#94a3b8]">
+                  Saved {formatLastSaved()}
+                </span>
+                <Button
+                  onClick={autoSave}
+                  disabled={isSaving || !isDirty}
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-[9px] border-[#e2e8f0] text-[#475569] text-[12.5px] font-semibold"
+                >
+                  <Save className="size-3.5 mr-1.5" />
+                  {isSaving ? 'Saving...' : 'Save'}
+                </Button>
+                <Button
+                  onClick={() => scrollToSection('submit')}
+                  size="sm"
+                  className="h-8 rounded-[9px] bg-primary text-white text-[12.5px] font-semibold"
+                >
+                  <Send className="size-3.5 mr-1.5" />
+                  {formData.status === 'REVISION_REQUIRED' ? 'Resubmit' : 'Submit'}
+                </Button>
               </div>
             </div>
-
-            {/* Section Tabs */}
-            <div className="px-4 overflow-x-auto no-scrollbar border-t border-slate-100">
-              <div className="flex items-center gap-1 py-1 min-w-max">
-                {SECTIONS
-                  .filter(section => !section.showWhenNotDraft || formData.status !== 'DRAFT')
-                  .map((section) => (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={() => scrollToSection(section.id)}
-                      className={cn(
-                        'px-3 py-1.5 text-[12px] font-semibold text-slate-600 hover:text-primary hover:bg-slate-50 rounded-md transition-all border-b-2',
-                        activeSection === section.id
-                          ? 'border-primary text-primary font-bold bg-primary/5'
-                          : 'border-transparent'
-                      )}
-                    >
-                      {section.label}
-                    </button>
-                  ))}
+            {/* Meta row */}
+            <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12.5px] text-[#64748b] mt-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded-[5px] bg-[#f8fafc] flex items-center justify-center">
+                  <User className="size-2.5 text-[#94a3b8]" />
+                </div>
+                <span className="font-medium text-[#475569]">{formData.customerName || 'No customer'}</span>
               </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded-[5px] bg-[#f8fafc] flex items-center justify-center">
+                  <MapPin className="size-2.5 text-[#94a3b8]" />
+                </div>
+                <span>{formData.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}</span>
+              </div>
+              <span className="text-[#e2e8f0]">|</span>
+              <span>Rev {currentRevision}</span>
+              {reviewerName && (
+                <>
+                  <span className="text-[#e2e8f0]">|</span>
+                  <span className="text-primary font-medium">Reviewer: {reviewerName}</span>
+                </>
+              )}
             </div>
           </div>
 
           {/* Content Area - Scrollable */}
-          <div id="form-content" className="flex-1 min-h-0 overflow-auto bg-slate-50/30">
-            <div className="p-6">
+          <div id="form-content" className="flex-1 min-h-0 overflow-auto bg-[#f8fafc]">
+            <div className="p-5">
               {/* Feedback Banner */}
               {formData.status === 'REVISION_REQUIRED' && feedbacks.filter(f => f.feedbackType === 'REVISION_REQUESTED' || f.feedbackType === 'REVISION_REQUEST' || f.feedbackType === 'CUSTOMER_REVISION_FORWARDED').length > 0 && (() => {
                 const latestFeedback = feedbacks.filter(f => f.feedbackType === 'REVISION_REQUESTED' || f.feedbackType === 'REVISION_REQUEST' || f.feedbackType === 'CUSTOMER_REVISION_FORWARDED')[0]
@@ -812,53 +998,50 @@ export default function EditCertificatePage() {
 
                 return (
                   <div className={cn(
-                    "rounded-xl border-2 overflow-hidden mb-6",
-                    isCustomerForwarded ? "border-purple-300 bg-purple-50" : "border-orange-300 bg-orange-50"
+                    "rounded-xl border-[1.5px] overflow-hidden mb-4",
+                    isCustomerForwarded ? "border-purple-300 bg-purple-50" : "border-[#fdba74] bg-[#fff7ed]"
                   )}>
                     <button
                       onClick={() => setIsTopFeedbackExpanded(!isTopFeedbackExpanded)}
                       className={cn(
-                        "w-full px-4 py-3 flex items-center justify-between border-b transition-colors",
-                        isCustomerForwarded ? "bg-purple-100 border-purple-200" : "bg-orange-100 border-orange-200"
+                        "w-full px-3.5 py-2.5 flex items-center justify-between border-b transition-colors",
+                        isCustomerForwarded ? "bg-purple-100 border-purple-200" : "bg-[#ffedd5] border-[#fdba74]"
                       )}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={cn("p-1.5 rounded-lg", isCustomerForwarded ? "bg-purple-200" : "bg-orange-200")}>
-                          <AlertTriangle className={cn("size-4", isCustomerForwarded ? "text-purple-700" : "text-orange-700")} />
+                      <div className="flex items-center gap-2.5">
+                        <div className={cn("p-1 rounded-md", isCustomerForwarded ? "bg-purple-200" : "bg-[rgba(234,88,12,0.15)]")}>
+                          <AlertTriangle className={cn("size-3.5", isCustomerForwarded ? "text-purple-700" : "text-[#ea580c]")} />
                         </div>
-                        <h3 className={cn("font-bold text-sm", isCustomerForwarded ? "text-purple-900" : "text-orange-900")}>
+                        <h3 className={cn("font-bold text-[12.5px]", isCustomerForwarded ? "text-purple-900" : "text-[#9a3412]")}>
                           {isCustomerForwarded ? 'Customer Revision Forwarded' : 'Revision Required'}
                         </h3>
                       </div>
                       {isTopFeedbackExpanded ? (
-                        <ChevronUp className={cn("size-4", isCustomerForwarded ? "text-purple-700" : "text-orange-700")} />
+                        <ChevronUp className={cn("size-3.5", isCustomerForwarded ? "text-purple-700" : "text-[#ea580c]")} />
                       ) : (
-                        <ChevronDown className={cn("size-4", isCustomerForwarded ? "text-purple-700" : "text-orange-700")} />
+                        <ChevronDown className={cn("size-3.5", isCustomerForwarded ? "text-purple-700" : "text-[#ea580c]")} />
                       )}
                     </button>
                     {isTopFeedbackExpanded && (
-                      <div className="p-4">
+                      <div className="p-3">
                         {feedbacks.filter(f => f.feedbackType === 'REVISION_REQUESTED' || f.feedbackType === 'REVISION_REQUEST' || f.feedbackType === 'CUSTOMER_REVISION_FORWARDED').slice(0, 1).map((feedback) => (
                           <div key={feedback.id} className={cn(
                             "bg-white rounded-lg border p-3",
-                            feedback.feedbackType === 'CUSTOMER_REVISION_FORWARDED' ? "border-purple-200" : "border-orange-200"
+                            feedback.feedbackType === 'CUSTOMER_REVISION_FORWARDED' ? "border-purple-200" : "border-[#fdba74]"
                           )}>
-                            <div className="flex items-start gap-3">
-                              <div className={cn("p-1.5 rounded-full", feedback.feedbackType === 'CUSTOMER_REVISION_FORWARDED' ? "bg-purple-100" : "bg-orange-100")}>
-                                <User className={cn("size-3.5", feedback.feedbackType === 'CUSTOMER_REVISION_FORWARDED' ? "text-purple-600" : "text-orange-600")} />
+                            <div className="flex items-start gap-2.5">
+                              <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0", feedback.feedbackType === 'CUSTOMER_REVISION_FORWARDED' ? "bg-purple-100 text-purple-700" : "bg-[#ffedd5] text-[#9a3412]")}>
+                                {feedback.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1.5">
-                                  <span className="font-semibold text-slate-900 text-xs">{feedback.user.name}</span>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="font-semibold text-[#0f172a] text-[11.5px]">{feedback.user.name}</span>
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[rgba(0,0,0,0.04)] text-[#64748b]">
                                     {feedback.user.role === 'ADMIN' ? 'Reviewer' : feedback.user.role}
                                   </span>
                                 </div>
                                 {feedback.comment && (
-                                  <div className="flex items-start gap-2">
-                                    <MessageSquare className="size-3.5 text-slate-400 mt-0.5 flex-shrink-0" />
-                                    <p className="text-slate-700 whitespace-pre-wrap text-xs">{feedback.comment}</p>
-                                  </div>
+                                  <p className="text-[#475569] whitespace-pre-wrap text-[12px] leading-relaxed">{feedback.comment}</p>
                                 )}
                                 {feedback.reviewerEdits && feedback.reviewerEdits.length > 0 && (
                                   <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
@@ -892,40 +1075,54 @@ export default function EditCertificatePage() {
                 )
               })()}
 
-              {/* Form Sections */}
-              <div className="space-y-6">
+              {/* Form Sections — Accordion */}
+              <div className="space-y-2.5">
                 <SummarySection
                   isNewCertificate={formData.status === 'DRAFT'}
                   certificateId={certificateId}
                   reviewerName={reviewerName}
                   feedbackSlot={<SectionFeedback feedbacks={feedbacks} sectionId="summary" currentRevision={currentRevision} />}
                   disabled={isSectionDisabled('summary')}
+                  accordionStatus={getAccordionStatus('summary')}
+                  hasFeedback={sectionsWithFeedback.includes('summary')}
                 />
                 <UUCSection
                   feedbackSlot={<SectionFeedback feedbacks={feedbacks} sectionId="uuc-details" currentRevision={currentRevision} />}
                   disabled={isSectionDisabled('uuc-details')}
+                  accordionStatus={getAccordionStatus('uuc-details')}
+                  hasFeedback={sectionsWithFeedback.includes('uuc-details')}
                 />
                 <MasterInstrumentSection
                   feedbackSlot={<SectionFeedback feedbacks={feedbacks} sectionId="master-inst" currentRevision={currentRevision} />}
                   disabled={isSectionDisabled('master-inst')}
+                  accordionStatus={getAccordionStatus('master-inst')}
+                  hasFeedback={sectionsWithFeedback.includes('master-inst')}
                 />
                 <EnvironmentalSection
                   feedbackSlot={<SectionFeedback feedbacks={feedbacks} sectionId="environment" currentRevision={currentRevision} />}
                   disabled={isSectionDisabled('environment')}
+                  accordionStatus={getAccordionStatus('environment')}
+                  hasFeedback={sectionsWithFeedback.includes('environment')}
                 />
                 <ResultsSection
                   feedbackSlot={<SectionFeedback feedbacks={feedbacks} sectionId="results" currentRevision={currentRevision} />}
                   disabled={isSectionDisabled('results')}
+                  accordionStatus={getAccordionStatus('results')}
+                  hasFeedback={sectionsWithFeedback.includes('results')}
                 />
                 <RemarksSection
                   feedbackSlot={<SectionFeedback feedbacks={feedbacks} sectionId="remarks" currentRevision={currentRevision} />}
                   disabled={isSectionDisabled('remarks')}
+                  accordionStatus={getAccordionStatus('remarks')}
+                  hasFeedback={sectionsWithFeedback.includes('remarks')}
                 />
                 <ConclusionSection
                   feedbackSlot={<SectionFeedback feedbacks={feedbacks} sectionId="conclusion" currentRevision={currentRevision} />}
                   disabled={isSectionDisabled('conclusion')}
+                  accordionStatus={getAccordionStatus('conclusion')}
+                  hasFeedback={sectionsWithFeedback.includes('conclusion')}
                 />
-                {/* Feedback History Section - Only show if not a draft */}
+                {/* Feedback History Section */}
                 {formData.status !== 'DRAFT' && (feedbacks.length > 0 || customerFeedback) && (
                   <FeedbackTimeline
                     feedbacks={feedbacks}
@@ -944,56 +1141,49 @@ export default function EditCertificatePage() {
         </div>
       </div>
 
-      {/* Right Panel - Chat & Unlock (shown when status is REVISION_REQUIRED or reviewer assigned) */}
+      {/* Right Panel - Chat & Unlock (shown when reviewer assigned or revision required) */}
       {(formData.status === 'REVISION_REQUIRED' || reviewerName) && (
-      <div className="w-[380px] flex-shrink-0 flex flex-col gap-3 h-full overflow-hidden">
-        {/* Chat Box */}
-        <div className={cn(
-        'flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',
-        isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
-        )}>
-              {/* Chat Header - Collapsible */}
+        <div className="w-[340px] flex-shrink-0 flex flex-col gap-2.5 p-2.5 pl-0 h-full overflow-hidden">
+          {/* Chat Box */}
+          <div className={cn(
+            'flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden',
+            isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
+          )}>
+            {/* Chat Header */}
             <button
               onClick={() => setIsChatExpanded(!isChatExpanded)}
-              className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+              className="flex items-center justify-between px-3.5 py-2.5 hover:bg-[#f8fafc] transition-colors flex-shrink-0"
             >
               <div className="flex items-center gap-2">
                 {isChatExpanded ? (
-                  <ChevronDown className="size-4 text-slate-400" />
+                  <ChevronDown className="size-3.5 text-[#94a3b8]" />
                 ) : (
-                  <ChevronRight className="size-4 text-slate-400" />
+                  <ChevronRight className="size-3.5 text-[#94a3b8]" />
                 )}
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Chat with Reviewer</span>
+                <span className="text-[11px] font-mono font-medium text-[#64748b] uppercase tracking-[0.05em]">Chat with Reviewer</span>
               </div>
             </button>
 
-            {/* Chat Content - Only when expanded */}
+            {/* Chat Content */}
             {isChatExpanded && (
               <div className="flex-1 flex flex-col min-h-0">
-                {/* Person Header */}
                 {reviewerName && (
-                  <div className="flex-shrink-0 px-4 py-3 border-t border-b border-slate-100 bg-slate-50/50">
-                    <div className="flex items-center gap-3">
-                      {/* Avatar */}
-                      <div className="size-10 rounded-full bg-slate-700 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                  <div className="flex-shrink-0 px-3.5 py-2.5 border-t border-b border-[#f1f5f9] bg-[#f8fafc]">
+                    <div className="flex items-center gap-2.5">
+                      <div className="size-8 rounded-full bg-[#0f1e2e] text-white flex items-center justify-center font-semibold text-[11px] flex-shrink-0">
                         {reviewerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                       </div>
-                      {/* Name & Status */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-900 truncate">
-                          {reviewerName}
-                        </p>
-                        <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                        <p className="text-[13px] font-semibold text-[#0f172a] truncate">{reviewerName}</p>
+                        <p className="text-[11px] text-[#94a3b8] flex items-center gap-1.5">
                           <span>Reviewer</span>
-                          <span className="size-1.5 rounded-full bg-green-500" />
-                          <span className="text-green-600">Online</span>
+                          <span className="size-1.5 rounded-full bg-[#16a34a]" />
+                          <span className="text-[#16a34a]">Online</span>
                         </p>
                       </div>
                     </div>
                   </div>
                 )}
-
-                {/* Chat Messages Area */}
                 <div className="flex-1 min-h-0 overflow-hidden text-xs">
                   {reviewerName ? (
                     <ChatSidebar
@@ -1004,11 +1194,11 @@ export default function EditCertificatePage() {
                       embedded={true}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-slate-400 text-xs p-4 text-center">
+                    <div className="flex items-center justify-center h-full text-[#94a3b8] text-xs p-4 text-center">
                       <div>
-                        <MessageSquare className="size-8 mx-auto mb-2 text-slate-300" />
-                        <p className="font-medium text-slate-600">No reviewer assigned yet</p>
-                        <p className="text-[10px] mt-1 text-slate-400">Chat will be available once a reviewer is assigned</p>
+                        <MessageSquare className="size-7 mx-auto mb-2 text-[#e2e8f0]" />
+                        <p className="font-medium text-[#475569] text-[12px]">No reviewer assigned</p>
+                        <p className="text-[10px] mt-1 text-[#94a3b8]">Chat will be available once a reviewer is assigned</p>
                       </div>
                     </div>
                   )}
@@ -1017,11 +1207,13 @@ export default function EditCertificatePage() {
             )}
           </div>
 
-          {/* Section Unlock Request - Only for REVISION_REQUIRED status */}
-          <SectionUnlockRequest
-            certificateId={certificateId}
-            certificateStatus={formData.status}
-          />
+          {/* Section Unlock Request */}
+          <div className="flex-shrink-0 max-h-[45%] overflow-auto">
+            <SectionUnlockRequest
+              certificateId={certificateId}
+              certificateStatus={formData.status}
+            />
+          </div>
         </div>
       )}
 
@@ -1035,7 +1227,6 @@ export default function EditCertificatePage() {
         }}
         serverTimestamp={conflictState?.serverTimestamp ?? null}
         onRefresh={() => {
-          // Reload the page to get the latest data
           window.location.reload()
         }}
       />

@@ -75,7 +75,7 @@ export default async function AdminLayout({
       />
 
       {/* Main Content - margin adjusts based on sidebar state */}
-      <AdminLayoutWrapper showEngineerSwitch={false}>
+      <AdminLayoutWrapper>
         {children}
       </AdminLayoutWrapper>
     </div>

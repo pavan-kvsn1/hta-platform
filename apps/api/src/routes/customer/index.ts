@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { prisma, Prisma } from '@hta/database'
 import { requireCustomer, optionalAuth } from '../../middleware/auth.js'
+import { parsePagination, paginationResponse } from '../../lib/pagination.js'
 import bcrypt from 'bcryptjs'
 import { queueCustomerApprovalNotificationEmail, enqueueNotification } from '../../services/queue.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
@@ -354,6 +355,391 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  // --- Paginated dashboard endpoints ---
+
+  // Helper: get customer context (email, tenantId, companyName)
+  async function getCustomerContext(request: { user: { email: string; sub: string } | null; tenantId: string }) {
+    const customerEmail = request.user!.email
+    const tenantId = request.tenantId
+    const customer = await prisma.customerUser.findUnique({
+      where: { tenantId_email: { tenantId, email: customerEmail } },
+      include: { customerAccount: true },
+    })
+    if (!customer) return null
+    const companyName = customer.customerAccount?.companyName || customer.companyName || ''
+    return { customerEmail, tenantId, companyName, customer }
+  }
+
+  // GET /api/customer/dashboard/counts
+  fastify.get('/dashboard/counts', {
+    preHandler: [requireCustomer],
+  }, async (request) => {
+    const ctx = await getCustomerContext(request as Parameters<typeof getCustomerContext>[0])
+    if (!ctx) return { error: 'Customer not found' }
+    const { customerEmail, tenantId, companyName, customer } = ctx
+
+    const [pending, awaiting, completed, authorized, userCount] = await Promise.all([
+      prisma.certificate.count({
+        where: {
+          tenantId,
+          status: 'PENDING_CUSTOMER_APPROVAL',
+          OR: [
+            { approvalTokens: { some: { customer: { email: customerEmail }, usedAt: null, expiresAt: { gt: new Date() } } } },
+            { customerName: { equals: companyName, mode: 'insensitive' } },
+          ],
+        },
+      }),
+      prisma.certificate.count({
+        where: {
+          tenantId,
+          status: { in: ['PENDING_REVIEW', 'CUSTOMER_REVISION_REQUIRED', 'REVISION_REQUIRED'] },
+          customerName: { equals: companyName, mode: 'insensitive' },
+        },
+      }),
+      prisma.certificate.count({
+        where: {
+          tenantId,
+          status: 'PENDING_ADMIN_AUTHORIZATION',
+          signatures: { some: { signerEmail: customerEmail, signerType: 'CUSTOMER' } },
+        },
+      }),
+      prisma.certificate.count({
+        where: {
+          tenantId,
+          status: { in: ['AUTHORIZED', 'APPROVED'] },
+          signatures: { some: { signerEmail: customerEmail, signerType: 'CUSTOMER' } },
+        },
+      }),
+      customer.customerAccount
+        ? prisma.customerUser.count({ where: { customerAccountId: customer.customerAccount.id } })
+        : Promise.resolve(0),
+    ])
+
+    return {
+      counts: { pending, awaiting, completed, authorized },
+      isPrimaryPoc: customer.customerAccount?.primaryPocId === customer.id,
+      companyName,
+      userCount,
+    }
+  })
+
+  // GET /api/customer/dashboard/pending
+  fastify.get('/dashboard/pending', {
+    preHandler: [requireCustomer],
+  }, async (request) => {
+    const ctx = await getCustomerContext(request as Parameters<typeof getCustomerContext>[0])
+    if (!ctx) return { error: 'Customer not found' }
+    const { customerEmail, tenantId, companyName } = ctx
+    const query = request.query as { page?: string; limit?: string; search?: string; sort?: string }
+    const { page, limit, skip } = parsePagination(query)
+
+    const baseWhere: Prisma.CertificateWhereInput = {
+      tenantId,
+      status: 'PENDING_CUSTOMER_APPROVAL',
+      OR: [
+        { approvalTokens: { some: { customer: { email: customerEmail }, usedAt: null, expiresAt: { gt: new Date() } } } },
+        { customerName: { equals: companyName, mode: 'insensitive' } },
+      ],
+    }
+
+    if (query.search) {
+      baseWhere.AND = [{
+        OR: [
+          { certificateNumber: { contains: query.search, mode: 'insensitive' } },
+          { uucDescription: { contains: query.search, mode: 'insensitive' } },
+          { uucMake: { contains: query.search, mode: 'insensitive' } },
+        ],
+      }]
+    }
+
+    const orderBy: Prisma.CertificateOrderByWithRelationInput =
+      query.sort === 'oldest' ? { updatedAt: 'asc' } : { updatedAt: 'desc' }
+
+    const [certificates, total] = await Promise.all([
+      prisma.certificate.findMany({
+        where: baseWhere,
+        include: {
+          approvalTokens: {
+            where: { customer: { email: customerEmail }, usedAt: null, expiresAt: { gt: new Date() } },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+          events: {
+            where: { eventType: 'SENT_TO_CUSTOMER' },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.certificate.count({ where: baseWhere }),
+    ])
+
+    return {
+      items: certificates.map((cert) => {
+        const token = cert.approvalTokens[0]
+        let adminMessage: string | null = null
+        if (cert.events[0]) {
+          const data = safeJsonParse<Record<string, string>>(cert.events[0].eventData, {})
+          adminMessage = data.message || null
+        }
+        return {
+          id: cert.id,
+          certificateNumber: cert.certificateNumber,
+          uucDescription: cert.uucDescription,
+          uucMake: cert.uucMake,
+          uucModel: cert.uucModel,
+          sentAt: token?.createdAt.toISOString() || cert.updatedAt.toISOString(),
+          expiresAt: token?.expiresAt.toISOString() || null,
+          tokenId: token?.token || null,
+          hasToken: !!token,
+          adminMessage,
+          srfNumber: cert.srfNumber,
+          dateOfCalibration: cert.dateOfCalibration?.toISOString() || null,
+        }
+      }),
+      pagination: paginationResponse(page, limit, total),
+    }
+  })
+
+  // GET /api/customer/dashboard/awaiting
+  fastify.get('/dashboard/awaiting', {
+    preHandler: [requireCustomer],
+  }, async (request) => {
+    const ctx = await getCustomerContext(request as Parameters<typeof getCustomerContext>[0])
+    if (!ctx) return { error: 'Customer not found' }
+    const { tenantId, companyName } = ctx
+    const query = request.query as { page?: string; limit?: string; search?: string; sort?: string }
+    const { page, limit, skip } = parsePagination(query)
+
+    const where: Prisma.CertificateWhereInput = {
+      tenantId,
+      status: { in: ['PENDING_REVIEW', 'CUSTOMER_REVISION_REQUIRED', 'REVISION_REQUIRED'] },
+      customerName: { equals: companyName, mode: 'insensitive' },
+    }
+
+    if (query.search) {
+      where.AND = [{
+        OR: [
+          { certificateNumber: { contains: query.search, mode: 'insensitive' } },
+          { uucDescription: { contains: query.search, mode: 'insensitive' } },
+          { uucMake: { contains: query.search, mode: 'insensitive' } },
+        ],
+      }]
+    }
+
+    const orderBy: Prisma.CertificateOrderByWithRelationInput =
+      query.sort === 'oldest' ? { updatedAt: 'asc' }
+        : query.sort === 'status' ? { status: 'asc' }
+        : { updatedAt: 'desc' }
+
+    const [certificates, total] = await Promise.all([
+      prisma.certificate.findMany({
+        where,
+        include: {
+          events: {
+            where: { eventType: { in: ['CUSTOMER_REVISION_REQUESTED', 'ADMIN_REPLIED_TO_CUSTOMER'] } },
+            orderBy: { createdAt: 'desc' },
+            take: 2,
+            include: { user: { select: { name: true } } },
+          },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.certificate.count({ where }),
+    ])
+
+    return {
+      items: certificates.map((cert) => {
+        const customerEvent = cert.events.find((e) => e.eventType === 'CUSTOMER_REVISION_REQUESTED')
+        const adminEvent = cert.events.find((e) => e.eventType === 'ADMIN_REPLIED_TO_CUSTOMER')
+        let customerFeedback: string | null = null
+        let feedbackDate: string | null = null
+        let adminResponse: string | null = null
+        let adminName: string | null = null
+        let respondedAt: string | null = null
+        if (customerEvent) {
+          const data = safeJsonParse<Record<string, string>>(customerEvent.eventData, {})
+          customerFeedback = data.notes || data.feedback || null
+          feedbackDate = customerEvent.createdAt.toISOString()
+        }
+        if (adminEvent) {
+          const data = safeJsonParse<Record<string, string>>(adminEvent.eventData, {})
+          adminResponse = data.response || null
+          adminName = adminEvent.user?.name || null
+          respondedAt = adminEvent.createdAt.toISOString()
+        }
+        return {
+          id: cert.id,
+          certificateNumber: cert.certificateNumber,
+          uucDescription: cert.uucDescription,
+          uucMake: cert.uucMake,
+          uucModel: cert.uucModel,
+          updatedAt: cert.updatedAt.toISOString(),
+          internalStatus: cert.status,
+          customerFeedback,
+          feedbackDate,
+          adminResponse,
+          adminName,
+          respondedAt,
+        }
+      }),
+      pagination: paginationResponse(page, limit, total),
+    }
+  })
+
+  // GET /api/customer/dashboard/completed
+  fastify.get('/dashboard/completed', {
+    preHandler: [requireCustomer],
+  }, async (request) => {
+    const ctx = await getCustomerContext(request as Parameters<typeof getCustomerContext>[0])
+    if (!ctx) return { error: 'Customer not found' }
+    const { customerEmail, tenantId } = ctx
+    const query = request.query as { page?: string; limit?: string; search?: string; sort?: string }
+    const { page, limit, skip } = parsePagination(query)
+
+    const where: Prisma.CertificateWhereInput = {
+      tenantId,
+      status: 'PENDING_ADMIN_AUTHORIZATION',
+      signatures: { some: { signerEmail: customerEmail, signerType: 'CUSTOMER' } },
+    }
+
+    if (query.search) {
+      where.AND = [{
+        OR: [
+          { certificateNumber: { contains: query.search, mode: 'insensitive' } },
+          { uucDescription: { contains: query.search, mode: 'insensitive' } },
+          { uucMake: { contains: query.search, mode: 'insensitive' } },
+        ],
+      }]
+    }
+
+    const orderBy: Prisma.CertificateOrderByWithRelationInput =
+      query.sort === 'oldest' ? { updatedAt: 'asc' } : { updatedAt: 'desc' }
+
+    const [certificates, total] = await Promise.all([
+      prisma.certificate.findMany({
+        where,
+        include: {
+          signatures: {
+            where: { signerEmail: customerEmail, signerType: 'CUSTOMER' },
+            orderBy: { signedAt: 'desc' },
+            take: 1,
+          },
+          _count: { select: { signatures: true } },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.certificate.count({ where }),
+    ])
+
+    // Get all signature types for these certificates in one query
+    const certIds = certificates.map(c => c.id)
+    const allSigs = certIds.length > 0 ? await prisma.signature.findMany({
+      where: { certificateId: { in: certIds } },
+      select: { certificateId: true, signerType: true },
+    }) : []
+    const sigsByCert = new Map<string, string[]>()
+    for (const s of allSigs) {
+      const types = sigsByCert.get(s.certificateId) || []
+      types.push(s.signerType)
+      sigsByCert.set(s.certificateId, types)
+    }
+
+    return {
+      items: certificates.map((cert) => {
+        const customerSig = cert.signatures[0]
+        const sigTypes = sigsByCert.get(cert.id) || []
+        return {
+          id: cert.id,
+          certificateNumber: cert.certificateNumber,
+          uucDescription: cert.uucDescription,
+          uucMake: cert.uucMake,
+          uucModel: cert.uucModel,
+          signedAt: customerSig?.signedAt.toISOString() || cert.updatedAt.toISOString(),
+          signerName: customerSig?.signerName || '',
+          hasEngineerSig: sigTypes.includes('ASSIGNEE'),
+          hasReviewerSig: sigTypes.includes('REVIEWER'),
+          hasCustomerSig: sigTypes.includes('CUSTOMER'),
+          hasAdminSig: sigTypes.includes('ADMIN'),
+        }
+      }),
+      pagination: paginationResponse(page, limit, total),
+    }
+  })
+
+  // GET /api/customer/dashboard/authorized
+  fastify.get('/dashboard/authorized', {
+    preHandler: [requireCustomer],
+  }, async (request) => {
+    const ctx = await getCustomerContext(request as Parameters<typeof getCustomerContext>[0])
+    if (!ctx) return { error: 'Customer not found' }
+    const { customerEmail, tenantId } = ctx
+    const query = request.query as { page?: string; limit?: string; search?: string; sort?: string; year?: string }
+    const { page, limit, skip } = parsePagination(query)
+
+    const where: Prisma.CertificateWhereInput = {
+      tenantId,
+      status: { in: ['AUTHORIZED', 'APPROVED'] },
+      signatures: { some: { signerEmail: customerEmail, signerType: 'CUSTOMER' } },
+    }
+
+    if (query.year) {
+      const year = parseInt(query.year)
+      where.dateOfCalibration = {
+        gte: new Date(`${year}-01-01`),
+        lt: new Date(`${year + 1}-01-01`),
+      }
+    }
+
+    if (query.search) {
+      where.AND = [{
+        OR: [
+          { certificateNumber: { contains: query.search, mode: 'insensitive' } },
+          { uucDescription: { contains: query.search, mode: 'insensitive' } },
+          { uucMake: { contains: query.search, mode: 'insensitive' } },
+        ],
+      }]
+    }
+
+    const orderBy: Prisma.CertificateOrderByWithRelationInput =
+      query.sort === 'oldest' ? { dateOfCalibration: 'asc' }
+        : query.sort === 'due' ? { calibrationDueDate: 'asc' }
+        : { dateOfCalibration: 'desc' }
+
+    const [certificates, total] = await Promise.all([
+      prisma.certificate.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.certificate.count({ where }),
+    ])
+
+    return {
+      items: certificates.map((cert) => ({
+        id: cert.id,
+        certificateNumber: cert.certificateNumber,
+        uucDescription: cert.uucDescription,
+        uucMake: cert.uucMake,
+        uucModel: cert.uucModel,
+        dateOfCalibration: cert.dateOfCalibration?.toISOString() || null,
+        calibrationDueDate: cert.calibrationDueDate?.toISOString() || null,
+        signedPdfPath: cert.signedPdfPath,
+      })),
+      pagination: paginationResponse(page, limit, total),
+    }
+  })
+
+  // TODO: The old /dashboard endpoint above can be deprecated once all frontends use the new paginated endpoints
+
   // POST /api/customer/register - Submit customer registration
   fastify.post('/register', async (request, reply) => {
     const tenantId = request.tenantId
@@ -559,11 +945,12 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // GET /api/customer/team - Get team members
+  // GET /api/customer/team - Get team members (with optional pagination)
   fastify.get('/team', {
     preHandler: [requireCustomer],
   }, async (request, reply) => {
     const user = request.user!
+    const query = request.query as { page?: string; limit?: string; search?: string }
 
     // Get customer account ID from user session or lookup
     const customer = await prisma.customerUser.findUnique({
@@ -575,15 +962,14 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: 'No customer account found' })
     }
 
+    const accountId = customer.customerAccountId
+
+    // Get account info + primary POC
     const customerAccount = await prisma.customerAccount.findUnique({
-      where: { id: customer.customerAccountId },
+      where: { id: accountId },
       include: {
         primaryPoc: {
           select: { id: true, name: true, email: true, isActive: true, activatedAt: true, createdAt: true },
-        },
-        users: {
-          select: { id: true, name: true, email: true, isActive: true, activatedAt: true, createdAt: true },
-          orderBy: { createdAt: 'asc' },
         },
       },
     })
@@ -595,19 +981,18 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     // Get pending requests
     const pendingRequests = await prisma.customerRequest.findMany({
       where: {
-        customerAccountId: customerAccount.id,
+        customerAccountId: accountId,
         status: 'PENDING',
       },
       orderBy: { createdAt: 'desc' },
     })
 
-    return {
+    const baseResponse = {
       account: {
         id: customerAccount.id,
         companyName: customerAccount.companyName,
         primaryPocId: customerAccount.primaryPocId,
       },
-      users: customerAccount.users,
       primaryPoc: customerAccount.primaryPoc,
       pendingRequests: pendingRequests.map((req: (typeof pendingRequests)[number]) => ({
         id: req.id,
@@ -617,6 +1002,50 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       })),
       currentUserId: user.sub,
       isPrimaryPoc: customerAccount.primaryPocId === user.sub,
+    }
+
+    // Paginated path (when page param is provided)
+    if (query.page) {
+      const { page, limit, skip } = parsePagination(query)
+
+      const userWhere: Prisma.CustomerUserWhereInput = {
+        customerAccountId: accountId,
+      }
+      if (query.search) {
+        userWhere.OR = [
+          { name: { contains: query.search, mode: 'insensitive' } },
+          { email: { contains: query.search, mode: 'insensitive' } },
+        ]
+      }
+
+      const [users, totalUsers] = await Promise.all([
+        prisma.customerUser.findMany({
+          where: userWhere,
+          select: { id: true, name: true, email: true, isActive: true, activatedAt: true, createdAt: true },
+          orderBy: { createdAt: 'asc' },
+          skip,
+          take: limit,
+        }),
+        prisma.customerUser.count({ where: userWhere }),
+      ])
+
+      return {
+        ...baseResponse,
+        users,
+        pagination: paginationResponse(page, limit, totalUsers),
+      }
+    }
+
+    // Full list path (backward compatible for settings/change-poc pages)
+    const users = await prisma.customerUser.findMany({
+      where: { customerAccountId: accountId },
+      select: { id: true, name: true, email: true, isActive: true, activatedAt: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    return {
+      ...baseResponse,
+      users,
     }
   })
 
@@ -1329,8 +1758,8 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const search = query.search
-    const page = parseInt(query.page || '1')
-    const limit = parseInt(query.limit || '20')
+    const page = Math.max(1, parseInt(query.page || '1'))
+    const limit = Math.max(1, Math.min(parseInt(query.limit || '20'), 25))
 
     // Get customer with their account
     const customer = await prisma.customerUser.findUnique({

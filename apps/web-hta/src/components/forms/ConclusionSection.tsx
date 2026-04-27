@@ -52,9 +52,11 @@ const CONCLUSION_LABELS: Record<string, string> = {
 interface ConclusionSectionProps {
   feedbackSlot?: React.ReactNode
   disabled?: boolean
+  accordionStatus?: 'default' | 'locked' | 'unlocked' | 'pending'
+  hasFeedback?: boolean
 }
 
-export function ConclusionSection({ feedbackSlot, disabled }: ConclusionSectionProps = {}) {
+export function ConclusionSection({ feedbackSlot, disabled, accordionStatus, hasFeedback }: ConclusionSectionProps = {}) {
   const { formData, setFormField } = useCertificateStore()
   const [showAdditionalInput, setShowAdditionalInput] = useState(false)
 
@@ -100,6 +102,8 @@ export function ConclusionSection({ feedbackSlot, disabled }: ConclusionSectionP
       title="Conclusion Statements"
       feedbackSlot={feedbackSlot}
       disabled={disabled}
+      accordionStatus={accordionStatus}
+      hasFeedback={hasFeedback}
     >
       <div className="space-y-4 p-5 rounded-xl border border-slate-300 bg-section-inner">
         {/* Dropdown to add statements */}

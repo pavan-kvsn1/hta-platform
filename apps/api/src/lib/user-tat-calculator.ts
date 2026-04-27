@@ -11,6 +11,7 @@ interface CertificateEvent {
   eventType: string
   createdAt: Date
   certificateId: string
+  userId?: string | null
 }
 
 interface CertificateWithEvents {
@@ -468,7 +469,7 @@ interface AuthorizerMetrics {
 
 function calculateAuthorizerMetrics(
   certificates: CertificateWithEvents[],
-  _userId: string,
+  userId: string,
   periodStart: Date,
   previousPeriodStart: Date
 ): AuthorizerMetrics | null {
@@ -493,7 +494,7 @@ function calculateAuthorizerMetrics(
         customerApprovedTime = eventDate
       }
 
-      if (event.eventType === EVENTS.ADMIN_AUTHORIZED && customerApprovedTime) {
+      if (event.eventType === EVENTS.ADMIN_AUTHORIZED && event.userId === userId && customerApprovedTime) {
         const authTime = hoursBetween(customerApprovedTime, eventDate)
 
         if (eventDate >= periodStart) {

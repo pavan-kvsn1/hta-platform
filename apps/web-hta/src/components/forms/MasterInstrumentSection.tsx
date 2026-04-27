@@ -745,9 +745,11 @@ function MasterInstrumentCard({
 interface MasterInstrumentSectionProps {
   feedbackSlot?: React.ReactNode
   disabled?: boolean
+  accordionStatus?: 'default' | 'locked' | 'unlocked' | 'pending'
+  hasFeedback?: boolean
 }
 
-export function MasterInstrumentSection({ feedbackSlot, disabled }: MasterInstrumentSectionProps = {}) {
+export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatus, hasFeedback }: MasterInstrumentSectionProps = {}) {
   const { formData, certificateId, addMasterInstrument, removeMasterInstrument, setMasterInstrument, setParameter, saveDraft } =
     useCertificateStore()
   const { isLoaded, loadInstruments, getStats } = useMasterInstrumentStore()
@@ -815,6 +817,8 @@ export function MasterInstrumentSection({ feedbackSlot, disabled }: MasterInstru
       title="Master Instrument Details"
       feedbackSlot={feedbackSlot}
       disabled={disabled}
+      accordionStatus={accordionStatus}
+      hasFeedback={hasFeedback}
     >
       <div className="space-y-4 p-5 rounded-xl border border-slate-300 bg-section-inner">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

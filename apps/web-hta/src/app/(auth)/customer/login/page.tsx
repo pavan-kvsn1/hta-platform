@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import Image from 'next/image'
 import { Loader2 } from 'lucide-react'
 import { tenantConfig } from '@/config/tenant'
 
@@ -22,7 +21,6 @@ function CustomerLoginForm() {
   const [loginError, setLoginError] = useState<string | null>(null)
   const [csrfToken, setCsrfToken] = useState<string | undefined>()
 
-  // Fetch CSRF token on mount
   useEffect(() => {
     getCsrfToken().then(setCsrfToken)
   }, [])
@@ -36,14 +34,13 @@ function CustomerLoginForm() {
       const result = await signIn('customer-credentials', {
         email,
         password,
-        redirect: false,
         csrfToken,
+        redirect: false,
       })
 
       if (result?.error) {
         setLoginError('Invalid email or password')
       } else if (result?.ok) {
-        // Issue refresh token after successful login
         try {
           await fetch('/api/auth/issue-refresh-token', {
             method: 'POST',
@@ -63,37 +60,28 @@ function CustomerLoginForm() {
   }
 
   return (
-    <div className="bg-card rounded-lg shadow-lg p-8">
-      {/* Logo and Header */}
-      <div className="text-center mb-8">
-        <div className="flex justify-center mb-4">
-          <Image
-            src={tenantConfig.branding.logoUrl}
-            alt={tenantConfig.branding.logoAlt}
-            width={120}
-            height={60}
-            className="object-contain"
-          />
-        </div>
-        <h1 className="text-2xl font-bold text-foreground">
-          {tenantConfig.metadata.title}
-        </h1>
-        <p className="text-muted-foreground mt-2">Customer Portal</p>
-      </div>
+    <>
+      <h1 className="text-[30px] font-extrabold tracking-tight text-foreground mb-1.5">
+        Sign in
+      </h1>
+      <p className="text-[15px] text-muted-foreground mb-9 leading-relaxed">
+        Enter your credentials to continue
+      </p>
 
-      {/* Error Messages */}
+      {/* Error */}
       {(error || loginError) && (
-        <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+        <div className="mb-5 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
           <p className="text-sm text-destructive">
             {loginError || 'Authentication failed. Please try again.'}
           </p>
         </div>
       )}
 
-      {/* Login Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email Address</Label>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-[18px]">
+          <Label htmlFor="email" className="block text-xs font-bold text-slate-600 mb-[7px] tracking-wide">
+            Email Address
+          </Label>
           <Input
             id="email"
             type="email"
@@ -102,17 +90,16 @@ function CustomerLoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isLoading}
-            className="w-full"
+            className="h-11 rounded-[10px] border-border px-3.5 text-sm"
           />
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <a
-              href="/customer/forgot-password"
-              className="text-sm text-primary hover:text-primary/80"
-            >
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-[7px]">
+            <Label htmlFor="password" className="text-xs font-bold text-slate-600 tracking-wide">
+              Password
+            </Label>
+            <a href="/customer/forgot-password" className="text-xs text-primary font-semibold hover:text-primary/80">
               Forgot password?
             </a>
           </div>
@@ -124,59 +111,51 @@ function CustomerLoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             disabled={isLoading}
-            className="w-full"
+            className="h-11 rounded-[10px] border-border px-3.5 text-sm"
           />
         </div>
 
         <Button
           type="submit"
-          className="w-full"
-          disabled={isLoading || !csrfToken}
+          className="w-full h-[46px] rounded-[10px] bg-primary text-white text-[15px] font-bold mb-6"
+          disabled={isLoading}
         >
-          {isLoading ? 'Signing in...' : 'Sign In'}
+          {isLoading ? (
+            <Loader2 className="size-4 animate-spin mr-2" />
+          ) : null}
+          {isLoading ? 'Signing in...' : 'Sign in'}
         </Button>
       </form>
 
-      {/* Help Text */}
-      <div className="mt-6 text-center border-t pt-6">
-        <p className="text-sm text-muted-foreground">
-          Don&apos;t have an account? Contact your company administrator
-          or reach out to {tenantConfig.name} to set up your account.
-        </p>
-      </div>
+      {/* Help text */}
+      <p className="text-[13px] text-muted-foreground text-center leading-[1.7]">
+        Don&apos;t have an account? Contact your company administrator or{' '}
+        <span className="text-primary font-semibold cursor-pointer">reach out to HTA</span> to set up your account.
+      </p>
 
-      {/* Staff Login Link */}
-      <div className="mt-4 text-center">
-        <p className="text-sm text-muted-foreground">
-          {tenantConfig.name} Staff?{' '}
-          <a
-            href="/login"
-            className="text-primary hover:text-primary/80 font-medium"
-          >
-            Login here
-          </a>
-        </p>
+      {/* Staff link */}
+      <div className="mt-6 pt-5 border-t border-slate-100 text-center flex items-center justify-center gap-1.5">
+        <span className="text-[13px] text-muted-foreground">{tenantConfig.name} Staff?</span>
+        <a href="/login" className="text-[13px] text-primary font-bold hover:text-primary/80">
+          Login here &rarr;
+        </a>
       </div>
-    </div>
+    </>
   )
 }
 
 function LoginFormSkeleton() {
   return (
-    <div className="bg-card rounded-lg shadow-lg p-8">
-      <div className="flex justify-center items-center min-h-[300px]">
-        <Loader2 className="size-8 animate-spin text-primary" />
-      </div>
+    <div className="flex justify-center items-center min-h-[300px]">
+      <Loader2 className="size-8 animate-spin text-primary" />
     </div>
   )
 }
 
 export default function CustomerLoginPage() {
   return (
-    <div className="max-w-md w-full mx-4">
-      <Suspense fallback={<LoginFormSkeleton />}>
-        <CustomerLoginForm />
-      </Suspense>
-    </div>
+    <Suspense fallback={<LoginFormSkeleton />}>
+      <CustomerLoginForm />
+    </Suspense>
   )
 }

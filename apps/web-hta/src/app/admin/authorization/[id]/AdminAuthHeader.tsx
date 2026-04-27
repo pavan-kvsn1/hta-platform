@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
 import { ChevronLeft, User, Building2, MapPin, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ViewToggleButton } from '@/components/certificate/ViewToggleButton'
@@ -46,29 +45,28 @@ export function AdminAuthHeader({
   const isAuthorized = headerData.status === 'AUTHORIZED'
 
   return (
-    <div className="flex-shrink-0 border-b border-slate-200 px-6 py-4">
+    <div className="flex-shrink-0 border-b border-[#e2e8f0] bg-white px-6 py-4">
       {/* Header Content */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
             href="/admin/authorization"
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-[#94a3b8] hover:text-[#475569] transition-colors"
           >
             <ChevronLeft className="size-6" strokeWidth={2} />
           </Link>
-          <span className="text-slate-300 text-xl">|</span>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+          <span className="text-[#cbd5e1] text-xl">|</span>
+          <h1 className="text-xl font-bold text-[#0f172a] tracking-tight">
             {headerData.certificateNumber}
           </h1>
-          <Badge
-            variant="outline"
+          <span
             className={cn(
-              'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+              'inline-flex items-center px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md border',
               headerData.statusClassName
             )}
           >
             {headerData.statusLabel}
-          </Badge>
+          </span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -90,8 +88,8 @@ export function AdminAuthHeader({
           {headerData.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}
         </MetaInfoItem>
         <MetaInfoItem icon={Calendar}>{formatDate(headerData.dateOfCalibration)}</MetaInfoItem>
-        <div className="flex items-center gap-2 text-slate-500">
-          <span className="text-slate-300">|</span>
+        <div className="flex items-center gap-2 text-[#64748b]">
+          <span className="text-[#cbd5e1]">|</span>
           <span>Revision {headerData.currentRevision}</span>
         </div>
       </div>

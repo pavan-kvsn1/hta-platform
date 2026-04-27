@@ -38,6 +38,7 @@ function buildCSP(): string {
       "'self'",
       "'unsafe-inline'",  // Required: Next.js App Router doesn't support nonces
       "'wasm-unsafe-eval'",  // Required: PDF generation uses WebAssembly
+      ...(!isProduction ? ["'unsafe-eval'"] : []),  // Required: Next.js dev mode (React Refresh/HMR)
     ],
     'style-src': [
       "'self'",

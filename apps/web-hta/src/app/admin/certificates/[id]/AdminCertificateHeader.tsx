@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
 import { ChevronLeft, User, Building2, MapPin } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ViewToggleButton } from '@/components/certificate/ViewToggleButton'
@@ -27,29 +26,30 @@ export function AdminCertificateHeader({
   isDownloading = false,
 }: AdminCertificateHeaderProps) {
   return (
-    <div className="flex-shrink-0 border-b border-slate-200 px-8 py-6">
+    <div className="flex-shrink-0 mb-5">
+      {/* Back Link */}
+      <Link
+        href="/admin/certificates"
+        className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-4 transition-colors"
+      >
+        <ChevronLeft className="size-4" />
+        Back to Certificates
+      </Link>
+
       {/* Header Content */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link
-            href="/admin/certificates"
-            className="text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <ChevronLeft className="size-6" strokeWidth={2} />
-          </Link>
-          <span className="text-slate-300 text-xl">|</span>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-[22px] font-bold text-[#0f172a] tracking-tight">
             {headerData.certificateNumber}
           </h1>
-          <Badge
-            variant="outline"
+          <span
             className={cn(
-              'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+              'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md border',
               headerData.statusClassName
             )}
           >
             {headerData.statusLabel}
-          </Badge>
+          </span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -65,14 +65,14 @@ export function AdminCertificateHeader({
       </div>
 
       {/* Meta Info Row */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm mt-3">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] mt-3">
         <MetaInfoItem icon={User} emphasized>{headerData.assigneeName}</MetaInfoItem>
         <MetaInfoItem icon={Building2}>{headerData.customerName}</MetaInfoItem>
         <MetaInfoItem icon={MapPin}>
           {headerData.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}
         </MetaInfoItem>
-        <div className="flex items-center gap-2 text-slate-500">
-          <span className="text-slate-300">|</span>
+        <div className="flex items-center gap-2 text-[#94a3b8]">
+          <span className="text-[#cbd5e1]">|</span>
           <span>Revision {headerData.currentRevision}</span>
         </div>
       </div>

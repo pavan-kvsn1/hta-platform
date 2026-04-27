@@ -13,12 +13,12 @@ interface Props {
 
 // Status badge configuration
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  PENDING_CUSTOMER_APPROVAL: { label: 'Pending Your Approval', className: 'bg-purple-50 text-purple-600 border-purple-100' },
-  CUSTOMER_REVISION_REQUIRED: { label: 'Revision in Progress', className: 'bg-orange-50 text-orange-600 border-orange-100' },
-  REVISION_REQUIRED: { label: 'Under Revision', className: 'bg-amber-50 text-amber-600 border-amber-100' },
-  PENDING_ADMIN_AUTHORIZATION: { label: 'Pending Authorization', className: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
-  APPROVED: { label: 'Approved', className: 'bg-green-50 text-green-600 border-green-100' },
-  AUTHORIZED: { label: 'Authorized', className: 'bg-green-50 text-green-600 border-green-100' },
+  PENDING_CUSTOMER_APPROVAL: { label: 'Pending Your Approval', className: 'bg-[#f5f3ff] text-[#7c3aed] border-[#e9d5ff]' },
+  CUSTOMER_REVISION_REQUIRED: { label: 'Revision in Progress', className: 'bg-[#fff7ed] text-[#ea580c] border-[#fed7aa]' },
+  REVISION_REQUIRED: { label: 'Under Revision', className: 'bg-[#fffbeb] text-[#d97706] border-[#fde68a]' },
+  PENDING_ADMIN_AUTHORIZATION: { label: 'Pending Authorization', className: 'bg-[#eef2ff] text-[#4f46e5] border-[#c7d2fe]' },
+  APPROVED: { label: 'Approved', className: 'bg-[#f0fdf4] text-[#16a34a] border-[#bbf7d0]' },
+  AUTHORIZED: { label: 'Authorized', className: 'bg-[#f0fdf4] text-[#16a34a] border-[#bbf7d0]' },
 }
 
 export default async function CustomerCertReviewPage({ params }: Props) {
@@ -104,11 +104,11 @@ export default async function CustomerCertReviewPage({ params }: Props) {
 
   if (!hasAccess) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="min-h-screen bg-[#f1f5f9] flex items-center justify-center p-4">
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-lg p-8 max-w-md w-full text-center">
+          <div className="size-14 bg-[#fef2f2] rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-8 h-8 text-red-600"
+              className="size-7 text-[#dc2626]"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -121,20 +121,20 @@ export default async function CustomerCertReviewPage({ params }: Props) {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600 mb-6">
+          <h1 className="text-[18px] font-bold text-[#0f172a] mb-2">Access Denied</h1>
+          <p className="text-[13px] text-[#64748b] mb-6">
             You don&apos;t have permission to review this certificate.
           </p>
           <div className="space-y-3">
             <a
               href="/customer/dashboard"
-              className="block w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="block w-full py-2.5 px-4 bg-[#0f172a] text-white text-[13px] font-semibold rounded-[9px] hover:bg-[#1e293b] transition-colors"
             >
               Go to Dashboard
             </a>
-            <p className="text-sm text-gray-500">
+            <p className="text-[12px] text-[#94a3b8]">
               Need help?{' '}
-              <a href="mailto:calibration@htainstruments.com" className="text-blue-600 hover:underline">
+              <a href="mailto:calibration@htainstruments.com" className="text-[#2563eb] hover:underline">
                 Contact HTA
               </a>
             </p>
@@ -158,7 +158,7 @@ export default async function CustomerCertReviewPage({ params }: Props) {
   })
 
   // Get status config
-  const statusConfig = STATUS_CONFIG[certificate.status] || { label: certificate.status, className: 'bg-gray-50 text-gray-600 border-gray-100' }
+  const statusConfig = STATUS_CONFIG[certificate.status] || { label: certificate.status, className: 'bg-[#f8fafc] text-[#64748b] border-[#e2e8f0]' }
 
   // Serialize certificate data
   const certificateData = {

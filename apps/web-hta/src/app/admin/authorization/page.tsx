@@ -4,21 +4,13 @@ import { apiFetch } from '@/lib/api-client'
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import {
   Loader2,
   ShieldCheck,
   Eye,
   FileText,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 
 interface Certificate {
@@ -49,17 +41,18 @@ export default function AuthorizationPage() {
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
-    limit: 20,
+    limit: 10,
     total: 0,
     totalPages: 0,
   })
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   const fetchCertificates = async (page = 1) => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '20',
+        limit: rowsPerPage.toString(),
         status: 'PENDING_ADMIN_AUTHORIZATION',
       })
       const res = await apiFetch(`/api/admin/authorization?${params}`)
@@ -77,133 +70,160 @@ export default function AuthorizationPage() {
 
   useEffect(() => {
     fetchCertificates()
-  }, [])
+  }, [rowsPerPage]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-'
+    return new Date(dateStr).toLocaleDateString()
+  }
 
   return (
-    <div className="p-3 h-full">
-      {/* Master Bounding Box */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
-        <div className="p-6 overflow-auto h-full">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="flex items-center gap-3 text-2xl font-bold text-slate-900">
-                <ShieldCheck className="h-8 w-8 text-indigo-500 shrink-0" />
-                <span>Certificate Authorization</span>
-              </h1>
-              <p className="text-slate-600 mt-1">
-                Review and authorize certificates that have been approved by customers
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="px-6 sm:px-9 py-8">
+        {/* Back Link */}
+        <Link
+          href="/admin"
+          className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] mb-6 transition-colors"
+        >
+          <ChevronLeft className="size-4" />
+          Back to Admin
+        </Link>
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-[22px] font-bold text-[#0f172a] flex items-center gap-2.5">
+              <ShieldCheck className="size-[22px] text-[#94a3b8]" />
+              Certificate Authorization
+            </h1>
+            <p className="text-[13px] text-[#94a3b8] mt-1">
+              Review and authorize certificates that have been approved by customers
+            </p>
+          </div>
+          {!loading && (
+            <div className="border border-[#e2e8f0] rounded-xl px-5 py-4 border-l-[3px] border-l-[#6366f1] bg-white">
+              <div className="text-[38px] font-extrabold leading-none tracking-tight text-[#4f46e5]">
+                {pagination.total}
+              </div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mt-2">
+                Awaiting Auth
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Certificates Table */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
+            </div>
+          ) : certificates.length === 0 ? (
+            <div className="text-center py-16">
+              <ShieldCheck className="size-10 mx-auto mb-3 text-[#bbf7d0]" />
+              <p className="text-[14px] font-semibold text-[#16a34a]">All caught up!</p>
+              <p className="text-[13px] text-[#94a3b8] mt-1">
+                No certificates are awaiting authorization
               </p>
             </div>
-            {!loading && (
-              <div className="text-right">
-                <p className="text-3xl font-bold text-indigo-600">{pagination.total}</p>
-                <p className="text-sm text-slate-500">Awaiting Authorization</p>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Cert No.</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Customer</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">UUC Description</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Make / Model</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Cal Date</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Engineer</th>
+                      <th className="text-center py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[80px]">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {certificates.map((cert) => (
+                      <tr
+                        key={cert.id}
+                        className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors"
+                      >
+                        <td className="py-2.5 px-4 font-mono font-medium text-[#0f172a]">
+                          <div className="flex items-center gap-2">
+                            <FileText className="size-3.5 text-[#94a3b8]" />
+                            {cert.certificateNumber}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-4 text-[#0f172a]">{cert.customerName || '-'}</td>
+                        <td className="py-2.5 px-4 text-[#64748b] max-w-[200px] truncate">
+                          {cert.uucDescription || '-'}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#64748b]">
+                          {cert.uucMake && cert.uucModel
+                            ? `${cert.uucMake} / ${cert.uucModel}`
+                            : cert.uucMake || cert.uucModel || '-'}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#64748b]">
+                          {formatDate(cert.dateOfCalibration)}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#64748b]">
+                          {cert.createdBy?.name || '-'}
+                        </td>
+                        <td className="py-2.5 px-4 text-center">
+                          <Link href={`/admin/authorization/${cert.id}`}>
+                            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-white bg-[#4f46e5] hover:bg-[#4338ca] rounded-[9px] transition-colors">
+                              <Eye className="size-3.5" />
+                              Review
+                            </button>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
 
-          <Card>
-            <CardContent className="pt-6">
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-                </div>
-              ) : certificates.length === 0 ? (
-                <div className="text-center py-12 text-slate-500">
-                  <ShieldCheck className="h-16 w-16 mx-auto mb-4 text-green-300" />
-                  <p className="font-medium text-lg text-green-700">All caught up!</p>
-                  <p className="text-sm mt-1">
-                    No certificates are awaiting authorization
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#f1f5f9]">
+                  <p className="text-[12.5px] text-[#94a3b8]">
+                    Showing {(pagination.page - 1) * pagination.limit + 1}&ndash;
+                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                    {pagination.total} certificates
                   </p>
-                </div>
-              ) : (
-                <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Certificate #</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>UUC Description</TableHead>
-                        <TableHead>Make / Model</TableHead>
-                        <TableHead>Calibration Date</TableHead>
-                        <TableHead>Engineer</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {certificates.map((cert) => (
-                        <TableRow key={cert.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-slate-400" />
-                              {cert.certificateNumber}
-                            </div>
-                          </TableCell>
-                          <TableCell>{cert.customerName || '-'}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">
-                            {cert.uucDescription || '-'}
-                          </TableCell>
-                          <TableCell>
-                            {cert.uucMake && cert.uucModel
-                              ? `${cert.uucMake} / ${cert.uucModel}`
-                              : cert.uucMake || cert.uucModel || '-'}
-                          </TableCell>
-                          <TableCell className="text-slate-500">
-                            {cert.dateOfCalibration
-                              ? new Date(cert.dateOfCalibration).toLocaleDateString()
-                              : '-'}
-                          </TableCell>
-                          <TableCell className="text-slate-500">
-                            {cert.createdBy?.name || '-'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Link href={`/admin/authorization/${cert.id}`}>
-                              <Button
-                                size="sm"
-                                className="bg-indigo-600 hover:bg-indigo-700"
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Review
-                              </Button>
-                            </Link>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-
-                  {/* Pagination */}
-                  {pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-between pt-4 border-t mt-4">
-                      <p className="text-sm text-slate-500">
-                        Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
-                        {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                        {pagination.total} certificates
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fetchCertificates(pagination.page - 1)}
-                          disabled={pagination.page === 1}
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fetchCertificates(pagination.page + 1)}
-                          disabled={pagination.page === pagination.totalPages}
-                        >
-                          Next
-                        </Button>
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[12px] text-[#94a3b8]">Rows</span>
+                      <select
+                        value={rowsPerPage}
+                        onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                        className="h-7 px-1.5 border border-[#e2e8f0] rounded-[7px] text-[12.5px] text-[#0f172a] bg-white outline-none"
+                      >
+                        {[10, 15, 25].map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
                     </div>
-                  )}
-                </>
+                    <div className="flex items-center gap-1">
+                      <button
+                        disabled={pagination.page === 1}
+                        onClick={() => fetchCertificates(pagination.page - 1)}
+                        className="px-2.5 py-1.5 text-[12px] border border-[#e2e8f0] rounded-[7px] hover:bg-[#f8fafc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="size-3.5" />
+                      </button>
+                      <button
+                        disabled={pagination.page === pagination.totalPages}
+                        onClick={() => fetchCertificates(pagination.page + 1)}
+                        className="px-2.5 py-1.5 text-[12px] border border-[#e2e8f0] rounded-[7px] hover:bg-[#f8fafc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
-            </CardContent>
-          </Card>
+            </>
+          )}
         </div>
       </div>
     </div>
