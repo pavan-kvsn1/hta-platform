@@ -1285,20 +1285,19 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Notify all admins
-      prisma.user.findMany({
+      const admins = await prisma.user.findMany({
         where: { role: 'ADMIN', isActive: true, tenantId },
         select: { id: true },
-      }).then((admins: { id: string }[]) => {
-        for (const admin of admins) {
-          enqueueNotification({
-            type: 'create-notification',
-            userId: admin.id,
-            notificationType: 'CUSTOMER_APPROVED',
-            certificateId: certificate.id,
-            data: { certificateNumber: certNum },
-          }).catch(() => {})
-        }
-      }).catch(() => {})
+      })
+      for (const admin of admins) {
+        enqueueNotification({
+          type: 'create-notification',
+          userId: admin.id,
+          notificationType: 'CUSTOMER_APPROVED',
+          certificateId: certificate.id,
+          data: { certificateNumber: certNum },
+        }).catch(() => {})
+      }
 
       return { success: true, message: 'Certificate approved successfully' }
     }
@@ -1434,20 +1433,19 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Notify all admins
     const tenantId = request.tenantId
-    prisma.user.findMany({
+    const admins = await prisma.user.findMany({
       where: { role: 'ADMIN', isActive: true, tenantId },
       select: { id: true },
-    }).then((admins: { id: string }[]) => {
-      for (const admin of admins) {
-        enqueueNotification({
-          type: 'create-notification',
-          userId: admin.id,
-          notificationType: 'CUSTOMER_APPROVED',
-          certificateId: tokenRecord.certificateId,
-          data: { certificateNumber: certNum },
-        }).catch(() => {})
-      }
-    }).catch(() => {})
+    })
+    for (const admin of admins) {
+      enqueueNotification({
+        type: 'create-notification',
+        userId: admin.id,
+        notificationType: 'CUSTOMER_APPROVED',
+        certificateId: tokenRecord.certificateId,
+        data: { certificateNumber: certNum },
+      }).catch(() => {})
+    }
 
     return { success: true, message: 'Certificate approved successfully' }
   })
