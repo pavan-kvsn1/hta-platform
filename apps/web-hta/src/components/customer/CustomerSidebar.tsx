@@ -149,7 +149,7 @@ export function CustomerSidebar({
             className="object-contain transition-all duration-200"
           />
           {!isCollapsed && (
-            <span className="text-lg font-semibold text-white">HTA Calibr8s</span>
+            <span className="text-lg font-semibold text-white">HTA Calibration</span>
           )}
         </Link>
       </div>

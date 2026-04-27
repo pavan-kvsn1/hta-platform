@@ -16,7 +16,7 @@ export function AccountDeleted({ userName }: AccountDeletedProps) {
       </Text>
 
       <Text style={paragraph}>
-        Your HTA Calibr8s account has been successfully deleted as requested.
+        Your HTA Calibration account has been successfully deleted as requested.
       </Text>
 
       <Section style={infoBox}>
@@ -33,13 +33,13 @@ export function AccountDeleted({ userName }: AccountDeletedProps) {
       <Text style={paragraph}>
         If you did not request this deletion or believe this was done in error,
         please contact us immediately at{' '}
-        <a href="mailto:support@htacalibr8s.com" style={link}>
-          support@htacalibr8s.com
+        <a href="mailto:services@htaipl.com" style={link}>
+          services@htaipl.com
         </a>.
       </Text>
 
       <Text style={paragraph}>
-        Thank you for using HTA Calibr8s.
+        Thank you for using HTA Calibration.
       </Text>
 
       <Text style={signature}>

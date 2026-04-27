@@ -2,8 +2,8 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | HTA Calibr8s',
-  description: 'Terms and conditions for using HTA Calibr8s',
+  title: 'Terms of Service | HTA Calibration',
+  description: 'Terms and conditions for using HTA Calibration',
 }
 
 export default function TermsOfServicePage() {
@@ -28,7 +28,7 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-xl font-semibold mb-4">1. Acceptance of Terms</h2>
             <p className="text-muted-foreground leading-relaxed">
-              By accessing or using the HTA Calibr8s platform (&quot;Service&quot;), you agree to be
+              By accessing or using the HTA Calibration platform (&quot;Service&quot;), you agree to be
               bound by these Terms of Service. If you do not agree to these terms, you may
               not use the Service.
             </p>
@@ -37,7 +37,7 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-xl font-semibold mb-4">2. Description of Service</h2>
             <p className="text-muted-foreground leading-relaxed">
-              HTA Calibr8s is a calibration certificate management platform that enables
+              HTA Calibration is a calibration certificate management platform that enables
               organizations to create, manage, track, and distribute calibration certificates
               for measurement equipment. The Service includes:
             </p>
@@ -215,7 +215,7 @@ export default function TermsOfServicePage() {
             </p>
             <div className="mt-4 p-4 bg-muted rounded-lg">
               <p className="font-medium">HTA Instrumentation Pvt. Ltd.</p>
-              <p className="text-muted-foreground">Email: legal@htacalibr8s.com</p>
+              <p className="text-muted-foreground">Email: services@htaipl.com</p>
               <p className="text-muted-foreground">Address: [Company Address]</p>
             </div>
           </section>

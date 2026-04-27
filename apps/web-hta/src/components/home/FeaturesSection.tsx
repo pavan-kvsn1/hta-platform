@@ -8,7 +8,7 @@ export function FeaturesSection() {
 
   return (
     <section className="features-section" id="features">
-      <div className="over">Why HTA Calibr8s</div>
+      <div className="over">Why HTA Calibration</div>
       <h2 className="sec-title">Every tool your calibration team needs.</h2>
       <p className="sec-sub">
         Purpose-built for calibration labs that demand precision, traceability, and speed.

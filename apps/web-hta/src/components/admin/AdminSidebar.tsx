@@ -129,7 +129,7 @@ export function AdminSidebar({
             className="object-contain transition-all duration-200"
           />
           {!isCollapsed && (
-            <span className="text-lg font-semibold text-white">HTA Admin</span>
+            <span className="text-lg font-semibold text-white">HTA Calibration</span>
           )}
         </Link>
       </div>

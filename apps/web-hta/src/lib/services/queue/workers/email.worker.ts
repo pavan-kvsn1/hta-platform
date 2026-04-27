@@ -43,7 +43,7 @@ type TemplateConfig = {
 
 const emailTemplates: Record<string, TemplateConfig> = {
   'account-deleted': {
-    subject: 'Your HTA Calibr8s Account Has Been Deleted',
+    subject: 'Your HTA Calibration Account Has Been Deleted',
     render: async (data) => ({
       html: await render(AccountDeleted({
         userName: String(data.userName || 'User'),
@@ -55,16 +55,16 @@ const emailTemplates: Record<string, TemplateConfig> = {
     fallbackText: (data) => `
 Hello ${data.userName},
 
-Your HTA Calibr8s account has been successfully deleted as requested.
+Your HTA Calibration account has been successfully deleted as requested.
 
 What happens now:
 - Your personal information has been removed from our systems
 - You will no longer receive emails from us
 - Calibration certificates are retained for 7 years per regulatory requirements
 
-If you did not request this deletion, please contact us immediately at support@htacalibr8s.com.
+If you did not request this deletion, please contact us immediately at services@htaipl.com.
 
-Thank you for using HTA Calibr8s.
+Thank you for using HTA Calibration.
 
 Best regards,
 HTA Instrumentation (P) Ltd.

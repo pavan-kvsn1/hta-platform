@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | HTA Calibr8s',
+  title: 'Privacy Policy | HTA Calibration',
   description: 'How we collect, use, and protect your data',
 }
 
@@ -28,7 +28,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-semibold mb-4">1. Introduction</h2>
             <p className="text-muted-foreground leading-relaxed">
-              HTA Calibr8s (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to protecting your privacy.
+              HTA Calibration (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to protecting your privacy.
               This Privacy Policy explains how we collect, use, disclose, and safeguard your
               information when you use our calibration certificate management platform.
             </p>
@@ -196,7 +196,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <div className="mt-4 p-4 bg-muted rounded-lg">
               <p className="font-medium">HTA Instrumentation Pvt. Ltd.</p>
-              <p className="text-muted-foreground">Email: privacy@htacalibr8s.com</p>
+              <p className="text-muted-foreground">Email: services@htaipl.com</p>
               <p className="text-muted-foreground">Address: [Company Address]</p>
             </div>
           </section>

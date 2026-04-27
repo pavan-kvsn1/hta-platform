@@ -817,11 +817,11 @@ docker build -f apps/worker/Dockerfile -t hta-worker:latest .
 
 # Tag for registry (both :latest and version tag)
 docker tag hta-api:latest $REGISTRY/hta-api:latest
-docker tag hta-api:latest $REGISTRY/hta-api:v1.0.32
+docker tag hta-api:latest $REGISTRY/hta-api:v1.0.33
 docker tag hta-web:latest $REGISTRY/hta-web:latest
-docker tag hta-web:latest $REGISTRY/hta-web:v1.0.39
+docker tag hta-web:latest $REGISTRY/hta-web:v1.0.40
 docker tag hta-worker:latest $REGISTRY/hta-worker:latest
-docker tag hta-worker:latest $REGISTRY/hta-worker:v1.0.22
+docker tag hta-worker:latest $REGISTRY/hta-worker:v1.0.23
 
 # Push images (push :latest - this is what K8s deployments use)
 docker push $REGISTRY/hta-api:latest
@@ -829,9 +829,9 @@ docker push $REGISTRY/hta-web:latest
 docker push $REGISTRY/hta-worker:latest
 
 # Optionally push version tags for rollback
-docker push $REGISTRY/hta-api:v1.0.32
-docker push $REGISTRY/hta-web:v1.0.39
-docker push $REGISTRY/hta-worker:v1.0.22
+docker push $REGISTRY/hta-api:v1.0.33
+docker push $REGISTRY/hta-web:v1.0.40
+docker push $REGISTRY/hta-worker:v1.0.23
 ```
 
 #### Option A: Build Locally (Linux/Mac)
