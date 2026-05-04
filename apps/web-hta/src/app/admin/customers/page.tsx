@@ -176,6 +176,7 @@ export default function CustomersPage() {
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Company</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Primary POC</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Users</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Certs</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Requests</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Status</th>
                     <th className="text-center py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[60px]">View</th>
@@ -208,6 +209,7 @@ export default function CustomersPage() {
                         )}
                       </td>
                       <td className="py-2.5 px-4 text-[#64748b]">{account.userCount}</td>
+                      <td className="py-2.5 px-4 text-[#64748b]">{account.certificateCount}</td>
                       <td className="py-2.5 px-4">
                         {account.pendingRequests > 0 ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#fef2f2] text-[#dc2626]">
@@ -248,7 +250,7 @@ export default function CustomersPage() {
           )}
 
           {/* Pagination */}
-          {pagination && pagination.totalPages > 1 && (
+          {pagination && (
             <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#f1f5f9]">
               <p className="text-[12.5px] text-[#94a3b8]">
                 Showing {(pagination.page - 1) * pagination.limit + 1}&ndash;

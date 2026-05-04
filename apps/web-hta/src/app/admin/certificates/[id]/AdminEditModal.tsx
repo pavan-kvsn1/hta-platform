@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { X, Loader2, Shield } from 'lucide-react'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface AdminEditModalProps {
   isOpen: boolean
@@ -154,11 +155,9 @@ export function AdminEditModal({
               />
             )}
             {fieldType === 'date' && (
-              <input
-                type="date"
+              <DatePicker
                 value={formatDateForInput(newValue)}
-                onChange={(e) => setNewValue(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
+                onChange={setNewValue}
               />
             )}
             {fieldType === 'select' && options && (

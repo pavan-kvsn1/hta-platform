@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Send, Save, Loader2, AlertTriangle, MessageSquare, User, ChevronDown, ChevronUp, ChevronRight, Calendar, ArrowRight, MapPin, Lock, Clock, CheckCircle } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowLeft, Send, Save, Loader2, AlertTriangle, MessageSquare, User, ChevronDown, ChevronUp, ChevronRight, Calendar, ArrowRight, MapPin, Lock, Clock, CheckCircle, PenLine, Camera, ZoomIn, X, Image as ImageIcon } from 'lucide-react'
 import {
   SummarySection,
   UUCSection,
@@ -15,7 +16,7 @@ import {
   FinalizeSection,
   SectionFeedback,
 } from '@/components/forms'
-import { FeedbackTimeline } from '@/components/feedback/shared'
+import { FeedbackTimeline, type InternalRequestItem } from '@/components/feedback/shared'
 import { useCertificateStore, CertificateFormData, Parameter, CalibrationResult } from '@/lib/stores/certificate-store'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +25,7 @@ import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { SectionUnlockRequest } from '@/components/engineer/SectionUnlockRequest'
 import { ConflictResolutionDialog } from '@/components/certificates'
 import { apiFetch } from '@/lib/api-client'
+import { useCertificateImages, type CertificateImage } from '@/lib/hooks/useCertificateImages'
 
 const SECTIONS: { id: string; label: string; showWhenNotDraft?: boolean }[] = [
   { id: 'summary', label: 'Summary' },
@@ -173,6 +175,30 @@ interface ApiEvent {
     name: string
     role: string
   }
+}
+
+interface FieldChangeRequest {
+  id: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  fields: string[]
+  description: string
+  adminNote: string | null
+  reviewedBy: string | null
+  reviewedAt: string | null
+  createdAt: string
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  certificateNumber: 'Certificate Number',
+  srfNumber: 'SRF Number',
+  srfDate: 'SRF Date',
+  customerName: 'Customer Name',
+  customerAddress: 'Customer Address',
+  customerContactName: 'Contact Name',
+  customerContactEmail: 'Contact Email',
+  calibratedAt: 'Calibrated At',
+  dateOfCalibration: 'Date of Calibration',
+  calibrationDueDate: 'Calibration Due Date',
 }
 
 function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFormData> {
@@ -594,8 +620,287 @@ function mergeDateAdjustmentsWithFeedbacks(
   })
 }
 
+// ── TAT Banner (12h target for engineer) ────────────────────────────────
+function formatTATTime(ms: number): { hours: number; minutes: number } {
+  const hours = Math.floor(ms / (1000 * 60 * 60))
+  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60))
+  return { hours, minutes }
+}
+
+function TATBanner({ sentAt, certificateCreatedAt, targetHours = 12, totalTargetHours = 48 }: { sentAt: string; certificateCreatedAt?: string | null; targetHours?: number; totalTargetHours?: number }) {
+  const [elapsed, setElapsed] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 })
+  const [remaining, setRemaining] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 })
+  const [totalElapsed, setTotalElapsed] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 })
+  const [totalRemaining, setTotalRemaining] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 })
+  const [status, setStatus] = useState<'good' | 'warning' | 'critical'>('good')
+  const [totalStatus, setTotalStatus] = useState<'good' | 'warning' | 'critical'>('good')
+
+  useEffect(() => {
+    const calculateTAT = () => {
+      const now = Date.now()
+
+      // Phase TAT (12h target)
+      const sentTime = new Date(sentAt).getTime()
+      const elapsedMs = now - sentTime
+      const targetMs = targetHours * 60 * 60 * 1000
+      const remainingMs = targetMs - elapsedMs
+
+      setElapsed(formatTATTime(elapsedMs))
+
+      if (remainingMs <= 0) {
+        setRemaining({ hours: 0, minutes: 0 })
+        setStatus('critical')
+      } else if (remainingMs <= 3 * 60 * 60 * 1000) {
+        setRemaining(formatTATTime(remainingMs))
+        setStatus('warning')
+      } else {
+        setRemaining(formatTATTime(remainingMs))
+        setStatus('good')
+      }
+
+      // Total TAT (48h target)
+      if (certificateCreatedAt) {
+        const createdTime = new Date(certificateCreatedAt).getTime()
+        const totalElapsedMs = now - createdTime
+        const totalTargetMs = totalTargetHours * 60 * 60 * 1000
+        const totalRemainingMs = totalTargetMs - totalElapsedMs
+
+        setTotalElapsed(formatTATTime(totalElapsedMs))
+
+        if (totalRemainingMs <= 0) {
+          setTotalRemaining({ hours: 0, minutes: 0 })
+          setTotalStatus('critical')
+        } else if (totalRemainingMs <= 8 * 60 * 60 * 1000) {
+          setTotalRemaining(formatTATTime(totalRemainingMs))
+          setTotalStatus('warning')
+        } else {
+          setTotalRemaining(formatTATTime(totalRemainingMs))
+          setTotalStatus('good')
+        }
+      }
+    }
+
+    calculateTAT()
+    const interval = setInterval(calculateTAT, 60000)
+    return () => clearInterval(interval)
+  }, [sentAt, certificateCreatedAt, targetHours, totalTargetHours])
+
+  const config = {
+    good: { bg: 'bg-[#f0fdf4]', border: 'border-[#bbf7d0]', text: 'text-[#166534]', icon: <Clock className="size-3.5 text-[#16a34a]" /> },
+    warning: { bg: 'bg-[#fffbeb]', border: 'border-[#fde68a]', text: 'text-[#92400e]', icon: <AlertTriangle className="size-3.5 text-[#d97706]" /> },
+    critical: { bg: 'bg-[#fef2f2]', border: 'border-[#fecaca]', text: 'text-[#991b1b]', icon: <AlertTriangle className="size-3.5 text-[#dc2626]" /> },
+  }
+
+  const c = config[status]
+  const totalColor = totalStatus === 'critical' ? 'text-[#dc2626]' : totalStatus === 'warning' ? 'text-[#d97706]' : 'text-[#64748b]'
+
+  return (
+    <div className={cn('px-4 py-2 rounded-xl border flex items-center justify-between text-[12.5px]', c.bg, c.border, c.text)}>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          {c.icon}
+          <span className="font-semibold">
+            Phase: {elapsed.hours}h {elapsed.minutes}m
+          </span>
+        </div>
+        <span className="text-[#e2e8f0]">|</span>
+        {status === 'critical' ? (
+          <span className="font-semibold">{targetHours}h target exceeded</span>
+        ) : (
+          <span>{remaining.hours}h {remaining.minutes}m of {targetHours}h left</span>
+        )}
+      </div>
+      {certificateCreatedAt && (
+        <div className={cn('flex items-center gap-1.5', totalColor)}>
+          <span className="text-[#cbd5e1]">|</span>
+          <span className="font-medium">
+            Total: {totalElapsed.hours}h {totalElapsed.minutes}m
+          </span>
+          <span className="opacity-60">·</span>
+          {totalStatus === 'critical' ? (
+            <span className="font-semibold">{totalTargetHours}h exceeded</span>
+          ) : (
+            <span>{totalRemaining.hours}h {totalRemaining.minutes}m of {totalTargetHours}h left</span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Photos Summary Panel ────────────────────────────────────────────
+interface PhotoGroup {
+  label: string
+  images: CertificateImage[]
+}
+
+function PhotosSummaryPanel({
+  images,
+  masterInstruments,
+  parameters,
+}: {
+  images: CertificateImage[]
+  masterInstruments: { description: string }[]
+  parameters: { parameterName: string }[]
+}) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [previewImage, setPreviewImage] = useState<CertificateImage | null>(null)
+
+  const groups = useMemo<PhotoGroup[]>(() => {
+    const result: PhotoGroup[] = []
+
+    // UUC images
+    const uucImages = images.filter(i => i.imageType === 'UUC')
+    result.push({ label: 'UUC', images: uucImages })
+
+    // Master instrument images – one group per instrument
+    const miIndexes = [...new Set(images.filter(i => i.imageType === 'MASTER_INSTRUMENT').map(i => i.masterInstrumentIndex!))]
+      .sort((a, b) => a - b)
+    for (const idx of miIndexes) {
+      const miImages = images.filter(i => i.imageType === 'MASTER_INSTRUMENT' && i.masterInstrumentIndex === idx)
+      const label = masterInstruments[idx]?.description || `Instrument ${idx + 1}`
+      result.push({ label, images: miImages })
+    }
+    // If no MI images exist but instruments are present, show empty group
+    if (miIndexes.length === 0 && masterInstruments.length > 0) {
+      result.push({ label: 'Master Inst.', images: [] })
+    }
+
+    // Reading images – grouped together
+    const readingImages = images.filter(i => i.imageType === 'READING_UUC' || i.imageType === 'READING_MASTER')
+    result.push({ label: 'Readings', images: readingImages })
+
+    return result
+  }, [images, masterInstruments])
+
+  const totalCount = images.length
+  const toggle = (key: string) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
+
+  return (
+    <>
+      <div className="w-[180px] bg-white rounded-[14px] border border-[#e2e8f0] flex flex-col min-h-0 overflow-hidden flex-1">
+        {/* Header */}
+        <div className="flex-shrink-0 px-3.5 py-2.5 border-b border-[#f1f5f9] flex items-center gap-2">
+          <Camera className="size-3.5 text-[#94a3b8]" />
+          <span className="text-[11px] font-mono font-medium uppercase tracking-[0.06em] text-[#94a3b8]">
+            Photos
+          </span>
+          <span className="ml-auto text-[10px] font-medium text-[#94a3b8] bg-[#f1f5f9] rounded-full px-1.5 py-0.5">
+            {totalCount}
+          </span>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-1.5">
+          {totalCount === 0 && (
+            <div className="flex flex-col items-center justify-center py-4 text-center">
+              <ImageIcon className="size-5 text-[#cbd5e1] mb-1.5" />
+              <p className="text-[10px] text-[#94a3b8]">No photos uploaded</p>
+            </div>
+          )}
+          {groups.map((group) => {
+            const key = group.label
+            const isCollapsed = collapsed[key] ?? (group.images.length === 0)
+            return (
+              <div key={key}>
+                <button
+                  type="button"
+                  onClick={() => toggle(key)}
+                  className="flex items-center gap-1.5 w-full text-left py-1"
+                >
+                  <ChevronRight
+                    className={cn(
+                      'size-3 text-[#94a3b8] transition-transform',
+                      !isCollapsed && 'rotate-90',
+                    )}
+                  />
+                  <span className="text-[11px] font-semibold text-[#475569] truncate">{group.label}</span>
+                  <span className="text-[10px] text-[#94a3b8] ml-auto">{group.images.length}</span>
+                </button>
+
+                {!isCollapsed && (
+                  <div className="mt-1 mb-1.5">
+                    {group.images.length === 0 ? (
+                      <p className="text-[10px] text-[#94a3b8] pl-4.5 italic">No photos</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {group.images.map((img) => (
+                          <button
+                            key={img.id}
+                            type="button"
+                            onClick={() => setPreviewImage(img)}
+                            className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50 group cursor-pointer"
+                          >
+                            {img.thumbnailUrl ? (
+                              <Image
+                                src={img.thumbnailUrl}
+                                alt={img.fileName}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                {img.isProcessing ? (
+                                  <Loader2 className="size-4 text-slate-400 animate-spin" />
+                                ) : (
+                                  <ImageIcon className="size-4 text-slate-300" />
+                                )}
+                              </div>
+                            )}
+                            {/* Hover overlay */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <ZoomIn className="size-4 text-white" />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Lightbox */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-full" style={{ width: '100%', height: '80vh' }}>
+            <Image
+              src={previewImage.optimizedUrl || previewImage.originalUrl || ''}
+              alt={previewImage.fileName}
+              fill
+              className="object-contain rounded-lg"
+              unoptimized
+            />
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-2 right-2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="absolute bottom-2 left-2 right-2 bg-black/50 rounded-lg p-2">
+              <p className="text-white text-sm truncate">{previewImage.fileName}</p>
+              {previewImage.caption && (
+                <p className="text-white/80 text-xs mt-1">{previewImage.caption}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function EditCertificatePage() {
   const params = useParams()
+  const router = useRouter()
   const certificateId = params.id as string
 
   const { formData, isDirty, isSaving, saveDraft, loadForm, setCertificateId } = useCertificateStore()
@@ -609,6 +914,11 @@ export default function EditCertificatePage() {
   const [currentRevision, setCurrentRevision] = useState(1)
   const [reviewerName, setReviewerName] = useState<string | null>(null)
   const [isChatExpanded, setIsChatExpanded] = useState(true)
+  const [isFieldChangeLogsExpanded, setIsFieldChangeLogsExpanded] = useState(true)
+  const [fieldChangeRequests, setFieldChangeRequests] = useState<FieldChangeRequest[]>([])
+  const [unlockRequests, setUnlockRequests] = useState<InternalRequestItem[]>([])
+  const [tatStartedAt, setTatStartedAt] = useState<string | null>(null)
+  const [certificateCreatedAt, setCertificateCreatedAt] = useState<string | null>(null)
   const [unlockedSections, setUnlockedSections] = useState<string[]>([])
   const [pendingSections, setPendingSections] = useState<string[]>([])
   const [customerFeedback, setCustomerFeedback] = useState<{
@@ -626,6 +936,9 @@ export default function EditCertificatePage() {
     hasConflict: boolean
     serverTimestamp: Date | null
   } | null>(null)
+
+  // Photos
+  const { images: certificateImages } = useCertificateImages({ certificateId, autoRefresh: true })
 
   // Fetch unlock requests when certificate is in REVISION_REQUIRED status
   useEffect(() => {
@@ -646,6 +959,19 @@ export default function EditCertificatePage() {
             .filter((r: { status: string }) => r.status === 'PENDING')
             .flatMap((r: { data: { sections: string[] } }) => r.data.sections)
           setPendingSections(pending)
+          // Store full requests for timeline display
+          setUnlockRequests((data.requests || []).map((r: { id: string; status: string; data: { sections?: string[]; reason?: string; revisionNumber?: number }; requestedBy?: { name: string }; reviewedBy?: { name: string } | null; adminNote?: string | null; createdAt: string }) => ({
+            id: r.id,
+            type: 'SECTION_UNLOCK' as const,
+            status: r.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+            sections: r.data.sections || [],
+            reason: r.data.reason || '',
+            adminNote: r.adminNote || null,
+            requestedByName: r.requestedBy?.name || undefined,
+            reviewedByName: r.reviewedBy?.name || null,
+            createdAt: r.createdAt,
+            revisionNumber: r.data.revisionNumber,
+          })))
         }
       } catch (error) {
         console.error('Error fetching unlock requests:', error)
@@ -656,6 +982,34 @@ export default function EditCertificatePage() {
       fetchUnlockRequests()
     }
   }, [certificateId, formData.status, isLoading])
+
+  // Fetch field change requests for this certificate
+  useEffect(() => {
+    async function fetchFieldChangeRequests() {
+      try {
+        const response = await apiFetch(`/api/certificates/${certificateId}/field-change-requests`)
+        if (response.ok) {
+          const data = await response.json()
+          setFieldChangeRequests((data.requests || []).map((r: { id: string; status: string; fields: string[]; description: string; adminNote: string | null; reviewedBy: { name: string } | null; reviewedAt: string | null; createdAt: string }) => ({
+            id: r.id,
+            status: r.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+            fields: r.fields || [],
+            description: r.description || '',
+            adminNote: r.adminNote,
+            reviewedBy: r.reviewedBy?.name || null,
+            reviewedAt: r.reviewedAt,
+            createdAt: r.createdAt,
+          })))
+        }
+      } catch (error) {
+        console.error('Error fetching field change requests:', error)
+      }
+    }
+
+    if (certificateId && !isLoading) {
+      fetchFieldChangeRequests()
+    }
+  }, [certificateId, isLoading])
 
   // Calculate which sections have feedback targeting them (only from current revision)
   const sectionsWithFeedback = feedbacks
@@ -741,8 +1095,9 @@ export default function EditCertificatePage() {
 
         const data: ApiCertificate = await response.json()
 
-        if (data.status === 'APPROVED' || data.status === 'REJECTED') {
-          setLoadError('This certificate cannot be edited')
+        const editableStatuses = ['DRAFT', 'REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED']
+        if (!editableStatuses.includes(data.status)) {
+          router.replace(`/dashboard/certificates/${certificateId}/view`)
           return
         }
 
@@ -780,6 +1135,34 @@ export default function EditCertificatePage() {
               // If parsing fails, ignore
             }
           }
+        }
+
+        // Compute TAT start for engineer
+        let computedTatStart: string | null = null
+        if (data.events && data.events.length > 0) {
+          if (data.status === 'DRAFT') {
+            const createdEvent = data.events.find((e: { eventType: string }) => e.eventType === 'CERTIFICATE_CREATED')
+            computedTatStart = createdEvent?.createdAt || data.updatedAt
+          } else if (data.status === 'REVISION_REQUIRED') {
+            const revisionEvent = [...data.events]
+              .filter((e: { eventType: string }) => e.eventType === 'REVISION_REQUESTED' || e.eventType === 'CUSTOMER_REVISION_FORWARDED')
+              .sort((a: { createdAt: string }, b: { createdAt: string }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+            computedTatStart = revisionEvent?.createdAt || null
+          } else if (data.status === 'CUSTOMER_REVISION_REQUIRED') {
+            const customerRevEvent = [...data.events]
+              .filter((e: { eventType: string }) => e.eventType === 'CUSTOMER_REVISION_REQUESTED')
+              .sort((a: { createdAt: string }, b: { createdAt: string }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+            computedTatStart = customerRevEvent?.createdAt || null
+          }
+        }
+        setTatStartedAt(computedTatStart)
+
+        // Capture certificate creation time for total TAT
+        if (data.events && data.events.length > 0) {
+          const createdEvent = data.events.find((e: { eventType: string }) => e.eventType === 'CERTIFICATE_CREATED')
+          setCertificateCreatedAt(createdEvent?.createdAt || data.updatedAt)
+        } else {
+          setCertificateCreatedAt(data.updatedAt)
         }
 
         setCurrentRevision(data.currentRevision ?? 1)
@@ -900,8 +1283,8 @@ export default function EditCertificatePage() {
 
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
-      {/* Progress Sidebar */}
-      <div className="flex-shrink-0 p-2.5 pr-0">
+      {/* Progress Sidebar + Photos */}
+      <div className="flex-shrink-0 p-2.5 pr-0 flex flex-col gap-2.5 h-full">
         <ProgressSidebar
           sections={SECTIONS.filter(section => !section.showWhenNotDraft || formData.status !== 'DRAFT')}
           activeSection={activeSection}
@@ -913,11 +1296,21 @@ export default function EditCertificatePage() {
           onSectionClick={scrollToSection}
           completedSections={completedSections}
         />
+        <PhotosSummaryPanel
+          images={certificateImages}
+          masterInstruments={formData.masterInstruments}
+          parameters={formData.parameters}
+        />
       </div>
 
       {/* Form Card */}
-      <div className="flex-1 min-w-0 p-2.5">
-        <div className="h-full flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+      <div className="flex-1 min-w-0 p-2.5 flex flex-col">
+        {tatStartedAt && (
+          <div className="flex-shrink-0 mb-2">
+            <TATBanner sentAt={tatStartedAt} certificateCreatedAt={certificateCreatedAt} />
+          </div>
+        )}
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
           {/* Header */}
           <div className="flex-shrink-0 border-b border-[#e2e8f0] px-5 py-3.5">
             <div className="flex items-center justify-between">
@@ -1123,7 +1516,7 @@ export default function EditCertificatePage() {
                   hasFeedback={sectionsWithFeedback.includes('conclusion')}
                 />
                 {/* Feedback History Section */}
-                {formData.status !== 'DRAFT' && (feedbacks.length > 0 || customerFeedback) && (
+                {formData.status !== 'DRAFT' && (feedbacks.length > 0 || customerFeedback || unlockRequests.length > 0 || fieldChangeRequests.length > 0) && (
                   <FeedbackTimeline
                     feedbacks={feedbacks}
                     currentRevision={currentRevision}
@@ -1132,6 +1525,19 @@ export default function EditCertificatePage() {
                     groupBySection={true}
                     showRevisionTransition={true}
                     customerFeedback={customerFeedback}
+                    internalRequests={[
+                      ...unlockRequests,
+                      ...fieldChangeRequests.map((r): InternalRequestItem => ({
+                        id: r.id,
+                        type: 'FIELD_CHANGE',
+                        status: r.status,
+                        fields: r.fields,
+                        description: r.description,
+                        adminNote: r.adminNote,
+                        reviewedByName: r.reviewedBy,
+                        createdAt: r.createdAt,
+                      })),
+                    ]}
                   />
                 )}
                 <FinalizeSection feedbacks={feedbacks} reviewerName={reviewerName} />
@@ -1141,44 +1547,44 @@ export default function EditCertificatePage() {
         </div>
       </div>
 
-      {/* Right Panel - Chat & Unlock (shown when reviewer assigned or revision required) */}
+      {/* Right Panel - Chat, Unlock & Field Change Logs */}
       {(formData.status === 'REVISION_REQUIRED' || reviewerName) && (
         <div className="w-[340px] flex-shrink-0 flex flex-col gap-2.5 p-2.5 pl-0 h-full overflow-hidden">
-          {/* Chat Box */}
+
+          {/* ===== CHAT SECTION ===== */}
           <div className={cn(
-            'flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden',
+            'flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden',
             isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
           )}>
-            {/* Chat Header */}
             <button
               onClick={() => setIsChatExpanded(!isChatExpanded)}
-              className="flex items-center justify-between px-3.5 py-2.5 hover:bg-[#f8fafc] transition-colors flex-shrink-0"
+              className="flex items-center justify-between px-[18px] py-[13px] hover:bg-[#f8fafc] transition-colors flex-shrink-0"
             >
               <div className="flex items-center gap-2">
-                {isChatExpanded ? (
-                  <ChevronDown className="size-3.5 text-[#94a3b8]" />
-                ) : (
-                  <ChevronRight className="size-3.5 text-[#94a3b8]" />
-                )}
-                <span className="text-[11px] font-mono font-medium text-[#64748b] uppercase tracking-[0.05em]">Chat with Reviewer</span>
+                <MessageSquare className="size-[14px] text-[#94a3b8]" />
+                <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Chat</span>
               </div>
+              {isChatExpanded ? (
+                <ChevronUp className="size-3.5 text-[#94a3b8]" />
+              ) : (
+                <ChevronDown className="size-3.5 text-[#94a3b8]" />
+              )}
             </button>
 
-            {/* Chat Content */}
             {isChatExpanded && (
               <div className="flex-1 flex flex-col min-h-0">
                 {reviewerName && (
-                  <div className="flex-shrink-0 px-3.5 py-2.5 border-t border-b border-[#f1f5f9] bg-[#f8fafc]">
+                  <div className="flex-shrink-0 px-[18px] py-[14px] border-b border-[#f8fafc]">
                     <div className="flex items-center gap-2.5">
-                      <div className="size-8 rounded-full bg-[#0f1e2e] text-white flex items-center justify-center font-semibold text-[11px] flex-shrink-0">
+                      <div className="w-[38px] h-[38px] rounded-full bg-[#0f1e2e] text-white flex items-center justify-center font-bold text-[13px] flex-shrink-0">
                         {reviewerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold text-[#0f172a] truncate">{reviewerName}</p>
-                        <p className="text-[11px] text-[#94a3b8] flex items-center gap-1.5">
+                        <p className="text-[14px] font-bold text-[#0f172a] truncate">{reviewerName}</p>
+                        <p className="text-[12px] text-[#94a3b8] flex items-center gap-[5px] mt-px">
                           <span>Reviewer</span>
-                          <span className="size-1.5 rounded-full bg-[#16a34a]" />
-                          <span className="text-[#16a34a]">Online</span>
+                          <span className="w-[7px] h-[7px] rounded-full bg-[#22c55e] inline-block flex-shrink-0" />
+                          <span className="text-[#22c55e]">Online</span>
                         </p>
                       </div>
                     </div>
@@ -1207,13 +1613,94 @@ export default function EditCertificatePage() {
             )}
           </div>
 
-          {/* Section Unlock Request */}
-          <div className="flex-shrink-0 max-h-[45%] overflow-auto">
+          {/* ===== SECTION UNLOCK SECTION ===== */}
+          <div className="flex-shrink-0 max-h-[40vh] overflow-auto">
             <SectionUnlockRequest
               certificateId={certificateId}
               certificateStatus={formData.status}
             />
           </div>
+
+          {/* ===== FIELD CHANGE LOGS SECTION (Read-only) ===== */}
+          {fieldChangeRequests.length > 0 && (
+            <div className="flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden flex-shrink-0">
+              <button
+                onClick={() => setIsFieldChangeLogsExpanded(!isFieldChangeLogsExpanded)}
+                className="flex items-center justify-between px-[18px] py-[13px] hover:bg-[#f8fafc] transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <PenLine className="size-[14px] text-[#94a3b8]" />
+                  <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Field Changes</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {fieldChangeRequests.some(r => r.status === 'PENDING') && (
+                    <span className="px-1.5 py-0.5 bg-[#fef9c3] text-[#a16207] rounded text-[10px] font-semibold">
+                      {fieldChangeRequests.filter(r => r.status === 'PENDING').length} pending
+                    </span>
+                  )}
+                  {isFieldChangeLogsExpanded ? (
+                    <ChevronUp className="size-3.5 text-[#94a3b8]" />
+                  ) : (
+                    <ChevronDown className="size-3.5 text-[#94a3b8]" />
+                  )}
+                </div>
+              </button>
+
+              {isFieldChangeLogsExpanded && (
+                <div className="px-[18px] pb-[18px] pt-3 space-y-2.5 border-t border-[#f1f5f9] max-h-[40vh] overflow-auto">
+                  {fieldChangeRequests.map((req) => {
+                    const fieldLabels = req.fields.map(f => FIELD_LABELS[f] || f)
+
+                    return (
+                      <div
+                        key={req.id}
+                        className={cn(
+                          'rounded-xl border p-3 space-y-1.5',
+                          req.status === 'PENDING' && 'border-[#fde68a] bg-[#fefce8]',
+                          req.status === 'APPROVED' && 'border-[#bbf7d0] bg-[#f0fdf4]',
+                          req.status === 'REJECTED' && 'border-[#fecaca] bg-[#fef2f2]'
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-wrap gap-1">
+                            {fieldLabels.map((label) => (
+                              <span
+                                key={label}
+                                className={cn(
+                                  'px-1.5 py-0.5 rounded text-[10px] font-medium',
+                                  req.status === 'PENDING' && 'bg-[#fef3c7] text-[#a16207]',
+                                  req.status === 'APPROVED' && 'bg-[#dcfce7] text-[#166534]',
+                                  req.status === 'REJECTED' && 'bg-[#fee2e2] text-[#991b1b]'
+                                )}
+                              >
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+                          <span className={cn(
+                            'text-[10px] font-semibold',
+                            req.status === 'PENDING' && 'text-[#d97706]',
+                            req.status === 'APPROVED' && 'text-[#16a34a]',
+                            req.status === 'REJECTED' && 'text-[#dc2626]'
+                          )}>
+                            {req.status === 'PENDING' ? 'Pending' : req.status === 'APPROVED' ? 'Applied' : 'Rejected'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#64748b] line-clamp-2">{req.description}</p>
+                        {req.adminNote && (
+                          <p className="text-[11px] text-[#94a3b8] italic">&ldquo;{req.adminNote}&rdquo;</p>
+                        )}
+                        <p className="text-[10px] text-[#94a3b8]">
+                          {new Date(req.createdAt).toLocaleDateString()}
+                          {req.reviewedBy && ` · ${req.reviewedBy}`}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -241,14 +241,10 @@ export default function CustomerInstrumentDetailPage({
             <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-4">
               Calibration Information
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <DetailField label="Calibrated At">{instrument.calibratedAtLocation || '-'}</DetailField>
               <DetailField label="Report Number">{instrument.reportNo || '-'}</DetailField>
               <DetailField label="Due Date">{formatDate(instrument.calibrationDueDate)}</DetailField>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-1">Status</p>
-                <StatusBadge status={instrument.status} />
-              </div>
             </div>
           </div>
 
@@ -259,24 +255,24 @@ export default function CustomerInstrumentDetailPage({
                 Range Data
               </h3>
               <div className="overflow-x-auto">
-                <table className="min-w-full">
+                <table className="min-w-full table-fixed">
                   <thead>
                     <tr className="border-b border-[#f1f5f9]">
-                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Parameter</th>
-                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Min</th>
-                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Max</th>
-                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Unit</th>
-                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Uncertainty</th>
+                      <th className="w-1/5 px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Parameter</th>
+                      <th className="w-1/5 px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Min</th>
+                      <th className="w-1/5 px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Max</th>
+                      <th className="w-1/5 px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Unit</th>
+                      <th className="w-1/5 px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Uncertainty</th>
                     </tr>
                   </thead>
                   <tbody>
                     {instrument.rangeData.map((range, idx) => (
                       <tr key={idx} className="border-b border-[#f1f5f9] last:border-0">
-                        <td className="px-4 py-2.5 text-[13px] text-[#0f172a]">{range.parameter || '-'}</td>
-                        <td className="px-4 py-2.5 text-[13px] text-[#64748b]">{range.min || '-'}</td>
-                        <td className="px-4 py-2.5 text-[13px] text-[#64748b]">{range.max || '-'}</td>
-                        <td className="px-4 py-2.5 text-[13px] text-[#64748b]">{range.unit || '-'}</td>
-                        <td className="px-4 py-2.5 text-[13px] text-[#64748b]">{range.uncertainty || '-'}</td>
+                        <td className="w-1/5 px-4 py-2.5 text-[13px] text-[#0f172a]">{range.parameter || '-'}</td>
+                        <td className="w-1/5 px-4 py-2.5 text-[13px] text-[#64748b]">{range.min || '-'}</td>
+                        <td className="w-1/5 px-4 py-2.5 text-[13px] text-[#64748b]">{range.max || '-'}</td>
+                        <td className="w-1/5 px-4 py-2.5 text-[13px] text-[#64748b]">{range.unit || '-'}</td>
+                        <td className="w-1/5 px-4 py-2.5 text-[13px] text-[#64748b]">{range.uncertainty || '-'}</td>
                       </tr>
                     ))}
                   </tbody>

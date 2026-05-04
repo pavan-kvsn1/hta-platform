@@ -2,7 +2,7 @@
 
 import { apiFetch } from '@/lib/api-client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -28,13 +28,16 @@ import {
   Plus,
   Trash2,
   Clock,
+  AlertTriangle,
   MessageSquare,
   Settings2,
+  PenLine,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ViewToggleButton } from '@/components/certificate/ViewToggleButton'
 import { MetaInfoItem } from '@/components/certificate/MetaInfoItem'
-import { TATBadge } from '@/components/certificate/TATBadge'
 import { REVISION_SECTIONS } from '@/components/feedback/shared/feedback-utils'
 import type { ClientEvidence } from '@/types/signatures'
 import type {
@@ -60,6 +63,43 @@ interface LastSentCustomerInfo {
   name: string | null
 }
 
+interface FieldChangeRequest {
+  id: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  fields: string[]
+  description: string
+  adminNote: string | null
+  reviewedBy: string | null
+  reviewedAt: string | null
+  createdAt: string
+}
+
+const FIELD_OPTIONS = [
+  { id: 'certificateNumber', label: 'Certificate Number' },
+  { id: 'srfNumber', label: 'SRF Number' },
+  { id: 'srfDate', label: 'SRF Date' },
+  { id: 'customerName', label: 'Customer Name' },
+  { id: 'customerAddress', label: 'Customer Address' },
+  { id: 'customerContactName', label: 'Contact Name' },
+  { id: 'customerContactEmail', label: 'Contact Email' },
+  { id: 'calibratedAt', label: 'Calibrated At' },
+  { id: 'dateOfCalibration', label: 'Date of Calibration' },
+  { id: 'calibrationDueDate', label: 'Calibration Due Date' },
+] as const
+
+interface SectionUnlockRequestData {
+  id: string
+  type: 'SECTION_UNLOCK'
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  sections: string[]
+  reason: string
+  adminNote: string | null
+  requestedByName?: string
+  reviewedByName?: string | null
+  createdAt: string
+  revisionNumber?: number
+}
+
 interface ReviewerPageClientProps {
   certificate: CertificateData
   assignee: Assignee
@@ -69,7 +109,118 @@ interface ReviewerPageClientProps {
   userRole: string
   customerFeedback: CustomerFeedback | null
   lastSentCustomerInfo: LastSentCustomerInfo | null
+  tatStartedAt: string | null
+  certificateCreatedAt: string
+  fieldChangeRequests: FieldChangeRequest[]
+  sectionUnlockRequests: SectionUnlockRequestData[]
 }
+
+// ─── TAT Banner (12h target for reviewer) ───
+
+function formatTATTime(ms: number): { hours: number; minutes: number } {
+  const hours = Math.floor(ms / (1000 * 60 * 60))
+  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60))
+  return { hours, minutes }
+}
+
+function TATBanner({ sentAt, certificateCreatedAt, targetHours = 12, totalTargetHours = 48 }: { sentAt: string; certificateCreatedAt: string; targetHours?: number; totalTargetHours?: number }) {
+  const [elapsed, setElapsed] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 })
+  const [remaining, setRemaining] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 })
+  const [totalElapsed, setTotalElapsed] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 })
+  const [totalRemaining, setTotalRemaining] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 })
+  const [status, setStatus] = useState<'good' | 'warning' | 'critical'>('good')
+  const [totalStatus, setTotalStatus] = useState<'good' | 'warning' | 'critical'>('good')
+
+  useEffect(() => {
+    const calculateTAT = () => {
+      const now = Date.now()
+
+      // Phase TAT (12h target)
+      const sentTime = new Date(sentAt).getTime()
+      const elapsedMs = now - sentTime
+      const targetMs = targetHours * 60 * 60 * 1000
+      const remainingMs = targetMs - elapsedMs
+
+      setElapsed(formatTATTime(elapsedMs))
+
+      if (remainingMs <= 0) {
+        setRemaining({ hours: 0, minutes: 0 })
+        setStatus('critical')
+      } else if (remainingMs <= 3 * 60 * 60 * 1000) {
+        setRemaining(formatTATTime(remainingMs))
+        setStatus('warning')
+      } else {
+        setRemaining(formatTATTime(remainingMs))
+        setStatus('good')
+      }
+
+      // Total TAT (48h target)
+      const createdTime = new Date(certificateCreatedAt).getTime()
+      const totalElapsedMs = now - createdTime
+      const totalTargetMs = totalTargetHours * 60 * 60 * 1000
+      const totalRemainingMs = totalTargetMs - totalElapsedMs
+
+      setTotalElapsed(formatTATTime(totalElapsedMs))
+
+      if (totalRemainingMs <= 0) {
+        setTotalRemaining({ hours: 0, minutes: 0 })
+        setTotalStatus('critical')
+      } else if (totalRemainingMs <= 8 * 60 * 60 * 1000) {
+        setTotalRemaining(formatTATTime(totalRemainingMs))
+        setTotalStatus('warning')
+      } else {
+        setTotalRemaining(formatTATTime(totalRemainingMs))
+        setTotalStatus('good')
+      }
+    }
+
+    calculateTAT()
+    const interval = setInterval(calculateTAT, 60000)
+    return () => clearInterval(interval)
+  }, [sentAt, certificateCreatedAt, targetHours, totalTargetHours])
+
+  const config = {
+    good: { bg: 'bg-[#f0fdf4]', border: 'border-[#bbf7d0]', text: 'text-[#166534]', icon: <Clock className="size-3.5 text-[#16a34a]" /> },
+    warning: { bg: 'bg-[#fffbeb]', border: 'border-[#fde68a]', text: 'text-[#92400e]', icon: <AlertTriangle className="size-3.5 text-[#d97706]" /> },
+    critical: { bg: 'bg-[#fef2f2]', border: 'border-[#fecaca]', text: 'text-[#991b1b]', icon: <AlertTriangle className="size-3.5 text-[#dc2626]" /> },
+  }
+
+  const c = config[status]
+
+  const totalColor = totalStatus === 'critical' ? 'text-[#dc2626]' : totalStatus === 'warning' ? 'text-[#d97706]' : 'text-[#64748b]'
+
+  return (
+    <div className={cn('px-4 py-2 rounded-xl border flex items-center justify-between text-[12.5px]', c.bg, c.border, c.text)}>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          {c.icon}
+          <span className="font-semibold">
+            Phase: {elapsed.hours}h {elapsed.minutes}m
+          </span>
+        </div>
+        <span className="text-[#e2e8f0]">|</span>
+        {status === 'critical' ? (
+          <span className="font-semibold">{targetHours}h target exceeded</span>
+        ) : (
+          <span>{remaining.hours}h {remaining.minutes}m of {targetHours}h left</span>
+        )}
+      </div>
+      <div className={cn('flex items-center gap-1.5', totalColor)}>
+        <span className="text-[#cbd5e1]">|</span>
+        <span className="font-medium">
+          Total: {totalElapsed.hours}h {totalElapsed.minutes}m
+        </span>
+        <span className="opacity-60">·</span>
+        {totalStatus === 'critical' ? (
+          <span className="font-semibold">{totalTargetHours}h exceeded</span>
+        ) : (
+          <span>{totalRemaining.hours}h {totalRemaining.minutes}m of {totalTargetHours}h left</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function ReviewerPageClient({
   certificate,
   assignee,
@@ -79,6 +230,10 @@ export function ReviewerPageClient({
   userRole,
   customerFeedback,
   lastSentCustomerInfo,
+  tatStartedAt,
+  certificateCreatedAt,
+  fieldChangeRequests,
+  sectionUnlockRequests,
 }: ReviewerPageClientProps) {
   const router = useRouter()
 
@@ -96,8 +251,9 @@ export function ReviewerPageClient({
 
   // Form states - New section feedback entries structure
   const [sectionFeedbackEntries, setSectionFeedbackEntries] = useState<
-    { id: string; section: string; comment: string }[]
+    { id: string; section: string; comment: string; fromCustomer?: boolean }[]
   >([{ id: crypto.randomUUID(), section: '', comment: '' }])
+  const [forwardedCustomerItems, setForwardedCustomerItems] = useState<Set<number>>(new Set())
   const [generalNotes, setGeneralNotes] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [rejectStep, setRejectStep] = useState<'reason' | 'confirm'>('reason')
@@ -109,15 +265,27 @@ export function ReviewerPageClient({
   // Collapsible panel states
   const [isChatExpanded, setIsChatExpanded] = useState(true)
   const [isActionsExpanded, setIsActionsExpanded] = useState(true)
+  const [isRequestActionsExpanded, setIsRequestActionsExpanded] = useState(true)
+
+  // Field change request modal states
+  const [showFieldChangeModal, setShowFieldChangeModal] = useState(false)
+  const [selectedFields, setSelectedFields] = useState<string[]>([])
+  const [fieldChangeDescription, setFieldChangeDescription] = useState('')
+  const [isSubmittingFieldChange, setIsSubmittingFieldChange] = useState(false)
+  const [fieldChangeForwardedItems, setFieldChangeForwardedItems] = useState<Set<number>>(new Set())
+
+  // Resend to customer state
+  const [isResending, setIsResending] = useState(false)
 
   // View mode state: 'details' shows certificate content, 'pdf' shows PDF preview
   const [viewMode, setViewMode] = useState<'details' | 'pdf'>('details')
   const [isDownloading, setIsDownloading] = useState(false)
 
-  const decisionMade = ['APPROVED', 'PENDING_CUSTOMER_APPROVAL', 'PENDING_ADMIN_AUTHORIZATION', 'AUTHORIZED', 'REJECTED'].includes(certificate.status)
+  const decisionMade = ['APPROVED', 'PENDING_CUSTOMER_APPROVAL', 'PENDING_ADMIN_AUTHORIZATION', 'AUTHORIZED', 'REJECTED', 'CUSTOMER_REVIEW_EXPIRED'].includes(certificate.status)
   const canReview = !decisionMade && certificate.status !== 'REVISION_REQUIRED'
   const isRevisionRequired = certificate.status === 'REVISION_REQUIRED'
   const isCustomerRevisionRequired = certificate.status === 'CUSTOMER_REVISION_REQUIRED'
+  const isCustomerReviewExpired = certificate.status === 'CUSTOMER_REVIEW_EXPIRED'
   const isPendingCustomer = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
   const isPendingAdminAuth = certificate.status === 'PENDING_ADMIN_AUTHORIZATION'
   const isApproved = certificate.status === 'APPROVED'
@@ -125,7 +293,7 @@ export function ReviewerPageClient({
   const isRejected = certificate.status === 'REJECTED'
 
   // Customer chat only available when sent to customer or customer has responded
-  const canAccessCustomerChat = isPendingCustomer || isPendingAdminAuth || isApproved || isAuthorized || isCustomerRevisionRequired
+  const canAccessCustomerChat = isPendingCustomer || isPendingAdminAuth || isApproved || isAuthorized || isCustomerRevisionRequired || isCustomerReviewExpired
 
   // Approval data type for the modal
   interface ApprovalData {
@@ -211,6 +379,7 @@ export function ReviewerPageClient({
 
       setShowRevisionModal(false)
       setSectionFeedbackEntries([{ id: crypto.randomUUID(), section: '', comment: '' }])
+      setForwardedCustomerItems(new Set())
       setGeneralNotes('')
       router.refresh()
     } catch (err) {
@@ -230,8 +399,19 @@ export function ReviewerPageClient({
 
   const removeSectionEntry = (id: string) => {
     setSectionFeedbackEntries(prev => {
+      const entry = prev.find(e => e.id === id)
+      // If removing a customer-forwarded entry, uncheck it
+      if (entry?.fromCustomer && customerFeedback?.sectionFeedbacks) {
+        const custIdx = customerFeedback.sectionFeedbacks.findIndex(f => f.section === entry.section)
+        if (custIdx !== -1) {
+          setForwardedCustomerItems(s => {
+            const next = new Set(s)
+            next.delete(custIdx)
+            return next
+          })
+        }
+      }
       if (prev.length <= 1) {
-        // Don't remove last entry, just clear it
         return [{ id: crypto.randomUUID(), section: '', comment: '' }]
       }
       return prev.filter(e => e.id !== id)
@@ -251,6 +431,160 @@ export function ReviewerPageClient({
       .map(e => e.section)
     return REVISION_SECTIONS.filter(s => !selectedSections.includes(s.id))
   }
+
+  // Customer feedback forwarding handlers
+  const toggleCustomerFeedbackForward = (index: number) => {
+    const item = customerFeedback?.sectionFeedbacks?.[index]
+    if (!item) return
+
+    setForwardedCustomerItems(prev => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        // Unchecking — remove the auto-created entry
+        next.delete(index)
+        setSectionFeedbackEntries(entries => {
+          const filtered = entries.filter(e => !(e.fromCustomer && e.section === item.section))
+          return filtered.length === 0 ? [{ id: crypto.randomUUID(), section: '', comment: '' }] : filtered
+        })
+      } else {
+        // Checking — add entry if section not already present
+        next.add(index)
+        setSectionFeedbackEntries(entries => {
+          const alreadyHasSection = entries.some(e => e.section === item.section)
+          if (alreadyHasSection) return entries
+          // If there's only one empty entry, replace it
+          if (entries.length === 1 && !entries[0].section && !entries[0].comment.trim()) {
+            return [{ id: crypto.randomUUID(), section: item.section, comment: `${customerFeedback.customerName}: ${item.comment}`, fromCustomer: true }]
+          }
+          return [...entries, { id: crypto.randomUUID(), section: item.section, comment: `${customerFeedback.customerName}: ${item.comment}`, fromCustomer: true }]
+        })
+      }
+      return next
+    })
+  }
+
+  const forwardAllCustomerFeedback = () => {
+    if (!customerFeedback?.sectionFeedbacks) return
+    const allIndices = new Set(customerFeedback.sectionFeedbacks.map((_, i) => i))
+    setForwardedCustomerItems(allIndices)
+
+    setSectionFeedbackEntries(prev => {
+      const existingSections = new Set(prev.filter(e => e.section && !e.fromCustomer).map(e => e.section))
+      const customerEntries = customerFeedback.sectionFeedbacks!
+        .filter(item => !existingSections.has(item.section))
+        .map(item => ({
+          id: crypto.randomUUID(),
+          section: item.section,
+          comment: `${customerFeedback.customerName}: ${item.comment}`,
+          fromCustomer: true as const,
+        }))
+      // Remove old customer-forwarded entries, keep manual ones
+      const manualEntries = prev.filter(e => !e.fromCustomer && (e.section || e.comment.trim()))
+      const combined = [...customerEntries, ...manualEntries]
+      return combined.length > 0 ? combined : [{ id: crypto.randomUUID(), section: '', comment: '' }]
+    })
+
+    if (customerFeedback.generalNotes && !generalNotes.trim()) {
+      setGeneralNotes(`${customerFeedback.customerName}: ${customerFeedback.generalNotes}`)
+    }
+  }
+
+  const clearAllCustomerFeedback = () => {
+    if (!customerFeedback?.sectionFeedbacks) return
+    setForwardedCustomerItems(new Set())
+    setSectionFeedbackEntries(prev => {
+      const remaining = prev.filter(e => !e.fromCustomer)
+      return remaining.length > 0 ? remaining : [{ id: crypto.randomUUID(), section: '', comment: '' }]
+    })
+  }
+
+  // ─── Field Change Request handlers ───
+
+  const toggleFieldTag = (fieldId: string) => {
+    setSelectedFields(prev =>
+      prev.includes(fieldId) ? prev.filter(f => f !== fieldId) : [...prev, fieldId]
+    )
+  }
+
+  const toggleFieldChangeCustomerForward = (index: number) => {
+    const item = customerFeedback?.sectionFeedbacks?.[index]
+    if (!item) return
+
+    const isCurrentlyForwarded = fieldChangeForwardedItems.has(index)
+
+    if (isCurrentlyForwarded) {
+      setFieldChangeForwardedItems(prev => {
+        const next = new Set(prev)
+        next.delete(index)
+        return next
+      })
+    } else {
+      setFieldChangeForwardedItems(prev => {
+        const next = new Set(prev)
+        next.add(index)
+        return next
+      })
+      const prefix = `${customerFeedback.customerName}: ${item.comment}`
+      setFieldChangeDescription(d => d ? `${d}\n${prefix}` : prefix)
+    }
+  }
+
+  const forwardAllFieldChangeCustomer = () => {
+    if (!customerFeedback?.sectionFeedbacks) return
+    const allIndices = new Set(customerFeedback.sectionFeedbacks.map((_, i) => i))
+    setFieldChangeForwardedItems(allIndices)
+    const lines = customerFeedback.sectionFeedbacks.map(
+      item => `${customerFeedback.customerName}: ${item.comment}`
+    )
+    if (customerFeedback.generalNotes) {
+      lines.push(`${customerFeedback.customerName} (General): ${customerFeedback.generalNotes}`)
+    }
+    setFieldChangeDescription(prev => prev ? `${prev}\n${lines.join('\n')}` : lines.join('\n'))
+  }
+
+  const handleSubmitFieldChange = async () => {
+    if (selectedFields.length === 0) {
+      setError('Please select at least one field')
+      return
+    }
+    if (!fieldChangeDescription.trim()) {
+      setError('Please provide a description')
+      return
+    }
+
+    setIsSubmittingFieldChange(true)
+    setError(null)
+
+    try {
+      const response = await apiFetch('/api/internal-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'FIELD_CHANGE',
+          certificateId: certificate.id,
+          fields: selectedFields,
+          description: fieldChangeDescription.trim(),
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to submit request')
+      }
+
+      setShowFieldChangeModal(false)
+      setSelectedFields([])
+      setFieldChangeDescription('')
+      setFieldChangeForwardedItems(new Set())
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsSubmittingFieldChange(false)
+    }
+  }
+
+  const hasPendingFieldChange = fieldChangeRequests.some(r => r.status === 'PENDING')
 
   const handleReject = async () => {
     if (!rejectReason.trim()) {
@@ -286,6 +620,42 @@ export function ReviewerPageClient({
     }
   }
 
+  // Resend certificate to customer
+  const handleResendToCustomer = async () => {
+    const customerEmail = certificate.customerContactEmail || customerFeedback?.customerEmail || lastSentCustomerInfo?.email
+    const customerName = certificate.customerName || customerFeedback?.customerName || lastSentCustomerInfo?.name
+
+    if (!customerEmail || !customerName) {
+      setError('Customer email and name are required to resend')
+      return
+    }
+
+    setIsResending(true)
+    setError(null)
+
+    try {
+      const response = await apiFetch(`/api/certificates/${certificate.id}/send-to-customer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerEmail,
+          customerName,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to resend to customer')
+      }
+
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsResending(false)
+    }
+  }
+
   // Handle download PDF (only for authorized certificates)
   const handleDownload = useCallback(async () => {
     setIsDownloading(true)
@@ -316,6 +686,13 @@ export function ReviewerPageClient({
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
       {/* Left Side - Header + Content (Scrollable) */}
       <div className="flex-1 flex flex-col min-w-0 p-2.5 pr-0 overflow-hidden">
+        {/* TAT Banner */}
+        {tatStartedAt && !decisionMade && (
+          <div className="flex-shrink-0 mb-1.5">
+            <TATBanner sentAt={tatStartedAt} certificateCreatedAt={certificateCreatedAt} />
+          </div>
+        )}
+
         {/* Certificate Card - Bounding Box */}
         <div className="flex-1 flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
           {/* Header Section */}
@@ -345,7 +722,6 @@ export function ReviewerPageClient({
             </div>
 
             <div className="flex items-center gap-2.5 flex-shrink-0">
-              <TATBadge tat={headerData.tat} />
               <ViewToggleButton
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
@@ -376,6 +752,19 @@ export function ReviewerPageClient({
                 assignee={assignee}
                 feedbacks={feedbacks}
                 customerFeedback={customerFeedback}
+                internalRequests={[
+                  ...sectionUnlockRequests,
+                  ...fieldChangeRequests.map((r) => ({
+                    id: r.id,
+                    type: 'FIELD_CHANGE' as const,
+                    status: r.status,
+                    fields: r.fields,
+                    description: r.description,
+                    adminNote: r.adminNote,
+                    reviewedByName: r.reviewedBy,
+                    createdAt: r.createdAt,
+                  })),
+                ]}
               />
             ) : (
               <InlinePDFViewer
@@ -391,10 +780,7 @@ export function ReviewerPageClient({
       <div className="w-[380px] flex-shrink-0 flex flex-col gap-2.5 p-2.5 pl-0 h-full overflow-hidden">
 
         {/* ===== CHAT SECTION ===== */}
-        <div className={cn(
-          'flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden',
-          isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
-        )}>
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden">
           {/* Chat Header - Collapsible */}
           <button
             onClick={() => setIsChatExpanded(!isChatExpanded)}
@@ -404,17 +790,24 @@ export function ReviewerPageClient({
               <MessageSquare className="size-[14px] text-[#94a3b8]" />
               <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Chat</span>
             </div>
-            {!isChatExpanded && (
-              <div className="flex items-center gap-2 text-[11px] text-[#94a3b8]">
-                <span>Eng</span>
-                {canAccessCustomerChat && (
-                  <>
-                    <span className="text-[#e2e8f0]">·</span>
-                    <span>Cust</span>
-                  </>
-                )}
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {!isChatExpanded && (
+                <div className="flex items-center gap-2 text-[11px] text-[#94a3b8]">
+                  <span>Eng</span>
+                  {canAccessCustomerChat && (
+                    <>
+                      <span className="text-[#e2e8f0]">·</span>
+                      <span>Cust</span>
+                    </>
+                  )}
+                </div>
+              )}
+              {isChatExpanded ? (
+                <ChevronUp className="size-3.5 text-[#94a3b8]" />
+              ) : (
+                <ChevronDown className="size-3.5 text-[#94a3b8]" />
+              )}
+            </div>
           </button>
 
           {/* Chat Content - Only when expanded */}
@@ -511,8 +904,7 @@ export function ReviewerPageClient({
         </div>
 
         {/* ===== REVIEW ACTIONS SECTION ===== */}
-        <div className="flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden flex-shrink-0 max-h-[45%] overflow-auto">
-          {/* Actions Header - Collapsible */}
+        <div className="flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden flex-shrink-0">
           <button
             onClick={() => setIsActionsExpanded(!isActionsExpanded)}
             className="flex items-center justify-between px-[18px] py-[13px] hover:bg-[#f8fafc] transition-colors"
@@ -521,6 +913,11 @@ export function ReviewerPageClient({
               <Settings2 className="size-[14px] text-[#94a3b8]" />
               <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Review Actions</span>
             </div>
+            {isActionsExpanded ? (
+              <ChevronUp className="size-3.5 text-[#94a3b8]" />
+            ) : (
+              <ChevronDown className="size-3.5 text-[#94a3b8]" />
+            )}
           </button>
 
           {/* Actions Content - Only when expanded */}
@@ -586,17 +983,59 @@ export function ReviewerPageClient({
                 </div>
               )}
 
+              {isCustomerReviewExpired && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#fef2f2] rounded-xl border border-[#fecaca]">
+                    <div className="size-7 rounded-lg bg-[#fee2e2] flex items-center justify-center flex-shrink-0">
+                      <AlertTriangle className="size-3.5 text-[#dc2626]" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[12.5px] font-semibold text-[#991b1b]">Customer Review Expired</p>
+                      <p className="text-[11px] text-[#dc2626]">Customer did not respond within 48 hours</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleResendToCustomer}
+                    disabled={isResending}
+                    size="sm"
+                    className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white h-9 rounded-[9px] text-[12.5px] font-semibold"
+                  >
+                    {isResending ? (
+                      <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Send className="size-3.5 mr-1.5" />
+                    )}
+                    Resend to Customer
+                  </Button>
+                </div>
+              )}
+
               {isCustomerRevisionRequired && customerFeedback && (
-                <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#faf5ff] rounded-xl border border-[#e9d5ff]">
-                  <div className="size-7 rounded-lg bg-[#f3e8ff] flex items-center justify-center flex-shrink-0">
-                    <RotateCcw className="size-3.5 text-[#7c3aed]" />
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#faf5ff] rounded-xl border border-[#e9d5ff]">
+                    <div className="size-7 rounded-lg bg-[#f3e8ff] flex items-center justify-center flex-shrink-0">
+                      <RotateCcw className="size-3.5 text-[#7c3aed]" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[12.5px] font-semibold text-[#6b21a8]">Customer Requests Revision</p>
+                      <p className="text-[11px] text-[#7c3aed]">
+                        {customerFeedback.customerName} · {customerFeedback.sectionFeedbacks?.length || 0} section{(customerFeedback.sectionFeedbacks?.length || 0) !== 1 ? 's' : ''} flagged
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[12.5px] font-semibold text-[#6b21a8]">Customer Requests Revision</p>
-                    <p className="text-[11px] text-[#7c3aed]">
-                      {customerFeedback.customerName} · {customerFeedback.sectionFeedbacks?.length || 0} section{(customerFeedback.sectionFeedbacks?.length || 0) !== 1 ? 's' : ''} flagged
-                    </p>
-                  </div>
+                  <Button
+                    onClick={handleResendToCustomer}
+                    disabled={isResending}
+                    size="sm"
+                    className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white h-9 rounded-[9px] text-[12.5px] font-semibold"
+                  >
+                    {isResending ? (
+                      <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Send className="size-3.5 mr-1.5" />
+                    )}
+                    Resend to Customer
+                  </Button>
                 </div>
               )}
 
@@ -647,6 +1086,106 @@ export function ReviewerPageClient({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* ===== REQUEST ACTIONS SECTION ===== */}
+        <div className="flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden flex-shrink-0">
+          <button
+            onClick={() => setIsRequestActionsExpanded(!isRequestActionsExpanded)}
+            className="flex items-center justify-between px-[18px] py-[13px] hover:bg-[#f8fafc] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <PenLine className="size-[14px] text-[#94a3b8]" />
+              <span className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Request Actions</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {fieldChangeRequests.some(r => r.status === 'PENDING') && (
+                <span className="px-1.5 py-0.5 bg-[#fef9c3] text-[#a16207] rounded text-[10px] font-semibold">
+                  {fieldChangeRequests.filter(r => r.status === 'PENDING').length} pending
+                </span>
+              )}
+              {isRequestActionsExpanded ? (
+                <ChevronUp className="size-3.5 text-[#94a3b8]" />
+              ) : (
+                <ChevronDown className="size-3.5 text-[#94a3b8]" />
+              )}
+            </div>
+          </button>
+
+          {isRequestActionsExpanded && (
+            <div className="px-[18px] pb-[18px] pt-3 space-y-2.5 border-t border-[#f1f5f9]">
+              {/* New Request Button */}
+              {!hasPendingFieldChange && (
+                <Button
+                  onClick={() => {
+                    setError(null)
+                    setShowFieldChangeModal(true)
+                  }}
+                  size="sm"
+                  className="w-full bg-[#0f172a] hover:bg-[#1e293b] text-white h-9 rounded-[9px] text-[12.5px] font-semibold"
+                >
+                  <Plus className="size-3.5 mr-1.5" />
+                  New Request
+                </Button>
+              )}
+
+              {/* Existing Requests */}
+              {fieldChangeRequests.length === 0 && (
+                <p className="text-[12px] text-[#94a3b8] text-center py-2">No field change requests yet</p>
+              )}
+
+              {fieldChangeRequests.map((req) => {
+                const fieldLabels = req.fields.map(
+                  f => FIELD_OPTIONS.find(o => o.id === f)?.label || f
+                )
+                return (
+                  <div
+                    key={req.id}
+                    className={cn(
+                      'rounded-xl border p-3 space-y-1.5',
+                      req.status === 'PENDING' && 'border-[#fde68a] bg-[#fefce8]',
+                      req.status === 'APPROVED' && 'border-[#bbf7d0] bg-[#f0fdf4]',
+                      req.status === 'REJECTED' && 'border-[#fecaca] bg-[#fef2f2]'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap gap-1">
+                        {fieldLabels.map((label) => (
+                          <span
+                            key={label}
+                            className={cn(
+                              'px-1.5 py-0.5 rounded text-[10px] font-medium',
+                              req.status === 'PENDING' && 'bg-[#fef3c7] text-[#a16207]',
+                              req.status === 'APPROVED' && 'bg-[#dcfce7] text-[#166534]',
+                              req.status === 'REJECTED' && 'bg-[#fee2e2] text-[#991b1b]'
+                            )}
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                      <span className={cn(
+                        'text-[10px] font-semibold',
+                        req.status === 'PENDING' && 'text-[#d97706]',
+                        req.status === 'APPROVED' && 'text-[#16a34a]',
+                        req.status === 'REJECTED' && 'text-[#dc2626]'
+                      )}>
+                        {req.status === 'PENDING' ? 'Pending' : req.status === 'APPROVED' ? 'Applied' : 'Rejected'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#64748b] line-clamp-2">{req.description}</p>
+                    {req.adminNote && (
+                      <p className="text-[11px] text-[#94a3b8] italic">&ldquo;{req.adminNote}&rdquo;</p>
+                    )}
+                    <p className="text-[10px] text-[#94a3b8]">
+                      {new Date(req.createdAt).toLocaleDateString()}
+                      {req.reviewedBy && ` · ${req.reviewedBy}`}
+                    </p>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -701,6 +1240,69 @@ export function ReviewerPageClient({
                 <span>{assignee.name}</span>
               </div>
 
+              {/* Customer Feedback — Forward to Engineer */}
+              {isCustomerRevisionRequired && customerFeedback?.sectionFeedbacks && customerFeedback.sectionFeedbacks.length > 0 && (
+                <div className="border border-[#e9d5ff] rounded-xl bg-[#faf5ff] overflow-hidden">
+                  <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-[#e9d5ff]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.07em] text-[#7c3aed]">
+                        Customer Feedback
+                      </span>
+                      <span className="text-[10px] font-mono text-[#a78bfa]">
+                        {customerFeedback.customerName} · {customerFeedback.sectionFeedbacks.length} section{customerFeedback.sectionFeedbacks.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (forwardedCustomerItems.size === customerFeedback.sectionFeedbacks!.length) {
+                          clearAllCustomerFeedback()
+                        } else {
+                          forwardAllCustomerFeedback()
+                        }
+                      }}
+                      className="text-[11px] font-semibold text-[#7c3aed] hover:text-[#6b21a8] px-2 py-0.5 hover:bg-[#f3e8ff] rounded-md transition-colors"
+                    >
+                      {forwardedCustomerItems.size === customerFeedback.sectionFeedbacks.length ? 'Clear All' : 'Forward All'}
+                    </button>
+                  </div>
+                  <div className="p-3 space-y-2">
+                    {customerFeedback.sectionFeedbacks.map((item, index) => {
+                      const sectionLabel = REVISION_SECTIONS.find(s => s.id === item.section)?.label || item.section
+                      const isForwarded = forwardedCustomerItems.has(index)
+                      return (
+                        <label
+                          key={index}
+                          className={cn(
+                            'flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors',
+                            isForwarded
+                              ? 'border-[#c4b5fd] bg-[#ede9fe]'
+                              : 'border-[#e9d5ff] bg-white hover:bg-[#faf5ff]'
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isForwarded}
+                            onChange={() => toggleCustomerFeedbackForward(index)}
+                            className="mt-0.5 size-3.5 rounded border-[#d8b4fe] text-[#7c3aed] focus:ring-[#7c3aed]/20 accent-[#7c3aed]"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[11px] font-semibold text-[#6b21a8]">{sectionLabel}</span>
+                            <p className="text-[12px] text-[#7c3aed] mt-0.5 leading-relaxed">{item.comment}</p>
+                          </div>
+                        </label>
+                      )
+                    })}
+                    {customerFeedback.generalNotes && (
+                      <div className="pt-2 border-t border-[#e9d5ff]">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-[#a78bfa]">General Notes</span>
+                        <p className="text-[12px] text-[#7c3aed] mt-1 leading-relaxed">{customerFeedback.generalNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Section Feedback */}
               <div>
                 <div className="flex items-center justify-between mb-2.5">
@@ -743,7 +1345,10 @@ export function ReviewerPageClient({
                                 </option>
                               ))}
                             </select>
-                            {isComplete && (
+                            {entry.fromCustomer && (
+                              <span className="text-[10px] text-[#7c3aed] font-medium mt-1 block">From customer</span>
+                            )}
+                            {isComplete && !entry.fromCustomer && (
                               <span className="text-[10px] text-[#16a34a] font-medium mt-1 block">Complete</span>
                             )}
                           </div>
@@ -817,6 +1422,7 @@ export function ReviewerPageClient({
                 onClick={() => {
                   setShowRevisionModal(false)
                   setSectionFeedbackEntries([{ id: crypto.randomUUID(), section: '', comment: '' }])
+                  setForwardedCustomerItems(new Set())
                   setGeneralNotes('')
                   setError(null)
                 }}
@@ -1016,6 +1622,196 @@ export function ReviewerPageClient({
                   </Button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Field Change Request Modal */}
+      {showFieldChangeModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="px-5 py-3.5 border-b border-[#f1f5f9] flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-[#fef9c3] rounded-[9px]">
+                  <PenLine className="size-4 text-[#a16207]" />
+                </div>
+                <div>
+                  <h2 className="text-[14px] font-semibold text-[#0f172a]">Request Admin Changes</h2>
+                  <p className="text-[11px] font-mono text-[#94a3b8]">{certificate.certificateNumber}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowFieldChangeModal(false)
+                  setSelectedFields([])
+                  setFieldChangeDescription('')
+                  setFieldChangeForwardedItems(new Set())
+                  setError(null)
+                }}
+                className="p-1.5 hover:bg-[#f8fafc] rounded-lg transition-colors"
+              >
+                <X className="size-4 text-[#94a3b8]" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Summary Strip */}
+              <div className="flex items-center gap-2 px-3.5 py-2.5 bg-[#f8fafc] border border-[#f1f5f9] rounded-lg text-[12px] text-[#64748b]">
+                <span className="font-semibold text-[#0f172a]">{certificate.uucDescription || '—'}</span>
+                <span className="text-[#e2e8f0]">·</span>
+                <span>{certificate.customerName || '—'}</span>
+                <span className="text-[#e2e8f0]">·</span>
+                <span>{assignee.name}</span>
+              </div>
+
+              {/* Customer Feedback Forwarding — shown whenever customer feedback exists */}
+              {customerFeedback?.sectionFeedbacks && customerFeedback.sectionFeedbacks.length > 0 && (
+                <div className="border border-[#e9d5ff] rounded-xl bg-[#faf5ff] overflow-hidden">
+                  <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-[#e9d5ff]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.07em] text-[#7c3aed]">
+                        Customer Feedback
+                      </span>
+                      <span className="text-[10px] font-mono text-[#a78bfa]">
+                        {customerFeedback.customerName} · {customerFeedback.sectionFeedbacks.length} section{customerFeedback.sectionFeedbacks.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (fieldChangeForwardedItems.size === customerFeedback.sectionFeedbacks!.length) {
+                          setFieldChangeForwardedItems(new Set())
+                        } else {
+                          forwardAllFieldChangeCustomer()
+                        }
+                      }}
+                      className="text-[11px] font-semibold text-[#7c3aed] hover:text-[#6b21a8] px-2 py-0.5 hover:bg-[#f3e8ff] rounded-md transition-colors"
+                    >
+                      {fieldChangeForwardedItems.size === customerFeedback.sectionFeedbacks.length ? 'Clear All' : 'Forward All'}
+                    </button>
+                  </div>
+                  <div className="p-3 space-y-2">
+                    {customerFeedback.sectionFeedbacks.map((item, index) => {
+                      const sectionLabel = REVISION_SECTIONS.find(s => s.id === item.section)?.label || item.section
+                      const isForwarded = fieldChangeForwardedItems.has(index)
+                      return (
+                        <label
+                          key={index}
+                          className={cn(
+                            'flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors',
+                            isForwarded
+                              ? 'border-[#c4b5fd] bg-[#ede9fe]'
+                              : 'border-[#e9d5ff] bg-white hover:bg-[#faf5ff]'
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isForwarded}
+                            onChange={() => toggleFieldChangeCustomerForward(index)}
+                            className="mt-0.5 size-3.5 rounded border-[#d8b4fe] text-[#7c3aed] focus:ring-[#7c3aed]/20 accent-[#7c3aed]"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[11px] font-semibold text-[#6b21a8]">{sectionLabel}</span>
+                            <p className="text-[12px] text-[#7c3aed] mt-0.5 leading-relaxed">{item.comment}</p>
+                          </div>
+                        </label>
+                      )
+                    })}
+                    {customerFeedback.generalNotes && (
+                      <div className="pt-2 border-t border-[#e9d5ff]">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-[#a78bfa]">General Notes</span>
+                        <p className="text-[12px] text-[#7c3aed] mt-1 leading-relaxed">{customerFeedback.generalNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Fields Selection */}
+              <div>
+                <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-2">
+                  Fields that need changes <span className="text-[#dc2626]">*</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {FIELD_OPTIONS.map((field) => {
+                    const isSelected = selectedFields.includes(field.id)
+                    return (
+                      <button
+                        key={field.id}
+                        type="button"
+                        onClick={() => toggleFieldTag(field.id)}
+                        className={cn(
+                          'px-2.5 py-1.5 rounded-lg text-[12px] font-medium border transition-colors',
+                          isSelected
+                            ? 'bg-[#fef9c3] border-[#fde68a] text-[#a16207]'
+                            : 'bg-white border-[#e2e8f0] text-[#64748b] hover:border-[#fde68a] hover:bg-[#fffbeb]'
+                        )}
+                      >
+                        {field.label}
+                        {isSelected && (
+                          <X className="size-3 ml-1 inline-block" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                  Description <span className="text-[#dc2626]">*</span>
+                </label>
+                <Textarea
+                  placeholder="Describe what needs to be changed and the correct values..."
+                  value={fieldChangeDescription}
+                  onChange={(e) => setFieldChangeDescription(e.target.value)}
+                  rows={4}
+                  className="resize-none text-[12.5px] md:text-[12.5px] border-[#e2e8f0] rounded-lg focus:ring-[#eab308]/20 focus:border-[#eab308] placeholder:text-[#94a3b8]"
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-lg">
+                  <XCircle className="size-3.5 text-[#dc2626] flex-shrink-0" />
+                  <p className="text-[12px] text-[#dc2626]">{error}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-[#f1f5f9] bg-[#f8fafc] flex items-center justify-end gap-2 flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowFieldChangeModal(false)
+                  setSelectedFields([])
+                  setFieldChangeDescription('')
+                  setFieldChangeForwardedItems(new Set())
+                  setError(null)
+                }}
+                disabled={isSubmittingFieldChange}
+                className="rounded-[9px] border-[#e2e8f0] text-[12.5px] font-semibold text-[#475569]"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSubmitFieldChange}
+                disabled={isSubmittingFieldChange || selectedFields.length === 0 || !fieldChangeDescription.trim()}
+                className="bg-[#0f172a] hover:bg-[#1e293b] text-white rounded-[9px] text-[12.5px] font-semibold"
+              >
+                {isSubmittingFieldChange ? (
+                  <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <PenLine className="size-3.5 mr-1.5" />
+                )}
+                Submit Request
+              </Button>
             </div>
           </div>
         </div>

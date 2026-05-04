@@ -14,6 +14,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface RangeDataItem {
   parameter?: string
@@ -716,13 +717,10 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                   <label htmlFor="calibrationDueDate" className="block text-[13px] text-[#64748b] mb-1.5">
                     Calibration Due Date
                   </label>
-                  <input
-                    type="date"
-                    id="calibrationDueDate"
-                    name="calibrationDueDate"
+                  <DatePicker
                     value={formData.calibrationDueDate}
-                    onChange={handleChange}
-                    className={inputClass}
+                    onChange={(val) => setFormData(prev => ({ ...prev, calibrationDueDate: val }))}
+                    placeholder="Select due date"
                   />
                 </div>
 
@@ -898,22 +896,20 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
                         <label className="block text-[13px] text-[#64748b] mb-1.5">
                           Valid From
                         </label>
-                        <input
-                          type="date"
+                        <DatePicker
                           value={certFormData.validFrom}
-                          onChange={(e) => setCertFormData(prev => ({ ...prev, validFrom: e.target.value }))}
-                          className={inputClass}
+                          onChange={(val) => setCertFormData(prev => ({ ...prev, validFrom: val }))}
+                          placeholder="Select start date"
                         />
                       </div>
                       <div>
                         <label className="block text-[13px] text-[#64748b] mb-1.5">
                           Valid Until
                         </label>
-                        <input
-                          type="date"
+                        <DatePicker
                           value={certFormData.validUntil}
-                          onChange={(e) => setCertFormData(prev => ({ ...prev, validUntil: e.target.value }))}
-                          className={inputClass}
+                          onChange={(val) => setCertFormData(prev => ({ ...prev, validUntil: val }))}
+                          placeholder="Select end date"
                         />
                       </div>
                     </div>

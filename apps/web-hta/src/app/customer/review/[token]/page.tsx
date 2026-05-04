@@ -14,6 +14,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   PENDING_ADMIN_AUTHORIZATION: { label: 'Pending Authorization', className: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
   APPROVED: { label: 'Approved', className: 'bg-green-50 text-green-600 border-green-100' },
   AUTHORIZED: { label: 'Authorized', className: 'bg-green-50 text-green-600 border-green-100' },
+  CUSTOMER_REVIEW_EXPIRED: { label: 'Review Expired', className: 'bg-red-50 text-red-600 border-red-100' },
 }
 
 async function validateToken(token: string): Promise<{

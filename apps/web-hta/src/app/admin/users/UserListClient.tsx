@@ -22,9 +22,8 @@ interface User {
   name: string
   role: string
   isActive: boolean
-  authProvider: string
   assignedAdmin: { id: string; name: string } | null
-  certificateCount: number
+  _count: { createdCertificates: number; reviewedCertificates: number }
   createdAt: string
 }
 
@@ -169,8 +168,8 @@ export function UserListClient() {
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Email</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Role</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Assigned Admin</th>
-                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Auth</th>
-                    <th className="text-right py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Certs</th>
+                    <th className="text-right py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Created</th>
+                    <th className="text-right py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Reviewed</th>
                     <th className="text-center py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Status</th>
                   </tr>
                 </thead>
@@ -201,20 +200,11 @@ export function UserListClient() {
                         <td className="py-2.5 px-4 text-[#64748b]">
                           {user.assignedAdmin?.name || <span className="text-[#cbd5e1]">—</span>}
                         </td>
-                        <td className="py-2.5 px-4">
-                          <span
-                            className={cn(
-                              'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold',
-                              user.authProvider === 'GOOGLE'
-                                ? 'bg-[#fef2f2] text-[#dc2626]'
-                                : 'bg-[#f1f5f9] text-[#64748b]'
-                            )}
-                          >
-                            {user.authProvider === 'GOOGLE' ? 'G' : 'P'}
-                          </span>
+                        <td className="py-2.5 px-4 text-right text-[#64748b]">
+                          {user._count.createdCertificates}
                         </td>
                         <td className="py-2.5 px-4 text-right text-[#64748b]">
-                          {user.certificateCount}
+                          {user._count.reviewedCertificates}
                         </td>
                         <td className="py-2.5 px-4 text-center">
                           <span
@@ -237,7 +227,7 @@ export function UserListClient() {
           )}
 
           {/* Pagination */}
-          {pagination && pagination.totalPages > 1 && (
+          {pagination && (
             <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#f1f5f9]">
               <p className="text-[12.5px] text-[#94a3b8]">
                 Showing {(pagination.page - 1) * pagination.limit + 1}–
@@ -280,14 +270,6 @@ export function UserListClient() {
 
         {/* Legend */}
         <div className="mt-3 flex gap-4 text-[11px] text-[#94a3b8]">
-          <span>
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#fef2f2] text-[#dc2626] font-bold text-[10px] mr-1">G</span>
-            = Google auth
-          </span>
-          <span>
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#f1f5f9] text-[#64748b] font-bold text-[10px] mr-1">P</span>
-            = Password auth
-          </span>
           <span className="ml-auto">Click row to edit user</span>
         </div>
       </div>

@@ -17,11 +17,15 @@ import {
   Unlock,
   UserPlus,
   Crown,
+  Trash2,
+  Download,
   ChevronRight,
   ChevronLeft,
   Inbox,
   Search,
   Eye,
+  PenLine,
+  KeyRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
@@ -49,8 +53,12 @@ interface Pagination {
 interface Counts {
   pending: {
     sectionUnlock: number
+    fieldChange: number
+    offlineCodeRequest: number
     userAddition: number
     pocChange: number
+    accountDeletion: number
+    dataExport: number
     total: number
   }
   approved: number
@@ -65,6 +73,20 @@ const TYPE_CONFIG = {
     badgeText: 'text-[#1d4ed8]',
     borderColor: 'border-l-[#3b82f6]',
   },
+  FIELD_CHANGE: {
+    icon: PenLine,
+    shortLabel: 'Field Edit',
+    badgeBg: 'bg-[#fefce8]',
+    badgeText: 'text-[#a16207]',
+    borderColor: 'border-l-[#eab308]',
+  },
+  OFFLINE_CODE_REQUEST: {
+    icon: KeyRound,
+    shortLabel: 'Offline Code',
+    badgeBg: 'bg-[#ede9fe]',
+    badgeText: 'text-[#6d28d9]',
+    borderColor: 'border-l-[#a78bfa]',
+  },
   USER_ADDITION: {
     icon: UserPlus,
     shortLabel: 'User Add',
@@ -78,6 +100,20 @@ const TYPE_CONFIG = {
     badgeBg: 'bg-[#faf5ff]',
     badgeText: 'text-[#7c3aed]',
     borderColor: 'border-l-[#8b5cf6]',
+  },
+  ACCOUNT_DELETION: {
+    icon: Trash2,
+    shortLabel: 'Delete',
+    badgeBg: 'bg-[#fef2f2]',
+    badgeText: 'text-[#dc2626]',
+    borderColor: 'border-l-[#ef4444]',
+  },
+  DATA_EXPORT: {
+    icon: Download,
+    shortLabel: 'Export',
+    badgeBg: 'bg-[#fff7ed]',
+    badgeText: 'text-[#c2410c]',
+    borderColor: 'border-l-[#f97316]',
   },
 }
 
@@ -292,11 +328,15 @@ export default function AdminRequestsPage() {
 
         {/* Summary Cards - Only for Pending */}
         {statusFilter === 'PENDING' && counts && (
-          <div className="grid grid-cols-3 gap-4 mb-5">
+          <div className="grid grid-cols-7 gap-3 mb-5">
             {([
               { key: 'SECTION_UNLOCK', count: counts.pending.sectionUnlock, label: 'Section Unlock', borderColor: 'border-l-[#3b82f6]', countColor: 'text-[#1d4ed8]', activeBg: 'bg-[#eff6ff]' },
+              { key: 'FIELD_CHANGE', count: counts.pending.fieldChange, label: 'Field Change', borderColor: 'border-l-[#eab308]', countColor: 'text-[#a16207]', activeBg: 'bg-[#fefce8]' },
+              { key: 'OFFLINE_CODE_REQUEST', count: counts.pending.offlineCodeRequest, label: 'Offline Code', borderColor: 'border-l-[#a78bfa]', countColor: 'text-[#6d28d9]', activeBg: 'bg-[#ede9fe]' },
               { key: 'USER_ADDITION', count: counts.pending.userAddition, label: 'User Addition', borderColor: 'border-l-[#22c55e]', countColor: 'text-[#15803d]', activeBg: 'bg-[#f0fdf4]' },
               { key: 'POC_CHANGE', count: counts.pending.pocChange, label: 'POC Change', borderColor: 'border-l-[#8b5cf6]', countColor: 'text-[#7c3aed]', activeBg: 'bg-[#faf5ff]' },
+              { key: 'ACCOUNT_DELETION', count: counts.pending.accountDeletion, label: 'Account Deletion', borderColor: 'border-l-[#ef4444]', countColor: 'text-[#dc2626]', activeBg: 'bg-[#fef2f2]' },
+              { key: 'DATA_EXPORT', count: counts.pending.dataExport, label: 'Data Export', borderColor: 'border-l-[#f97316]', countColor: 'text-[#c2410c]', activeBg: 'bg-[#fff7ed]' },
             ] as const).map((card) => {
               const isActive = typeFilter === card.key
               return (
@@ -327,8 +367,12 @@ export default function AdminRequestsPage() {
               <SelectContent>
                 <SelectItem value="ALL">All Types</SelectItem>
                 <SelectItem value="SECTION_UNLOCK">Section Unlock</SelectItem>
+                <SelectItem value="FIELD_CHANGE">Field Change</SelectItem>
+                <SelectItem value="OFFLINE_CODE_REQUEST">Offline Code</SelectItem>
                 <SelectItem value="USER_ADDITION">User Addition</SelectItem>
                 <SelectItem value="POC_CHANGE">POC Change</SelectItem>
+                <SelectItem value="ACCOUNT_DELETION">Account Deletion</SelectItem>
+                <SelectItem value="DATA_EXPORT">Data Export</SelectItem>
               </SelectContent>
             </Select>
 
@@ -431,10 +475,19 @@ export default function AdminRequestsPage() {
             <span className="w-3 h-3 rounded bg-[#3b82f6]" /> = Unlock
           </span>
           <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded bg-[#a78bfa]" /> = Offline Code
+          </span>
+          <span className="flex items-center gap-1">
             <span className="w-3 h-3 rounded bg-[#22c55e]" /> = User Add
           </span>
           <span className="flex items-center gap-1">
             <span className="w-3 h-3 rounded bg-[#8b5cf6]" /> = POC
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded bg-[#ef4444]" /> = Delete
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded bg-[#f97316]" /> = Export
           </span>
           <span className="ml-auto">Click row to review</span>
         </div>

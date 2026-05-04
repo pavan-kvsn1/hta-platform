@@ -14,7 +14,12 @@ import {
   Plus,
   MessageSquare,
   AlertTriangle,
-  User as _User,
+  PenTool,
+  PenLine,
+  UserCheck,
+  ArrowRightLeft,
+  Reply,
+  Download,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import type { Feedback, CertificateEvent } from './AdminCertificateClient'
@@ -36,6 +41,21 @@ const SECTION_LABELS: Record<string, string> = {
   'remarks': 'Remarks',
   'conclusion': 'Conclusion',
   'general': 'General',
+}
+
+// Field labels for field change events
+const FIELD_LABELS: Record<string, string> = {
+  'certificateNumber': 'Certificate Number',
+  'srfNumber': 'SRF Number',
+  'srfDate': 'SRF Date',
+  'customerName': 'Customer Name',
+  'customerAddress': 'Customer Address',
+  'customerContactName': 'Customer Contact Name',
+  'customerContactEmail': 'Customer Contact Email',
+  'calibratedAt': 'Calibrated At',
+  'dateOfCalibration': 'Date of Calibration',
+  'calibrationDueDate': 'Calibration Due Date',
+  'reviewerId': 'Reviewer',
 }
 
 // Role labels
@@ -147,6 +167,13 @@ const EVENT_CONFIG: Record<string, {
     iconClass: 'text-pink-600',
     borderClass: 'border-pink-200',
   },
+  CUSTOMER_REVISION_FORWARDED: {
+    label: 'Customer Revision Forwarded',
+    icon: RotateCcw,
+    bgClass: 'bg-orange-100',
+    iconClass: 'text-orange-600',
+    borderClass: 'border-orange-200',
+  },
   ADMIN_EDIT: {
     label: 'Admin Edit',
     icon: Shield,
@@ -181,6 +208,90 @@ const EVENT_CONFIG: Record<string, {
     bgClass: 'bg-red-100',
     iconClass: 'text-red-600',
     borderClass: 'border-red-200',
+  },
+  RESUBMITTED_FOR_REVIEW: {
+    label: 'Resubmitted for Review',
+    icon: Send,
+    bgClass: 'bg-blue-100',
+    iconClass: 'text-blue-600',
+    borderClass: 'border-blue-200',
+  },
+  FIELD_CHANGE_REQUESTED: {
+    label: 'Field Change Requested',
+    icon: PenLine,
+    bgClass: 'bg-yellow-100',
+    iconClass: 'text-yellow-700',
+    borderClass: 'border-yellow-200',
+  },
+  FIELD_CHANGE_APPROVED: {
+    label: 'Field Change Approved',
+    icon: CheckCircle2,
+    bgClass: 'bg-green-100',
+    iconClass: 'text-green-600',
+    borderClass: 'border-green-200',
+  },
+  FIELD_CHANGE_REJECTED: {
+    label: 'Field Change Rejected',
+    icon: XCircle,
+    bgClass: 'bg-red-100',
+    iconClass: 'text-red-600',
+    borderClass: 'border-red-200',
+  },
+  ASSIGNEE_SIGNED: {
+    label: 'Engineer Signed',
+    icon: PenTool,
+    bgClass: 'bg-green-100',
+    iconClass: 'text-green-600',
+    borderClass: 'border-green-200',
+  },
+  REVIEWER_SIGNED: {
+    label: 'Reviewer Signed',
+    icon: PenTool,
+    bgClass: 'bg-green-100',
+    iconClass: 'text-green-600',
+    borderClass: 'border-green-200',
+  },
+  CUSTOMER_SIGNED: {
+    label: 'Customer Signed',
+    icon: UserCheck,
+    bgClass: 'bg-purple-100',
+    iconClass: 'text-purple-600',
+    borderClass: 'border-purple-200',
+  },
+  ADMIN_SIGNED: {
+    label: 'Admin Signed',
+    icon: Shield,
+    bgClass: 'bg-green-100',
+    iconClass: 'text-green-600',
+    borderClass: 'border-green-200',
+  },
+  REVIEWER_CHANGED: {
+    label: 'Reviewer Changed',
+    icon: ArrowRightLeft,
+    bgClass: 'bg-slate-100',
+    iconClass: 'text-slate-600',
+    borderClass: 'border-slate-200',
+  },
+  ADMIN_REPLIED_TO_CUSTOMER: {
+    label: 'Admin Replied to Customer',
+    icon: Reply,
+    bgClass: 'bg-indigo-100',
+    iconClass: 'text-indigo-600',
+    borderClass: 'border-indigo-200',
+  },
+  DOWNLOAD_LINK_SENT: {
+    label: 'Download Link Sent',
+    icon: Download,
+    bgClass: 'bg-teal-100',
+    iconClass: 'text-teal-600',
+    borderClass: 'border-teal-200',
+  },
+  SUBMITTED_FOR_AUTHORIZATION: {
+    label: 'Submitted for Authorization',
+    icon: Send,
+    bgClass: 'bg-indigo-100',
+    iconClass: 'text-indigo-600',
+    borderClass: 'border-indigo-200',
   },
 }
 
@@ -251,10 +362,11 @@ const DEFAULT_CONFIG = {
   borderClass: 'border-slate-200',
 }
 
-// Events to include in timeline (exclude low-level field updates)
+// Events to include in timeline (exclude low-level FIELDS_UPDATED)
 const INCLUDED_EVENTS = [
   'CERTIFICATE_CREATED',
   'SUBMITTED_FOR_REVIEW',
+  'RESUBMITTED_FOR_REVIEW',
   'REVISION_REQUESTED',
   'REVISION_SUBMITTED',
   'APPROVED',
@@ -264,11 +376,23 @@ const INCLUDED_EVENTS = [
   'SENT_TO_CUSTOMER',
   'CUSTOMER_APPROVED',
   'CUSTOMER_REVISION_REQUESTED',
+  'CUSTOMER_REVISION_FORWARDED',
   'ADMIN_EDIT',
   'ADMIN_AUTHORIZED',
   'SECTION_UNLOCK_REQUESTED',
   'SECTION_UNLOCK_APPROVED',
   'SECTION_UNLOCK_REJECTED',
+  'FIELD_CHANGE_REQUESTED',
+  'FIELD_CHANGE_APPROVED',
+  'FIELD_CHANGE_REJECTED',
+  'ASSIGNEE_SIGNED',
+  'REVIEWER_SIGNED',
+  'CUSTOMER_SIGNED',
+  'ADMIN_SIGNED',
+  'REVIEWER_CHANGED',
+  'ADMIN_REPLIED_TO_CUSTOMER',
+  'DOWNLOAD_LINK_SENT',
+  'SUBMITTED_FOR_AUTHORIZATION',
 ]
 
 export function AdminHistorySection({
@@ -297,8 +421,17 @@ export function AdminHistorySection({
         if (hasFeedback) continue
       }
 
-      // Skip CUSTOMER_REVISION_REQUESTED events if we have feedback
+      // Skip CUSTOMER_REVISION_REQUESTED events if we have forwarded feedback
       if (event.eventType === 'CUSTOMER_REVISION_REQUESTED') {
+        const hasFeedback = feedbacks.some(
+          f => f.feedbackType === 'CUSTOMER_REVISION_FORWARDED' &&
+               Math.abs(new Date(f.createdAt).getTime() - new Date(event.createdAt).getTime()) < 60000
+        )
+        if (hasFeedback) continue
+      }
+
+      // Skip CUSTOMER_REVISION_FORWARDED events if we have feedback for it
+      if (event.eventType === 'CUSTOMER_REVISION_FORWARDED') {
         const hasFeedback = feedbacks.some(
           f => f.feedbackType === 'CUSTOMER_REVISION_FORWARDED' &&
                Math.abs(new Date(f.createdAt).getTime() - new Date(event.createdAt).getTime()) < 60000
@@ -557,6 +690,131 @@ export function AdminHistorySection({
                           {typeof item.data.metadata.adminNote === 'string' && item.data.metadata.adminNote && (
                             <p className="text-xs text-slate-600 mt-1">
                               <span className="font-medium">Admin Note:</span> {item.data.metadata.adminNote}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Customer revision feedback — section-by-section detail */}
+                      {(item.data.eventType === 'CUSTOMER_REVISION_REQUESTED' ||
+                        item.data.eventType === 'CUSTOMER_REVISION_FORWARDED') &&
+                        item.data.metadata && (
+                        <div className="mt-2 p-2.5 bg-pink-50/80 rounded border border-pink-100">
+                          {typeof item.data.metadata.customerName === 'string' && item.data.metadata.customerName && (
+                            <p className="text-xs text-pink-800 mb-1.5">
+                              <span className="font-medium">From:</span> {item.data.metadata.customerName}
+                              {typeof item.data.metadata.customerEmail === 'string' && item.data.metadata.customerEmail && (
+                                <span className="text-pink-600 ml-1">({item.data.metadata.customerEmail})</span>
+                              )}
+                            </p>
+                          )}
+                          {Array.isArray(item.data.metadata.sectionFeedbacks) && item.data.metadata.sectionFeedbacks.length > 0 && (
+                            <div className="space-y-1.5 mb-1.5">
+                              {(item.data.metadata.sectionFeedbacks as { section: string; comment: string }[]).map((sf, i) => (
+                                <div key={i} className="flex gap-2">
+                                  <span className="px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded text-[10px] font-medium flex-shrink-0">
+                                    {SECTION_LABELS[sf.section] || sf.section}
+                                  </span>
+                                  <p className="text-xs text-slate-700">{sf.comment}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {typeof item.data.metadata.generalNotes === 'string' && item.data.metadata.generalNotes && (
+                            <p className="text-xs text-slate-700">
+                              <span className="font-medium">General Notes:</span> {item.data.metadata.generalNotes}
+                            </p>
+                          )}
+                          {typeof item.data.metadata.notes === 'string' && item.data.metadata.notes && !item.data.metadata.generalNotes && (
+                            <p className="text-xs text-slate-700">{item.data.metadata.notes}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Field change request/approval/rejection metadata */}
+                      {(item.data.eventType === 'FIELD_CHANGE_REQUESTED' ||
+                        item.data.eventType === 'FIELD_CHANGE_APPROVED' ||
+                        item.data.eventType === 'FIELD_CHANGE_REJECTED') &&
+                        item.data.metadata && (
+                        <div className={cn(
+                          'mt-2 p-2.5 rounded border',
+                          item.data.eventType === 'FIELD_CHANGE_REQUESTED' && 'bg-yellow-50/80 border-yellow-100',
+                          item.data.eventType === 'FIELD_CHANGE_APPROVED' && 'bg-green-50/80 border-green-100',
+                          item.data.eventType === 'FIELD_CHANGE_REJECTED' && 'bg-red-50/80 border-red-100'
+                        )}>
+                          {Array.isArray(item.data.metadata.fields) && item.data.metadata.fields.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-1.5">
+                              {(item.data.metadata.fields as string[]).map((fieldId: string) => (
+                                <span
+                                  key={fieldId}
+                                  className={cn(
+                                    'px-2 py-0.5 rounded text-[10px] font-medium',
+                                    item.data.eventType === 'FIELD_CHANGE_REQUESTED' && 'bg-yellow-100 text-yellow-800',
+                                    item.data.eventType === 'FIELD_CHANGE_APPROVED' && 'bg-green-100 text-green-700',
+                                    item.data.eventType === 'FIELD_CHANGE_REJECTED' && 'bg-red-100 text-red-700'
+                                  )}
+                                >
+                                  {FIELD_LABELS[fieldId] || fieldId}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {typeof item.data.metadata.description === 'string' && item.data.metadata.description && (
+                            <p className="text-xs text-slate-600">
+                              <span className="font-medium">Description:</span> {item.data.metadata.description}
+                            </p>
+                          )}
+                          {typeof item.data.metadata.adminNote === 'string' && item.data.metadata.adminNote && (
+                            <p className="text-xs text-slate-600 mt-1">
+                              <span className="font-medium">Admin Note:</span> {item.data.metadata.adminNote}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Reviewer changed metadata */}
+                      {item.data.eventType === 'REVIEWER_CHANGED' && item.data.metadata && (
+                        <div className="mt-2 p-2.5 bg-slate-50/80 rounded border border-slate-100">
+                          <p className="text-xs text-slate-700">
+                            <code className="bg-slate-100 px-1 rounded">{String(item.data.metadata.previousReviewerName || 'None')}</code>
+                            {' → '}
+                            <code className="bg-blue-100 px-1 rounded">{String(item.data.metadata.newReviewerName || 'Unknown')}</code>
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Admin replied to customer metadata */}
+                      {item.data.eventType === 'ADMIN_REPLIED_TO_CUSTOMER' && item.data.metadata && (
+                        <div className="mt-2 p-2.5 bg-indigo-50/80 rounded border border-indigo-100">
+                          <p className="text-xs text-slate-700 whitespace-pre-wrap">
+                            {String(item.data.metadata.response || '')}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Download link sent metadata */}
+                      {item.data.eventType === 'DOWNLOAD_LINK_SENT' && item.data.metadata && (
+                        <div className="mt-2 p-2.5 bg-teal-50/80 rounded border border-teal-100">
+                          <p className="text-xs text-teal-800">
+                            <span className="font-medium">Sent to:</span> {String(item.data.metadata.customerName || '')}
+                            {typeof item.data.metadata.customerEmail === 'string' && item.data.metadata.customerEmail && (
+                              <span className="text-teal-600 ml-1">({item.data.metadata.customerEmail})</span>
+                            )}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Resubmission metadata */}
+                      {item.data.eventType === 'RESUBMITTED_FOR_REVIEW' && item.data.metadata && (
+                        <div className="mt-2 p-2.5 bg-blue-50/80 rounded border border-blue-100">
+                          {typeof item.data.metadata.engineerNotes === 'string' && item.data.metadata.engineerNotes && (
+                            <p className="text-xs text-slate-700">
+                              <span className="font-medium">Engineer Notes:</span> {item.data.metadata.engineerNotes}
+                            </p>
+                          )}
+                          {item.data.metadata.sectionResponseCount != null && Number(item.data.metadata.sectionResponseCount) > 0 && (
+                            <p className="text-xs text-slate-500 mt-1">
+                              {String(item.data.metadata.sectionResponseCount)} section response(s) included
                             </p>
                           )}
                         </div>

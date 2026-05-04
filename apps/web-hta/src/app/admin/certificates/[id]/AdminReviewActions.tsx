@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api-client'
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
 import {
   CheckCircle,
   RotateCcw,
@@ -14,6 +15,7 @@ import {
   Send,
   Plus,
   Trash2,
+  AlertTriangle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { REVISION_SECTIONS } from '@/components/feedback/shared/feedback-utils'
@@ -51,10 +53,13 @@ export function AdminReviewActions({
   const [rejectStep, setRejectStep] = useState<'reason' | 'confirm'>('reason')
   const [rejectConfirmText, setRejectConfirmText] = useState('')
 
+  const [isResending, setIsResending] = useState(false)
+
   const canReview = certificate.status === 'PENDING_REVIEW'
   const isRevisionRequired = certificate.status === 'REVISION_REQUIRED'
   const isPendingCustomer = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
   const isCustomerRevisionRequired = certificate.status === 'CUSTOMER_REVISION_REQUIRED'
+  const isCustomerReviewExpired = certificate.status === 'CUSTOMER_REVIEW_EXPIRED'
   const isApproved = certificate.status === 'APPROVED'
   const isRejected = certificate.status === 'REJECTED'
 
@@ -184,6 +189,41 @@ export function AdminReviewActions({
     }
   }
 
+  const handleResendToCustomer = async () => {
+    const customerEmail = certificate.customerContactEmail
+    const customerName = certificate.customerContactName || certificate.customerName
+
+    if (!customerEmail || !customerName) {
+      setError('Customer email and name are required to resend')
+      return
+    }
+
+    setIsResending(true)
+    setError(null)
+
+    try {
+      const response = await apiFetch(`/api/certificates/${certificate.id}/send-to-customer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerEmail,
+          customerName,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to resend to customer')
+      }
+
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsResending(false)
+    }
+  }
+
   const addSectionEntry = () => {
     setSectionFeedbackEntries(prev => [
       ...prev,
@@ -276,15 +316,57 @@ export function AdminReviewActions({
           </div>
         )}
 
+        {isCustomerReviewExpired && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#fef2f2] rounded-xl border border-[#fecaca]">
+              <div className="size-7 rounded-lg bg-[#fee2e2] flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="size-3.5 text-[#dc2626]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[12.5px] font-semibold text-[#991b1b]">Customer Review Expired</p>
+                <p className="text-[11px] text-[#dc2626]">Customer did not respond within 48 hours</p>
+              </div>
+            </div>
+            <Button
+              onClick={handleResendToCustomer}
+              disabled={isResending}
+              size="sm"
+              className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white h-9 rounded-[9px] text-[12.5px] font-semibold"
+            >
+              {isResending ? (
+                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Send className="size-3.5 mr-1.5" />
+              )}
+              Resend to Customer
+            </Button>
+          </div>
+        )}
+
         {isCustomerRevisionRequired && (
-          <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#fdf2f8] rounded-xl border border-[#fbcfe8]">
-            <div className="size-7 rounded-lg bg-[#fce7f3] flex items-center justify-center flex-shrink-0">
-              <RotateCcw className="size-3.5 text-[#db2777]" />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#fdf2f8] rounded-xl border border-[#fbcfe8]">
+              <div className="size-7 rounded-lg bg-[#fce7f3] flex items-center justify-center flex-shrink-0">
+                <RotateCcw className="size-3.5 text-[#db2777]" />
+              </div>
+              <div>
+                <p className="text-[12.5px] font-semibold text-[#831843]">Customer Revision Requested</p>
+                <p className="text-[11px] text-[#db2777]">Awaiting engineer response</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[12.5px] font-semibold text-[#831843]">Customer Revision Requested</p>
-              <p className="text-[11px] text-[#db2777]">Awaiting engineer response</p>
-            </div>
+            <Button
+              onClick={handleResendToCustomer}
+              disabled={isResending}
+              size="sm"
+              className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white h-9 rounded-[9px] text-[12.5px] font-semibold"
+            >
+              {isResending ? (
+                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Send className="size-3.5 mr-1.5" />
+              )}
+              Resend to Customer
+            </Button>
           </div>
         )}
 

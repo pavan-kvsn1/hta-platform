@@ -5,11 +5,22 @@ import { useState, useEffect, useCallback } from 'react'
 import { Loader2 } from 'lucide-react'
 import { CertificateTable } from '@/components/dashboard/CertificateTable'
 
+interface TatInfo {
+  overdue: number
+  approaching: number
+}
+
 interface Stats {
   draft: number
   pending: number
   approved: number
   revision: number
+  conflict?: number
+  tat?: {
+    draft: TatInfo
+    pending: TatInfo
+    revision: TatInfo
+  }
 }
 
 export function EngineerDashboardClient() {
@@ -21,7 +32,16 @@ export function EngineerDashboardClient() {
       setIsLoading(true)
       const response = await apiFetch('/api/certificates/engineer/counts')
       if (response.ok) {
-        setStats(await response.json())
+        const data = await response.json()
+        // In Electron, fetch local conflict count from IPC
+        const electronAPI = (window as unknown as { electronAPI?: { listDrafts: () => Promise<{ status: string }[]> } }).electronAPI
+        if (electronAPI?.listDrafts) {
+          try {
+            const drafts = await electronAPI.listDrafts()
+            data.conflict = drafts.filter((d: { status: string }) => d.status === 'CONFLICT').length
+          } catch { /* ignore */ }
+        }
+        setStats(data)
       }
     } finally {
       setIsLoading(false)
@@ -40,7 +60,7 @@ export function EngineerDashboardClient() {
     )
   }
 
-  const counts = stats || { draft: 0, pending: 0, approved: 0, revision: 0 }
+  const counts = stats || { draft: 0, pending: 0, approved: 0, revision: 0, conflict: 0 }
 
   return (
     <div className="h-full overflow-auto bg-[#f1f5f9]">
@@ -52,23 +72,46 @@ export function EngineerDashboardClient() {
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-          <div className="bg-white border border-border rounded-xl px-5 py-5 border-l-[3px] border-l-[#cbd5e1]">
-            <div className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2.5">Drafts</div>
-            <div className="text-[38px] font-extrabold leading-none tracking-tight text-[#475569]">{counts.draft}</div>
-          </div>
-          <div className="bg-white border border-border rounded-xl px-5 py-5 border-l-[3px] border-l-warning">
-            <div className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2.5">Pending Review</div>
-            <div className="text-[38px] font-extrabold leading-none tracking-tight text-[#b45309]">{counts.pending}</div>
-          </div>
-          <div className="bg-white border border-border rounded-xl px-5 py-5 border-l-[3px] border-l-success">
-            <div className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2.5">Approved</div>
-            <div className="text-[38px] font-extrabold leading-none tracking-tight text-[#15803d]">{counts.approved}</div>
-          </div>
-          <div className="bg-white border border-border rounded-xl px-5 py-5 border-l-[3px] border-l-destructive">
-            <div className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2.5">Need Revision</div>
-            <div className="text-[38px] font-extrabold leading-none tracking-tight text-destructive">{counts.revision}</div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-7">
+          {[
+            { label: 'Drafts', value: counts.draft, borderColor: 'border-l-[#cbd5e1]', countColor: 'text-[#475569]', tatKey: 'draft' as const },
+            { label: 'Pending Review', value: counts.pending, borderColor: 'border-l-warning', countColor: 'text-[#b45309]', tatKey: 'pending' as const },
+            { label: 'Approved', value: counts.approved, borderColor: 'border-l-success', countColor: 'text-[#15803d]', tatKey: null },
+            { label: 'Need Revision', value: counts.revision, borderColor: 'border-l-destructive', countColor: 'text-destructive', tatKey: 'revision' as const },
+            { label: 'Sync Conflicts', value: counts.conflict || 0, borderColor: 'border-l-[#7c3aed]', countColor: 'text-[#7c3aed]', tatKey: null },
+          ].map((card) => {
+            const tat = card.tatKey && counts.tat ? counts.tat[card.tatKey] : null
+            const overdue = tat?.overdue || 0
+            const approaching = tat?.approaching || 0
+            const onTime = card.value - overdue - approaching
+            const pO = card.value > 0 ? Math.round((overdue / card.value) * 100) : 0
+            const pA = card.value > 0 ? Math.round((approaching / card.value) * 100) : 0
+            const pG = card.value > 0 ? 100 - pO - pA : 0
+
+            return (
+              <div key={card.label} className={`bg-white border border-border rounded-xl px-5 py-5 border-l-[3px] ${card.borderColor}`}>
+                <div className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2.5">{card.label}</div>
+                <div className={`text-[38px] font-extrabold leading-none tracking-tight ${card.countColor}`}>{card.value}</div>
+                {tat && card.value > 0 && (
+                  <>
+                    <div className="mt-3 h-[6px] rounded-full bg-[#f1f5f9] overflow-hidden">
+                      <div className="h-full flex">
+                        {overdue > 0 && <div className="bg-[#ef4444] h-full" style={{ width: `${pO}%` }} />}
+                        {approaching > 0 && <div className="bg-[#f59e0b] h-full" style={{ width: `${pA}%` }} />}
+                        {onTime > 0 && <div className="bg-[#22c55e] h-full" style={{ width: `${pG}%` }} />}
+                      </div>
+                    </div>
+                    {(overdue > 0 || approaching > 0) && (
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {overdue > 0 && <span className="text-[10px] font-semibold text-[#dc2626]">{overdue} overdue</span>}
+                        {approaching > 0 && <span className="text-[10px] font-semibold text-[#d97706]">{approaching} soon</span>}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )
+          })}
         </div>
 
         {/* Certificate Table */}

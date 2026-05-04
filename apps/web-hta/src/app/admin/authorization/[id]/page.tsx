@@ -21,6 +21,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   APPROVED: { label: 'Approved', className: 'bg-[#f0fdf4] text-[#16a34a] border-[#dcfce7]' },
   AUTHORIZED: { label: 'Authorized', className: 'bg-[#f0fdf4] text-[#16a34a] border-[#dcfce7]' },
   REJECTED: { label: 'Rejected', className: 'bg-[#fef2f2] text-[#dc2626] border-[#fee2e2]' },
+  CUSTOMER_REVIEW_EXPIRED: { label: 'Review Expired', className: 'bg-[#fef2f2] text-[#dc2626] border-[#fee2e2]' },
 }
 
 interface Props {
@@ -251,6 +252,7 @@ async function getCertificateData(id: string) {
     calibratedAt: certificate.calibratedAt,
     customerContactName: certificate.customerContactName,
     customerContactEmail: certificate.customerContactEmail,
+    certificateCreatedAt: certificate.createdAt.toISOString(),
   }
 }
 
@@ -288,6 +290,15 @@ export default async function AdminAuthorizationPage({ params }: Props) {
     dateOfCalibration: data.certificate.dateOfCalibration,
   }
 
+  // Compute TAT start for authorization phase (12h target)
+  const isTerminal = ['AUTHORIZED', 'REJECTED'].includes(data.certificate.status)
+  const tatStartedAt = !isTerminal
+    ? data.events
+        .filter(e => e.eventType === 'SUBMITTED_FOR_AUTHORIZATION')
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+        ?.createdAt || null
+    : null
+
   return (
     <AdminAuthorizationClient
       certificate={data.certificate}
@@ -298,6 +309,8 @@ export default async function AdminAuthorizationPage({ params }: Props) {
       headerData={headerData}
       customerEmail={data.customerContactEmail}
       customerContactName={data.customerContactName}
+      tatStartedAt={tatStartedAt}
+      certificateCreatedAt={data.certificateCreatedAt}
     />
   )
 }

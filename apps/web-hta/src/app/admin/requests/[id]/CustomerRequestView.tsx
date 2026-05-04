@@ -2,7 +2,7 @@
 
 import { apiFetch } from '@/lib/api-client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -10,6 +10,8 @@ import {
   Loader2,
   UserPlus,
   Crown,
+  Trash2,
+  Download,
   CheckCircle,
   XCircle,
   AlertTriangle,
@@ -25,7 +27,7 @@ import { cn } from '@/lib/utils'
 
 interface CustomerRequestData {
   id: string
-  type: 'USER_ADDITION' | 'POC_CHANGE'
+  type: 'USER_ADDITION' | 'POC_CHANGE' | 'ACCOUNT_DELETION' | 'DATA_EXPORT'
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   data: { name?: string; email?: string; newPocUserId?: string; reason?: string }
   newPocUser?: { id: string; name: string; email: string; isActive: boolean } | null
@@ -57,6 +59,77 @@ interface RecentRequest {
   details: string
 }
 
+function formatTATTime(ms: number): { hours: number; minutes: number } {
+  const hours = Math.floor(ms / (1000 * 60 * 60))
+  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60))
+  return { hours, minutes }
+}
+
+function TATBanner({ sentAt, targetHours = 12 }: { sentAt: string; targetHours?: number }) {
+  const [elapsed, setElapsed] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 })
+  const [remaining, setRemaining] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 })
+  const [status, setStatus] = useState<'good' | 'warning' | 'critical'>('good')
+
+  useEffect(() => {
+    const calculateTAT = () => {
+      const sentTime = new Date(sentAt).getTime()
+      const now = Date.now()
+      const elapsedMs = now - sentTime
+      const targetMs = targetHours * 60 * 60 * 1000
+      const remainingMs = targetMs - elapsedMs
+
+      setElapsed(formatTATTime(elapsedMs))
+
+      if (remainingMs <= 0) {
+        setRemaining({ hours: 0, minutes: 0 })
+        setStatus('critical')
+      } else if (remainingMs <= 3 * 60 * 60 * 1000) {
+        setRemaining(formatTATTime(remainingMs))
+        setStatus('warning')
+      } else {
+        setRemaining(formatTATTime(remainingMs))
+        setStatus('good')
+      }
+    }
+
+    calculateTAT()
+    const interval = setInterval(calculateTAT, 60000)
+    return () => clearInterval(interval)
+  }, [sentAt, targetHours])
+
+  const config = {
+    good: { bg: 'bg-[#f0fdf4]', border: 'border-[#bbf7d0]', text: 'text-[#166534]', icon: <Clock className="size-3.5 text-[#16a34a]" /> },
+    warning: { bg: 'bg-[#fffbeb]', border: 'border-[#fde68a]', text: 'text-[#92400e]', icon: <AlertTriangle className="size-3.5 text-[#d97706]" /> },
+    critical: { bg: 'bg-[#fef2f2]', border: 'border-[#fecaca]', text: 'text-[#991b1b]', icon: <AlertTriangle className="size-3.5 text-[#dc2626]" /> },
+  }
+
+  const c = config[status]
+
+  return (
+    <div className={cn('px-4 py-2 rounded-xl border flex items-center justify-between text-[12.5px]', c.bg, c.border, c.text)}>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          {c.icon}
+          <span className="font-semibold">
+            TAT: {elapsed.hours}h {elapsed.minutes}m elapsed
+          </span>
+        </div>
+        <span className="text-[#e2e8f0]">|</span>
+        <span>Target: {targetHours}h</span>
+      </div>
+      <div>
+        {status === 'critical' ? (
+          <span className="font-semibold">Target exceeded</span>
+        ) : (
+          <span>
+            {remaining.hours}h {remaining.minutes}m remaining
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 interface CustomerRequestViewProps {
   request: CustomerRequestData
   companyUsers?: CompanyUser[]
@@ -78,6 +151,8 @@ export function CustomerRequestView({
 
   const isPending = request.status === 'PENDING'
   const isUserAddition = request.type === 'USER_ADDITION'
+  const isAccountDeletion = request.type === 'ACCOUNT_DELETION'
+  const isDataExport = request.type === 'DATA_EXPORT'
 
   const handleApprove = async () => {
     setError('')
@@ -141,16 +216,20 @@ export function CustomerRequestView({
           <div className="flex items-center gap-3">
             <div className={cn(
               'p-2 rounded-[9px]',
-              isUserAddition ? 'bg-[#dcfce7]' : 'bg-[#ede9fe]'
+              isUserAddition ? 'bg-[#dcfce7]' : isAccountDeletion ? 'bg-[#fecaca]' : isDataExport ? 'bg-[#ffedd5]' : 'bg-[#ede9fe]'
             )}>
               {isUserAddition ? (
                 <UserPlus className="size-5 text-[#16a34a]" />
+              ) : isAccountDeletion ? (
+                <Trash2 className="size-5 text-[#dc2626]" />
+              ) : isDataExport ? (
+                <Download className="size-5 text-[#c2410c]" />
               ) : (
                 <Crown className="size-5 text-[#7c3aed]" />
               )}
             </div>
             <h1 className="text-[22px] font-bold text-[#0f172a]">
-              {isUserAddition ? 'User Addition Request' : 'POC Change Request'}
+              {isUserAddition ? 'User Addition Request' : isAccountDeletion ? 'Account Deletion Request' : isDataExport ? 'Data Export Request' : 'POC Change Request'}
             </h1>
             <span className={cn(
               'px-2 py-0.5 rounded-md text-[11px] font-semibold',
@@ -175,22 +254,33 @@ export function CustomerRequestView({
           </div>
         </div>
 
+        {/* TAT Banner — only for pending requests */}
+        {isPending && (
+          <div className="mb-5">
+            <TATBanner sentAt={request.createdAt} targetHours={12} />
+          </div>
+        )}
+
         {/* Request Summary Banner */}
         <div className={cn(
           'rounded-[14px] border overflow-hidden mb-5',
-          isUserAddition ? 'bg-[#f0fdf4] border-[#bbf7d0]' : 'bg-[#faf5ff] border-[#e9d5ff]'
+          isUserAddition ? 'bg-[#f0fdf4] border-[#bbf7d0]' : isAccountDeletion ? 'bg-[#fef2f2] border-[#fecaca]' : isDataExport ? 'bg-[#fff7ed] border-[#fed7aa]' : 'bg-[#faf5ff] border-[#e9d5ff]'
         )}>
           <div className={cn(
             'px-5 py-3 border-b',
-            isUserAddition ? 'border-[#bbf7d0] bg-[#dcfce7]/50' : 'border-[#e9d5ff] bg-[#ede9fe]/50'
+            isUserAddition ? 'border-[#bbf7d0] bg-[#dcfce7]/50' : isAccountDeletion ? 'border-[#fecaca] bg-[#fecaca]/30' : isDataExport ? 'border-[#fed7aa] bg-[#ffedd5]/50' : 'border-[#e9d5ff] bg-[#ede9fe]/50'
           )}>
             <div className="flex items-center gap-3">
               <div className={cn(
                 'p-2 rounded-[9px]',
-                isUserAddition ? 'bg-[#bbf7d0]' : 'bg-[#ddd6fe]'
+                isUserAddition ? 'bg-[#bbf7d0]' : isAccountDeletion ? 'bg-[#fecaca]' : isDataExport ? 'bg-[#fed7aa]' : 'bg-[#ddd6fe]'
               )}>
                 {isUserAddition ? (
                   <UserPlus className="size-5 text-[#15803d]" />
+                ) : isAccountDeletion ? (
+                  <Trash2 className="size-5 text-[#dc2626]" />
+                ) : isDataExport ? (
+                  <Download className="size-5 text-[#c2410c]" />
                 ) : (
                   <Crown className="size-5 text-[#6d28d9]" />
                 )}
@@ -198,13 +288,13 @@ export function CustomerRequestView({
               <div>
                 <h3 className={cn(
                   'font-bold text-[13px]',
-                  isUserAddition ? 'text-[#14532d]' : 'text-[#3b0764]'
+                  isUserAddition ? 'text-[#14532d]' : isAccountDeletion ? 'text-[#7f1d1d]' : isDataExport ? 'text-[#7c2d12]' : 'text-[#3b0764]'
                 )}>
-                  {isUserAddition ? 'New User Details' : 'POC Change Details'}
+                  {isUserAddition ? 'New User Details' : isAccountDeletion ? 'Account Deletion Details' : isDataExport ? 'Data Export Details' : 'POC Change Details'}
                 </h3>
                 <p className={cn(
                   'text-[12px]',
-                  isUserAddition ? 'text-[#16a34a]' : 'text-[#7c3aed]'
+                  isUserAddition ? 'text-[#16a34a]' : isAccountDeletion ? 'text-[#dc2626]' : isDataExport ? 'text-[#ea580c]' : 'text-[#7c3aed]'
                 )}>
                   {request.requestedBy
                     ? `Requested by ${request.requestedBy.name}`
@@ -214,7 +304,77 @@ export function CustomerRequestView({
             </div>
           </div>
           <div className="p-5">
-            {isUserAddition ? (
+            {isDataExport ? (
+              <div className="space-y-4">
+                <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-3">User Requesting Export</p>
+                  {request.requestedBy ? (
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 bg-[#fff7ed] rounded-full flex items-center justify-center">
+                        <Download className="size-5 text-[#c2410c]" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[#0f172a] text-[13px]">{request.requestedBy.name}</p>
+                        <p className="text-[12px] text-[#94a3b8]">{request.requestedBy.email}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[#94a3b8] text-[13px]">Unknown user</p>
+                  )}
+                </div>
+                <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 className="size-4 text-[#94a3b8]" />
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Company Info</p>
+                  </div>
+                  <p className="text-[13px] font-semibold text-[#0f172a]">{request.customerAccount.companyName}</p>
+                  <p className="text-[12px] text-[#64748b] mt-1">
+                    Current users: {companyUsers.length} | POC: {request.customerAccount.primaryPoc?.name || 'None'}
+                  </p>
+                </div>
+                {request.data.reason && (
+                  <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2">Reason for Request</p>
+                    <p className="text-[13px] text-[#64748b] italic">&ldquo;{request.data.reason}&rdquo;</p>
+                  </div>
+                )}
+              </div>
+            ) : isAccountDeletion ? (
+              <div className="space-y-4">
+                <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-3">User Requesting Deletion</p>
+                  {request.requestedBy ? (
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 bg-[#fef2f2] rounded-full flex items-center justify-center">
+                        <Trash2 className="size-5 text-[#dc2626]" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[#0f172a] text-[13px]">{request.requestedBy.name}</p>
+                        <p className="text-[12px] text-[#94a3b8]">{request.requestedBy.email}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[#94a3b8] text-[13px]">Unknown user</p>
+                  )}
+                </div>
+                <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 className="size-4 text-[#94a3b8]" />
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Company Info</p>
+                  </div>
+                  <p className="text-[13px] font-semibold text-[#0f172a]">{request.customerAccount.companyName}</p>
+                  <p className="text-[12px] text-[#64748b] mt-1">
+                    Current users: {companyUsers.length} | POC: {request.customerAccount.primaryPoc?.name || 'None'}
+                  </p>
+                </div>
+                {request.data.reason && (
+                  <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2">Reason for Deletion</p>
+                    <p className="text-[13px] text-[#64748b] italic">&ldquo;{request.data.reason}&rdquo;</p>
+                  </div>
+                )}
+              </div>
+            ) : isUserAddition ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white rounded-[9px] border border-[#e2e8f0] p-4">
@@ -494,8 +654,44 @@ export function CustomerRequestView({
                 {/* Pending action form */}
                 {isPending && (
                   <>
+                    {/* Info for Data Export */}
+                    {isDataExport && (
+                      <div className="mb-4 p-3 bg-[#fff7ed] border border-[#fed7aa] rounded-[9px]">
+                        <div className="flex gap-2">
+                          <Download className="size-4 text-[#c2410c] flex-shrink-0 mt-0.5" />
+                          <div className="text-[12px]">
+                            <p className="font-semibold text-[#7c2d12]">If approved:</p>
+                            <ul className="mt-1 text-[#ea580c] list-disc list-inside space-y-0.5">
+                              <li>User&apos;s personal data will be compiled</li>
+                              <li>Data will be sent to {request.requestedBy?.email || 'the requester'}</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Warning for Account Deletion */}
+                    {isAccountDeletion && (
+                      <div className="mb-4 p-3 bg-[#fef2f2] border border-[#fecaca] rounded-[9px]">
+                        <div className="flex gap-2">
+                          <AlertTriangle className="size-4 text-[#dc2626] flex-shrink-0 mt-0.5" />
+                          <div className="text-[12px]">
+                            <p className="font-semibold text-[#991b1b]">If approved:</p>
+                            <ul className="mt-1 text-[#dc2626] list-disc list-inside space-y-0.5">
+                              <li>{request.requestedBy?.name || 'User'}&apos;s account will be deactivated</li>
+                              <li>Personal data will be anonymized</li>
+                              <li>Certificates retained for 7 years per regulations</li>
+                              {request.customerAccount.primaryPoc?.id === request.requestedBy?.id && (
+                                <li className="font-semibold">This user is the POC &mdash; account will lose its primary contact</li>
+                              )}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Warning for POC Change */}
-                    {!isUserAddition && (
+                    {!isUserAddition && !isAccountDeletion && (
                       <div className="mb-4 p-3 bg-[#fffbeb] border border-[#fde68a] rounded-[9px]">
                         <div className="flex gap-2">
                           <AlertTriangle className="size-4 text-[#d97706] flex-shrink-0 mt-0.5" />

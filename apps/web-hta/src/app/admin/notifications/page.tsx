@@ -68,7 +68,18 @@ export default function AdminNotificationsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('unread')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isMarkingRead, setIsMarkingRead] = useState(false)
+  const [totalUnread, setTotalUnread] = useState(0)
   const limit = 50
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/notifications/unread-count')
+      if (res.ok) {
+        const data = await res.json()
+        setTotalUnread(data.count)
+      }
+    } catch { /* ignore */ }
+  }, [])
 
   const fetchNotifications = useCallback(async (reset = false) => {
     try {
@@ -107,10 +118,12 @@ export default function AdminNotificationsPage() {
 
   useEffect(() => {
     fetchNotifications(true)
+    fetchUnreadCount()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleMarkAsRead = async (id: string) => {
     try {
+      const wasUnread = notifications.find((n) => n.id === id && !n.read)
       await apiFetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,6 +133,10 @@ export default function AdminNotificationsPage() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       )
+      if (wasUnread) {
+        setTotalUnread((prev) => Math.max(0, prev - 1))
+        window.dispatchEvent(new CustomEvent('notifications-changed'))
+      }
     } catch (error) {
       console.error('Error marking notification as read:', error)
     }
@@ -138,6 +155,8 @@ export default function AdminNotificationsPage() {
 
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
       setSelectedIds(new Set())
+      setTotalUnread(0)
+      window.dispatchEvent(new CustomEvent('notifications-changed'))
     } catch (error) {
       console.error('Error marking all notifications as read:', error)
     }
@@ -148,6 +167,7 @@ export default function AdminNotificationsPage() {
     setIsMarkingRead(true)
     try {
       const ids = Array.from(selectedIds)
+      const markedCount = notifications.filter((n) => selectedIds.has(n.id) && !n.read).length
       await apiFetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,6 +178,8 @@ export default function AdminNotificationsPage() {
         prev.map((n) => (selectedIds.has(n.id) ? { ...n, read: true } : n))
       )
       setSelectedIds(new Set())
+      setTotalUnread((prev) => Math.max(0, prev - markedCount))
+      window.dispatchEvent(new CustomEvent('notifications-changed'))
     } catch (error) {
       console.error('Error marking selected as read:', error)
     } finally {
@@ -209,12 +231,12 @@ export default function AdminNotificationsPage() {
             <div>
               <h1 className="text-[22px] font-bold text-[#0f172a]">Notifications</h1>
               <p className="text-[13px] text-[#94a3b8]">
-                {unreadNotifications.length > 0 ? `${unreadNotifications.length} unread` : 'All caught up!'}
+                {totalUnread > 0 ? `${totalUnread} unread` : 'All caught up!'}
               </p>
             </div>
           </div>
 
-          {unreadNotifications.length > 0 && (
+          {totalUnread > 0 && (
             <button
               onClick={handleMarkAllAsRead}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] border border-[#e2e8f0] text-[12.5px] font-semibold text-[#475569] hover:bg-[#f8fafc] transition-colors"
@@ -236,9 +258,9 @@ export default function AdminNotificationsPage() {
             }`}
           >
             Unread
-            {unreadNotifications.length > 0 && (
+            {totalUnread > 0 && (
               <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-[#ef4444] text-white">
-                {unreadNotifications.length}
+                {totalUnread}
               </span>
             )}
           </button>

@@ -11,6 +11,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface RangeDataItem {
   parameter?: string
@@ -544,13 +545,10 @@ export default function NewInstrumentPage() {
                 <label htmlFor="calibrationDueDate" className="block text-[13px] text-[#64748b] mb-1.5">
                   Calibration Due Date
                 </label>
-                <input
-                  type="date"
-                  id="calibrationDueDate"
-                  name="calibrationDueDate"
+                <DatePicker
                   value={formData.calibrationDueDate}
-                  onChange={handleChange}
-                  className={inputClass}
+                  onChange={(val) => setFormData(prev => ({ ...prev, calibrationDueDate: val }))}
+                  placeholder="Select due date"
                 />
               </div>
 

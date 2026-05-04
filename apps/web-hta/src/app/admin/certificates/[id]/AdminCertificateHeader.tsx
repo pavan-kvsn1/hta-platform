@@ -5,7 +5,6 @@ import { ChevronLeft, User, Building2, MapPin } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ViewToggleButton } from '@/components/certificate/ViewToggleButton'
 import { MetaInfoItem } from '@/components/certificate/MetaInfoItem'
-import { TATBadge } from '@/components/certificate/TATBadge'
 import type { HeaderData } from './AdminCertificateClient'
 
 interface AdminCertificateHeaderProps {
@@ -53,7 +52,6 @@ export function AdminCertificateHeader({
         </div>
 
         <div className="flex items-center gap-3">
-          <TATBadge tat={headerData.tat} />
           <ViewToggleButton
             viewMode={viewMode}
             onViewModeChange={onViewModeChange}

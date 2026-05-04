@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Search, Eye, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Eye, FileText, Loader2, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api-client'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -103,6 +103,29 @@ export function AuthorizedTable() {
   const startIndex = (safePage - 1) * rowsPerPage
   const endIndex = Math.min(startIndex + rowsPerPage, pagination.total)
   const pageNumbers = getPageNumbers(safePage, totalPages)
+
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+
+  const handleDownload = async (cert: AuthorizedCertificate) => {
+    setDownloadingId(cert.id)
+    try {
+      const response = await apiFetch(`/api/certificates/${cert.id}/download-signed`)
+      if (!response.ok) throw new Error('Failed to download')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${cert.certificateNumber}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Download error:', err)
+    } finally {
+      setDownloadingId(null)
+    }
+  }
 
   const handleSearch = (value: string) => { setSearchQuery(value) }
   const handleYearFilter = (value: string) => { setYearFilter(value) }
@@ -209,12 +232,28 @@ export function AuthorizedTable() {
                   <td className="px-4 py-3 text-[13px] text-[#64748b]">{formatDate(cert.dateOfCalibration)}</td>
                   <td className="px-4 py-3 text-[13px] text-[#64748b]">{formatDate(cert.calibrationDueDate)}</td>
                   <td className="px-4 py-3 text-center">
-                    <Link href={`/customer/review/cert/${cert.id}`}>
-                      <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors">
-                        <Eye className="size-3.5" />
-                        View
-                      </button>
-                    </Link>
+                    <div className="inline-flex items-center gap-1.5">
+                      <Link href={`/customer/review/cert/${cert.id}`}>
+                        <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors">
+                          <Eye className="size-3.5" />
+                          View
+                        </button>
+                      </Link>
+                      {cert.signedPdfPath && (
+                        <button
+                          onClick={() => handleDownload(cert)}
+                          disabled={downloadingId === cert.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-white bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 rounded-[9px] transition-colors"
+                        >
+                          {downloadingId === cert.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Download className="size-3.5" />
+                          )}
+                          Download
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

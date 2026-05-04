@@ -19,6 +19,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   PENDING_ADMIN_AUTHORIZATION: { label: 'Pending Authorization', className: 'bg-[#eef2ff] text-[#4f46e5] border-[#c7d2fe]' },
   APPROVED: { label: 'Approved', className: 'bg-[#f0fdf4] text-[#16a34a] border-[#bbf7d0]' },
   AUTHORIZED: { label: 'Authorized', className: 'bg-[#f0fdf4] text-[#16a34a] border-[#bbf7d0]' },
+  CUSTOMER_REVIEW_EXPIRED: { label: 'Review Expired', className: 'bg-[#fef2f2] text-[#dc2626] border-[#fecaca]' },
 }
 
 export default async function CustomerCertReviewPage({ params }: Props) {
@@ -258,7 +259,7 @@ export default async function CustomerCertReviewPage({ params }: Props) {
       signatures={signatures}
       chatThreadId={chatThread?.id || null}
       headerData={headerData}
-      expiresAt={approvalToken?.expiresAt?.toISOString() || null}
+      expiresAt={null}
       sentAt={approvalToken?.createdAt?.toISOString() || null}
     />
   )

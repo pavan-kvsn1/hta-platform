@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { safeJsonParse } from '@/lib/utils/safe-json'
 import { InternalRequestClient } from './InternalRequestClient'
 import { CustomerRequestView } from './CustomerRequestView'
+import { OfflineCodeRequestClient } from './OfflineCodeRequestClient'
 
 // Render at runtime, not build time (needs database)
 export const dynamic = 'force-dynamic'
@@ -108,6 +109,10 @@ export default async function RequestDetailPage({ params, searchParams }: Props)
         details = `User Add: ${reqData.name || 'Unknown'}`
       } else if (req.type === 'POC_CHANGE') {
         details = 'POC Change'
+      } else if (req.type === 'ACCOUNT_DELETION') {
+        details = 'Account Deletion'
+      } else if (req.type === 'DATA_EXPORT') {
+        details = 'Data Export'
       }
       return {
         id: req.id,
@@ -122,7 +127,7 @@ export default async function RequestDetailPage({ params, searchParams }: Props)
       <CustomerRequestView
         request={{
           id: customerRequest.id,
-          type: customerRequest.type as 'USER_ADDITION' | 'POC_CHANGE',
+          type: customerRequest.type as 'USER_ADDITION' | 'POC_CHANGE' | 'ACCOUNT_DELETION' | 'DATA_EXPORT',
           status: customerRequest.status as 'PENDING' | 'APPROVED' | 'REJECTED',
           data,
           newPocUser,
@@ -192,12 +197,41 @@ export default async function RequestDetailPage({ params, searchParams }: Props)
     },
   })
 
-  if (!internalRequest || !internalRequest.certificate) {
+  if (!internalRequest) {
+    notFound()
+  }
+
+  // OFFLINE_CODE_REQUEST has no certificate — render a simpler view
+  if ((internalRequest.type as string) === 'OFFLINE_CODE_REQUEST') {
+    const requestData = safeJsonParse<{ reason?: string | null }>(
+      internalRequest.data,
+      { reason: null }
+    )
+    return (
+      <OfflineCodeRequestClient
+        request={{
+          id: internalRequest.id,
+          status: internalRequest.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+          data: requestData,
+          requestedBy: internalRequest.requestedBy,
+          reviewedBy: internalRequest.reviewedBy,
+          reviewedAt: internalRequest.reviewedAt?.toISOString() || null,
+          adminNote: internalRequest.adminNote,
+          createdAt: internalRequest.createdAt.toISOString(),
+        }}
+      />
+    )
+  }
+
+  if (!internalRequest.certificate) {
     notFound()
   }
 
   const cert = internalRequest.certificate
-  const requestData = safeJsonParse<{ sections: string[]; reason: string }>(internalRequest.data, { sections: [], reason: '' })
+  const requestData = safeJsonParse<{ sections?: string[]; reason?: string; fields?: string[]; description?: string }>(
+    internalRequest.data,
+    (internalRequest.type as string) === 'FIELD_CHANGE' ? { fields: [], description: '' } : { sections: [], reason: '' }
+  )
 
   // Get currently unlocked sections
   let currentlyUnlockedSections: string[] = []
@@ -274,7 +308,7 @@ export default async function RequestDetailPage({ params, searchParams }: Props)
     <InternalRequestClient
       request={{
         id: internalRequest.id,
-        type: internalRequest.type as 'SECTION_UNLOCK',
+        type: internalRequest.type as 'SECTION_UNLOCK' | 'FIELD_CHANGE',
         status: internalRequest.status as 'PENDING' | 'APPROVED' | 'REJECTED',
         data: requestData,
         requestedBy: internalRequest.requestedBy,
@@ -362,6 +396,7 @@ export default async function RequestDetailPage({ params, searchParams }: Props)
       feedbacks={serializedFeedbacks}
       events={serializedEvents}
       currentlyUnlockedSections={currentlyUnlockedSections}
+      certificateCreatedAt={cert.createdAt.toISOString()}
     />
   )
 }

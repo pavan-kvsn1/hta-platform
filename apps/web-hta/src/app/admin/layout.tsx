@@ -15,8 +15,9 @@ async function getSidebarBadges(isMaster: boolean) {
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
 
   // Worker admins don't need request count (can't access that page)
-  const [pendingRequests, expiredInstruments, expiringInstruments, pendingAuthorizations] = await Promise.all([
+  const [pendingCustomerRequests, pendingInternalRequests, expiredInstruments, expiringInstruments, pendingAuthorizations] = await Promise.all([
     isMaster ? prisma.customerRequest.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
+    isMaster ? prisma.internalRequest.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
     prisma.masterInstrument.count({
       where: {
         isActive: true,
@@ -33,7 +34,7 @@ async function getSidebarBadges(isMaster: boolean) {
   ])
 
   return {
-    pendingRequests,
+    pendingRequests: pendingCustomerRequests + pendingInternalRequests,
     instrumentAlerts: expiredInstruments + expiringInstruments,
     pendingAuthorizations,
   }

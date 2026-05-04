@@ -18,6 +18,7 @@ import {
   FeedbackTimeline,
   isRevisionRequest,
   isEngineerResponse as isAssigneeResponse,
+  type InternalRequestItem,
 } from '@/components/feedback/shared'
 import {
   ImageGalleryModal,
@@ -140,6 +141,7 @@ interface ReviewerContentProps {
   assignee: Assignee
   feedbacks: Feedback[]
   customerFeedback?: CustomerFeedback | null
+  internalRequests?: InternalRequestItem[]
 }
 
 export function ReviewerContent({
@@ -147,6 +149,7 @@ export function ReviewerContent({
   assignee: _assignee,
   feedbacks,
   customerFeedback,
+  internalRequests,
 }: ReviewerContentProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     section1: true,
@@ -680,7 +683,7 @@ export function ReviewerContent({
       </CollapsibleSection>
 
       {/* Feedback History - Grouped by Revision */}
-      {(feedbacks.length > 0 || customerFeedback) && (
+      {(feedbacks.length > 0 || customerFeedback || (internalRequests && internalRequests.length > 0)) && (
         <FeedbackTimeline
           feedbacks={feedbacks}
           currentRevision={certificate.currentRevision}
@@ -688,6 +691,7 @@ export function ReviewerContent({
           groupBySection={true}
           showRevisionTransition={true}
           customerFeedback={customerFeedback}
+          internalRequests={internalRequests}
         />
       )}
 

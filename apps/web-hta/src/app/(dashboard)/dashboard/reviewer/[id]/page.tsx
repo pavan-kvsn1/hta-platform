@@ -18,6 +18,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   APPROVED: { label: 'Approved', className: 'bg-green-50 text-green-600 border-green-100' },
   AUTHORIZED: { label: 'Authorized', className: 'bg-green-50 text-green-600 border-green-100' },
   REJECTED: { label: 'Rejected', className: 'bg-red-50 text-red-600 border-red-100' },
+  CUSTOMER_REVIEW_EXPIRED: { label: 'Review Expired', className: 'bg-red-50 text-red-600 border-red-100' },
 }
 
 interface Props {
@@ -208,6 +209,75 @@ export default async function ReviewerReviewPage({ params }: Props) {
     lastSentCustomerName = sentData.customerName || null
   }
 
+  // Get TAT start time — when the reviewer's clock started ticking
+  let tatStartedAt: string | null = null
+
+  if (['PENDING_REVIEW', 'CUSTOMER_REVISION_REQUIRED'].includes(certificate.status)) {
+    const tatEvent = await prisma.certificateEvent.findFirst({
+      where: {
+        certificateId: certificate.id,
+        eventType: {
+          in: ['SUBMITTED_FOR_REVIEW', 'RESUBMITTED_FOR_REVIEW', 'CUSTOMER_REVISION_REQUESTED'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    })
+    tatStartedAt = tatEvent?.createdAt?.toISOString() || null
+  }
+
+  // Fetch all internal requests for this certificate (field changes + section unlocks)
+  // FIELD_CHANGE enum not in generated client yet — filter in JS until next prisma generate
+  const allInternalRequests = await prisma.internalRequest.findMany({
+    where: { certificateId: certificate.id },
+    orderBy: { createdAt: 'desc' },
+  })
+  const fieldChangeRequests = allInternalRequests.filter(r => (r.type as string) === 'FIELD_CHANGE')
+  const sectionUnlockRequests = allInternalRequests.filter(r => (r.type as string) === 'SECTION_UNLOCK')
+
+  // Lookup names for reviewedBy and requestedBy
+  const allUserIds = [
+    ...allInternalRequests.map(r => r.reviewedById).filter(Boolean),
+    ...allInternalRequests.map(r => r.requestedById).filter(Boolean),
+  ] as string[]
+  const uniqueUserIds = [...new Set(allUserIds)]
+  const allRequestUsers = uniqueUserIds.length > 0
+    ? await prisma.user.findMany({ where: { id: { in: uniqueUserIds } }, select: { id: true, name: true } })
+    : []
+  const userNameMap = new Map(allRequestUsers.map(u => [u.id, u.name]))
+
+  const serializedFieldChangeRequests = fieldChangeRequests.map((r) => {
+    let data: { fields?: string[]; description?: string } = { fields: [], description: '' }
+    try { data = JSON.parse(r.data) } catch { /* ignore */ }
+    return {
+      id: r.id,
+      status: r.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+      fields: data.fields || [],
+      description: data.description || '',
+      adminNote: r.adminNote,
+      reviewedBy: r.reviewedById ? (userNameMap.get(r.reviewedById) || null) : null,
+      reviewedAt: r.reviewedAt?.toISOString() || null,
+      createdAt: r.createdAt.toISOString(),
+    }
+  })
+
+  const serializedSectionUnlockRequests = sectionUnlockRequests.map((r) => {
+    let data: { sections?: string[]; reason?: string; revisionNumber?: number } = { sections: [], reason: '' }
+    try { data = JSON.parse(r.data) } catch { /* ignore */ }
+    return {
+      id: r.id,
+      type: 'SECTION_UNLOCK' as const,
+      status: r.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+      sections: data.sections || [],
+      reason: data.reason || '',
+      adminNote: r.adminNote,
+      requestedByName: r.requestedById ? (userNameMap.get(r.requestedById) || undefined) : undefined,
+      reviewedByName: r.reviewedById ? (userNameMap.get(r.reviewedById) || null) : null,
+      createdAt: r.createdAt.toISOString(),
+      revisionNumber: data.revisionNumber,
+    }
+  })
+
   // Fallback: look up customer contact email from CustomerAccount if not on the certificate
   let resolvedContactEmail = certificate.customerContactEmail
   let resolvedContactName = certificate.customerContactName
@@ -337,6 +407,10 @@ export default async function ReviewerReviewPage({ params }: Props) {
         email: lastSentCustomerEmail,
         name: lastSentCustomerName,
       } : null}
+      tatStartedAt={tatStartedAt}
+      certificateCreatedAt={certificate.createdAt.toISOString()}
+      fieldChangeRequests={serializedFieldChangeRequests}
+      sectionUnlockRequests={serializedSectionUnlockRequests}
     />
   )
 }

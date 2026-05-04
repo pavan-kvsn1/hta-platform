@@ -46,10 +46,19 @@ interface Certificate {
     name: string
     email: string
   } | null
+  reviewer: {
+    id: string
+    name: string
+  } | null
   lastModifiedBy: {
     id: string
     name: string
   }
+}
+
+interface TatInfo {
+  overdue: number
+  approaching: number
 }
 
 interface Stats {
@@ -62,6 +71,15 @@ interface Stats {
   pendingAdminAuthorization: number
   authorized: number
   rejected: number
+  customerReviewExpired: number
+  tat?: {
+    draft: TatInfo
+    pendingReview: TatInfo
+    revisionRequired: TatInfo
+    pendingCustomerApproval: TatInfo
+    customerRevisionRequired: TatInfo
+    pendingAdminAuthorization: TatInfo
+  }
 }
 
 interface Pagination {
@@ -81,18 +99,20 @@ const STATUS_OPTIONS = [
   { value: 'PENDING_ADMIN_AUTHORIZATION', label: 'Pending Authorization' },
   { value: 'AUTHORIZED', label: 'Authorized' },
   { value: 'REJECTED', label: 'Rejected' },
+  { value: 'CUSTOMER_REVIEW_EXPIRED', label: 'Review Expired' },
 ]
 
 const STAT_CARDS = [
-  { key: 'total', field: 'total' as const, label: 'Total', borderColor: 'border-l-[#94a3b8]', countColor: 'text-[#0f172a]', filter: 'ALL' },
-  { key: 'draft', field: 'draft' as const, label: 'Draft', borderColor: 'border-l-[#94a3b8]', countColor: 'text-[#475569]', filter: 'DRAFT' },
-  { key: 'pendingReview', field: 'pendingReview' as const, label: 'Pending Review', borderColor: 'border-l-[#eab308]', countColor: 'text-[#a16207]', filter: 'PENDING_REVIEW' },
-  { key: 'revision', field: 'revisionRequired' as const, label: 'Revision Req.', borderColor: 'border-l-[#f97316]', countColor: 'text-[#c2410c]', filter: 'REVISION_REQUIRED' },
-  { key: 'customer', field: 'pendingCustomerApproval' as const, label: 'With Customer', borderColor: 'border-l-[#3b82f6]', countColor: 'text-[#1d4ed8]', filter: 'PENDING_CUSTOMER_APPROVAL' },
-  { key: 'custRevision', field: 'customerRevisionRequired' as const, label: 'Cust. Revision', borderColor: 'border-l-[#a855f7]', countColor: 'text-[#7c3aed]', filter: 'CUSTOMER_REVISION_REQUIRED' },
-  { key: 'pendingAuth', field: 'pendingAdminAuthorization' as const, label: 'Pending Auth', borderColor: 'border-l-[#6366f1]', countColor: 'text-[#4f46e5]', filter: 'PENDING_ADMIN_AUTHORIZATION' },
-  { key: 'authorized', field: 'authorized' as const, label: 'Authorized', borderColor: 'border-l-[#22c55e]', countColor: 'text-[#15803d]', filter: 'AUTHORIZED' },
-  { key: 'rejected', field: 'rejected' as const, label: 'Rejected', borderColor: 'border-l-[#ef4444]', countColor: 'text-[#dc2626]', filter: 'REJECTED' },
+  { key: 'total', field: 'total' as const, label: 'Total', borderColor: 'border-l-[#94a3b8]', countColor: 'text-[#0f172a]', filter: 'ALL', tatKey: null },
+  { key: 'draft', field: 'draft' as const, label: 'Draft', borderColor: 'border-l-[#94a3b8]', countColor: 'text-[#475569]', filter: 'DRAFT', tatKey: 'draft' as const },
+  { key: 'pendingReview', field: 'pendingReview' as const, label: 'Pending Review', borderColor: 'border-l-[#eab308]', countColor: 'text-[#a16207]', filter: 'PENDING_REVIEW', tatKey: 'pendingReview' as const },
+  { key: 'revision', field: 'revisionRequired' as const, label: 'Revision Req.', borderColor: 'border-l-[#f97316]', countColor: 'text-[#c2410c]', filter: 'REVISION_REQUIRED', tatKey: 'revisionRequired' as const },
+  { key: 'customer', field: 'pendingCustomerApproval' as const, label: 'With Customer', borderColor: 'border-l-[#3b82f6]', countColor: 'text-[#1d4ed8]', filter: 'PENDING_CUSTOMER_APPROVAL', tatKey: 'pendingCustomerApproval' as const },
+  { key: 'custRevision', field: 'customerRevisionRequired' as const, label: 'Cust. Revision', borderColor: 'border-l-[#a855f7]', countColor: 'text-[#7c3aed]', filter: 'CUSTOMER_REVISION_REQUIRED', tatKey: 'customerRevisionRequired' as const },
+  { key: 'pendingAuth', field: 'pendingAdminAuthorization' as const, label: 'Pending Auth', borderColor: 'border-l-[#6366f1]', countColor: 'text-[#4f46e5]', filter: 'PENDING_ADMIN_AUTHORIZATION', tatKey: 'pendingAdminAuthorization' as const },
+  { key: 'authorized', field: 'authorized' as const, label: 'Authorized', borderColor: 'border-l-[#22c55e]', countColor: 'text-[#15803d]', filter: 'AUTHORIZED', tatKey: null },
+  { key: 'rejected', field: 'rejected' as const, label: 'Rejected', borderColor: 'border-l-[#ef4444]', countColor: 'text-[#dc2626]', filter: 'REJECTED', tatKey: null },
+  { key: 'reviewExpired', field: 'customerReviewExpired' as const, label: 'Review Expired', borderColor: 'border-l-[#dc2626]', countColor: 'text-[#dc2626]', filter: 'CUSTOMER_REVIEW_EXPIRED', tatKey: null },
 ]
 
 function AdminCertificatesContent() {
@@ -182,24 +202,52 @@ function AdminCertificatesContent() {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3 mb-6">
-            {STAT_CARDS.map((card) => (
-              <button
-                key={card.key}
-                onClick={() => setStatusFilter(card.filter)}
-                className={cn(
-                  'border border-[#e2e8f0] rounded-xl px-4 py-4 border-l-[3px] text-left transition-all',
-                  card.borderColor,
-                  statusFilter === card.filter
-                    ? 'bg-[#f8fafc] ring-1 ring-[#e2e8f0]'
-                    : 'bg-white hover:bg-[#f8fafc]'
-                )}
-              >
-                <div className={cn('text-2xl font-extrabold leading-none tracking-tight', card.countColor)}>
-                  {stats[card.field]}
-                </div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mt-2">{card.label}</div>
-              </button>
-            ))}
+            {STAT_CARDS.map((card) => {
+              const total = stats[card.field]
+              const tat = card.tatKey && stats.tat ? stats.tat[card.tatKey] : null
+              const overdue = tat?.overdue || 0
+              const approaching = tat?.approaching || 0
+              const onTime = total - overdue - approaching
+              const pO = total > 0 ? Math.round((overdue / total) * 100) : 0
+              const pA = total > 0 ? Math.round((approaching / total) * 100) : 0
+              const pG = total > 0 ? 100 - pO - pA : 0
+
+              return (
+                <button
+                  key={card.key}
+                  onClick={() => setStatusFilter(card.filter)}
+                  className={cn(
+                    'border border-[#e2e8f0] rounded-xl px-4 py-4 border-l-[3px] text-left transition-all',
+                    card.borderColor,
+                    statusFilter === card.filter
+                      ? 'bg-[#f8fafc] ring-1 ring-[#e2e8f0]'
+                      : 'bg-white hover:bg-[#f8fafc]'
+                  )}
+                >
+                  <div className={cn('text-2xl font-extrabold leading-none tracking-tight', card.countColor)}>
+                    {total}
+                  </div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mt-2">{card.label}</div>
+                  {tat && total > 0 && (
+                    <>
+                      <div className="mt-2 h-[6px] rounded-full bg-[#f1f5f9] overflow-hidden">
+                        <div className="h-full flex">
+                          {overdue > 0 && <div className="bg-[#ef4444] h-full" style={{ width: `${pO}%` }} />}
+                          {approaching > 0 && <div className="bg-[#f59e0b] h-full" style={{ width: `${pA}%` }} />}
+                          {onTime > 0 && <div className="bg-[#22c55e] h-full" style={{ width: `${pG}%` }} />}
+                        </div>
+                      </div>
+                      {(overdue > 0 || approaching > 0) && (
+                        <div className="flex items-center gap-2 mt-1.5">
+                          {overdue > 0 && <span className="text-[9px] font-semibold text-[#dc2626]">{overdue} overdue</span>}
+                          {approaching > 0 && <span className="text-[9px] font-semibold text-[#d97706]">{approaching} soon</span>}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </button>
+              )
+            })}
           </div>
         )}
 
@@ -260,6 +308,7 @@ function AdminCertificatesContent() {
                       <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">UUC Description</th>
                       <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Cal Date</th>
                       <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Engineer</th>
+                      <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Reviewer</th>
                       <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Admin</th>
                       <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Status</th>
                       <th className="text-center py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[60px]">View</th>
@@ -271,7 +320,7 @@ function AdminCertificatesContent() {
                         key={cert.id}
                         className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors"
                       >
-                        <td className="py-2.5 px-4 font-mono font-medium text-[#0f172a]">
+                        <td className="py-2.5 px-4 font-medium text-[#0f172a]">
                           {cert.certificateNumber}
                         </td>
                         <td className="py-2.5 px-4 text-[#0f172a]">
@@ -287,6 +336,9 @@ function AdminCertificatesContent() {
                         </td>
                         <td className="py-2.5 px-4 text-[#64748b]">
                           {cert.createdBy.name}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#64748b]">
+                          {cert.reviewer?.name || <span className="text-[#cbd5e1]">&mdash;</span>}
                         </td>
                         <td className="py-2.5 px-4 text-[#64748b]">
                           {cert.assignedAdmin?.name || <span className="text-[#cbd5e1]">&mdash;</span>}

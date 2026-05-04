@@ -18,6 +18,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   APPROVED: { label: 'Approved', className: 'bg-[#f0fdf4] text-[#16a34a] border-[#bbf7d0]' },
   AUTHORIZED: { label: 'Authorized', className: 'bg-[#f0fdf4] text-[#16a34a] border-[#bbf7d0]' },
   REJECTED: { label: 'Rejected', className: 'bg-[#fef2f2] text-[#dc2626] border-[#fecaca]' },
+  CUSTOMER_REVIEW_EXPIRED: { label: 'Review Expired', className: 'bg-[#fef2f2] text-[#dc2626] border-[#fecaca]' },
 }
 
 interface Props {
@@ -122,6 +123,57 @@ export default async function AdminCertificatePage({ params }: Props) {
   const tat = firstSubmission
     ? calculateTAT(firstSubmission.createdAt, authorizedEvent?.createdAt)
     : { hours: 0, status: 'ok' as const }
+
+  // Phase-based 12h TAT — clock starts when ball entered current party's court
+  const sortedEventsDesc = [...certificate.events].sort((a, b) =>
+    b.createdAt.getTime() - a.createdAt.getTime()
+  )
+  let tatStartedAt: string | null = null
+  let tatPhaseLabel: string | null = null
+
+  switch (certificate.status) {
+    case 'DRAFT':
+      tatStartedAt = sortedEventsDesc.find(e => e.eventType === 'CERTIFICATE_CREATED')
+        ?.createdAt.toISOString() || certificate.createdAt.toISOString()
+      tatPhaseLabel = 'Engineer drafting'
+      break
+    case 'PENDING_REVIEW':
+      tatStartedAt = sortedEventsDesc.find(e => e.eventType === 'SUBMITTED_FOR_REVIEW')
+        ?.createdAt.toISOString() || null
+      tatPhaseLabel = 'Awaiting reviewer'
+      break
+    case 'REVISION_REQUIRED':
+      tatStartedAt = sortedEventsDesc.find(e =>
+        e.eventType === 'REVISION_REQUESTED' || e.eventType === 'CUSTOMER_REVISION_FORWARDED'
+      )?.createdAt.toISOString() || null
+      tatPhaseLabel = 'Engineer revising'
+      break
+    case 'PENDING_CUSTOMER_APPROVAL':
+      tatStartedAt = sortedEventsDesc.find(e => e.eventType === 'SENT_TO_CUSTOMER')
+        ?.createdAt.toISOString() || null
+      tatPhaseLabel = 'Awaiting customer'
+      break
+    case 'CUSTOMER_REVISION_REQUIRED':
+      tatStartedAt = sortedEventsDesc.find(e => e.eventType === 'CUSTOMER_REVISION_FORWARDED')
+        ?.createdAt.toISOString() || null
+      tatPhaseLabel = 'Customer revision pending'
+      break
+    case 'PENDING_ADMIN_AUTHORIZATION':
+      tatStartedAt = sortedEventsDesc.find(e => e.eventType === 'SUBMITTED_FOR_AUTHORIZATION')
+        ?.createdAt.toISOString() || null
+      tatPhaseLabel = 'Awaiting authorization'
+      break
+    case 'CUSTOMER_REVIEW_EXPIRED':
+      tatStartedAt = sortedEventsDesc.find(e => e.eventType === 'CUSTOMER_REVIEW_EXPIRED')
+        ?.createdAt.toISOString() || null
+      tatPhaseLabel = 'Customer review expired'
+      break
+    // APPROVED, AUTHORIZED, REJECTED — no banner
+  }
+
+  // Total TAT: creation → now (or authorization event)
+  const totalTatStartedAt = certificate.createdAt.toISOString()
+  const totalTatEndedAt = authorizedEvent?.createdAt.toISOString() || null
 
   // Parse JSON fields
   const conclusionStatements = safeJsonParse<string[]>(certificate.selectedConclusionStatements, [])
@@ -279,6 +331,12 @@ export default async function AdminCertificatePage({ params }: Props) {
         currentRevision: certificate.currentRevision,
       }}
       reviewers={reviewers}
+      tatData={{
+        phaseStartedAt: tatStartedAt,
+        phaseLabel: tatPhaseLabel,
+        totalStartedAt: totalTatStartedAt,
+        totalEndedAt: totalTatEndedAt,
+      }}
     />
   )
 }

@@ -129,7 +129,25 @@ export function CustomerCertReviewClient({
 
   const handleDownload = useCallback(async () => {
     setIsDownloading(true)
+    const fileName = `${certificate.certificateNumber.replace(/\//g, '-')}.pdf`
+
     try {
+      // Try server-signed PDF first (faster, pre-rendered)
+      const signedResponse = await apiFetch(`/api/certificates/${certificate.id}/download-signed`)
+      if (signedResponse.ok) {
+        const blob = await signedResponse.blob()
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = fileName
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        setTimeout(() => URL.revokeObjectURL(url), 100)
+        return
+      }
+
+      // Fallback: generate PDF client-side from certificate data
       const response = await apiFetch(`/api/certificates/${certificate.id}/pdf-data`)
       if (!response.ok) throw new Error('Failed to fetch certificate data')
       const data = await response.json()
@@ -138,7 +156,6 @@ export function CustomerCertReviewClient({
       const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
       const result = await generatePDFWithOptimalSpacing(certData, signatures)
 
-      const fileName = `${certificate.certificateNumber.replace(/\//g, '-')}.pdf`
       const url = URL.createObjectURL(result.blob)
       const link = document.createElement('a')
       link.href = url
