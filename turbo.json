@@ -34,6 +34,10 @@
       "inputs": ["src/**", "e2e/**"],
       "env": ["DATABASE_URL", "NEXTAUTH_SECRET", "NEXTAUTH_URL"]
     },
+    "desktop:build": {
+      "dependsOn": ["web-hta#build"],
+      "outputs": ["dist/**"]
+    },
     "clean": {
       "cache": false
     },

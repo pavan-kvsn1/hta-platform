@@ -61,6 +61,10 @@
     "./alerting": {
       "types": "./src/alerting/index.ts",
       "import": "./dist/alerting/index.js"
+    },
+    "./offline-codes": {
+      "types": "./src/offline-codes/index.ts",
+      "import": "./dist/offline-codes/index.js"
     }
   },
   "scripts": {
