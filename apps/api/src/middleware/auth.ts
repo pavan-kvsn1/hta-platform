@@ -12,6 +12,7 @@ export interface JWTPayload {
   tenantId: string
   isAdmin?: boolean
   adminType?: 'MASTER' | 'WORKER' | null
+  deviceId?: string              // Present only for desktop app tokens
   iat: number
   exp: number
 }

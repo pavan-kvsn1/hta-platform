@@ -5,6 +5,7 @@ import { requireAdmin, requireMasterAdmin } from '../../middleware/auth.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 import { createLogger } from '@hta/shared'
 import { queueStaffActivationEmail, enqueueNotification } from '../../services/queue.js'
+import { generateCodeBatch } from '../../services/offline-codes.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
 
 const logger = createLogger('admin-routes')
@@ -170,6 +171,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
               },
             },
           },
+          reviewer: {
+            select: { id: true, name: true },
+          },
           lastModifiedBy: {
             select: { id: true, name: true },
           },
@@ -204,6 +208,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           email: cert.createdBy.email,
         },
         assignedAdmin: cert.createdBy.assignedAdmin || null,
+        reviewer: cert.reviewer ? { id: cert.reviewer.id, name: cert.reviewer.name } : null,
         lastModifiedBy: cert.lastModifiedBy,
       })),
       pagination: {
@@ -298,19 +303,19 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         { contactEmail: { contains: query.search, mode: 'insensitive' } },
       ]
     }
-    if (query.isActive !== undefined) {
+    if (query.isActive && query.isActive !== 'ALL') {
       where.isActive = query.isActive === 'true'
     }
 
-    const [accounts, total] = await Promise.all([
+    const [rawAccounts, total] = await Promise.all([
       prisma.customerAccount.findMany({
         where,
         include: {
           primaryPoc: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true, email: true, isActive: true },
           },
           assignedAdmin: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true },
           },
           _count: {
             select: { users: true },
@@ -322,6 +327,45 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       }),
       prisma.customerAccount.count({ where }),
     ])
+
+    // Get pending request counts and certificate counts in batch
+    const accountIds = rawAccounts.map(a => a.id)
+    const companyNames = rawAccounts.map(a => a.companyName)
+
+    const [pendingCounts, certCounts] = await Promise.all([
+      prisma.customerRequest.groupBy({
+        by: ['customerAccountId'],
+        where: {
+          customerAccountId: { in: accountIds },
+          status: 'PENDING',
+        },
+        _count: true,
+      }),
+      prisma.certificate.groupBy({
+        by: ['customerName'],
+        where: {
+          customerName: { in: companyNames },
+          tenantId,
+        },
+        _count: true,
+      }),
+    ])
+
+    const pendingMap = new Map(pendingCounts.map(p => [p.customerAccountId, p._count]))
+    const certMap = new Map(certCounts.map(c => [c.customerName, c._count]))
+
+    const accounts = rawAccounts.map(a => ({
+      id: a.id,
+      companyName: a.companyName,
+      contactEmail: a.contactEmail,
+      isActive: a.isActive,
+      assignedAdmin: a.assignedAdmin,
+      primaryPoc: a.primaryPoc,
+      userCount: a._count.users,
+      pendingRequests: pendingMap.get(a.id) || 0,
+      certificateCount: certMap.get(a.companyName) || 0,
+      createdAt: a.createdAt,
+    }))
 
     return {
       accounts,
@@ -498,6 +542,28 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     function changePercent(current: number, prev: number): number {
       if (prev === 0) return current > 0 ? 100 : 0
       return Math.round(((current - prev) / prev) * 100)
+    }
+
+    // Compute revision TATs from event pairs (e.g. REVISION_REQUESTED → RESUBMITTED_FOR_REVIEW)
+    function computeEventTATs(
+      grouped: Map<string, { eventType: string; createdAt: Date }[]>,
+      triggerType: string,
+      resolutionType: string
+    ): number[] {
+      const tats: number[] = []
+      for (const events of grouped.values()) {
+        for (let i = 0; i < events.length; i++) {
+          if (events[i].eventType === triggerType) {
+            for (let j = i + 1; j < events.length; j++) {
+              if (events[j].eventType === resolutionType) {
+                tats.push(hoursDiff(events[i].createdAt, events[j].createdAt))
+                break
+              }
+            }
+          }
+        }
+      }
+      return tats
     }
 
     // ---------- Build certificate filter ----------
@@ -794,7 +860,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       prevFeedbackList: typeof prevFeedbacks,
       feedbackTypes: string[],
       totalCerts: number,
-      prevTotalCerts: number
+      prevTotalCerts: number,
+      tatHoursArr: number[],
+      prevTatHoursArr: number[]
     ) {
       const current = feedbacks.filter((f) => feedbackTypes.includes(f.feedbackType))
       const prev = prevFeedbackList.filter((f) => feedbackTypes.includes(f.feedbackType))
@@ -802,11 +870,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       const total = current.length
       const avgPerCert = totalCerts > 0 ? Math.round((total / totalCerts) * 10) / 10 : 0
 
-      // TAT: time from creation to resolution
-      const resolvedCurrent = current.filter((f) => f.isResolved && f.resolvedAt)
-      const tatHours = resolvedCurrent.map((f) => hoursDiff(f.createdAt, f.resolvedAt!))
-      const avgTATHours = tatHours.length > 0
-        ? Math.round((tatHours.reduce((a, b) => a + b, 0) / tatHours.length) * 10) / 10
+      // TAT: computed from event pairs (REVISION_REQUESTED → RESUBMITTED_FOR_REVIEW)
+      const avgTATHours = tatHoursArr.length > 0
+        ? Math.round((tatHoursArr.reduce((a, b) => a + b, 0) / tatHoursArr.length) * 10) / 10
         : 0
 
       // First-pass rate: certs with zero feedbacks of this type / total certs
@@ -818,10 +884,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       // Previous period
       const prevTotal = prev.length
       const prevAvgPerCert = prevTotalCerts > 0 ? Math.round((prevTotal / prevTotalCerts) * 10) / 10 : 0
-      const prevResolved = prev.filter((f) => f.isResolved && f.resolvedAt)
-      const prevTatHours = prevResolved.map((f) => hoursDiff(f.createdAt, f.resolvedAt!))
-      const prevAvgTATHours = prevTatHours.length > 0
-        ? Math.round((prevTatHours.reduce((a, b) => a + b, 0) / prevTatHours.length) * 10) / 10
+      const prevAvgTATHours = prevTatHoursArr.length > 0
+        ? Math.round((prevTatHoursArr.reduce((a, b) => a + b, 0) / prevTatHoursArr.length) * 10) / 10
         : 0
       const prevCertsWithFeedback = new Set(prev.map((f) => f.certificateId))
       const prevFirstPassRate = prevTotalCerts > 0
@@ -852,16 +916,44 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
+    // Cert counts by stage reached (for accurate FPR denominators — exclude drafts)
+    const submittedCertCount = currentCerts.filter(c => {
+      const events = eventsByCert.get(c.id) || []
+      return events.some(e => e.eventType === 'SUBMITTED_FOR_REVIEW' || e.eventType === 'RESUBMITTED_FOR_REVIEW')
+    }).length
+
+    const customerStageCertCount = currentCerts.filter(c => {
+      const events = eventsByCert.get(c.id) || []
+      return events.some(e => e.eventType === 'SENT_TO_CUSTOMER' || e.eventType === 'REVIEWER_APPROVED_SENT_TO_CUSTOMER')
+    }).length
+
+    const prevSubmittedCertCount = prevCerts.filter(c => {
+      const events = prevEventsByCert.get(c.id) || []
+      return events.some(e => e.eventType === 'SUBMITTED_FOR_REVIEW' || e.eventType === 'RESUBMITTED_FOR_REVIEW')
+    }).length
+
+    const prevCustomerStageCertCount = prevCerts.filter(c => {
+      const events = prevEventsByCert.get(c.id) || []
+      return events.some(e => e.eventType === 'SENT_TO_CUSTOMER' || e.eventType === 'REVIEWER_APPROVED_SENT_TO_CUSTOMER')
+    }).length
+
+    // Compute revision TATs from event pairs (reliable — doesn't depend on isResolved flag)
+    const reviewerTATs = computeEventTATs(eventsByCert, 'REVISION_REQUESTED', 'RESUBMITTED_FOR_REVIEW')
+    const prevReviewerTATs = computeEventTATs(prevEventsByCert, 'REVISION_REQUESTED', 'RESUBMITTED_FOR_REVIEW')
+    const customerTATs = computeEventTATs(eventsByCert, 'CUSTOMER_REVISION_FORWARDED', 'RESUBMITTED_FOR_REVIEW')
+    const prevCustomerTATs = computeEventTATs(prevEventsByCert, 'CUSTOMER_REVISION_FORWARDED', 'RESUBMITTED_FOR_REVIEW')
+
     const reviewerRevisions = computeRevisionMetrics(
       allFeedbacks,
       prevFeedbacks,
       ['REVISION_REQUESTED', 'REJECTED'],
-      currentCerts.length,
-      prevCerts.length
+      submittedCertCount,
+      prevSubmittedCertCount,
+      reviewerTATs,
+      prevReviewerTATs
     )
 
     // Customer revisions: count CUSTOMER_REVISION_REQUESTED events (always logged)
-    // plus any CUSTOMER_REVISION_FORWARDED feedback for TAT / by-section detail
     const customerRevisions = (() => {
       const currentEventCount = allEvents.filter((e) => e.eventType === 'CUSTOMER_REVISION_REQUESTED').length
       const prevEventCount = prevEvents.filter((e) => e.eventType === 'CUSTOMER_REVISION_REQUESTED').length
@@ -874,33 +966,28 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       )
 
       const total = currentEventCount
-      const avgPerCert = currentCerts.length > 0 ? Math.round((total / currentCerts.length) * 10) / 10 : 0
-      const firstPassRate = currentCerts.length > 0
-        ? Math.round(((currentCerts.length - certsWithCustomerRevision.size) / currentCerts.length) * 100)
+      const avgPerCert = customerStageCertCount > 0 ? Math.round((total / customerStageCertCount) * 10) / 10 : 0
+      const firstPassRate = customerStageCertCount > 0
+        ? Math.round(((customerStageCertCount - certsWithCustomerRevision.size) / customerStageCertCount) * 100)
         : 0
 
-      // TAT from CUSTOMER_REVISION_FORWARDED feedback (when available)
-      const forwardedFeedback = allFeedbacks.filter((f) => f.feedbackType === 'CUSTOMER_REVISION_FORWARDED')
-      const resolvedForwarded = forwardedFeedback.filter((f) => f.isResolved && f.resolvedAt)
-      const tatHours = resolvedForwarded.map((f) => hoursDiff(f.createdAt, f.resolvedAt!))
-      const avgTATHours = tatHours.length > 0
-        ? Math.round((tatHours.reduce((a, b) => a + b, 0) / tatHours.length) * 10) / 10
+      // TAT: computed from event pairs (CUSTOMER_REVISION_REQUESTED → RESUBMITTED_FOR_REVIEW)
+      const avgTATHours = customerTATs.length > 0
+        ? Math.round((customerTATs.reduce((a, b) => a + b, 0) / customerTATs.length) * 10) / 10
         : 0
 
       // Previous period
       const prevTotal = prevEventCount
-      const prevAvgPerCert = prevCerts.length > 0 ? Math.round((prevTotal / prevCerts.length) * 10) / 10 : 0
-      const prevFirstPassRate = prevCerts.length > 0
-        ? Math.round(((prevCerts.length - prevCertsWithCustomerRevision.size) / prevCerts.length) * 100)
+      const prevAvgPerCert = prevCustomerStageCertCount > 0 ? Math.round((prevTotal / prevCustomerStageCertCount) * 10) / 10 : 0
+      const prevFirstPassRate = prevCustomerStageCertCount > 0
+        ? Math.round(((prevCustomerStageCertCount - prevCertsWithCustomerRevision.size) / prevCustomerStageCertCount) * 100)
         : 0
-      const prevForwarded = prevFeedbacks.filter((f) => f.feedbackType === 'CUSTOMER_REVISION_FORWARDED')
-      const prevResolved = prevForwarded.filter((f) => f.isResolved && f.resolvedAt)
-      const prevTatHours = prevResolved.map((f) => hoursDiff(f.createdAt, f.resolvedAt!))
-      const prevAvgTATHours = prevTatHours.length > 0
-        ? Math.round((prevTatHours.reduce((a, b) => a + b, 0) / prevTatHours.length) * 10) / 10
+      const prevAvgTATHours = prevCustomerTATs.length > 0
+        ? Math.round((prevCustomerTATs.reduce((a, b) => a + b, 0) / prevCustomerTATs.length) * 10) / 10
         : 0
 
-      // By sections: use forwarded feedback if available, otherwise use events (no section info)
+      // By sections: use forwarded feedback if available
+      const forwardedFeedback = allFeedbacks.filter((f) => f.feedbackType === 'CUSTOMER_REVISION_FORWARDED')
       const sectionCounts = new Map<string, number>()
       for (const f of forwardedFeedback) {
         const section = f.targetSection || 'general'
@@ -1917,26 +2004,44 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Type filtering
-    const fetchInternal = type === 'ALL' || type === 'SECTION_UNLOCK'
-    const fetchCustomer = type === 'ALL' || type === 'USER_ADDITION' || type === 'POC_CHANGE'
+    const fetchInternal = type === 'ALL' || type === 'SECTION_UNLOCK' || type === 'FIELD_CHANGE' || type === 'OFFLINE_CODE_REQUEST'
+    const fetchCustomer = type === 'ALL' || type === 'USER_ADDITION' || type === 'POC_CHANGE' || type === 'ACCOUNT_DELETION' || type === 'DATA_EXPORT'
 
-    if (type === 'USER_ADDITION' || type === 'POC_CHANGE') {
+    if (type === 'SECTION_UNLOCK' || type === 'OFFLINE_CODE_REQUEST') {
+      internalWhere.type = type
+    }
+    // FIELD_CHANGE filter is applied in JS after fetch (enum not in generated client yet)
+
+    if (type === 'USER_ADDITION' || type === 'POC_CHANGE' || type === 'ACCOUNT_DELETION' || type === 'DATA_EXPORT') {
       customerWhere.type = type
     }
 
     // Fetch counts for summary cards
     const [
-      internalPendingCount,
+      sectionUnlockPendingCount,
+      fieldChangePendingCount,
+      offlineCodeRequestPendingCount,
       userAddPendingCount,
       pocChangePendingCount,
+      accountDeletionPendingCount,
+      dataExportPendingCount,
       internalApprovedCount,
       internalRejectedCount,
       customerApprovedCount,
       customerRejectedCount,
     ] = await Promise.all([
-      prisma.internalRequest.count({ where: { status: 'PENDING' } }),
+      prisma.internalRequest.count({ where: { status: 'PENDING', type: 'SECTION_UNLOCK' } }),
+      // FIELD_CHANGE not in generated client yet — count all pending internal minus section unlocks and offline code requests
+      prisma.internalRequest.count({ where: { status: 'PENDING' } }).then(async (total) => {
+        const sectionUnlockCount = await prisma.internalRequest.count({ where: { status: 'PENDING', type: 'SECTION_UNLOCK' } })
+        const offlineCodeCount = await prisma.internalRequest.count({ where: { status: 'PENDING', type: 'OFFLINE_CODE_REQUEST' } })
+        return total - sectionUnlockCount - offlineCodeCount
+      }),
+      prisma.internalRequest.count({ where: { status: 'PENDING', type: 'OFFLINE_CODE_REQUEST' } }),
       prisma.customerRequest.count({ where: { status: 'PENDING', type: 'USER_ADDITION' } }),
       prisma.customerRequest.count({ where: { status: 'PENDING', type: 'POC_CHANGE' } }),
+      prisma.customerRequest.count({ where: { status: 'PENDING', type: 'ACCOUNT_DELETION' } }),
+      prisma.customerRequest.count({ where: { status: 'PENDING', type: 'DATA_EXPORT' } }),
       prisma.internalRequest.count({ where: { status: 'APPROVED' } }),
       prisma.internalRequest.count({ where: { status: 'REJECTED' } }),
       prisma.customerRequest.count({ where: { status: 'APPROVED' } }),
@@ -1991,20 +2096,47 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       'conclusion': 'Conclusion',
     }
 
+    const FIELD_LABELS: Record<string, string> = {
+      'certificateNumber': 'Cert Number',
+      'srfNumber': 'SRF Number',
+      'srfDate': 'SRF Date',
+      'customerName': 'Customer Name',
+      'customerAddress': 'Customer Address',
+      'customerContactName': 'Contact Name',
+      'customerContactEmail': 'Contact Email',
+      'calibratedAt': 'Calibrated At',
+      'dateOfCalibration': 'Date of Calibration',
+      'calibrationDueDate': 'Calibration Due Date',
+    }
+
     // Normalize internal requests
     const normalizedInternal = internalRequests.map((r) => {
       const data = typeof r.data === 'string' ? JSON.parse(r.data as string) : r.data
-      const sections = ((data as Record<string, unknown>)?.sections || []) as string[]
-      const sectionLabels = sections.map((s: string) => SECTION_LABELS[s] || s).join(', ')
+      const dataObj = data as Record<string, unknown>
+
+      let details = ''
+      if (r.type === 'SECTION_UNLOCK') {
+        const sections = (dataObj?.sections || []) as string[]
+        details = sections.map((s: string) => SECTION_LABELS[s] || s).join(', ') || 'No sections specified'
+      } else if (r.type === 'FIELD_CHANGE') {
+        const fields = (dataObj?.fields || []) as string[]
+        details = fields.map((f: string) => FIELD_LABELS[f] || f).join(', ') || 'No fields specified'
+      } else if (r.type === 'OFFLINE_CODE_REQUEST') {
+        details = (dataObj?.reason as string) || 'No reason provided'
+      }
 
       return {
         id: r.id,
         category: 'internal' as const,
         type: r.type,
         status: r.status,
-        title: r.certificate?.certificateNumber || 'Unknown Certificate',
-        subtitle: `by ${r.requestedBy.name || 'Unknown'}`,
-        details: sectionLabels || 'No sections specified',
+        title: r.type === 'OFFLINE_CODE_REQUEST'
+          ? r.requestedBy.name || 'Unknown'
+          : r.certificate?.certificateNumber || 'Unknown Certificate',
+        subtitle: r.type === 'OFFLINE_CODE_REQUEST'
+          ? 'Offline Code Card Request'
+          : `by ${r.requestedBy.name || 'Unknown'}`,
+        details,
         requestedBy: r.requestedBy.name || 'Unknown',
         requestedByEmail: r.requestedBy.email,
         createdAt: r.createdAt.toISOString(),
@@ -2021,6 +2153,10 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         details = `Add: ${dataObj?.name || 'Unknown'} (${dataObj?.email || 'No email'})`
       } else if (r.type === 'POC_CHANGE') {
         details = 'POC change requested'
+      } else if (r.type === 'ACCOUNT_DELETION') {
+        details = `Account deletion: ${dataObj?.reason || 'No reason provided'}`
+      } else if (r.type === 'DATA_EXPORT') {
+        details = `Data export: ${dataObj?.reason || 'No reason provided'}`
       }
 
       return {
@@ -2037,8 +2173,15 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       }
     })
 
+    // Apply JS filter for types that need it
+    const filteredInternal = type === 'FIELD_CHANGE'
+      ? normalizedInternal.filter(r => (r.type as string) === 'FIELD_CHANGE')
+      : type === 'OFFLINE_CODE_REQUEST'
+      ? normalizedInternal.filter(r => (r.type as string) === 'OFFLINE_CODE_REQUEST')
+      : normalizedInternal
+
     // Merge and sort by createdAt desc
-    const allRequests = [...normalizedInternal, ...normalizedCustomer].sort(
+    const allRequests = [...filteredInternal, ...normalizedCustomer].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
 
@@ -2052,10 +2195,14 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       pagination: { page, limit, total, totalPages },
       counts: {
         pending: {
-          sectionUnlock: internalPendingCount,
+          sectionUnlock: sectionUnlockPendingCount,
+          fieldChange: fieldChangePendingCount,
+          offlineCodeRequest: offlineCodeRequestPendingCount,
           userAddition: userAddPendingCount,
           pocChange: pocChangePendingCount,
-          total: internalPendingCount + userAddPendingCount + pocChangePendingCount,
+          accountDeletion: accountDeletionPendingCount,
+          dataExport: dataExportPendingCount,
+          total: sectionUnlockPendingCount + fieldChangePendingCount + offlineCodeRequestPendingCount + userAddPendingCount + pocChangePendingCount + accountDeletionPendingCount + dataExportPendingCount,
         },
         approved: internalApprovedCount + customerApprovedCount,
         rejected: internalRejectedCount + customerRejectedCount,
@@ -2225,64 +2372,133 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       },
     })
 
-    // Handle SECTION_UNLOCK specific actions
-    if (internalRequest.type === 'SECTION_UNLOCK' && internalRequest.certificateId) {
-      const data = safeJsonParse<{ sections?: string[]; reason?: string }>(internalRequest.data, {})
-      const sectionList = data.sections?.join(', ') || 'requested sections'
-
+    // Handle type-specific actions
+    if (internalRequest.certificateId) {
       const latestEvent = await prisma.certificateEvent.findFirst({
         where: { certificateId: internalRequest.certificateId },
         orderBy: { sequenceNumber: 'desc' },
         select: { sequenceNumber: true },
       })
       const nextSequence = (latestEvent?.sequenceNumber || 0) + 1
+      const certNumber = internalRequest.certificate?.certificateNumber || ''
 
-      // Create certificate event
-      await prisma.certificateEvent.create({
-        data: {
-          certificateId: internalRequest.certificateId,
-          eventType: newStatus === 'APPROVED' ? 'SECTION_UNLOCK_APPROVED' : 'SECTION_UNLOCK_REJECTED',
-          eventData: JSON.stringify({
-            sections: data.sections,
-            reason: data.reason,
-            adminNote: body.adminNote || null,
-            requestId: internalRequest.id,
-          }),
-          userId,
-          userRole: 'ADMIN',
-          sequenceNumber: nextSequence,
-          revision: internalRequest.certificate?.currentRevision || 0,
-        },
-      })
+      if (internalRequest.type === 'SECTION_UNLOCK') {
+        const data = safeJsonParse<{ sections?: string[]; reason?: string }>(internalRequest.data, {})
+        const sectionList = data.sections?.join(', ') || 'requested sections'
 
-      // Create notification for the engineer
+        await prisma.certificateEvent.create({
+          data: {
+            certificateId: internalRequest.certificateId,
+            eventType: newStatus === 'APPROVED' ? 'SECTION_UNLOCK_APPROVED' : 'SECTION_UNLOCK_REJECTED',
+            eventData: JSON.stringify({
+              sections: data.sections,
+              reason: data.reason,
+              adminNote: body.adminNote || null,
+              requestId: internalRequest.id,
+            }),
+            userId,
+            userRole: 'ADMIN',
+            sequenceNumber: nextSequence,
+            revision: internalRequest.certificate?.currentRevision || 0,
+          },
+        })
+
+        if (newStatus === 'APPROVED') {
+          await prisma.notification.create({
+            data: {
+              userId: internalRequest.requestedById,
+              type: 'SECTION_UNLOCK_APPROVED',
+              title: 'Section Unlock Approved',
+              message: `Your request to unlock ${sectionList} for certificate ${certNumber} has been approved.`,
+              certificateId: internalRequest.certificateId,
+              data: JSON.stringify({ requestId: internalRequest.id, sections: data.sections, adminNote: body.adminNote }),
+            },
+          })
+        } else {
+          await prisma.notification.create({
+            data: {
+              userId: internalRequest.requestedById,
+              type: 'SECTION_UNLOCK_REJECTED',
+              title: 'Section Unlock Rejected',
+              message: `Your section unlock request for certificate ${certNumber} has been rejected.${body.adminNote ? ` Reason: ${body.adminNote}` : ''}`,
+              certificateId: internalRequest.certificateId,
+              data: JSON.stringify({ requestId: internalRequest.id, adminNote: body.adminNote }),
+            },
+          })
+        }
+      } else if (internalRequest.type === 'FIELD_CHANGE') {
+        const data = safeJsonParse<{ fields?: string[]; description?: string }>(internalRequest.data, {})
+        const fieldList = data.fields?.join(', ') || 'requested fields'
+
+        await prisma.certificateEvent.create({
+          data: {
+            certificateId: internalRequest.certificateId,
+            eventType: newStatus === 'APPROVED' ? 'FIELD_CHANGE_APPROVED' : 'FIELD_CHANGE_REJECTED',
+            eventData: JSON.stringify({
+              fields: data.fields,
+              description: data.description,
+              adminNote: body.adminNote || null,
+              requestId: internalRequest.id,
+            }),
+            userId,
+            userRole: 'ADMIN',
+            sequenceNumber: nextSequence,
+            revision: internalRequest.certificate?.currentRevision || 0,
+          },
+        })
+
+        if (newStatus === 'APPROVED') {
+          await prisma.notification.create({
+            data: {
+              userId: internalRequest.requestedById,
+              type: 'FIELD_CHANGE_APPROVED',
+              title: 'Field Change Completed',
+              message: `Your field change request (${fieldList}) for certificate ${certNumber} has been approved and applied.`,
+              certificateId: internalRequest.certificateId,
+              data: JSON.stringify({ requestId: internalRequest.id, fields: data.fields, adminNote: body.adminNote }),
+            },
+          })
+        } else {
+          await prisma.notification.create({
+            data: {
+              userId: internalRequest.requestedById,
+              type: 'FIELD_CHANGE_REJECTED',
+              title: 'Field Change Rejected',
+              message: `Your field change request for certificate ${certNumber} has been rejected.${body.adminNote ? ` Reason: ${body.adminNote}` : ''}`,
+              certificateId: internalRequest.certificateId,
+              data: JSON.stringify({ requestId: internalRequest.id, adminNote: body.adminNote }),
+            },
+          })
+        }
+      }
+    }
+
+    // Handle OFFLINE_CODE_REQUEST (no certificate involved)
+    if (internalRequest.type === 'OFFLINE_CODE_REQUEST') {
       if (newStatus === 'APPROVED') {
+        // Generate the card on behalf of the engineer
+        await generateCodeBatch({
+          tenantId: internalRequest.requestedBy.tenantId,
+          userId: internalRequest.requestedById,
+        })
+
         await prisma.notification.create({
           data: {
             userId: internalRequest.requestedById,
-            type: 'SECTION_UNLOCK_APPROVED',
-            title: 'Section Unlock Approved',
-            message: `Your request to unlock ${sectionList} for certificate ${internalRequest.certificate?.certificateNumber || ''} has been approved.`,
-            certificateId: internalRequest.certificateId,
-            data: JSON.stringify({
-              requestId: internalRequest.id,
-              sections: data.sections,
-              adminNote: body.adminNote,
-            }),
+            type: 'OFFLINE_CODE_APPROVED',
+            title: 'Offline Code Card Approved',
+            message: 'Your offline code card request has been approved. Your new card is ready.',
+            data: JSON.stringify({ requestId: internalRequest.id }),
           },
         })
       } else {
         await prisma.notification.create({
           data: {
             userId: internalRequest.requestedById,
-            type: 'SECTION_UNLOCK_REJECTED',
-            title: 'Section Unlock Rejected',
-            message: `Your section unlock request for certificate ${internalRequest.certificate?.certificateNumber || ''} has been rejected.${body.adminNote ? ` Reason: ${body.adminNote}` : ''}`,
-            certificateId: internalRequest.certificateId,
-            data: JSON.stringify({
-              requestId: internalRequest.id,
-              adminNote: body.adminNote,
-            }),
+            type: 'OFFLINE_CODE_REJECTED',
+            title: 'Offline Code Card Rejected',
+            message: `Your offline code card request was rejected.${body.adminNote ? ` Reason: ${body.adminNote}` : ''}`,
+            data: JSON.stringify({ requestId: internalRequest.id, adminNote: body.adminNote }),
           },
         })
       }
@@ -2492,7 +2708,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Notify engineer and reviewer that certificate was authorized (email + notification)
     const certNum = result.certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
-    const { queueCertificateReviewedEmail } = await import('../../services/queue.js')
+    const { queueCertificateReviewedEmail, queueCustomerAuthorizedRegisteredEmail, queueCustomerAuthorizedTokenEmail } = await import('../../services/queue.js')
     const staffToNotify = [certificate.createdById, certificate.reviewerId].filter(
       (uid): uid is string => !!uid
     )
@@ -2509,88 +2725,147 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Notify customer that certificate is authorized
-    prisma.signature.findFirst({
+    const customerSig = await prisma.signature.findFirst({
       where: { certificateId: id, signerType: 'CUSTOMER' },
       select: { customerId: true },
       orderBy: { signedAt: 'desc' },
-    }).then((customerSig) => {
-      if (customerSig?.customerId) {
-        enqueueNotification({
-          type: 'create-notification',
-          customerId: customerSig.customerId,
-          notificationType: 'ADMIN_AUTHORIZED',
-          certificateId: id,
-          data: { certificateNumber: certNum, adminName: userName },
-        }).catch(() => {})
-      }
-    }).catch(() => {})
-
-    // Email the engineer that the certificate is authorized
-    if (certificate.createdById) {
-      prisma.user.findUnique({
-        where: { id: certificate.createdById },
-        select: { email: true, name: true },
-      }).then((engineer) => {
-        if (engineer) {
-          queueCertificateReviewedEmail({
-            assigneeEmail: engineer.email,
-            assigneeName: engineer.name,
-            certificateNumber: certNum,
-            reviewerName: userName,
-            approved: true,
-          }).catch(() => {})
-        }
+    })
+    if (customerSig?.customerId) {
+      enqueueNotification({
+        type: 'create-notification',
+        customerId: customerSig.customerId,
+        notificationType: 'ADMIN_AUTHORIZED',
+        certificateId: id,
+        data: { certificateNumber: certNum, adminName: userName },
       }).catch(() => {})
     }
 
-    // Handle download link if requested
+    // Email the engineer that the certificate is authorized
+    if (certificate.createdById) {
+      const engineer = await prisma.user.findUnique({
+        where: { id: certificate.createdById },
+        select: { email: true, name: true },
+      })
+      if (engineer) {
+        queueCertificateReviewedEmail({
+          assigneeEmail: engineer.email,
+          assigneeName: engineer.name,
+          certificateNumber: certNum,
+          reviewerName: userName,
+          approved: true,
+        }).catch(() => {})
+      }
+    }
+
+    // Handle customer notification for authorized certificate
     let downloadLinkResult = null
     if (body.sendDownloadLink && body.customerEmail && body.customerName) {
       try {
-        const token = crypto.randomUUID()
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        const customerEmail = body.customerEmail.toLowerCase().trim()
+        const customerName = body.customerName.trim()
 
-        const downloadToken = await prisma.downloadToken.create({
-          data: {
+        // Check if customer is registered
+        const customer = await prisma.customerUser.findUnique({
+          where: { tenantId_email: { tenantId, email: customerEmail } },
+          select: { isActive: true, activatedAt: true },
+        })
+        const isRegistered = customer?.isActive && customer?.activatedAt !== null
+
+        if (isRegistered) {
+          // Registered customer — email them to log in to download (no token needed)
+          queueCustomerAuthorizedRegisteredEmail({
+            customerEmail,
+            customerName,
+            certificateNumber: certNum,
+            instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+          }).catch(() => {})
+
+          // Log event
+          const lastEvent = await prisma.certificateEvent.findFirst({
+            where: { certificateId: id },
+            orderBy: { sequenceNumber: 'desc' },
+          })
+
+          await prisma.certificateEvent.create({
+            data: {
+              certificateId: id,
+              sequenceNumber: (lastEvent?.sequenceNumber || 0) + 1,
+              revision: result.certificate.currentRevision,
+              eventType: 'DOWNLOAD_LINK_SENT',
+              eventData: JSON.stringify({
+                customerEmail,
+                customerName,
+                sentBy: userName,
+                isRegistered: true,
+              }),
+              userId,
+              userRole,
+            },
+          })
+
+          downloadLinkResult = {
+            sent: true,
+            isRegistered: true,
+            customerEmail,
+          }
+        } else {
+          // Unregistered customer — create download token (30-day, unlimited downloads)
+          const token = crypto.randomUUID()
+          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+
+          const downloadToken = await prisma.downloadToken.create({
+            data: {
+              token,
+              certificateId: id,
+              customerEmail,
+              customerName,
+              expiresAt,
+              maxDownloads: 999999,
+              sentById: userId,
+            },
+          })
+
+          // Send token-based download email
+          queueCustomerAuthorizedTokenEmail({
+            customerEmail,
+            customerName,
+            certificateNumber: certNum,
+            instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
             token,
-            certificateId: id,
-            customerEmail: body.customerEmail.toLowerCase().trim(),
-            customerName: body.customerName.trim(),
-            expiresAt,
-            maxDownloads: 5,
-            sentById: userId,
-          },
-        })
+          }).catch(() => {})
 
-        // Log the download link sent event
-        const lastEvent = await prisma.certificateEvent.findFirst({
-          where: { certificateId: id },
-          orderBy: { sequenceNumber: 'desc' },
-        })
+          // Log event
+          const lastEvent = await prisma.certificateEvent.findFirst({
+            where: { certificateId: id },
+            orderBy: { sequenceNumber: 'desc' },
+          })
 
-        await prisma.certificateEvent.create({
-          data: {
-            certificateId: id,
-            sequenceNumber: (lastEvent?.sequenceNumber || 0) + 1,
-            revision: result.certificate.currentRevision,
-            eventType: 'DOWNLOAD_LINK_SENT',
-            eventData: JSON.stringify({
-              customerEmail: body.customerEmail.toLowerCase().trim(),
-              customerName: body.customerName.trim(),
-              tokenId: downloadToken.id,
-              expiresAt: expiresAt.toISOString(),
-              sentBy: userName,
-            }),
-            userId,
-            userRole,
-          },
-        })
+          await prisma.certificateEvent.create({
+            data: {
+              certificateId: id,
+              sequenceNumber: (lastEvent?.sequenceNumber || 0) + 1,
+              revision: result.certificate.currentRevision,
+              eventType: 'DOWNLOAD_LINK_SENT',
+              eventData: JSON.stringify({
+                customerEmail,
+                customerName,
+                tokenId: downloadToken.id,
+                expiresAt: expiresAt.toISOString(),
+                sentBy: userName,
+                isRegistered: false,
+              }),
+              userId,
+              userRole,
+            },
+          })
 
-        downloadLinkResult = {
-          sent: true,
-          token,
-          customerEmail: body.customerEmail.toLowerCase().trim(),
-          expiresAt: expiresAt.toISOString(),
+          downloadLinkResult = {
+            sent: true,
+            token,
+            customerEmail,
+            expiresAt: expiresAt.toISOString(),
+            isRegistered: false,
+          }
         }
       } catch {
         downloadLinkResult = {
@@ -2799,19 +3074,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Notify all admins about new staff creation
     const creatorName = request.user!.name || 'Admin'
-    prisma.user.findMany({
+    const adminUsers = await prisma.user.findMany({
       where: { tenantId, role: 'ADMIN', isActive: true, NOT: { id: request.user!.sub } },
       select: { id: true },
-    }).then((admins) => {
-      for (const admin of admins) {
-        enqueueNotification({
-          type: 'create-notification',
-          userId: admin.id,
-          notificationType: 'STAFF_CREATED',
-          data: { creatorName, staffName: body.name, staffEmail: body.email },
-        }).catch(() => {})
-      }
-    }).catch(() => {})
+    })
+    for (const admin of adminUsers) {
+      enqueueNotification({
+        type: 'create-notification',
+        userId: admin.id,
+        notificationType: 'STAFF_CREATED',
+        data: { creatorName, staffName: body.name, staffEmail: body.email },
+      }).catch(() => {})
+    }
 
     // Update usage tracking (async, non-blocking)
     updateUsageTracking(tenantId).catch(() => {})
@@ -3518,7 +3792,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params
     const body = request.body as { field: string; value: string; reason: string }
 
-    const ALLOWED_FIELDS = ['certificateNumber', 'dateOfCalibration', 'calibrationDueDate', 'reviewerId'] as const
+    const ALLOWED_FIELDS = ['certificateNumber', 'dateOfCalibration', 'calibrationDueDate', 'srfNumber', 'srfDate', 'customerName', 'customerAddress', 'customerContactName', 'customerContactEmail', 'calibratedAt', 'reviewerId'] as const
     type AllowedField = (typeof ALLOWED_FIELDS)[number]
 
     if (!body.field || !ALLOWED_FIELDS.includes(body.field as AllowedField)) {
@@ -3542,7 +3816,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Prepare update data
     let updateData: Record<string, unknown> = {}
-    if (body.field === 'dateOfCalibration' || body.field === 'calibrationDueDate') {
+    const DATE_FIELDS = ['dateOfCalibration', 'calibrationDueDate', 'srfDate']
+    if (DATE_FIELDS.includes(body.field)) {
       updateData = { [body.field]: body.value ? new Date(body.value) : null }
     } else if (body.field === 'reviewerId') {
       updateData = { [body.field]: body.value || null }
@@ -3623,6 +3898,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       certificateNumber: 'Certificate Number',
       dateOfCalibration: 'Date of Calibration',
       calibrationDueDate: 'Calibration Due Date',
+      srfNumber: 'SRF Number',
+      srfDate: 'SRF Date',
+      customerName: 'Customer Name',
+      customerAddress: 'Customer Address',
+      customerContactName: 'Customer Contact Name',
+      customerContactEmail: 'Customer Contact Email',
+      calibratedAt: 'Calibrated At',
       reviewerId: 'Reviewer',
     }
 
@@ -4249,6 +4531,74 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
+    if (customerRequest.type === 'ACCOUNT_DELETION') {
+      const requestedById = customerRequest.requestedBy?.id
+      if (!requestedById) {
+        return reply.status(400).send({ error: 'Cannot identify user for deletion' })
+      }
+
+      const userToDelete = await prisma.customerUser.findUnique({
+        where: { id: requestedById },
+      })
+      if (!userToDelete) {
+        return reply.status(400).send({ error: 'User not found' })
+      }
+
+      const isPoc = customerRequest.customerAccount!.primaryPocId === requestedById
+
+      await prisma.$transaction(async (tx) => {
+        // Anonymize and deactivate the user
+        await tx.customerUser.update({
+          where: { id: requestedById },
+          data: {
+            name: 'Deleted User',
+            email: `deleted-${requestedById}@removed.local`,
+            isActive: false,
+            isPoc: false,
+            passwordHash: null,
+          },
+        })
+
+        // If user was POC, clear primaryPocId on the account
+        if (isPoc) {
+          await tx.customerAccount.update({
+            where: { id: customerRequest.customerAccount!.id },
+            data: { primaryPocId: null },
+          })
+        }
+
+        await tx.customerRequest.update({
+          where: { id: customerRequest.id },
+          data: {
+            status: 'APPROVED',
+            reviewedById: adminId,
+            reviewedAt: new Date(),
+          },
+        })
+      })
+
+      return {
+        success: true,
+        message: 'Account deletion request approved. User has been deactivated and anonymized.',
+      }
+    }
+
+    if (customerRequest.type === 'DATA_EXPORT') {
+      await prisma.customerRequest.update({
+        where: { id: customerRequest.id },
+        data: {
+          status: 'APPROVED',
+          reviewedById: adminId,
+          reviewedAt: new Date(),
+        },
+      })
+
+      return {
+        success: true,
+        message: 'Data export request approved. The data will be sent to the requester.',
+      }
+    }
+
     return reply.status(400).send({ error: 'Unknown request type' })
   })
 
@@ -4504,16 +4854,23 @@ async function getInstrumentStats(tenantId: string) {
 
 // Helper to get certificate statistics
 async function getCertificateStats(tenantId: string) {
+  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000)
+  const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000)
+  const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000)
+  const fortyFourHoursAgo = new Date(Date.now() - 44 * 60 * 60 * 1000)
+
+  const activeStatuses = [
+    'DRAFT', 'PENDING_REVIEW', 'REVISION_REQUIRED',
+    'PENDING_CUSTOMER_APPROVAL', 'CUSTOMER_REVISION_REQUIRED',
+    'PENDING_ADMIN_AUTHORIZATION',
+  ]
+
   const [
-    total,
-    draft,
-    pendingReview,
-    revisionRequired,
-    pendingCustomerApproval,
-    customerRevisionRequired,
-    pendingAdminAuthorization,
-    authorized,
-    rejected,
+    total, draft, pendingReview, revisionRequired,
+    pendingCustomerApproval, customerRevisionRequired,
+    pendingAdminAuthorization, authorized, rejected,
+    customerReviewExpired,
+    overdueGroups, approachingGroups,
   ] = await Promise.all([
     prisma.certificate.count({ where: { tenantId } }),
     prisma.certificate.count({ where: { tenantId, status: 'DRAFT' } }),
@@ -4524,18 +4881,58 @@ async function getCertificateStats(tenantId: string) {
     prisma.certificate.count({ where: { tenantId, status: 'PENDING_ADMIN_AUTHORIZATION' } }),
     prisma.certificate.count({ where: { tenantId, status: 'AUTHORIZED' } }),
     prisma.certificate.count({ where: { tenantId, status: 'REJECTED' } }),
+    prisma.certificate.count({ where: { tenantId, status: 'CUSTOMER_REVIEW_EXPIRED' } }),
+    // TAT overdue: phase >12h OR total >48h
+    prisma.certificate.groupBy({
+      by: ['status'],
+      where: {
+        tenantId,
+        status: { in: activeStatuses },
+        OR: [
+          { updatedAt: { lt: twelveHoursAgo } },
+          { createdAt: { lt: fortyEightHoursAgo } },
+        ],
+      },
+      _count: true,
+    }),
+    // TAT approaching: not overdue but phase >8h OR total >44h
+    prisma.certificate.groupBy({
+      by: ['status'],
+      where: {
+        tenantId,
+        status: { in: activeStatuses },
+        updatedAt: { gte: twelveHoursAgo },
+        createdAt: { gte: fortyEightHoursAgo },
+        OR: [
+          { updatedAt: { lt: eightHoursAgo } },
+          { createdAt: { lt: fortyFourHoursAgo } },
+        ],
+      },
+      _count: true,
+    }),
   ])
 
+  const getGroupCount = (groups: { status: string; _count: number }[], status: string) =>
+    groups.find((g) => g.status === status)?._count || 0
+
+  const buildTat = (status: string) => ({
+    overdue: getGroupCount(overdueGroups, status),
+    approaching: getGroupCount(approachingGroups, status),
+  })
+
   return {
-    total,
-    draft,
-    pendingReview,
-    revisionRequired,
-    pendingCustomerApproval,
-    customerRevisionRequired,
-    pendingAdminAuthorization,
-    authorized,
-    rejected,
+    total, draft, pendingReview, revisionRequired,
+    pendingCustomerApproval, customerRevisionRequired,
+    pendingAdminAuthorization, authorized, rejected,
+    customerReviewExpired,
+    tat: {
+      draft: buildTat('DRAFT'),
+      pendingReview: buildTat('PENDING_REVIEW'),
+      revisionRequired: buildTat('REVISION_REQUIRED'),
+      pendingCustomerApproval: buildTat('PENDING_CUSTOMER_APPROVAL'),
+      customerRevisionRequired: buildTat('CUSTOMER_REVISION_REQUIRED'),
+      pendingAdminAuthorization: buildTat('PENDING_ADMIN_AUTHORIZATION'),
+    },
   }
 }
 

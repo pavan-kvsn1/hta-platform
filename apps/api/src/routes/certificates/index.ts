@@ -5,7 +5,7 @@ import { prisma, Prisma } from '@hta/database'
 import { requireStaff, requireAuth, requireAdmin } from '../../middleware/auth.js'
 import { parsePagination, paginationResponse } from '../../lib/pagination.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
-import { queueCertificateSubmittedEmail, queueCertificateReviewedEmail, queueCustomerReviewEmail, enqueueNotification } from '../../services/queue.js'
+import { queueCertificateSubmittedEmail, queueCertificateReviewedEmail, queueCustomerReviewEmail, queueCustomerReviewRegisteredEmail, enqueueNotification } from '../../services/queue.js'
 import certificateImagesRoutes from './images/index.js'
 import { detectCertificateChanges, generateChangeSummary } from '../../lib/change-detection.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
@@ -177,7 +177,32 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request) => {
     const userId = request.user!.sub
 
-    const [draft, pending, approved, revision] = await Promise.all([
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000)
+    const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000)
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000)
+    const fortyFourHoursAgo = new Date(Date.now() - 44 * 60 * 60 * 1000)
+
+    const overdueWhere = {
+      OR: [
+        { updatedAt: { lt: twelveHoursAgo } },
+        { createdAt: { lt: fortyEightHoursAgo } },
+      ],
+    }
+    const approachingWhere = {
+      updatedAt: { gte: twelveHoursAgo },
+      createdAt: { gte: fortyEightHoursAgo },
+      OR: [
+        { updatedAt: { lt: eightHoursAgo } },
+        { createdAt: { lt: fortyFourHoursAgo } },
+      ],
+    }
+
+    const [
+      draft, pending, approved, revision,
+      draftOverdue, draftApproaching,
+      pendingOverdue, pendingApproaching,
+      revisionOverdue, revisionApproaching,
+    ] = await Promise.all([
       prisma.certificate.count({
         where: { createdById: userId, status: 'DRAFT' },
       }),
@@ -196,9 +221,37 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           status: { in: ['REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED'] },
         },
       }),
+      // TAT: Draft
+      prisma.certificate.count({
+        where: { createdById: userId, status: 'DRAFT', ...overdueWhere },
+      }),
+      prisma.certificate.count({
+        where: { createdById: userId, status: 'DRAFT', ...approachingWhere },
+      }),
+      // TAT: Pending (PENDING_REVIEW + PENDING_CUSTOMER_APPROVAL)
+      prisma.certificate.count({
+        where: { createdById: userId, status: { in: ['PENDING_REVIEW', 'PENDING_CUSTOMER_APPROVAL'] }, ...overdueWhere },
+      }),
+      prisma.certificate.count({
+        where: { createdById: userId, status: { in: ['PENDING_REVIEW', 'PENDING_CUSTOMER_APPROVAL'] }, ...approachingWhere },
+      }),
+      // TAT: Revision (REVISION_REQUIRED + CUSTOMER_REVISION_REQUIRED)
+      prisma.certificate.count({
+        where: { createdById: userId, status: { in: ['REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED'] }, ...overdueWhere },
+      }),
+      prisma.certificate.count({
+        where: { createdById: userId, status: { in: ['REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED'] }, ...approachingWhere },
+      }),
     ])
 
-    return { draft, pending, approved, revision }
+    return {
+      draft, pending, approved, revision,
+      tat: {
+        draft: { overdue: draftOverdue, approaching: draftApproaching },
+        pending: { overdue: pendingOverdue, approaching: pendingApproaching },
+        revision: { overdue: revisionOverdue, approaching: revisionApproaching },
+      },
+    }
   })
 
   // GET /api/certificates/reviewer/counts - Stats for reviewer dashboard
@@ -207,7 +260,31 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request) => {
     const userId = request.user!.sub
 
-    const [pendingReview, revisionRequested, approved, total] = await Promise.all([
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000)
+    const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000)
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000)
+    const fortyFourHoursAgo = new Date(Date.now() - 44 * 60 * 60 * 1000)
+
+    const overdueWhere = {
+      OR: [
+        { updatedAt: { lt: twelveHoursAgo } },
+        { createdAt: { lt: fortyEightHoursAgo } },
+      ],
+    }
+    const approachingWhere = {
+      updatedAt: { gte: twelveHoursAgo },
+      createdAt: { gte: fortyEightHoursAgo },
+      OR: [
+        { updatedAt: { lt: eightHoursAgo } },
+        { createdAt: { lt: fortyFourHoursAgo } },
+      ],
+    }
+
+    const [
+      pendingReview, revisionRequested, approved, total,
+      pendingOverdue, pendingApproaching,
+      revisionOverdue, revisionApproaching,
+    ] = await Promise.all([
       prisma.certificate.count({
         where: { reviewerId: userId, status: 'PENDING_REVIEW' },
       }),
@@ -223,9 +300,29 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       prisma.certificate.count({
         where: { reviewerId: userId },
       }),
+      // TAT: Pending Review
+      prisma.certificate.count({
+        where: { reviewerId: userId, status: 'PENDING_REVIEW', ...overdueWhere },
+      }),
+      prisma.certificate.count({
+        where: { reviewerId: userId, status: 'PENDING_REVIEW', ...approachingWhere },
+      }),
+      // TAT: Revision Requested
+      prisma.certificate.count({
+        where: { reviewerId: userId, status: 'REVISION_REQUIRED', ...overdueWhere },
+      }),
+      prisma.certificate.count({
+        where: { reviewerId: userId, status: 'REVISION_REQUIRED', ...approachingWhere },
+      }),
     ])
 
-    return { pendingReview, revisionRequested, approved, total }
+    return {
+      pendingReview, revisionRequested, approved, total,
+      tat: {
+        pendingReview: { overdue: pendingOverdue, approaching: pendingApproaching },
+        revisionRequested: { overdue: revisionOverdue, approaching: revisionApproaching },
+      },
+    }
   })
 
   // GET /api/certificates/engineer - Paginated certificates for the current engineer
@@ -634,7 +731,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     const existing = await prisma.certificate.findFirst({
       where: { tenantId, id },
       include: {
-        parameters: { include: { results: true } },
+        parameters: { include: { results: true }, orderBy: { sortOrder: 'asc' } },
+        masterInstruments: true,
       },
     })
 
@@ -666,6 +764,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           error: 'CONFLICT',
           message: 'Certificate was modified by another user',
           serverUpdatedAt: existing.updatedAt.toISOString(),
+          serverVersion: existing,
         })
       }
     }
@@ -1093,23 +1192,22 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       return cert
     })
 
-    // Queue email + notification to reviewer (non-blocking)
+    // Queue email + notification to reviewer
     const certNumber = result.certificateNumber || `CERT-${result.id.substring(0, 8)}`
     if (effectiveReviewerId) {
-      prisma.user.findUnique({
+      const reviewer = await prisma.user.findUnique({
         where: { id: effectiveReviewerId },
         select: { email: true, name: true },
-      }).then((reviewer) => {
-        if (reviewer) {
-          queueCertificateSubmittedEmail({
-            reviewerEmail: reviewer.email,
-            reviewerName: reviewer.name,
-            certificateNumber: certNumber,
-            assigneeName: userName,
-            customerName: certificate.customerName || undefined,
-          }).catch(() => {})
-        }
-      }).catch(() => {})
+      })
+      if (reviewer) {
+        queueCertificateSubmittedEmail({
+          reviewerEmail: reviewer.email,
+          reviewerName: reviewer.name,
+          certificateNumber: certNumber,
+          assigneeName: userName,
+          customerName: certificate.customerName || undefined,
+        }).catch(() => {})
+      }
 
       enqueueNotification({
         type: 'create-notification',
@@ -1264,11 +1362,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         })
 
         // Create approval token if sending to customer
-        let tokenResult = null
+        let tokenResult: { token: string; customerId: string; expiresAt: Date; isRegistered: boolean } | null = null
         if (body.sendToCustomer) {
-          const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-          const token = crypto.randomUUID()
-
           // Find or create customer
           let customer = await tx.customerUser.findUnique({
             where: { tenantId_email: { tenantId, email: body.sendToCustomer.email.toLowerCase() } },
@@ -1293,16 +1388,27 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             })
           }
 
-          await tx.approvalToken.create({
-            data: {
-              token,
-              certificateId: id,
-              customerId: customer.id,
-              expiresAt,
-            },
-          })
+          const isRegistered = customer.isActive && customer.activatedAt !== null
 
-          tokenResult = { token, customerId: customer.id, expiresAt }
+          if (isRegistered) {
+            // Registered customer — no token needed, they access via dashboard
+            tokenResult = { token: '', customerId: customer.id, expiresAt: new Date(), isRegistered: true }
+          } else {
+            // Unregistered customer — create 48h approval token
+            const expiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 48 hours
+            const token = crypto.randomUUID()
+
+            await tx.approvalToken.create({
+              data: {
+                token,
+                certificateId: id,
+                customerId: customer.id,
+                expiresAt,
+              },
+            })
+
+            tokenResult = { token, customerId: customer.id, expiresAt, isRegistered: false }
+          }
         }
 
         return { tokenResult }
@@ -1330,13 +1436,24 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       if (body.sendToCustomer && result.tokenResult) {
-        queueCustomerReviewEmail({
-          customerEmail: body.sendToCustomer.email,
-          customerName: body.sendToCustomer.name,
-          certificateNumber: certNum,
-          instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
-          token: result.tokenResult.token,
-        }).catch(() => {})
+        if (result.tokenResult.isRegistered) {
+          // Registered customer — send login-based review email
+          queueCustomerReviewRegisteredEmail({
+            customerEmail: body.sendToCustomer.email,
+            customerName: body.sendToCustomer.name,
+            certificateNumber: certNum,
+            instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+          }).catch(() => {})
+        } else {
+          // Unregistered customer — send token-based review email
+          queueCustomerReviewEmail({
+            customerEmail: body.sendToCustomer.email,
+            customerName: body.sendToCustomer.name,
+            certificateNumber: certNum,
+            instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+            token: result.tokenResult.token,
+          }).catch(() => {})
+        }
 
         // Notify assignee that cert was sent to customer
         if (certificate.createdById) {
@@ -1364,7 +1481,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       return {
         success: true,
         message: body.sendToCustomer ? 'Certificate approved and sent to customer' : 'Certificate approved',
-        ...(result.tokenResult && {
+        ...(result.tokenResult && !result.tokenResult.isRegistered && {
           customerToken: {
             token: result.tokenResult.token,
             expiresAt: result.tokenResult.expiresAt.toISOString(),
@@ -1374,6 +1491,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     if (body.action === 'request_revision') {
+      // If cert is in CUSTOMER_REVISION_REQUIRED, this is a forwarded customer revision
+      const isCustomerForward = certificate.status === 'CUSTOMER_REVISION_REQUIRED'
+      const revisionEventType = isCustomerForward ? 'CUSTOMER_REVISION_FORWARDED' : 'REVISION_REQUESTED'
+      const revisionFeedbackType = isCustomerForward ? 'CUSTOMER_REVISION_FORWARDED' : 'REVISION_REQUESTED'
+
       await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const lastEvent = await tx.certificateEvent.findFirst({
           where: { certificateId: id },
@@ -1393,7 +1515,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             revision: certificate.currentRevision,
             userId,
             userRole: 'ENGINEER',
-            eventType: 'REVISION_REQUESTED',
+            eventType: revisionEventType,
             eventData: JSON.stringify({
               feedbackCount: (body.sectionFeedbacks?.length || 0) + (body.generalNotes ? 1 : 0),
               reviewerId: userId,
@@ -1409,7 +1531,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
                 data: {
                   certificateId: id,
                   userId,
-                  feedbackType: 'REVISION_REQUESTED',
+                  feedbackType: revisionFeedbackType,
                   comment: sf.comment.trim(),
                   targetSection: sf.section,
                   revisionNumber: certificate.currentRevision,
@@ -1425,7 +1547,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             data: {
               certificateId: id,
               userId,
-              feedbackType: 'REVISION_REQUESTED',
+              feedbackType: revisionFeedbackType,
               comment: body.generalNotes?.trim() || body.comment!.trim(),
               revisionNumber: certificate.currentRevision,
               eventId: event.id,
@@ -1449,13 +1571,13 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         enqueueNotification({
           type: 'create-notification',
           userId: certificate.createdBy.id,
-          notificationType: 'REVISION_REQUESTED',
+          notificationType: revisionEventType,
           certificateId: id,
           data: { certificateNumber: certNum, reviewerName: userName },
         }).catch(() => {})
       }
 
-      return { success: true, message: 'Revision requested' }
+      return { success: true, message: isCustomerForward ? 'Customer revision forwarded' : 'Revision requested' }
     }
 
     if (body.action === 'reject') {
@@ -1640,9 +1762,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, message: 'Certificate assigned to engineer for revision' }
   })
 
-  // POST /api/certificates/:id/send-to-customer - Send certificate to customer for approval
+  // POST /api/certificates/:id/send-to-customer - Send/resend certificate to customer for approval
   fastify.post<{ Params: { id: string } }>('/:id/send-to-customer', {
-    preHandler: [requireAdmin],
+    preHandler: [requireStaff],
   }, async (request, reply) => {
     const tenantId = request.tenantId
     const userId = request.user!.sub
@@ -1671,13 +1793,13 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ error: 'Certificate not found' })
     }
 
-    if (certificate.status !== 'PENDING_CUSTOMER_APPROVAL') {
-      return reply.status(400).send({ error: 'Certificate must be approved by Reviewer before sending to customer' })
+    const resendableStatuses = ['PENDING_CUSTOMER_APPROVAL', 'CUSTOMER_REVIEW_EXPIRED', 'CUSTOMER_REVISION_REQUIRED']
+    if (!resendableStatuses.includes(certificate.status)) {
+      return reply.status(400).send({ error: 'Certificate must be in a customer-facing status to send/resend' })
     }
 
+    const isResend = certificate.status === 'CUSTOMER_REVIEW_EXPIRED' || certificate.status === 'CUSTOMER_REVISION_REQUIRED'
     const now = new Date()
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 days
-    const token = crypto.randomUUID()
 
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Find or create customer
@@ -1704,27 +1826,36 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      // Revoke existing tokens
-      await tx.approvalToken.updateMany({
-        where: { certificateId: id, usedAt: null },
-        data: { usedAt: now },
-      })
+      const isRegistered = customer.isActive && customer.activatedAt !== null
 
-      // Create new token
-      const approvalToken = await tx.approvalToken.create({
-        data: {
-          token,
-          certificateId: id,
-          customerId: customer.id,
-          expiresAt,
-        },
-      })
+      let approvalToken: { token: string; id: string; expiresAt: Date } | null = null
 
-      // Update certificate
+      if (!isRegistered) {
+        // Unregistered customer — revoke old tokens and create new 48h token
+        await tx.approvalToken.updateMany({
+          where: { certificateId: id, usedAt: null },
+          data: { usedAt: now },
+        })
+
+        const expiresAt = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000) // 48 hours
+        const token = crypto.randomUUID()
+
+        approvalToken = await tx.approvalToken.create({
+          data: {
+            token,
+            certificateId: id,
+            customerId: customer.id,
+            expiresAt,
+          },
+        })
+      }
+
+      // Update certificate — transition back to PENDING_CUSTOMER_APPROVAL on resend
       await tx.certificate.update({
         where: { id },
         data: {
           customerName: certificate.customerName || body.customerName,
+          ...(isResend && { status: 'PENDING_CUSTOMER_APPROVAL' }),
           updatedAt: now,
         },
       })
@@ -1740,32 +1871,49 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           certificateId: id,
           sequenceNumber: (lastEvent?.sequenceNumber || 0) + 1,
           revision: certificate.currentRevision,
-          eventType: 'SENT_TO_CUSTOMER',
+          eventType: isResend ? 'RESENT_TO_CUSTOMER' : 'SENT_TO_CUSTOMER',
           eventData: JSON.stringify({
             customerEmail: body.customerEmail.toLowerCase(),
             customerName: body.customerName,
             message: body.message || null,
-            tokenId: approvalToken.id,
-            expiresAt: expiresAt.toISOString(),
+            tokenId: approvalToken?.id || null,
+            expiresAt: approvalToken?.expiresAt?.toISOString() || null,
             sentBy: userName,
+            isRegistered,
+            previousStatus: isResend ? certificate.status : undefined,
           }),
           userId,
           userRole,
         },
       })
 
-      return { token: approvalToken.token, customerId: customer.id, expiresAt: approvalToken.expiresAt }
+      return {
+        token: approvalToken?.token || null,
+        customerId: customer.id,
+        expiresAt: approvalToken?.expiresAt || null,
+        isRegistered,
+      }
     })
 
     // Queue customer review email + notification
     const certNum = certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
-    queueCustomerReviewEmail({
-      customerEmail: body.customerEmail.toLowerCase(),
-      customerName: body.customerName,
-      certificateNumber: certNum,
-      instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
-      token: result.token,
-    }).catch(() => {})
+
+    if (result.isRegistered) {
+      queueCustomerReviewRegisteredEmail({
+        customerEmail: body.customerEmail.toLowerCase(),
+        customerName: body.customerName,
+        certificateNumber: certNum,
+        instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+      }).catch(() => {})
+    } else {
+      queueCustomerReviewEmail({
+        customerEmail: body.customerEmail.toLowerCase(),
+        customerName: body.customerName,
+        certificateNumber: certNum,
+        instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+        token: result.token!,
+      }).catch(() => {})
+    }
 
     enqueueNotification({
       type: 'create-notification',
@@ -1788,9 +1936,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     return {
       success: true,
-      token: result.token,
-      tokenExpiry: result.expiresAt.toISOString(),
+      ...(result.token && { token: result.token, tokenExpiry: result.expiresAt!.toISOString() }),
       customerId: result.customerId,
+      isRegistered: result.isRegistered,
     }
   })
 
@@ -2517,6 +2665,62 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         all: allUnlockedSections,
       },
     }
+  })
+
+  // GET /api/certificates/:id/field-change-requests - Get field change requests for a certificate
+  fastify.get<{ Params: { id: string } }>('/:id/field-change-requests', {
+    preHandler: [requireAuth],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+    const { id: certificateId } = request.params
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id: certificateId },
+      select: { id: true, createdById: true, reviewerId: true },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    const isAssignee = certificate.createdById === userId
+    const isReviewer = certificate.reviewerId === userId
+    const isAdmin = userRole === 'ADMIN' || request.user!.isAdmin
+
+    if (!isAssignee && !isReviewer && !isAdmin) {
+      return reply.status(403).send({ error: 'Forbidden' })
+    }
+
+    // Fetch all internal requests and filter for FIELD_CHANGE in JS (Prisma client may not have enum)
+    const allRequests = await prisma.internalRequest.findMany({
+      where: { certificateId },
+      include: {
+        requestedBy: { select: { id: true, name: true } },
+        reviewedBy: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const fieldChangeRequests = allRequests
+      .filter(r => (r.type as string) === 'FIELD_CHANGE')
+      .map(r => {
+        let data: { fields?: string[]; description?: string } = { fields: [], description: '' }
+        try { data = JSON.parse(r.data) } catch { /* ignore */ }
+        return {
+          id: r.id,
+          status: r.status,
+          fields: data.fields || [],
+          description: data.description || '',
+          adminNote: r.adminNote,
+          reviewedBy: r.reviewedBy,
+          reviewedAt: r.reviewedAt?.toISOString() || null,
+          createdAt: r.createdAt.toISOString(),
+        }
+      })
+
+    return { requests: fieldChangeRequests }
   })
 
   // GET /api/certificates/:id/download-signed - Download signed PDF

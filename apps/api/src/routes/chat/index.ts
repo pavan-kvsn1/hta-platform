@@ -208,9 +208,12 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         data: {
           threadId,
           senderName: request.user!.name || 'Unknown',
+          certificateNumber: cert.certificateNumber,
           preview: body.content.trim().substring(0, 100),
         },
-      }).catch(() => {})
+      }).catch((err) => {
+        request.log.error({ err, participantId }, 'Failed to enqueue chat notification')
+      })
     }
 
     return reply.status(201).send({ message })

@@ -18,6 +18,8 @@ import internalRequestRoutes from './routes/internal-requests/index.js'
 import customersRoutes from './routes/customers/index.js'
 import chatRoutes from './routes/chat/index.js'
 import securityRoutes from './routes/security/index.js'
+import deviceRoutes from './routes/devices/index.js'
+import offlineCodesRoutes from './routes/devices/codes.js'
 
 // Import middleware
 import { tenantMiddleware } from './middleware/tenant.js'
@@ -147,6 +149,12 @@ await server.register(chatRoutes, { prefix: '/api/chat' })
 
 // Security routes (CSP alerts, security dashboard)
 await server.register(securityRoutes, { prefix: '/api/security' })
+
+// Device management routes (Electron desktop)
+await server.register(deviceRoutes, { prefix: '/api/devices' })
+
+// Offline codes routes
+await server.register(offlineCodesRoutes, { prefix: '/api/offline-codes' })
 
 // =============================================================================
 // START SERVER

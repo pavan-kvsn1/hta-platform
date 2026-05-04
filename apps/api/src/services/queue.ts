@@ -70,6 +70,50 @@ export type EmailJobData =
       instrumentDescription: string
       reviewUrl: string
     }
+  | {
+      type: 'customer-review-registered'
+      to: string
+      tenantName?: string
+      customerName: string
+      certificateNumber: string
+      instrumentDescription: string
+      loginUrl: string
+    }
+  | {
+      type: 'customer-authorized-registered'
+      to: string
+      tenantName?: string
+      customerName: string
+      certificateNumber: string
+      instrumentDescription: string
+      loginUrl: string
+    }
+  | {
+      type: 'customer-authorized-token'
+      to: string
+      tenantName?: string
+      customerName: string
+      certificateNumber: string
+      instrumentDescription: string
+      downloadUrl: string
+    }
+  | {
+      type: 'reviewer-customer-expired'
+      to: string
+      tenantName?: string
+      reviewerName: string
+      certificateNumber: string
+      customerName: string
+      instrumentDescription: string
+      dashboardUrl: string
+    }
+  | {
+      type: 'offline-codes-expiry'
+      to: string
+      tenantName?: string
+      engineerName: string
+      loginUrl: string
+    }
 
 export interface NotificationJobData {
   type: 'create-notification'
@@ -258,6 +302,58 @@ export async function queueCustomerReviewEmail(opts: {
   })
 }
 
+export async function queueCustomerReviewRegisteredEmail(opts: {
+  customerEmail: string
+  customerName: string
+  certificateNumber: string
+  instrumentDescription: string
+}): Promise<void> {
+  await enqueueEmail({
+    type: 'customer-review-registered',
+    to: opts.customerEmail,
+    tenantName: TENANT_NAME(),
+    customerName: opts.customerName,
+    certificateNumber: opts.certificateNumber,
+    instrumentDescription: opts.instrumentDescription,
+    loginUrl: `${APP_URL()}/customer/login`,
+  })
+}
+
+export async function queueCustomerAuthorizedRegisteredEmail(opts: {
+  customerEmail: string
+  customerName: string
+  certificateNumber: string
+  instrumentDescription: string
+}): Promise<void> {
+  await enqueueEmail({
+    type: 'customer-authorized-registered',
+    to: opts.customerEmail,
+    tenantName: TENANT_NAME(),
+    customerName: opts.customerName,
+    certificateNumber: opts.certificateNumber,
+    instrumentDescription: opts.instrumentDescription,
+    loginUrl: `${APP_URL()}/customer/login`,
+  })
+}
+
+export async function queueCustomerAuthorizedTokenEmail(opts: {
+  customerEmail: string
+  customerName: string
+  certificateNumber: string
+  instrumentDescription: string
+  token: string
+}): Promise<void> {
+  await enqueueEmail({
+    type: 'customer-authorized-token',
+    to: opts.customerEmail,
+    tenantName: TENANT_NAME(),
+    customerName: opts.customerName,
+    certificateNumber: opts.certificateNumber,
+    instrumentDescription: opts.instrumentDescription,
+    downloadUrl: `${APP_URL()}/download/${opts.token}`,
+  })
+}
+
 export async function queueCustomerApprovalNotificationEmail(opts: {
   staffEmail: string
   staffName: string
@@ -277,6 +373,38 @@ export async function queueCustomerApprovalNotificationEmail(opts: {
     status: opts.approved ? 'approved' : 'rejected',
     rejectionNote: opts.rejectionNote,
     dashboardUrl: `${APP_URL()}/dashboard/certificates`,
+  })
+}
+
+export async function queueReviewerCustomerExpiredEmail(opts: {
+  reviewerEmail: string
+  reviewerName: string
+  certificateNumber: string
+  customerName: string
+  instrumentDescription: string
+}): Promise<void> {
+  await enqueueEmail({
+    type: 'reviewer-customer-expired',
+    to: opts.reviewerEmail,
+    tenantName: TENANT_NAME(),
+    reviewerName: opts.reviewerName,
+    certificateNumber: opts.certificateNumber,
+    customerName: opts.customerName,
+    instrumentDescription: opts.instrumentDescription,
+    dashboardUrl: `${APP_URL()}/dashboard/certificates`,
+  })
+}
+
+export async function queueOfflineCodesExpiryEmail(opts: {
+  to: string
+  engineerName: string
+}): Promise<void> {
+  await enqueueEmail({
+    type: 'offline-codes-expiry',
+    to: opts.to,
+    tenantName: TENANT_NAME(),
+    engineerName: opts.engineerName,
+    loginUrl: `${APP_URL()}/dashboard/offline-codes`,
   })
 }
 

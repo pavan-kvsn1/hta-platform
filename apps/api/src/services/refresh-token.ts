@@ -10,9 +10,10 @@ import { prisma } from '@hta/database'
 
 // Configuration
 export const REFRESH_TOKEN_CONFIG = {
-  expiresInMs: 7 * 24 * 60 * 60 * 1000, // 7 days
-  accessTokenExpiresInMs: 15 * 60 * 1000, // 15 minutes
-  tokenBytes: 32, // 256 bits of entropy
+  WEB_EXPIRY: 7 * 24 * 60 * 60 * 1000,     // 7 days (web tokens)
+  DESKTOP_EXPIRY: 30 * 24 * 60 * 60 * 1000, // 30 days (desktop tokens — device-bound + 2FA)
+  accessTokenExpiresInMs: 15 * 60 * 1000,    // 15 minutes
+  tokenBytes: 32,                             // 256 bits of entropy
 }
 
 export interface RefreshTokenPayload {
@@ -22,6 +23,8 @@ export interface RefreshTokenPayload {
   tenantId: string
   userAgent?: string
   ipAddress?: string
+  tokenType?: 'web' | 'desktop'  // Desktop tokens get 30-day expiry + device binding
+  deviceId?: string               // Required when tokenType is 'desktop'
 }
 
 export interface RefreshTokenResult {
@@ -59,7 +62,11 @@ export async function createRefreshToken(
 ): Promise<RefreshTokenResult> {
   const rawToken = generateToken()
   const hashedToken = hashToken(rawToken)
-  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_CONFIG.expiresInMs)
+
+  const expiresInMs = payload.tokenType === 'desktop'
+    ? REFRESH_TOKEN_CONFIG.DESKTOP_EXPIRY
+    : REFRESH_TOKEN_CONFIG.WEB_EXPIRY
+  const expiresAt = new Date(Date.now() + expiresInMs)
 
   await prisma.refreshToken.create({
     data: {
@@ -71,6 +78,7 @@ export async function createRefreshToken(
       expiresAt,
       userAgent: payload.userAgent,
       ipAddress: payload.ipAddress,
+      deviceId: payload.deviceId ?? null,
     },
   })
 
@@ -81,7 +89,8 @@ export async function createRefreshToken(
  * Validate a refresh token
  */
 export async function validateRefreshToken(
-  rawToken: string
+  rawToken: string,
+  expectedDeviceId?: string
 ): Promise<ValidatedToken | null> {
   const hashedToken = hashToken(rawToken)
 
@@ -94,6 +103,11 @@ export async function validateRefreshToken(
   })
 
   if (!token) {
+    return null
+  }
+
+  // If token is device-bound, verify the device matches
+  if (token.deviceId && expectedDeviceId && token.deviceId !== expectedDeviceId) {
     return null
   }
 

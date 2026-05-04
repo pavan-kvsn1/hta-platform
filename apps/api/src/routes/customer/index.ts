@@ -1609,20 +1609,19 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Notify all admins
-      prisma.user.findMany({
+      const admins = await prisma.user.findMany({
         where: { role: 'ADMIN', isActive: true, tenantId },
         select: { id: true },
-      }).then((admins: { id: string }[]) => {
-        for (const admin of admins) {
-          enqueueNotification({
-            type: 'create-notification',
-            userId: admin.id,
-            notificationType: 'CUSTOMER_REVISION_REQUEST',
-            certificateId: certificate.id,
-            data: { certificateNumber: certNum },
-          }).catch(() => {})
-        }
-      }).catch(() => {})
+      })
+      for (const admin of admins) {
+        enqueueNotification({
+          type: 'create-notification',
+          userId: admin.id,
+          notificationType: 'CUSTOMER_REVISION_REQUEST',
+          certificateId: certificate.id,
+          data: { certificateNumber: certNum },
+        }).catch(() => {})
+      }
 
       return { success: true, message: 'Revision request submitted successfully' }
     }
@@ -1725,20 +1724,19 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Notify all admins
     const tenantId = request.tenantId
-    prisma.user.findMany({
+    const admins = await prisma.user.findMany({
       where: { role: 'ADMIN', isActive: true, tenantId },
       select: { id: true },
-    }).then((admins: { id: string }[]) => {
-      for (const admin of admins) {
-        enqueueNotification({
-          type: 'create-notification',
-          userId: admin.id,
-          notificationType: 'CUSTOMER_REVISION_REQUEST',
-          certificateId: tokenRecord.certificateId,
-          data: { certificateNumber: certNum },
-        }).catch(() => {})
-      }
-    }).catch(() => {})
+    })
+    for (const admin of admins) {
+      enqueueNotification({
+        type: 'create-notification',
+        userId: admin.id,
+        notificationType: 'CUSTOMER_REVISION_REQUEST',
+        certificateId: tokenRecord.certificateId,
+        data: { certificateNumber: certNum },
+      }).catch(() => {})
+    }
 
     return { success: true, message: 'Revision request submitted successfully' }
   })
@@ -2334,7 +2332,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
   // CUSTOMER TEAM REQUESTS
   // ============================================================================
 
-  // POST /api/customer/team/request - Submit a user addition or POC change request
+  // POST /api/customer/team/request - Submit a user addition, POC change, or account deletion request
   fastify.post('/team/request', {
     preHandler: [requireCustomer],
   }, async (request, reply) => {
@@ -2350,15 +2348,44 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: 'No customer account found' })
     }
 
-    if (customer.customerAccount?.primaryPocId !== customer.id) {
-      return reply.status(403).send({ error: 'Only the primary POC can submit requests' })
-    }
-
     const body = request.body as { type: string; data: Record<string, unknown> }
     const { type, data } = body
 
-    if (!type || !['USER_ADDITION', 'POC_CHANGE'].includes(type)) {
+    if (!type || !['USER_ADDITION', 'POC_CHANGE', 'ACCOUNT_DELETION', 'DATA_EXPORT'].includes(type)) {
       return reply.status(400).send({ error: 'Invalid request type' })
+    }
+
+    // Only POC can submit USER_ADDITION and POC_CHANGE requests
+    if ((type === 'USER_ADDITION' || type === 'POC_CHANGE') && customer.customerAccount?.primaryPocId !== customer.id) {
+      return reply.status(403).send({ error: 'Only the primary POC can submit requests' })
+    }
+
+    if (type === 'ACCOUNT_DELETION') {
+      const existingRequest = await prisma.customerRequest.findFirst({
+        where: {
+          customerAccountId: customer.customerAccountId,
+          type: 'ACCOUNT_DELETION',
+          status: 'PENDING',
+          requestedById: customer.id,
+        },
+      })
+      if (existingRequest) {
+        return reply.status(400).send({ error: 'A pending account deletion request already exists' })
+      }
+    }
+
+    if (type === 'DATA_EXPORT') {
+      const existingRequest = await prisma.customerRequest.findFirst({
+        where: {
+          customerAccountId: customer.customerAccountId,
+          type: 'DATA_EXPORT',
+          status: 'PENDING',
+          requestedById: customer.id,
+        },
+      })
+      if (existingRequest) {
+        return reply.status(400).send({ error: 'A pending data export request already exists' })
+      }
     }
 
     if (type === 'USER_ADDITION') {
