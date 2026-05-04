@@ -13,6 +13,11 @@ export type EmailJobName =
   | 'certificate-reviewed'
   | 'customer-approval'
   | 'customer-review'
+  | 'customer-review-registered'
+  | 'customer-authorized-registered'
+  | 'customer-authorized-token'
+  | 'reviewer-customer-expired'
+  | 'offline-codes-expiry'
 
 export interface BaseEmailJob {
   to: string
@@ -70,6 +75,45 @@ export interface CustomerReviewEmailJob extends BaseEmailJob {
   reviewUrl: string
 }
 
+export interface CustomerReviewRegisteredEmailJob extends BaseEmailJob {
+  type: 'customer-review-registered'
+  customerName: string
+  certificateNumber: string
+  instrumentDescription: string
+  loginUrl: string
+}
+
+export interface CustomerAuthorizedRegisteredEmailJob extends BaseEmailJob {
+  type: 'customer-authorized-registered'
+  customerName: string
+  certificateNumber: string
+  instrumentDescription: string
+  loginUrl: string
+}
+
+export interface CustomerAuthorizedTokenEmailJob extends BaseEmailJob {
+  type: 'customer-authorized-token'
+  customerName: string
+  certificateNumber: string
+  instrumentDescription: string
+  downloadUrl: string
+}
+
+export interface ReviewerCustomerExpiredEmailJob extends BaseEmailJob {
+  type: 'reviewer-customer-expired'
+  reviewerName: string
+  certificateNumber: string
+  customerName: string
+  instrumentDescription: string
+  dashboardUrl: string
+}
+
+export interface OfflineCodesExpiryEmailJob extends BaseEmailJob {
+  type: 'offline-codes-expiry'
+  engineerName: string
+  loginUrl: string
+}
+
 export type EmailJobData =
   | PasswordResetEmailJob
   | StaffActivationEmailJob
@@ -77,6 +121,11 @@ export type EmailJobData =
   | CertificateReviewedEmailJob
   | CustomerApprovalEmailJob
   | CustomerReviewEmailJob
+  | CustomerReviewRegisteredEmailJob
+  | CustomerAuthorizedRegisteredEmailJob
+  | CustomerAuthorizedTokenEmailJob
+  | ReviewerCustomerExpiredEmailJob
+  | OfflineCodesExpiryEmailJob
 
 // =============================================================================
 // NOTIFICATION JOB TYPES
@@ -130,6 +179,8 @@ export type CleanupJobName =
   | 'expired-sessions'
   | 'old-notifications'
   | 'orphaned-files'
+  | 'expired-reviews'
+  | 'offline-codes'
 
 export interface ExpiredTokensCleanupJob {
   type: 'expired-tokens'
@@ -152,8 +203,18 @@ export interface OrphanedFilesCleanupJob {
   dryRun?: boolean
 }
 
+export interface ExpiredReviewsCleanupJob {
+  type: 'expired-reviews'
+}
+
+export interface OfflineCodesCleanupJob {
+  type: 'offline-codes'
+}
+
 export type CleanupJobData =
   | ExpiredTokensCleanupJob
   | ExpiredSessionsCleanupJob
   | OldNotificationsCleanupJob
   | OrphanedFilesCleanupJob
+  | ExpiredReviewsCleanupJob
+  | OfflineCodesCleanupJob

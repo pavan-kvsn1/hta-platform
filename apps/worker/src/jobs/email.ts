@@ -118,6 +118,61 @@ async function renderEmailFromJob(data: EmailJobData): Promise<{ html: string; s
         },
       })
 
+    case 'customer-review-registered':
+      return renderEmail({
+        template: 'customer-review-registered',
+        props: {
+          customerName: data.customerName,
+          certificateNumber: data.certificateNumber,
+          instrumentDescription: data.instrumentDescription,
+          loginUrl: data.loginUrl,
+        },
+      })
+
+    case 'customer-authorized-registered':
+      return renderEmail({
+        template: 'customer-authorized-registered',
+        props: {
+          customerName: data.customerName,
+          certificateNumber: data.certificateNumber,
+          instrumentDescription: data.instrumentDescription,
+          loginUrl: data.loginUrl,
+        },
+      })
+
+    case 'customer-authorized-token':
+      return renderEmail({
+        template: 'customer-authorized-token',
+        props: {
+          customerName: data.customerName,
+          certificateNumber: data.certificateNumber,
+          instrumentDescription: data.instrumentDescription,
+          downloadUrl: data.downloadUrl,
+        },
+      })
+
+    case 'reviewer-customer-expired':
+      return renderEmail({
+        template: 'reviewer-customer-expired',
+        props: {
+          reviewerName: data.reviewerName,
+          certificateNumber: data.certificateNumber,
+          customerName: data.customerName,
+          instrumentDescription: data.instrumentDescription,
+          dashboardUrl: data.dashboardUrl,
+        },
+      })
+
+    case 'offline-codes-expiry':
+      return renderEmail({
+        template: 'offline-codes-expiry',
+        props: {
+          engineerName: data.engineerName,
+          loginUrl: data.loginUrl,
+          tenantName: data.tenantName,
+        },
+      })
+
     default:
       throw new Error(`Unknown email type: ${(data as { type: string }).type}`)
   }

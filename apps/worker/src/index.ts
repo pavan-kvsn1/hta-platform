@@ -11,6 +11,7 @@ import {
   processNotificationJob,
   processCleanupJob,
   runScheduledCleanup,
+  setEmailQueue,
 } from './jobs/index.js'
 import type { EmailJobData, NotificationJobData, CleanupJobData } from './types.js'
 
@@ -19,7 +20,7 @@ import type { EmailJobData, NotificationJobData, CleanupJobData } from './types.
 // =============================================================================
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
-const CLEANUP_INTERVAL_MS = parseInt(process.env.CLEANUP_INTERVAL_MS || '3600000', 10) // 1 hour
+const CLEANUP_INTERVAL_MS = parseInt(process.env.CLEANUP_INTERVAL_MS || '900000', 10) // 15 minutes
 const DATABASE_URL = process.env.DATABASE_URL || '(not set)'
 
 // Debug: Log database URL (masked)
@@ -62,6 +63,9 @@ async function main() {
   const emailQueue = new Queue<EmailJobData>('email', { connection })
   const notificationQueue = new Queue<NotificationJobData>('notifications', { connection })
   const cleanupQueue = new Queue<CleanupJobData>('cleanup', { connection })
+
+  // Allow cleanup jobs to enqueue emails (e.g., reviewer notification on expired review)
+  setEmailQueue(emailQueue)
 
   // ===========================================================================
   // WORKERS

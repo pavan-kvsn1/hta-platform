@@ -5,9 +5,16 @@
  * old notifications, and orphaned files.
  */
 
-import { Job } from 'bullmq'
+import { Job, Queue } from 'bullmq'
 import { prisma } from '@hta/database'
-import type { CleanupJobData } from '../types.js'
+import type { CleanupJobData, EmailJobData } from '../types.js'
+
+// Email queue reference — set by index.ts so cleanup can enqueue emails
+let emailQueueRef: Queue<EmailJobData> | null = null
+
+export function setEmailQueue(queue: Queue<EmailJobData>): void {
+  emailQueueRef = queue
+}
 
 /**
  * Process a cleanup job
@@ -37,6 +44,14 @@ export async function processCleanupJob(job: Job<CleanupJobData>): Promise<void>
 
       case 'orphaned-files':
         result = await cleanupOrphanedFiles(data.dryRun)
+        break
+
+      case 'expired-reviews':
+        result = await cleanupExpiredReviews()
+        break
+
+      case 'offline-codes':
+        result = await cleanupExpiredOfflineCodes()
         break
 
       default:
@@ -140,6 +155,171 @@ async function cleanupOrphanedFiles(dryRun?: boolean): Promise<{ deleted: number
 }
 
 /**
+ * Expire customer reviews that have exceeded the 48-hour window.
+ * Transitions PENDING_CUSTOMER_APPROVAL → CUSTOMER_REVIEW_EXPIRED
+ * and notifies the reviewer.
+ */
+export async function cleanupExpiredReviews(): Promise<{ deleted: number }> {
+  const now = new Date()
+
+  // Find certificates in PENDING_CUSTOMER_APPROVAL where all approval tokens are expired or used
+  const expiredCerts = await prisma.certificate.findMany({
+    where: {
+      status: 'PENDING_CUSTOMER_APPROVAL',
+      approvalTokens: {
+        // Every token is either expired or used — none are still valid
+        every: {
+          OR: [
+            { expiresAt: { lt: now } },
+            { usedAt: { not: null } },
+          ],
+        },
+        // Must have at least one token (to confirm it was actually sent to customer)
+        some: {},
+      },
+    },
+    include: {
+      reviewer: { select: { id: true, email: true, name: true } },
+      createdBy: { select: { id: true, email: true, name: true } },
+      approvalTokens: {
+        where: { usedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        include: { customer: { select: { name: true } } },
+      },
+    },
+  })
+
+  if (expiredCerts.length === 0) {
+    console.log('[Cleanup] No expired customer reviews found')
+    return { deleted: 0 }
+  }
+
+  console.log(`[Cleanup] Found ${expiredCerts.length} expired customer reviews`)
+
+  let expired = 0
+  const APP_URL = process.env.APP_URL || 'https://app.hta-calibration.com'
+  const TENANT_NAME = process.env.TENANT_NAME || 'HTA Calibration'
+
+  for (const cert of expiredCerts) {
+    try {
+      // Transition to CUSTOMER_REVIEW_EXPIRED
+      const lastEvent = await prisma.certificateEvent.findFirst({
+        where: { certificateId: cert.id },
+        orderBy: { sequenceNumber: 'desc' },
+      })
+
+      await prisma.$transaction([
+        prisma.certificate.update({
+          where: { id: cert.id },
+          data: { status: 'CUSTOMER_REVIEW_EXPIRED', updatedAt: now },
+        }),
+        prisma.certificateEvent.create({
+          data: {
+            certificateId: cert.id,
+            sequenceNumber: (lastEvent?.sequenceNumber || 0) + 1,
+            revision: cert.currentRevision,
+            eventType: 'CUSTOMER_REVIEW_EXPIRED',
+            eventData: JSON.stringify({
+              reason: 'Customer did not respond within 48-hour window',
+              expiredAt: now.toISOString(),
+            }),
+            userRole: 'SYSTEM',
+          },
+        }),
+      ])
+
+      // Determine who to notify — reviewer if assigned, otherwise the engineer
+      const notifyUser = cert.reviewer || cert.createdBy
+      const customerName = cert.approvalTokens[0]?.customer?.name || cert.customerName || 'Customer'
+      const certNum = cert.certificateNumber || `CERT-${cert.id.substring(0, 8)}`
+
+      if (notifyUser && emailQueueRef) {
+        await emailQueueRef.add('reviewer-customer-expired', {
+          type: 'reviewer-customer-expired' as const,
+          to: notifyUser.email,
+          tenantName: TENANT_NAME,
+          reviewerName: notifyUser.name,
+          certificateNumber: certNum,
+          customerName,
+          instrumentDescription: cert.uucDescription || 'Calibration Certificate',
+          dashboardUrl: `${APP_URL}/dashboard/certificates`,
+        }, {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+        })
+      }
+
+      expired++
+      console.log(`[Cleanup] Expired review for certificate ${certNum}`)
+    } catch (error) {
+      console.error(`[Cleanup] Failed to expire review for cert ${cert.id}:`, error)
+    }
+  }
+
+  console.log(`[Cleanup] Expired ${expired} customer reviews`)
+  return { deleted: expired }
+}
+
+/**
+ * Expire offline code batches that have passed their expiresAt date.
+ * Deactivates the batch and queues a notification email to the engineer.
+ */
+export async function cleanupExpiredOfflineCodes(): Promise<{ deleted: number }> {
+  const now = new Date()
+
+  const expiredBatches = await prisma.offlineCodeBatch.findMany({
+    where: {
+      isActive: true,
+      expiresAt: { lt: now },
+    },
+    include: {
+      user: { select: { id: true, email: true, name: true } },
+    },
+  })
+
+  if (expiredBatches.length === 0) {
+    console.log('[Cleanup] No expired offline code batches found')
+    return { deleted: 0 }
+  }
+
+  const APP_URL = process.env.APP_URL || 'https://app.hta-calibration.com'
+  const TENANT_NAME = process.env.TENANT_NAME || 'HTA Calibration'
+  let expired = 0
+
+  for (const batch of expiredBatches) {
+    try {
+      await prisma.offlineCodeBatch.update({
+        where: { id: batch.id },
+        data: { isActive: false },
+      })
+
+      // Notify the engineer
+      if (batch.user && emailQueueRef) {
+        await emailQueueRef.add('offline-codes-expiry', {
+          type: 'offline-codes-expiry' as const,
+          to: batch.user.email,
+          tenantName: TENANT_NAME,
+          engineerName: batch.user.name,
+          loginUrl: `${APP_URL}/dashboard/offline-codes`,
+        }, {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+        })
+      }
+
+      expired++
+      console.log(`[Cleanup] Expired offline code batch ${batch.id} for user ${batch.userId}`)
+    } catch (error) {
+      console.error(`[Cleanup] Failed to expire batch ${batch.id}:`, error)
+    }
+  }
+
+  console.log(`[Cleanup] Expired ${expired} offline code batches`)
+  return { deleted: expired }
+}
+
+/**
  * Run all standard cleanup tasks
  * Called by scheduled job
  */
@@ -149,10 +329,12 @@ export async function runScheduledCleanup(): Promise<void> {
   const results = await Promise.allSettled([
     cleanupExpiredTokens(),
     cleanupOldNotifications(90, true), // Delete read notifications older than 90 days
+    cleanupExpiredReviews(),
+    cleanupExpiredOfflineCodes(),
   ])
 
   const summary = results.map((r, i) => {
-    const tasks = ['tokens', 'notifications']
+    const tasks = ['tokens', 'notifications', 'expired-reviews', 'offline-codes']
     if (r.status === 'fulfilled') {
       return `${tasks[i]}: ${r.value.deleted} deleted`
     }
