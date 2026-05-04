@@ -2,19 +2,19 @@ import { Text, Section } from '@react-email/components'
 import * as React from 'react'
 import { Layout, Button } from '../components/index.js'
 
-interface CustomerReviewProps {
+interface CustomerReviewRegisteredProps {
   customerName: string
   certificateNumber: string
   instrumentDescription: string
-  reviewUrl: string
+  loginUrl: string
 }
 
-export function CustomerReview({
+export function CustomerReviewRegistered({
   customerName,
   certificateNumber,
   instrumentDescription,
-  reviewUrl,
-}: CustomerReviewProps) {
+  loginUrl,
+}: CustomerReviewRegisteredProps) {
   return (
     <Layout preview={`Certificate ${certificateNumber} is ready for your review`}>
       <Text style={heading}>Calibration Certificate Ready for Review</Text>
@@ -24,7 +24,7 @@ export function CustomerReview({
       </Text>
 
       <Text style={paragraph}>
-        Please review the calibration data sheet for your instrument <strong>{instrumentDescription}</strong>.
+        Please log in to review the calibration data sheet for your instrument <strong>{instrumentDescription}</strong>.
       </Text>
 
       <Section style={detailsBox}>
@@ -43,13 +43,13 @@ export function CustomerReview({
       </Text>
 
       <Section style={buttonContainer}>
-        <Button href={reviewUrl}>
-          Review Certificate
+        <Button href={loginUrl}>
+          Log In to Review
         </Button>
       </Section>
 
       <Text style={smallText}>
-        This link will expire in 48 hours. If you have any questions, please contact us.
+        You can access this certificate anytime from your dashboard. If you have any questions, please contact us.
       </Text>
     </Layout>
   )
@@ -104,4 +104,4 @@ const smallText: React.CSSProperties = {
   margin: '24px 0 0',
 }
 
-export default CustomerReview
+export default CustomerReviewRegistered

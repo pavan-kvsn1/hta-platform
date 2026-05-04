@@ -2,29 +2,36 @@ import { Text, Section } from '@react-email/components'
 import * as React from 'react'
 import { Layout, Button } from '../components/index.js'
 
-interface CustomerReviewProps {
-  customerName: string
+interface ReviewerCustomerExpiredProps {
+  reviewerName: string
   certificateNumber: string
+  customerName: string
   instrumentDescription: string
-  reviewUrl: string
+  dashboardUrl: string
 }
 
-export function CustomerReview({
-  customerName,
+export function ReviewerCustomerExpired({
+  reviewerName,
   certificateNumber,
+  customerName,
   instrumentDescription,
-  reviewUrl,
-}: CustomerReviewProps) {
+  dashboardUrl,
+}: ReviewerCustomerExpiredProps) {
   return (
-    <Layout preview={`Certificate ${certificateNumber} is ready for your review`}>
-      <Text style={heading}>Calibration Certificate Ready for Review</Text>
-
-      <Text style={paragraph}>
-        Hello {customerName},
+    <Layout
+      preview={`Customer review expired for certificate ${certificateNumber}`}
+    >
+      <Text style={heading}>
+        Customer Review Expired
       </Text>
 
       <Text style={paragraph}>
-        Please review the calibration data sheet for your instrument <strong>{instrumentDescription}</strong>.
+        Hello {reviewerName},
+      </Text>
+
+      <Text style={paragraph}>
+        The customer has not responded to the review request for the following certificate
+        within the 48-hour window. You can resend the review request from the dashboard.
       </Text>
 
       <Section style={detailsBox}>
@@ -33,24 +40,28 @@ export function CustomerReview({
           <span style={detailValue}>{certificateNumber}</span>
         </Text>
         <Text style={detailRow}>
+          <span style={detailLabel}>Customer:</span>
+          <span style={detailValue}>{customerName}</span>
+        </Text>
+        <Text style={detailRow}>
           <span style={detailLabel}>Instrument:</span>
           <span style={detailValue}>{instrumentDescription}</span>
+        </Text>
+        <Text style={detailRow}>
+          <span style={detailLabel}>Status:</span>
+          <span style={statusExpired}>Review Expired</span>
         </Text>
       </Section>
 
       <Text style={paragraph}>
-        Please review the certificate details and provide your approval or feedback.
+        Please resend the review request to the customer, or contact them directly.
       </Text>
 
       <Section style={buttonContainer}>
-        <Button href={reviewUrl}>
-          Review Certificate
+        <Button href={dashboardUrl}>
+          View Certificate
         </Button>
       </Section>
-
-      <Text style={smallText}>
-        This link will expire in 48 hours. If you have any questions, please contact us.
-      </Text>
     </Layout>
   )
 }
@@ -58,7 +69,7 @@ export function CustomerReview({
 const heading: React.CSSProperties = {
   fontSize: '24px',
   fontWeight: '600',
-  color: '#1e40af',
+  color: '#dc2626',
   margin: '0 0 24px',
 }
 
@@ -70,8 +81,8 @@ const paragraph: React.CSSProperties = {
 }
 
 const detailsBox: React.CSSProperties = {
-  backgroundColor: '#f9fafb',
-  border: '1px solid #e5e7eb',
+  backgroundColor: '#fef2f2',
+  border: '1px solid #fecaca',
   borderRadius: '6px',
   padding: '16px',
   margin: '24px 0',
@@ -93,15 +104,14 @@ const detailValue: React.CSSProperties = {
   color: '#1f2937',
 }
 
+const statusExpired: React.CSSProperties = {
+  color: '#dc2626',
+  fontWeight: '600',
+}
+
 const buttonContainer: React.CSSProperties = {
   textAlign: 'center' as const,
   margin: '24px 0',
 }
 
-const smallText: React.CSSProperties = {
-  fontSize: '12px',
-  color: '#6b7280',
-  margin: '24px 0 0',
-}
-
-export default CustomerReview
+export default ReviewerCustomerExpired

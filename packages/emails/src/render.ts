@@ -13,8 +13,13 @@ import {
   CertificateReviewed,
   CustomerApproval,
   CustomerReview,
+  CustomerReviewRegistered,
+  CustomerAuthorizedRegistered,
+  CustomerAuthorizedToken,
   MasterInstrumentChange,
   SecurityAlert,
+  ReviewerCustomerExpired,
+  OfflineCodesExpiry,
 } from './templates/index.js'
 
 export type EmailTemplate =
@@ -24,8 +29,13 @@ export type EmailTemplate =
   | 'certificate-reviewed'
   | 'customer-approval'
   | 'customer-review'
+  | 'customer-review-registered'
+  | 'customer-authorized-registered'
+  | 'customer-authorized-token'
   | 'master-instrument-change'
   | 'security-alert'
+  | 'reviewer-customer-expired'
+  | 'offline-codes-expiry'
 
 export interface RenderEmailOptions {
   template: EmailTemplate
@@ -75,6 +85,21 @@ export async function renderEmail(options: RenderEmailOptions): Promise<{
       subject = `Certificate ${(props as { certificateNumber?: string }).certificateNumber || ''} Ready for Review`
       break
 
+    case 'customer-review-registered':
+      element = React.createElement(CustomerReviewRegistered, props as unknown as React.ComponentProps<typeof CustomerReviewRegistered>)
+      subject = `Certificate ${(props as { certificateNumber?: string }).certificateNumber || ''} Ready for Review`
+      break
+
+    case 'customer-authorized-registered':
+      element = React.createElement(CustomerAuthorizedRegistered, props as unknown as React.ComponentProps<typeof CustomerAuthorizedRegistered>)
+      subject = `Certificate ${(props as { certificateNumber?: string }).certificateNumber || ''} Authorized`
+      break
+
+    case 'customer-authorized-token':
+      element = React.createElement(CustomerAuthorizedToken, props as unknown as React.ComponentProps<typeof CustomerAuthorizedToken>)
+      subject = `Certificate ${(props as { certificateNumber?: string }).certificateNumber || ''} Authorized - Download Available`
+      break
+
     case 'master-instrument-change':
       element = React.createElement(MasterInstrumentChange, props as unknown as React.ComponentProps<typeof MasterInstrumentChange>)
       subject = `Security Alert: Master Instrument ${(props as { action?: string }).action || 'Changed'} - ${(props as { assetNumber?: string }).assetNumber || ''}`
@@ -83,6 +108,16 @@ export async function renderEmail(options: RenderEmailOptions): Promise<{
     case 'security-alert':
       element = React.createElement(SecurityAlert, props as unknown as React.ComponentProps<typeof SecurityAlert>)
       subject = `[${(props as { severity?: string }).severity || 'HIGH'}] Security Alert: ${(props as { alertType?: string }).alertType?.replace(/_/g, ' ') || 'Suspicious Activity'}`
+      break
+
+    case 'reviewer-customer-expired':
+      element = React.createElement(ReviewerCustomerExpired, props as unknown as React.ComponentProps<typeof ReviewerCustomerExpired>)
+      subject = `Customer Review Expired - Certificate ${(props as { certificateNumber?: string }).certificateNumber || ''}`
+      break
+
+    case 'offline-codes-expiry':
+      element = React.createElement(OfflineCodesExpiry, props as unknown as React.ComponentProps<typeof OfflineCodesExpiry>)
+      subject = 'Your Offline Access Codes Have Expired'
       break
 
     default:
@@ -111,10 +146,20 @@ export function getEmailSubject(template: EmailTemplate, props: Record<string, u
       return `Customer ${props.status === 'approved' ? 'Approved' : 'Requested Changes'} - Certificate ${props.certificateNumber || ''}`
     case 'customer-review':
       return `Certificate ${props.certificateNumber || ''} Ready for Review`
+    case 'customer-review-registered':
+      return `Certificate ${props.certificateNumber || ''} Ready for Review`
+    case 'customer-authorized-registered':
+      return `Certificate ${props.certificateNumber || ''} Authorized`
+    case 'customer-authorized-token':
+      return `Certificate ${props.certificateNumber || ''} Authorized - Download Available`
     case 'master-instrument-change':
       return `Security Alert: Master Instrument ${props.action || 'Changed'} - ${props.assetNumber || ''}`
     case 'security-alert':
       return `[${props.severity || 'HIGH'}] Security Alert: ${(props.alertType as string)?.replace(/_/g, ' ') || 'Suspicious Activity'}`
+    case 'reviewer-customer-expired':
+      return `Customer Review Expired - Certificate ${props.certificateNumber || ''}`
+    case 'offline-codes-expiry':
+      return 'Your Offline Access Codes Have Expired'
     default:
       return 'HTA Calibration Notification'
   }

@@ -2,29 +2,29 @@ import { Text, Section } from '@react-email/components'
 import * as React from 'react'
 import { Layout, Button } from '../components/index.js'
 
-interface CustomerReviewProps {
+interface CustomerAuthorizedRegisteredProps {
   customerName: string
   certificateNumber: string
   instrumentDescription: string
-  reviewUrl: string
+  loginUrl: string
 }
 
-export function CustomerReview({
+export function CustomerAuthorizedRegistered({
   customerName,
   certificateNumber,
   instrumentDescription,
-  reviewUrl,
-}: CustomerReviewProps) {
+  loginUrl,
+}: CustomerAuthorizedRegisteredProps) {
   return (
-    <Layout preview={`Certificate ${certificateNumber} is ready for your review`}>
-      <Text style={heading}>Calibration Certificate Ready for Review</Text>
+    <Layout preview={`Certificate ${certificateNumber} has been authorized`}>
+      <Text style={heading}>Your Certificate Has Been Authorized</Text>
 
       <Text style={paragraph}>
         Hello {customerName},
       </Text>
 
       <Text style={paragraph}>
-        Please review the calibration data sheet for your instrument <strong>{instrumentDescription}</strong>.
+        Your calibration certificate for instrument <strong>{instrumentDescription}</strong> has been authorized and is now available for download.
       </Text>
 
       <Section style={detailsBox}>
@@ -39,17 +39,17 @@ export function CustomerReview({
       </Section>
 
       <Text style={paragraph}>
-        Please review the certificate details and provide your approval or feedback.
+        Log in to your dashboard to view and download the certificate PDF.
       </Text>
 
       <Section style={buttonContainer}>
-        <Button href={reviewUrl}>
-          Review Certificate
+        <Button href={loginUrl}>
+          Log In to Download
         </Button>
       </Section>
 
       <Text style={smallText}>
-        This link will expire in 48 hours. If you have any questions, please contact us.
+        You can access this certificate anytime from your dashboard. If you have any questions, please contact us.
       </Text>
     </Layout>
   )
@@ -58,7 +58,7 @@ export function CustomerReview({
 const heading: React.CSSProperties = {
   fontSize: '24px',
   fontWeight: '600',
-  color: '#1e40af',
+  color: '#16a34a',
   margin: '0 0 24px',
 }
 
@@ -70,8 +70,8 @@ const paragraph: React.CSSProperties = {
 }
 
 const detailsBox: React.CSSProperties = {
-  backgroundColor: '#f9fafb',
-  border: '1px solid #e5e7eb',
+  backgroundColor: '#f0fdf4',
+  border: '1px solid #bbf7d0',
   borderRadius: '6px',
   padding: '16px',
   margin: '24px 0',
@@ -104,4 +104,4 @@ const smallText: React.CSSProperties = {
   margin: '24px 0 0',
 }
 
-export default CustomerReview
+export default CustomerAuthorizedRegistered
