@@ -813,3 +813,138 @@ describe('isNewWorkflowEnabled', () => {
     expect(isNewWorkflowEnabled()).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// 6. Cache types — CacheKeys and CacheTTL constants
+// ---------------------------------------------------------------------------
+import { CacheKeys, CacheTTL } from '@/lib/cache/types'
+
+describe('CacheKeys', () => {
+  it('user key includes user ID', () => {
+    expect(CacheKeys.user('user-123')).toBe('user:user-123')
+  })
+
+  it('userSession key includes token', () => {
+    expect(CacheKeys.userSession('tok-abc')).toBe('session:tok-abc')
+  })
+
+  it('userStats key includes ID', () => {
+    expect(CacheKeys.userStats('u1')).toBe('stats:user:u1')
+  })
+
+  it('certificate key includes cert ID', () => {
+    expect(CacheKeys.certificate('cert-456')).toBe('cert:cert-456')
+  })
+
+  it('certificateList key includes userId and page', () => {
+    expect(CacheKeys.certificateList('user-1', 2)).toBe('certs:list:user-1:2')
+  })
+
+  it('certificateStats is a fixed key', () => {
+    expect(CacheKeys.certificateStats()).toBe('certs:stats')
+  })
+
+  it('customer key includes customer ID', () => {
+    expect(CacheKeys.customer('cust-789')).toBe('customer:cust-789')
+  })
+
+  it('customerDashboard key includes email', () => {
+    expect(CacheKeys.customerDashboard('test@example.com')).toBe('dashboard:customer:test@example.com')
+  })
+
+  it('dropdownAdmins is a fixed key', () => {
+    expect(CacheKeys.dropdownAdmins()).toBe('dropdown:admins')
+  })
+
+  it('dropdownReviewers key includes user ID', () => {
+    expect(CacheKeys.dropdownReviewers('user-5')).toBe('dropdown:reviewers:user-5')
+  })
+
+  it('dashboardStats includes role and userId', () => {
+    expect(CacheKeys.dashboardStats('user-1', 'ENGINEER')).toBe('dashboard:ENGINEER:user-1')
+  })
+
+  it('adminDashboard is a fixed key', () => {
+    expect(CacheKeys.adminDashboard()).toBe('dashboard:admin')
+  })
+
+  it('engineerDashboard includes userId', () => {
+    expect(CacheKeys.engineerDashboard('eng-123')).toBe('dashboard:engineer:eng-123')
+  })
+
+  it('engineerCertificates includes userId', () => {
+    expect(CacheKeys.engineerCertificates('eng-456')).toBe('certs:engineer:eng-456')
+  })
+})
+
+describe('CacheTTL', () => {
+  it('VERY_SHORT is 30 seconds', () => {
+    expect(CacheTTL.VERY_SHORT).toBe(30)
+  })
+
+  it('SHORT is 60 seconds', () => {
+    expect(CacheTTL.SHORT).toBe(60)
+  })
+
+  it('MEDIUM is 300 seconds', () => {
+    expect(CacheTTL.MEDIUM).toBe(300)
+  })
+
+  it('LONG is 600 seconds', () => {
+    expect(CacheTTL.LONG).toBe(600)
+  })
+
+  it('VERY_LONG is 3600 seconds (1 hour)', () => {
+    expect(CacheTTL.VERY_LONG).toBe(3600)
+  })
+
+  it('SESSION is 1800 seconds (30 minutes)', () => {
+    expect(CacheTTL.SESSION).toBe(1800)
+  })
+
+  it('VERY_SHORT < SHORT < MEDIUM < LONG < VERY_LONG', () => {
+    expect(CacheTTL.VERY_SHORT).toBeLessThan(CacheTTL.SHORT)
+    expect(CacheTTL.SHORT).toBeLessThan(CacheTTL.MEDIUM)
+    expect(CacheTTL.MEDIUM).toBeLessThan(CacheTTL.LONG)
+    expect(CacheTTL.LONG).toBeLessThan(CacheTTL.VERY_LONG)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 7. isHeicImage from image-processing (pure function, mocks sharp)
+// ---------------------------------------------------------------------------
+vi.mock('sharp', () => ({
+  default: vi.fn(),
+}))
+
+import { isHeicImage } from '@/lib/services/image-processing'
+
+describe('isHeicImage', () => {
+  it('returns true for image/heic', () => {
+    expect(isHeicImage('image/heic')).toBe(true)
+  })
+
+  it('returns true for image/heif', () => {
+    expect(isHeicImage('image/heif')).toBe(true)
+  })
+
+  it('returns false for image/jpeg', () => {
+    expect(isHeicImage('image/jpeg')).toBe(false)
+  })
+
+  it('returns false for image/png', () => {
+    expect(isHeicImage('image/png')).toBe(false)
+  })
+
+  it('returns false for image/webp', () => {
+    expect(isHeicImage('image/webp')).toBe(false)
+  })
+
+  it('returns false for empty string', () => {
+    expect(isHeicImage('')).toBe(false)
+  })
+
+  it('returns false for application/pdf', () => {
+    expect(isHeicImage('application/pdf')).toBe(false)
+  })
+})

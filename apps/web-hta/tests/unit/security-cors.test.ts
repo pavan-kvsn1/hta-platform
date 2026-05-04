@@ -321,3 +321,84 @@ describe('handleCorsPreflightRequest', () => {
     expect(result!.status).toBe(403)
   })
 })
+
+// ---------------------------------------------------------------------------
+// 6. getClientIP and createRateLimitHeaders
+// ---------------------------------------------------------------------------
+import { getClientIP, createRateLimitHeaders } from '@/lib/security/rate-limiter'
+
+describe('getClientIP', () => {
+  it('returns cf-connecting-ip when available (Cloudflare)', () => {
+    const request = new NextRequest('http://localhost:3000/api/test', {
+      headers: { 'cf-connecting-ip': '104.16.0.1' },
+    })
+    expect(getClientIP(request)).toBe('104.16.0.1')
+  })
+
+  it('returns x-real-ip when cf header absent', () => {
+    const request = new NextRequest('http://localhost:3000/api/test', {
+      headers: { 'x-real-ip': '198.51.100.5' },
+    })
+    expect(getClientIP(request)).toBe('198.51.100.5')
+  })
+
+  it('returns first IP from x-forwarded-for', () => {
+    const request = new NextRequest('http://localhost:3000/api/test', {
+      headers: { 'x-forwarded-for': '203.0.113.1, 10.0.0.1, 172.16.0.1' },
+    })
+    expect(getClientIP(request)).toBe('203.0.113.1')
+  })
+
+  it('returns x-appengine-user-ip when others absent (GCP)', () => {
+    const request = new NextRequest('http://localhost:3000/api/test', {
+      headers: { 'x-appengine-user-ip': '35.186.0.1' },
+    })
+    expect(getClientIP(request)).toBe('35.186.0.1')
+  })
+
+  it('returns "unknown-ip" when no IP headers present', () => {
+    const request = new NextRequest('http://localhost:3000/api/test', {
+      headers: {},
+    })
+    expect(getClientIP(request)).toBe('unknown-ip')
+  })
+
+  it('prefers cf-connecting-ip over x-real-ip and x-forwarded-for', () => {
+    const request = new NextRequest('http://localhost:3000/api/test', {
+      headers: {
+        'cf-connecting-ip': '1.1.1.1',
+        'x-real-ip': '2.2.2.2',
+        'x-forwarded-for': '3.3.3.3',
+      },
+    })
+    expect(getClientIP(request)).toBe('1.1.1.1')
+  })
+})
+
+describe('createRateLimitHeaders', () => {
+  it('returns X-RateLimit-Limit header', () => {
+    const result = { allowed: true, limit: 100, remaining: 99, resetAt: 1700000000 }
+    const headers = createRateLimitHeaders(result)
+    expect(headers['X-RateLimit-Limit']).toBe('100')
+  })
+
+  it('returns X-RateLimit-Remaining header', () => {
+    const result = { allowed: true, limit: 100, remaining: 45, resetAt: 1700000000 }
+    const headers = createRateLimitHeaders(result)
+    expect(headers['X-RateLimit-Remaining']).toBe('45')
+  })
+
+  it('returns X-RateLimit-Reset header', () => {
+    const result = { allowed: false, limit: 5, remaining: 0, resetAt: 1700000060 }
+    const headers = createRateLimitHeaders(result)
+    expect(headers['X-RateLimit-Reset']).toBe('1700000060')
+  })
+
+  it('all headers are strings', () => {
+    const result = { allowed: true, limit: 5, remaining: 3, resetAt: 999 }
+    const headers = createRateLimitHeaders(result)
+    for (const val of Object.values(headers)) {
+      expect(typeof val).toBe('string')
+    }
+  })
+})

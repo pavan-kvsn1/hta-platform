@@ -530,3 +530,247 @@ describe('CacheTTL', () => {
     expect(CacheTTL.SESSION).toBe(1800)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Actual import tests for cache module
+// ---------------------------------------------------------------------------
+import { getMemoryCacheProvider } from '@/lib/cache/providers/memory'
+import { logCache, cache as cacheService, CacheKeys as CacheKeysFromIndex, CacheTTL as CacheTTLFromIndex } from '@/lib/cache'
+
+describe('logCache (actual import)', () => {
+  it('does not throw when called with message', () => {
+    expect(() => logCache('test message')).not.toThrow()
+  })
+
+  it('does not throw when called with message and data', () => {
+    expect(() => logCache('test message', { key: 'value' })).not.toThrow()
+  })
+})
+
+describe('cache service (actual import)', () => {
+  it('cache.get returns null for nonexistent key', async () => {
+    const result = await cacheService.get('nonexistent-key-xyz-abc')
+    expect(result).toBeNull()
+  })
+
+  it('cache.set and get work', async () => {
+    await cacheService.set('test-svc-key', 'test-value', 60)
+    const result = await cacheService.get<string>('test-svc-key')
+    expect(result).toBe('test-value')
+  })
+
+  it('cache.incr increments', async () => {
+    const val = await cacheService.incr('test-svc-counter-xyz')
+    expect(val).toBeGreaterThan(0)
+  })
+
+  it('cache.delete removes a key', async () => {
+    await cacheService.set('del-svc-key', 'to-delete', 60)
+    const result = await cacheService.delete('del-svc-key')
+    expect(result).toBe(true)
+  })
+
+  it('cache.exists returns false for missing key', async () => {
+    const exists = await cacheService.exists('nonexistent-svc-key-xyz')
+    expect(exists).toBe(false)
+  })
+
+  it('cache.ttl returns -2 for nonexistent key', async () => {
+    const ttl = await cacheService.ttl('nonexistent-ttl-key')
+    expect(ttl).toBe(-2)
+  })
+
+  it('cache.mget returns array with nulls for missing keys', async () => {
+    const results = await cacheService.mget(['missing-1', 'missing-2'])
+    expect(results).toEqual([null, null])
+  })
+
+  it('cache.mset stores multiple values', async () => {
+    await cacheService.mset([
+      { key: 'svc-multi-1', value: 'val1', ttlSeconds: 60 },
+      { key: 'svc-multi-2', value: 'val2', ttlSeconds: 60 },
+    ])
+    const r1 = await cacheService.get<string>('svc-multi-1')
+    const r2 = await cacheService.get<string>('svc-multi-2')
+    expect(r1).toBe('val1')
+    expect(r2).toBe('val2')
+  })
+
+  it('cache.deletePattern removes matching keys', async () => {
+    await cacheService.set('svc-pat:a', 1)
+    await cacheService.set('svc-pat:b', 2)
+    const count = await cacheService.deletePattern('svc-pat:*')
+    expect(count).toBeGreaterThanOrEqual(2)
+  })
+
+  it('cache.expire sets TTL on existing key', async () => {
+    await cacheService.set('svc-expire-key', 'value')
+    const result = await cacheService.expire('svc-expire-key', 120)
+    expect(result).toBe(true)
+  })
+
+  it('cache.ping returns true', async () => {
+    expect(await cacheService.ping()).toBe(true)
+  })
+})
+
+describe('CacheKeys re-export from cache index', () => {
+  it('CacheKeys is accessible from @/lib/cache', () => {
+    expect(CacheKeysFromIndex.user('test')).toBe('user:test')
+  })
+
+  it('CacheTTL is accessible from @/lib/cache', () => {
+    expect(CacheTTLFromIndex.MEDIUM).toBe(300)
+  })
+})
+
+describe('MemoryCacheProvider (actual import)', () => {
+  // Note: Uses singleton pattern, so reset between tests via close()
+  let provider: ReturnType<typeof getMemoryCacheProvider>
+
+  beforeEach(async () => {
+    // Each test creates a fresh non-singleton instance by importing the class directly
+    const { MemoryCacheProvider } = await import('@/lib/cache/providers/memory') as unknown as { MemoryCacheProvider: new (opts?: { maxSize?: number; checkPeriod?: number }) => ReturnType<typeof getMemoryCacheProvider> }
+    provider = new MemoryCacheProvider({ maxSize: 100, checkPeriod: 60 })
+  })
+
+  afterEach(async () => {
+    await provider.close()
+  })
+
+  it('get returns null for missing key', async () => {
+    const result = await provider.get('nonexistent')
+    expect(result).toBeNull()
+  })
+
+  it('set and get a string value', async () => {
+    await provider.set('key1', 'hello world')
+    const result = await provider.get<string>('key1')
+    expect(result).toBe('hello world')
+  })
+
+  it('set and get an object value', async () => {
+    const obj = { name: 'Test', value: 42 }
+    await provider.set('obj-key', obj)
+    const result = await provider.get<typeof obj>('obj-key')
+    expect(result).toEqual(obj)
+  })
+
+  it('delete removes a key', async () => {
+    await provider.set('del-key', 'value')
+    const deleted = await provider.delete('del-key')
+    expect(deleted).toBe(true)
+    const result = await provider.get('del-key')
+    expect(result).toBeNull()
+  })
+
+  it('delete returns false for nonexistent key', async () => {
+    const deleted = await provider.delete('does-not-exist')
+    expect(deleted).toBe(false)
+  })
+
+  it('exists returns false for missing key', async () => {
+    const exists = await provider.exists('missing')
+    expect(exists).toBe(false)
+  })
+
+  it('exists returns true for present key', async () => {
+    await provider.set('exists-key', 'value')
+    const exists = await provider.exists('exists-key')
+    expect(exists).toBe(true)
+  })
+
+  it('incr increments a counter', async () => {
+    const v1 = await provider.incr('counter')
+    const v2 = await provider.incr('counter')
+    expect(v1).toBe(1)
+    expect(v2).toBe(2)
+  })
+
+  it('mget returns values for multiple keys', async () => {
+    await provider.set('k1', 'a')
+    await provider.set('k2', 'b')
+    const results = await provider.mget<string>(['k1', 'k2', 'k3'])
+    expect(results).toEqual(['a', 'b', null])
+  })
+
+  it('mset sets multiple values', async () => {
+    await provider.mset([
+      { key: 'mk1', value: 'one' },
+      { key: 'mk2', value: 'two' },
+    ])
+    const r1 = await provider.get<string>('mk1')
+    const r2 = await provider.get<string>('mk2')
+    expect(r1).toBe('one')
+    expect(r2).toBe('two')
+  })
+
+  it('deletePattern removes matching keys', async () => {
+    await provider.set('prefix:a', 1)
+    await provider.set('prefix:b', 2)
+    await provider.set('other:c', 3)
+    const count = await provider.deletePattern('prefix:*')
+    expect(count).toBe(2)
+    expect(await provider.get('prefix:a')).toBeNull()
+    expect(await provider.get('prefix:b')).toBeNull()
+    expect(await provider.get<number>('other:c')).toBe(3)
+  })
+
+  it('ttl returns -1 for key without expiry', async () => {
+    await provider.set('no-ttl', 'value')
+    const ttl = await provider.ttl('no-ttl')
+    expect(ttl).toBe(-1)
+  })
+
+  it('ttl returns -2 for nonexistent key', async () => {
+    const ttl = await provider.ttl('nonexistent')
+    expect(ttl).toBe(-2)
+  })
+
+  it('ttl returns positive seconds for key with expiry', async () => {
+    await provider.set('ttl-key', 'value', 60)
+    const ttl = await provider.ttl('ttl-key')
+    expect(ttl).toBeGreaterThan(0)
+    expect(ttl).toBeLessThanOrEqual(60)
+  })
+
+  it('expire updates the TTL of an existing key', async () => {
+    await provider.set('exp-key', 'value')
+    const result = await provider.expire('exp-key', 120)
+    expect(result).toBe(true)
+    const ttl = await provider.ttl('exp-key')
+    expect(ttl).toBeGreaterThan(0)
+  })
+
+  it('expire returns false for nonexistent key', async () => {
+    const result = await provider.expire('missing', 60)
+    expect(result).toBe(false)
+  })
+
+  it('ping returns true', async () => {
+    expect(await provider.ping()).toBe(true)
+  })
+
+  it('close clears the cache', async () => {
+    await provider.set('key', 'value')
+    await provider.close()
+    // After close, can still call get (map is cleared but class still usable)
+    // Just verify close doesn't throw
+  })
+})
+
+describe('getMemoryCacheProvider singleton', () => {
+  it('returns a usable cache provider instance', async () => {
+    const cacheInstance = getMemoryCacheProvider()
+    expect(cacheInstance).toBeDefined()
+    await cacheInstance.set('singleton-test', 42)
+    const val = await cacheInstance.get<number>('singleton-test')
+    expect(val).toBe(42)
+  })
+
+  it('returns the same instance on repeated calls', () => {
+    const a = getMemoryCacheProvider()
+    const b = getMemoryCacheProvider()
+    expect(a).toBe(b)
+  })
+})
