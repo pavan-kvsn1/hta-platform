@@ -77,7 +77,17 @@ import {
   revokeAllConsents,
   getConsentStatus,
   CONSENT_VERSIONS,
+  _resetConsentStore,
 } from '../../packages/shared/src/compliance/consent.js'
+import {
+  exportCustomerUserData,
+  deleteCustomerUserData,
+  rectifyCustomerUserData,
+} from '../../packages/shared/src/compliance/dsr.js'
+import {
+  logComplianceEvent,
+  queryComplianceAuditLogs,
+} from '../../packages/shared/src/compliance/audit-logger.js'
 
 describe('Data Processing Inventory', () => {
   it('should have all required processing activities', () => {
@@ -141,6 +151,7 @@ describe('Consent Management', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    _resetConsentStore()
   })
 
   it('should record consent', async () => {
@@ -291,8 +302,6 @@ describe('Data Subject Rights', () => {
       vi.mocked(prisma.certificate.findMany).mockResolvedValue([])
       vi.mocked(prisma.auditLog.findMany).mockResolvedValue([])
 
-      const { exportCustomerUserData } = await import('../../packages/shared/src/compliance/dsr.js')
-
       const result = await exportCustomerUserData('customer-123', 'admin-123', {
         tenantId: 'tenant-123',
       })
@@ -305,8 +314,6 @@ describe('Data Subject Rights', () => {
 
     it('should throw error for non-existent customer', async () => {
       vi.mocked(prisma.customerUser.findUnique).mockResolvedValue(null)
-
-      const { exportCustomerUserData } = await import('../../packages/shared/src/compliance/dsr.js')
 
       await expect(
         exportCustomerUserData('unknown', 'admin', { tenantId: 'tenant-123' })
@@ -330,8 +337,6 @@ describe('Data Subject Rights', () => {
         name: 'Deleted User',
       })
 
-      const { deleteCustomerUserData } = await import('../../packages/shared/src/compliance/dsr.js')
-
       const result = await deleteCustomerUserData('customer-123', 'admin-123', {
         tenantId: 'tenant-123',
       })
@@ -351,8 +356,6 @@ describe('Data Subject Rights', () => {
 
       vi.mocked(prisma.customerUser.findUnique).mockResolvedValue(mockCustomer)
       vi.mocked(prisma.certificate.count).mockResolvedValue(0) // No certificates
-
-      const { deleteCustomerUserData } = await import('../../packages/shared/src/compliance/dsr.js')
 
       const result = await deleteCustomerUserData('customer-456', 'admin-123', {
         tenantId: 'tenant-123',
@@ -378,8 +381,6 @@ describe('Data Subject Rights', () => {
         email: 'new@example.com',
         name: 'New Name',
       })
-
-      const { rectifyCustomerUserData } = await import('../../packages/shared/src/compliance/dsr.js')
 
       await rectifyCustomerUserData(
         'customer-123',
@@ -413,8 +414,6 @@ describe('Audit Logging', () => {
       createdAt: new Date(),
     })
 
-    const { logComplianceEvent } = await import('../../packages/shared/src/compliance/audit-logger.js')
-
     await logComplianceEvent({
       action: 'DATA_EXPORT',
       resourceType: 'DATA_SUBJECT',
@@ -441,8 +440,6 @@ describe('Audit Logging', () => {
       },
     ])
     vi.mocked(prisma.auditLog.count).mockResolvedValue(1)
-
-    const { queryComplianceAuditLogs } = await import('../../packages/shared/src/compliance/audit-logger.js')
 
     const result = await queryComplianceAuditLogs({
       subjectId: 'user-123',

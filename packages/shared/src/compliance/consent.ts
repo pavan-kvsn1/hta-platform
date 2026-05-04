@@ -248,3 +248,8 @@ export async function validateConsentForProcessing(
 
   return { allowed: true }
 }
+
+/** @internal Reset in-memory consent store — for testing only */
+export function _resetConsentStore(): void {
+  consentStore.clear()
+}

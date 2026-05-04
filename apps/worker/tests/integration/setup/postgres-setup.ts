@@ -7,9 +7,9 @@
 import { PrismaClient } from '@prisma/client'
 import { execSync } from 'child_process'
 
-// Test database URL
+// Test database URL — must match CI (port 5432) and docker-compose.infra.yml
 const DATABASE_URL = process.env.DATABASE_URL ||
-  'postgresql://hta_test:hta_test_password@localhost:5433/hta_calibration_test'
+  'postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test'
 
 // Create Prisma client with explicit connection URL
 export const prisma = new PrismaClient({

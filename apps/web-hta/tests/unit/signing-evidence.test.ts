@@ -1,169 +1,235 @@
 /**
- * Signing Evidence Unit Tests
+ * Signing Evidence Unit Tests (actual imports)
  *
- * Tests for cryptographic hash chain validation
- * used in certificate signing workflow evidence records.
+ * Tests for src/lib/stores/signing-evidence.ts:
+ * - computeHash — SHA-256 hash determinism and uniqueness
+ * - collectServerEvidence — IP/user-agent extraction from request headers
+ * - buildSigningEvidencePayload — payload construction
  *
- * Migrated from hta-calibration/src/lib/__tests__/signing-evidence.test.ts
+ * Mocks: prisma (DB calls), constants
  */
-import { describe, it, expect } from 'vitest'
-import crypto from 'crypto'
+import { describe, it, expect, vi } from 'vitest'
 
-// Hash computation function (mirrors the one in signing-evidence.ts)
-function computeHash(data: string): string {
-  return crypto.createHash('sha256').update(data).digest('hex')
-}
+// Mock prisma to prevent DB connection
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    signingEvidence: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn().mockResolvedValue({}),
+    },
+  },
+}))
 
-// Evidence chain validation
-interface EvidenceRecord {
-  sequenceNumber: number
-  previousHash: string
-  recordHash: string
-  evidence: string
-}
+// Mock constants
+vi.mock('@/lib/constants/consent-text', () => ({
+  CONSENT_TEXT: 'I agree to the terms and conditions.',
+  CONSENT_VERSION: 'v1.0',
+}))
 
-function validateEvidenceChain(records: EvidenceRecord[]): {
-  valid: boolean
-  brokenAt?: number
-} {
-  if (records.length === 0) {
-    return { valid: true }
-  }
+import {
+  computeHash,
+  collectServerEvidence,
+  buildSigningEvidencePayload,
+  type ClientEvidence,
+} from '@/lib/stores/signing-evidence'
 
-  let expectedPreviousHash = 'GENESIS'
-
-  for (const record of records) {
-    // Check if previous hash matches expected
-    if (record.previousHash !== expectedPreviousHash) {
-      return { valid: false, brokenAt: record.sequenceNumber }
-    }
-
-    // Recompute hash from evidence
-    const recomputedHash = computeHash(record.evidence + record.previousHash)
-    if (record.recordHash !== recomputedHash) {
-      return { valid: false, brokenAt: record.sequenceNumber }
-    }
-
-    expectedPreviousHash = record.recordHash
-  }
-
-  return { valid: true }
-}
-
-describe('Signing Evidence', () => {
-  describe('computeHash', () => {
-    it('produces consistent hash for same input', () => {
-      const input = 'test data'
-      const hash1 = computeHash(input)
-      const hash2 = computeHash(input)
-      expect(hash1).toBe(hash2)
-    })
-
-    it('produces different hash for different input', () => {
-      const hash1 = computeHash('input 1')
-      const hash2 = computeHash('input 2')
-      expect(hash1).not.toBe(hash2)
-    })
-
-    it('produces 64-character hex string (SHA-256)', () => {
-      const hash = computeHash('test')
-      expect(hash).toHaveLength(64)
-      expect(hash).toMatch(/^[a-f0-9]+$/)
-    })
+// ---------------------------------------------------------------------------
+// computeHash
+// ---------------------------------------------------------------------------
+describe('computeHash', () => {
+  it('returns a hex string', () => {
+    const hash = computeHash('hello')
+    expect(hash).toMatch(/^[0-9a-f]{64}$/)
   })
 
-  describe('validateEvidenceChain', () => {
-    it('returns valid for empty chain', () => {
-      const result = validateEvidenceChain([])
-      expect(result.valid).toBe(true)
+  it('is deterministic for the same input', () => {
+    expect(computeHash('test data')).toBe(computeHash('test data'))
+  })
+
+  it('produces different hashes for different inputs', () => {
+    expect(computeHash('input1')).not.toBe(computeHash('input2'))
+  })
+
+  it('returns known SHA-256 hash for empty string', () => {
+    // SHA-256 of empty string is well-known
+    expect(computeHash('')).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+  })
+
+  it('handles JSON-encoded strings', () => {
+    const jsonData = JSON.stringify({ key: 'value', num: 42 })
+    const hash = computeHash(jsonData)
+    expect(hash).toHaveLength(64)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// collectServerEvidence
+// ---------------------------------------------------------------------------
+describe('collectServerEvidence', () => {
+  function makeRequest(headers: Record<string, string>, method = 'POST'): Request {
+    return new Request('http://localhost:3000/api/test', {
+      method,
+      headers,
     })
+  }
 
-    it('validates single record with GENESIS', () => {
-      const evidence = JSON.stringify({ event: 'test' })
-      const recordHash = computeHash(evidence + 'GENESIS')
+  it('extracts IP from x-forwarded-for header', () => {
+    const req = makeRequest({ 'x-forwarded-for': '203.0.113.5, 10.0.0.1' })
+    const evidence = collectServerEvidence(req, 'session')
+    expect(evidence.ipAddress).toBe('203.0.113.5')
+  })
 
-      const records: EvidenceRecord[] = [
-        {
-          sequenceNumber: 1,
-          previousHash: 'GENESIS',
-          recordHash,
-          evidence,
-        },
-      ]
+  it('extracts IP from x-real-ip when x-forwarded-for is absent', () => {
+    const req = makeRequest({ 'x-real-ip': '198.51.100.7' })
+    const evidence = collectServerEvidence(req, 'token')
+    expect(evidence.ipAddress).toBe('198.51.100.7')
+  })
 
-      const result = validateEvidenceChain(records)
-      expect(result.valid).toBe(true)
-    })
+  it('falls back to "unknown" when no IP headers present', () => {
+    const req = makeRequest({ 'user-agent': 'Test Agent' })
+    const evidence = collectServerEvidence(req, 'direct')
+    expect(evidence.ipAddress).toBe('unknown')
+  })
 
-    it('validates chain of multiple records', () => {
-      const evidence1 = JSON.stringify({ event: 'signed', signer: 'engineer' })
-      const hash1 = computeHash(evidence1 + 'GENESIS')
+  it('extracts user agent', () => {
+    const req = makeRequest({ 'user-agent': 'Mozilla/5.0 Test Browser', 'x-forwarded-for': '1.2.3.4' })
+    const evidence = collectServerEvidence(req, 'session')
+    expect(evidence.userAgent).toBe('Mozilla/5.0 Test Browser')
+  })
 
-      const evidence2 = JSON.stringify({ event: 'signed', signer: 'hod' })
-      const hash2 = computeHash(evidence2 + hash1)
+  it('sets user agent to "unknown" when header is absent', () => {
+    const req = makeRequest({ 'x-forwarded-for': '1.2.3.4' })
+    const evidence = collectServerEvidence(req, 'session')
+    expect(evidence.userAgent).toBe('unknown')
+  })
 
-      const evidence3 = JSON.stringify({ event: 'signed', signer: 'customer' })
-      const hash3 = computeHash(evidence3 + hash2)
+  it('passes sessionMethod through', () => {
+    const req = makeRequest({ 'x-forwarded-for': '1.2.3.4' })
+    const evidence = collectServerEvidence(req, 'token')
+    expect(evidence.sessionMethod).toBe('token')
+  })
+})
 
-      const records: EvidenceRecord[] = [
-        { sequenceNumber: 1, previousHash: 'GENESIS', recordHash: hash1, evidence: evidence1 },
-        { sequenceNumber: 2, previousHash: hash1, recordHash: hash2, evidence: evidence2 },
-        { sequenceNumber: 3, previousHash: hash2, recordHash: hash3, evidence: evidence3 },
-      ]
+// ---------------------------------------------------------------------------
+// buildSigningEvidencePayload
+// ---------------------------------------------------------------------------
+describe('buildSigningEvidencePayload', () => {
+  const baseClientEvidence: ClientEvidence = {
+    clientTimestamp: Date.parse('2025-01-15T10:00:00Z'),
+    userAgent: 'Test Browser',
+    screenResolution: '1920x1080',
+    timezone: 'Asia/Kuala_Lumpur',
+    canvasSize: { width: 1920, height: 1080 },
+    consentVersion: 'v1.0',
+    consentAcceptedAt: Date.parse('2025-01-15T09:59:00Z'),
+  }
 
-      const result = validateEvidenceChain(records)
-      expect(result.valid).toBe(true)
-    })
+  const baseServerEvidence = {
+    ipAddress: '203.0.113.10',
+    userAgent: 'Test Browser',
+    sessionMethod: 'session' as const,
+  }
 
-    it('detects broken chain - wrong previous hash', () => {
-      const evidence1 = JSON.stringify({ event: 'signed', signer: 'engineer' })
-      const hash1 = computeHash(evidence1 + 'GENESIS')
+  const baseSignerInfo = {
+    signerType: 'ASSIGNEE' as const,
+    signerName: 'John Doe',
+    signerEmail: 'john@hta.com',
+    signerId: 'user-123',
+  }
 
-      const evidence2 = JSON.stringify({ event: 'signed', signer: 'hod' })
-      const hash2 = computeHash(evidence2 + hash1)
+  it('includes consent version and text', () => {
+    const payload = buildSigningEvidencePayload(baseClientEvidence, baseServerEvidence, baseSignerInfo)
+    expect(payload.consentVersion).toBe('v1.0')
+    expect(payload.consentText).toBe('I agree to the terms and conditions.')
+  })
 
-      const records: EvidenceRecord[] = [
-        { sequenceNumber: 1, previousHash: 'GENESIS', recordHash: hash1, evidence: evidence1 },
-        { sequenceNumber: 2, previousHash: 'WRONG_HASH', recordHash: hash2, evidence: evidence2 },
-      ]
+  it('formats consentAcceptedAt as ISO string', () => {
+    const payload = buildSigningEvidencePayload(baseClientEvidence, baseServerEvidence, baseSignerInfo)
+    expect(payload.consentAcceptedAt).toBe(new Date(baseClientEvidence.consentAcceptedAt).toISOString())
+  })
 
-      const result = validateEvidenceChain(records)
-      expect(result.valid).toBe(false)
-      expect(result.brokenAt).toBe(2)
-    })
+  it('includes IP address from server evidence', () => {
+    const payload = buildSigningEvidencePayload(baseClientEvidence, baseServerEvidence, baseSignerInfo)
+    expect(payload.ipAddress).toBe('203.0.113.10')
+  })
 
-    it('detects tampered evidence', () => {
-      const evidence1 = JSON.stringify({ event: 'signed', signer: 'engineer' })
-      const hash1 = computeHash(evidence1 + 'GENESIS')
+  it('includes timezone and screen resolution', () => {
+    const payload = buildSigningEvidencePayload(baseClientEvidence, baseServerEvidence, baseSignerInfo)
+    expect(payload.timezone).toBe('Asia/Kuala_Lumpur')
+    expect(payload.screenResolution).toBe('1920x1080')
+  })
 
-      // Tampered evidence but keeping original hash
-      const tamperedEvidence = JSON.stringify({ event: 'signed', signer: 'TAMPERED' })
+  it('includes canvas size', () => {
+    const payload = buildSigningEvidencePayload(baseClientEvidence, baseServerEvidence, baseSignerInfo)
+    expect(payload.canvasSize).toEqual({ width: 1920, height: 1080 })
+  })
 
-      const records: EvidenceRecord[] = [
-        {
-          sequenceNumber: 1,
-          previousHash: 'GENESIS',
-          recordHash: hash1,
-          evidence: tamperedEvidence,
-        },
-      ]
+  it('includes signer info', () => {
+    const payload = buildSigningEvidencePayload(baseClientEvidence, baseServerEvidence, baseSignerInfo)
+    expect(payload.signerType).toBe('ASSIGNEE')
+    expect(payload.signerName).toBe('John Doe')
+    expect(payload.signerEmail).toBe('john@hta.com')
+    expect(payload.signerId).toBe('user-123')
+  })
 
-      const result = validateEvidenceChain(records)
-      expect(result.valid).toBe(false)
-      expect(result.brokenAt).toBe(1)
-    })
+  it('includes document hash when provided', () => {
+    const evidence: ClientEvidence = {
+      ...baseClientEvidence,
+      documentHash: 'abc123def456',
+    }
+    const payload = buildSigningEvidencePayload(evidence, baseServerEvidence, baseSignerInfo)
+    expect(payload.documentHash).toBe('abc123def456')
+  })
 
-    it('detects missing first record GENESIS', () => {
-      const evidence = JSON.stringify({ event: 'test' })
-      const recordHash = computeHash(evidence + 'WRONG_START')
+  it('has undefined documentHash when not provided', () => {
+    const payload = buildSigningEvidencePayload(baseClientEvidence, baseServerEvidence, baseSignerInfo)
+    expect(payload.documentHash).toBeUndefined()
+  })
 
-      const records: EvidenceRecord[] = [
-        { sequenceNumber: 1, previousHash: 'WRONG_START', recordHash, evidence },
-      ]
+  it('includes token info when provided', () => {
+    const signerInfo = {
+      ...baseSignerInfo,
+      signerType: 'CUSTOMER' as const,
+      tokenId: 'tok-xyz',
+      tokenEmail: 'customer@example.com',
+    }
+    const payload = buildSigningEvidencePayload(baseClientEvidence, baseServerEvidence, signerInfo)
+    expect(payload.tokenId).toBe('tok-xyz')
+    expect(payload.tokenEmail).toBe('customer@example.com')
+  })
 
-      const result = validateEvidenceChain(records)
-      expect(result.valid).toBe(false)
-      expect(result.brokenAt).toBe(1)
-    })
+  it('includes customer ID when provided', () => {
+    const signerInfo = {
+      ...baseSignerInfo,
+      signerType: 'CUSTOMER' as const,
+      customerId: 'cust-456',
+    }
+    const payload = buildSigningEvidencePayload(baseClientEvidence, baseServerEvidence, signerInfo)
+    expect(payload.customerId).toBe('cust-456')
+  })
+
+  it('serverTimestamp is a valid ISO string', () => {
+    const payload = buildSigningEvidencePayload(baseClientEvidence, baseServerEvidence, baseSignerInfo)
+    expect(() => new Date(payload.serverTimestamp)).not.toThrow()
+    expect(new Date(payload.serverTimestamp).toISOString()).toBe(payload.serverTimestamp)
+  })
+
+  it('REVIEWER signerType is preserved', () => {
+    const payload = buildSigningEvidencePayload(
+      baseClientEvidence,
+      baseServerEvidence,
+      { ...baseSignerInfo, signerType: 'REVIEWER' }
+    )
+    expect(payload.signerType).toBe('REVIEWER')
+  })
+
+  it('ADMIN signerType is preserved', () => {
+    const payload = buildSigningEvidencePayload(
+      baseClientEvidence,
+      baseServerEvidence,
+      { ...baseSignerInfo, signerType: 'ADMIN' }
+    )
+    expect(payload.signerType).toBe('ADMIN')
   })
 })

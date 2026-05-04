@@ -80,6 +80,26 @@ export default defineConfig({
         storageState: `${STORAGE_STATE_DIR}/customer.json`,
       },
     },
+    {
+      name: 'offline-codes-tests',
+      testMatch: /journeys\/offline-codes-flow\.spec\.ts/,
+      dependencies: ['setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        // Uses both engineer and admin storage states within the spec
+        storageState: `${STORAGE_STATE_DIR}/engineer.json`,
+      },
+    },
+    {
+      name: 'lifecycle-tests',
+      testMatch: /journeys\/full-lifecycle\.spec\.ts/,
+      dependencies: ['setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        // Multi-role: each test creates its own context via browser.newContext()
+        storageState: `${STORAGE_STATE_DIR}/engineer.json`,
+      },
+    },
 
     // === VISUAL REGRESSION TESTS ===
     {

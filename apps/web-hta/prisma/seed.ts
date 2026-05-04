@@ -402,6 +402,105 @@ async function main() {
   })
 
   // ==================
+  // DEVICE & OFFLINE CODES (for E2E tests)
+  // ==================
+  console.log('\n--- Creating Device Registration & Offline Codes ---')
+
+  const engineer1 = await prisma.user.findUnique({
+    where: { tenantId_email: { tenantId, email: 'kiran@htaipl.com' } },
+  })
+
+  if (engineer1) {
+    // Register a device for the engineer
+    const deviceId = 'e2e-test-device-001'
+    await prisma.deviceRegistration.upsert({
+      where: { deviceId },
+      update: {},
+      create: {
+        tenantId,
+        userId: engineer1.id,
+        deviceId,
+        deviceName: 'E2E Test Laptop',
+        platform: 'win32',
+        appVersion: '1.0.0',
+        status: 'ACTIVE',
+        lastSyncAt: new Date(),
+      },
+    })
+    console.log('Created device registration:', deviceId)
+
+    // Create an active offline code batch with codes
+    const existingBatch = await prisma.offlineCodeBatch.findFirst({
+      where: { userId: engineer1.id, isActive: true },
+    })
+
+    if (!existingBatch) {
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + 30)
+
+      const batch = await prisma.offlineCodeBatch.create({
+        data: {
+          tenantId,
+          userId: engineer1.id,
+          isActive: true,
+          expiresAt,
+        },
+      })
+
+      // Generate 50 codes (5 rows × 10 cols)
+      const CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+      const ROWS = 'ABCDE'
+      const codesToCreate = []
+
+      for (let seq = 0; seq < 50; seq++) {
+        const rowIdx = Math.floor(seq / 10)
+        const colIdx = (seq % 10) + 1
+        const key = `${ROWS[rowIdx]}${colIdx}`
+        let value = ''
+        for (let c = 0; c < 4; c++) {
+          value += CHARSET[Math.floor(Math.random() * CHARSET.length)]
+        }
+        const valueHash = crypto.createHash('sha256').update(value.toUpperCase().replace(/\s/g, '')).digest('hex')
+        codesToCreate.push({
+          batchId: batch.id,
+          key,
+          value,
+          valueHash,
+          sequence: seq + 1,
+        })
+      }
+
+      await prisma.offlineCode.createMany({ data: codesToCreate })
+      console.log('Created offline code batch with 50 codes')
+    } else {
+      console.log('Offline code batch already exists')
+    }
+
+    // Create a PENDING offline code request (for admin review E2E test)
+    const existingRequest = await prisma.internalRequest.findFirst({
+      where: {
+        requestedById: engineer1.id,
+        type: 'OFFLINE_CODE_REQUEST',
+        status: 'PENDING',
+      },
+    })
+
+    if (!existingRequest) {
+      await prisma.internalRequest.create({
+        data: {
+          type: 'OFFLINE_CODE_REQUEST',
+          status: 'PENDING',
+          requestedById: engineer1.id,
+          data: JSON.stringify({ reason: 'E2E test: need new offline code card' }),
+        },
+      })
+      console.log('Created PENDING offline code request')
+    } else {
+      console.log('PENDING offline code request already exists')
+    }
+  }
+
+  // ==================
   // MASTER INSTRUMENTS
   // ==================
   console.log('\n--- Syncing Master Instruments from JSON ---')

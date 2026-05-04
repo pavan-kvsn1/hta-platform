@@ -10,7 +10,9 @@
     "start": "electron .",
     "prepackage": "node scripts/copy-standalone.js",
     "package": "electron-builder --win",
-    "package:dir": "electron-builder --win --dir"
+    "package:dir": "electron-builder --win --dir",
+    "test": "vitest run tests/unit",
+    "test:unit": "vitest run tests/unit"
   },
   "dependencies": {
     "@journeyapps/sqlcipher": "^5.3.1",
@@ -30,7 +32,9 @@
       {
         "from": "dist/migrations",
         "to": "migrations",
-        "filter": ["**/*.sql"]
+        "filter": [
+          "**/*.sql"
+        ]
       }
     ],
     "asarUnpack": [
@@ -39,7 +43,9 @@
     ],
     "afterPack": "./scripts/after-pack.js",
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "build/icon.ico"
     },
     "nsis": {
@@ -50,9 +56,11 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "3.2.4",
     "concurrently": "^9.0.0",
     "electron": "^41.3.0",
     "electron-builder": "^26.8.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
   }
 }

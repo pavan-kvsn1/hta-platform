@@ -10,6 +10,7 @@
     "test:unit": "turbo test:unit",
     "test:integration": "turbo test:integration",
     "test:e2e": "turbo test:e2e",
+    "test:compliance": "vitest run --config tests/compliance/vitest.config.ts",
     "clean": "turbo clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "typecheck": "turbo typecheck",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@microsoft/eslint-plugin-sdl": "^1.1.0",
     "@types/node": "^20.14.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "eslint-plugin-security": "^4.0.0",
     "prettier": "^3.3.0",
     "tsx": "^4.19.0",

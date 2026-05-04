@@ -9,9 +9,9 @@ import { beforeAll, afterAll, beforeEach } from 'vitest'
 import { execSync } from 'child_process'
 import { PrismaClient } from '@prisma/client'
 
-// PostgreSQL connection string - use test database on port 5433
+// PostgreSQL connection string — must match CI (port 5432) and docker-compose.infra.yml
 const DATABASE_URL = process.env.DATABASE_URL ||
-  'postgresql://hta_test:hta_test_password@localhost:5433/hta_calibration_test'
+  'postgresql://hta_test:hta_test_password@localhost:5432/hta_calibration_test'
 
 // Set DATABASE_URL environment variable for Prisma CLI commands
 process.env.DATABASE_URL = DATABASE_URL
