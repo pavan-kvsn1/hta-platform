@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Edit, Search, Filter, X, Eye, Download, Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -51,6 +52,7 @@ const statusFilters = [
   { value: 'CUSTOMER_REVISION_REQUIRED', label: 'Customer Revision' },
   { value: 'APPROVED', label: 'Approved' },
   { value: 'REJECTED', label: 'Rejected' },
+  { value: 'CONFLICT', label: 'Sync Conflict' },
 ]
 
 const ROWS_PER_PAGE_OPTIONS = [10, 15, 25]
@@ -224,18 +226,18 @@ export function CertificateTable({
         <div className="bg-[#f8fafc] border border-border rounded-xl p-4 flex flex-wrap items-center gap-4 mb-[18px]">
           <span className="text-sm font-medium text-[#475569]">Calibration Date:</span>
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
+            <DatePicker
               value={dateFrom}
-              onChange={(e) => handleDateFrom(e.target.value)}
-              className="w-[160px] bg-white rounded-[9px] border-border"
+              onChange={handleDateFrom}
+              placeholder="From"
+              className="w-[160px]"
             />
             <span className="text-[#94a3b8]">to</span>
-            <Input
-              type="date"
+            <DatePicker
               value={dateTo}
-              onChange={(e) => handleDateTo(e.target.value)}
-              className="w-[160px] bg-white rounded-[9px] border-border"
+              onChange={handleDateTo}
+              placeholder="To"
+              className="w-[160px]"
             />
           </div>
           {hasDateFilter && (
@@ -339,6 +341,13 @@ export function CertificateTable({
                                 <Link href={`/dashboard/certificates/${cert.id}/view`}>
                                   <button className="inline-flex items-center gap-1.5 px-[11px] py-[6px] border border-border rounded-[7px] bg-white text-[12px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
                                     <Eye className="h-[13px] w-[13px]" /> View
+                                  </button>
+                                </Link>
+                              )}
+                            {cert.status === 'CONFLICT' && (
+                                <Link href={`/dashboard/certificates/${cert.id}/resolve`}>
+                                  <button className="inline-flex items-center gap-1.5 px-[11px] py-[6px] border border-purple-200 rounded-[7px] bg-purple-50 text-[12px] font-semibold text-purple-700 hover:bg-purple-100 transition-colors">
+                                    Resolve
                                   </button>
                                 </Link>
                               )}

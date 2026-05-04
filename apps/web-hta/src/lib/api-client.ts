@@ -8,6 +8,8 @@
  * In CI/dev: Leave unset to use Next.js rewrite proxy (avoids CORS issues)
  */
 
+// ElectronAPI types are declared in src/types/electron.d.ts
+
 // If NEXT_PUBLIC_API_URL is set, use direct API calls; otherwise use proxy
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -62,10 +64,28 @@ export function clearAccessToken(): void {
  * Automatically adds Authorization header with JWT
  * Prepends API_BASE_URL if path starts with /api/
  */
+/**
+ * Routes that the Electron app can handle offline (local SQLite)
+ */
+const OFFLINE_ROUTES = ['/api/certificates', '/api/instruments']
+
+function isElectronOffline(): boolean {
+  return typeof window !== 'undefined' && !!window.electronAPI?.isOffline()
+}
+
+function isDraftRoute(url: string): boolean {
+  return OFFLINE_ROUTES.some((r) => url.startsWith(r))
+}
+
 export async function apiFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
+  // Electron offline intercept: route draft-capable requests to local SQLite
+  if (isElectronOffline() && typeof input === 'string' && isDraftRoute(input)) {
+    return window.electronAPI!.handleOfflineRequest(input, init)
+  }
+
   const token = await getAccessToken()
 
   const headers = new Headers(init?.headers)

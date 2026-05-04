@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   BarChart3,
   CreditCard,
+  Monitor,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { apiFetch } from '@/lib/api-client'
@@ -65,7 +66,11 @@ export function AdminSidebar({
     }
     fetchUnread()
     const interval = setInterval(fetchUnread, 30000)
-    return () => clearInterval(interval)
+    window.addEventListener('notifications-changed', fetchUnread)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('notifications-changed', fetchUnread)
+    }
   }, [])
 
   // Toggle and persist
@@ -99,6 +104,7 @@ export function AdminSidebar({
     { name: 'Authorization', href: '/admin/authorization', icon: ShieldCheck, badge: pendingAuthorizations, masterOnly: false },
     { name: 'Notifications', href: '/admin/notifications', icon: Bell, badge: unreadNotifications, masterOnly: false },
     { name: 'Master Instruments', href: '/admin/instruments', icon: Wrench, badge: instrumentAlerts, masterOnly: false },
+    { name: 'Devices', href: '/admin/devices', icon: Monitor, badge: 0, masterOnly: true },
     { name: 'Subscription', href: '/admin/subscription', icon: CreditCard, badge: 0, masterOnly: true },
     { name: 'Settings', href: '/admin/settings', icon: Settings, badge: 0, masterOnly: true },
   ].filter(item => !item.masterOnly || isMaster)

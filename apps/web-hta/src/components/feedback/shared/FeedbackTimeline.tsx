@@ -5,9 +5,11 @@ import { cn } from '@/lib/utils'
 import { ChevronDown, ChevronRight, Clock, CheckCircle2 } from 'lucide-react'
 import {
   type Feedback,
+  type InternalRequestItem,
   SECTION_CONFIG,
   groupFeedbacksByRevision,
   groupFeedbacksBySection,
+  internalRequestsToFeedbacks,
 } from './feedback-utils'
 import { FeedbackItem } from './FeedbackItem'
 
@@ -39,6 +41,8 @@ interface FeedbackTimelineProps {
   defaultExpandedRevisions?: number[]
   /** Customer feedback data (from CUSTOMER_REVISION_REQUESTED event) */
   customerFeedback?: CustomerFeedbackData | null
+  /** Internal requests (section unlock / field change) to show in timeline */
+  internalRequests?: InternalRequestItem[]
 }
 
 export function FeedbackTimeline({
@@ -53,15 +57,23 @@ export function FeedbackTimeline({
   variant = 'default',
   defaultExpandedRevisions,
   customerFeedback,
+  internalRequests,
 }: FeedbackTimelineProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const [expandedRevisions, setExpandedRevisions] = useState<Set<number>>(
     new Set(defaultExpandedRevisions ?? [currentRevision])
   )
 
+  // Merge internal requests into feedbacks
+  const mergedFeedbacks = useMemo(() => {
+    if (!internalRequests || internalRequests.length === 0) return feedbacks
+    const requestFeedbacks = internalRequestsToFeedbacks(internalRequests, currentRevision)
+    return [...feedbacks, ...requestFeedbacks]
+  }, [feedbacks, internalRequests, currentRevision])
+
   const revisionGroups = useMemo(
-    () => groupFeedbacksByRevision(feedbacks),
-    [feedbacks]
+    () => groupFeedbacksByRevision(mergedFeedbacks),
+    [mergedFeedbacks]
   )
 
   const toggleRevision = (revision: number) => {
@@ -76,8 +88,8 @@ export function FeedbackTimeline({
     })
   }
 
-  // Show empty state only if no feedbacks AND no customer feedback
-  if (revisionGroups.length === 0 && !customerFeedback) {
+  // Show empty state only if no feedbacks, no customer feedback, AND no internal requests
+  if (revisionGroups.length === 0 && !customerFeedback && (!internalRequests || internalRequests.length === 0)) {
     return (
       <div className={cn(
         'bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',

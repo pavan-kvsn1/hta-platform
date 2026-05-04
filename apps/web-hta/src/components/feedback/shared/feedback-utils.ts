@@ -13,6 +13,8 @@ import {
   ClipboardList,
   MessageCircle,
   AlertCircle,
+  Lock,
+  Unlock,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -93,6 +95,7 @@ export const SECTION_CONFIG: Record<string, SectionConfig> = {
   'remarks': { label: 'Remarks', icon: MessageCircle, bgClass: 'bg-amber-50', iconClass: 'text-amber-600' },
   'conclusion': { label: 'Conclusion', icon: CheckCircle, bgClass: 'bg-green-50', iconClass: 'text-green-600' },
   'general': { label: 'General', icon: AlertCircle, bgClass: 'bg-slate-100', iconClass: 'text-slate-600' },
+  'requests': { label: 'Requests', icon: Lock, bgClass: 'bg-amber-50', iconClass: 'text-amber-600' },
 }
 
 /**
@@ -195,6 +198,54 @@ export function getFeedbackStyle(feedbackType: string): FeedbackStyle {
         borderColor: 'border-blue-200',
         label: 'Response',
       }
+    case 'SECTION_UNLOCK_REQUESTED':
+      return {
+        icon: Lock,
+        bgColor: 'bg-amber-100',
+        textColor: 'text-amber-600',
+        borderColor: 'border-amber-200',
+        label: 'Unlock Request',
+      }
+    case 'SECTION_UNLOCK_APPROVED':
+      return {
+        icon: Unlock,
+        bgColor: 'bg-green-100',
+        textColor: 'text-green-600',
+        borderColor: 'border-green-200',
+        label: 'Unlock Approved',
+      }
+    case 'SECTION_UNLOCK_REJECTED':
+      return {
+        icon: Lock,
+        bgColor: 'bg-red-100',
+        textColor: 'text-red-600',
+        borderColor: 'border-red-200',
+        label: 'Unlock Rejected',
+      }
+    case 'FIELD_CHANGE_REQUESTED':
+      return {
+        icon: PenLine,
+        bgColor: 'bg-amber-100',
+        textColor: 'text-amber-700',
+        borderColor: 'border-amber-200',
+        label: 'Field Change Request',
+      }
+    case 'FIELD_CHANGE_APPROVED':
+      return {
+        icon: PenLine,
+        bgColor: 'bg-green-100',
+        textColor: 'text-green-600',
+        borderColor: 'border-green-200',
+        label: 'Field Change Applied',
+      }
+    case 'FIELD_CHANGE_REJECTED':
+      return {
+        icon: PenLine,
+        bgColor: 'bg-red-100',
+        textColor: 'text-red-600',
+        borderColor: 'border-red-200',
+        label: 'Field Change Rejected',
+      }
     default:
       return {
         icon: MessageSquare,
@@ -260,6 +311,96 @@ export function getCustomerEventStyle(eventType: string): FeedbackStyle {
 }
 
 // ============================================================================
+// INTERNAL REQUEST → FEEDBACK CONVERSION
+// ============================================================================
+
+export interface InternalRequestItem {
+  id: string
+  type: 'SECTION_UNLOCK' | 'FIELD_CHANGE'
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  sections?: string[]
+  reason?: string
+  fields?: string[]
+  description?: string
+  adminNote: string | null
+  requestedByName?: string
+  reviewedByName?: string | null
+  createdAt: string
+  revisionNumber?: number
+}
+
+const SECTION_LABEL_MAP: Record<string, string> = {
+  summary: 'Summary',
+  'uuc-details': 'UUC Details',
+  'master-inst': 'Master Instruments',
+  environment: 'Environmental Conditions',
+  results: 'Calibration Results',
+  remarks: 'Remarks',
+  conclusion: 'Conclusion',
+}
+
+const FIELD_LABEL_MAP: Record<string, string> = {
+  certificateNumber: 'Certificate Number',
+  srfNumber: 'SRF Number',
+  srfDate: 'SRF Date',
+  customerName: 'Customer Name',
+  customerAddress: 'Customer Address',
+  customerContactName: 'Contact Name',
+  customerContactEmail: 'Contact Email',
+  calibratedAt: 'Calibrated At',
+  dateOfCalibration: 'Date of Calibration',
+  calibrationDueDate: 'Calibration Due Date',
+}
+
+/**
+ * Converts internal requests (section unlock / field change) into Feedback items
+ * for integration into the FeedbackTimeline.
+ */
+export function internalRequestsToFeedbacks(
+  requests: InternalRequestItem[],
+  currentRevision: number
+): Feedback[] {
+  return requests.map((req) => {
+    const feedbackType =
+      req.type === 'SECTION_UNLOCK'
+        ? req.status === 'APPROVED' ? 'SECTION_UNLOCK_APPROVED'
+          : req.status === 'REJECTED' ? 'SECTION_UNLOCK_REJECTED'
+          : 'SECTION_UNLOCK_REQUESTED'
+        : req.status === 'APPROVED' ? 'FIELD_CHANGE_APPROVED'
+          : req.status === 'REJECTED' ? 'FIELD_CHANGE_REJECTED'
+          : 'FIELD_CHANGE_REQUESTED'
+
+    let comment = ''
+    if (req.type === 'SECTION_UNLOCK') {
+      const sectionLabels = (req.sections || []).map(s => SECTION_LABEL_MAP[s] || s).join(', ')
+      comment = `Sections: ${sectionLabels}`
+      if (req.reason) comment += `\nReason: ${req.reason}`
+    } else {
+      const fieldLabels = (req.fields || []).map(f => FIELD_LABEL_MAP[f] || f).join(', ')
+      comment = `Fields: ${fieldLabels}`
+      if (req.description) comment += `\n${req.description}`
+    }
+
+    if (req.adminNote && req.status !== 'PENDING') {
+      comment += `\nAdmin: ${req.adminNote}`
+    }
+
+    return {
+      id: `internal-${req.id}`,
+      feedbackType,
+      comment,
+      createdAt: req.createdAt,
+      revisionNumber: req.revisionNumber ?? currentRevision,
+      targetSection: 'requests',
+      user: {
+        name: req.requestedByName || 'System',
+        role: req.type === 'SECTION_UNLOCK' ? 'ENGINEER' : 'REVIEWER',
+      },
+    }
+  })
+}
+
+// ============================================================================
 // GROUPING FUNCTIONS
 // ============================================================================
 
@@ -314,7 +455,7 @@ export function groupFeedbacksByRevision(feedbacks: Feedback[]): RevisionGroup[]
  * Returns sections in a consistent order.
  */
 export function groupFeedbacksBySection(feedbacks: Feedback[]): SectionGroup[] {
-  const sectionOrder = ['summary', 'uuc-details', 'master-inst', 'environment', 'results', 'remarks', 'conclusion', 'general']
+  const sectionOrder = ['summary', 'uuc-details', 'master-inst', 'environment', 'results', 'remarks', 'conclusion', 'general', 'requests']
   const groups: Record<string, Feedback[]> = {}
 
   for (const feedback of feedbacks) {

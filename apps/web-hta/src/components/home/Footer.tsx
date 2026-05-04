@@ -14,9 +14,9 @@ export function Footer() {
       </div>
 
       <div className="flex gap-[22px]">
-        <a href="#" className="ft-link">Support</a>
-        <a href="#" className="ft-link">Privacy Policy</a>
-        <a href="#" className="ft-link">Terms</a>
+        <a href="/support" className="ft-link">Support</a>
+        <a href="/privacy" className="ft-link">Privacy Policy</a>
+        <a href="/terms" className="ft-link">Terms</a>
       </div>
 
       <span className="ft-copy">&copy; 2026 HTA Instrumentation. All rights reserved.</span>

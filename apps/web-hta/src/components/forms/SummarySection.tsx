@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { FlaskConical, Factory, Calendar, AlertTriangle, CheckCircle2, Loader2, FileText, UserCheck } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { DatePicker } from '@/components/ui/date-picker'
 import { FormSection } from './FormSection'
 import { ReviewerSelect } from './ReviewerSelect'
 import { CustomerAutocomplete } from './CustomerAutocomplete'
@@ -287,11 +288,11 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
             <Label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
               SRF Date <span className="text-red-500">*</span>
             </Label>
-            <Input
-              type="date"
+            <DatePicker
               value={formData.srfDate}
-              onChange={(e) => setFormField('srfDate', e.target.value)}
-              className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-semibold text-xs md:text-xs"
+              onChange={(val) => setFormField('srfDate', val)}
+              placeholder="Select SRF date"
+              className="w-full rounded-xl border-slate-300 h-12 px-4 font-semibold text-xs"
             />
           </div>
         </div>
@@ -304,11 +305,11 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
               <Label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
                 Date of Calibration <span className="text-red-500">*</span>
               </Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={formData.dateOfCalibration}
-                onChange={(e) => setFormField('dateOfCalibration', e.target.value)}
-                className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary"
+                onChange={(val) => setFormField('dateOfCalibration', val)}
+                placeholder="Select calibration date"
+                className="w-full rounded-xl border-slate-300 h-12 px-4"
               />
             </div>
           )}

@@ -12,6 +12,7 @@ import {
   XCircle,
   UserPlus,
   Bell,
+  KeyRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +26,7 @@ const NOTIFICATION_ICONS: Record<string, { icon: typeof Bell; bg: string; color:
   // Amber — revisions
   REVISION_REQUESTED: { icon: RotateCcw, bg: 'bg-[#fef3c7]', color: 'text-[#d97706]' },
   CUSTOMER_REVISION_REQUEST: { icon: RotateCcw, bg: 'bg-[#fef3c7]', color: 'text-[#d97706]' },
+  CUSTOMER_REVISION_FORWARDED: { icon: RotateCcw, bg: 'bg-[#fef3c7]', color: 'text-[#d97706]' },
   // Blue — submissions / sends
   SUBMITTED_FOR_REVIEW: { icon: FileUp, bg: 'bg-[#dbeafe]', color: 'text-[#2563eb]' },
   SENT_TO_CUSTOMER: { icon: Send, bg: 'bg-[#dbeafe]', color: 'text-[#2563eb]' },
@@ -36,6 +38,10 @@ const NOTIFICATION_ICONS: Record<string, { icon: typeof Bell; bg: string; color:
   REVIEWER_REPLIED: { icon: MessageSquare, bg: 'bg-[#f1f5f9]', color: 'text-[#64748b]' },
   // Red — rejections
   REGISTRATION_REJECTED: { icon: XCircle, bg: 'bg-[#fee2e2]', color: 'text-[#dc2626]' },
+  OFFLINE_CODE_REJECTED: { icon: XCircle, bg: 'bg-[#fee2e2]', color: 'text-[#dc2626]' },
+  // Purple — offline codes
+  OFFLINE_CODE_APPROVED: { icon: KeyRound, bg: 'bg-[#ede9fe]', color: 'text-[#6d28d9]' },
+  OFFLINE_CODE_REQUESTED: { icon: KeyRound, bg: 'bg-[#dbeafe]', color: 'text-[#2563eb]' },
 }
 
 const DEFAULT_ICON = { icon: Bell, bg: 'bg-[#f1f5f9]', color: 'text-[#94a3b8]' }
@@ -51,12 +57,24 @@ const REVIEWER_NOTIFICATION_TYPES = [
 // Certificate statuses where the creator can edit
 const EDITABLE_STATUSES = ['DRAFT', 'REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED']
 
+// Non-certificate notification types that have their own routes
+const NON_CERT_ROUTES: Record<string, string> = {
+  OFFLINE_CODE_APPROVED: '/dashboard/offline-codes',
+  OFFLINE_CODE_REJECTED: '/dashboard/offline-codes',
+  OFFLINE_CODE_REQUESTED: '/admin/requests',
+}
+
 function getNavigationPath(
   notificationType: string,
   certificateId: string | null,
   certificateStatus: string | null,
   userRole: string
 ): string | null {
+  // Handle non-certificate notifications first
+  if (NON_CERT_ROUTES[notificationType]) {
+    return NON_CERT_ROUTES[notificationType]
+  }
+
   if (!certificateId) return null
 
   if (userRole === 'CUSTOMER') return `/customer/certificates/${certificateId}`

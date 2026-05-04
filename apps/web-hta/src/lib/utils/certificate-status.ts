@@ -15,6 +15,7 @@ export const CERTIFICATE_STATUSES = {
   PENDING_ADMIN_AUTHORIZATION: 'PENDING_ADMIN_AUTHORIZATION',
   AUTHORIZED: 'AUTHORIZED',
   REJECTED: 'REJECTED',
+  CUSTOMER_REVIEW_EXPIRED: 'CUSTOMER_REVIEW_EXPIRED',
 } as const
 
 export type CertificateStatus = typeof CERTIFICATE_STATUSES[keyof typeof CERTIFICATE_STATUSES]
@@ -27,12 +28,13 @@ export const VALID_TRANSITIONS: Record<CertificateStatus, CertificateStatus[]> =
   DRAFT: ['PENDING_REVIEW'],
   PENDING_REVIEW: ['REVISION_REQUIRED', 'PENDING_CUSTOMER_APPROVAL', 'REJECTED'],
   REVISION_REQUIRED: ['PENDING_REVIEW'],
-  PENDING_CUSTOMER_APPROVAL: ['CUSTOMER_REVISION_REQUIRED', 'APPROVED'],
+  PENDING_CUSTOMER_APPROVAL: ['CUSTOMER_REVISION_REQUIRED', 'APPROVED', 'CUSTOMER_REVIEW_EXPIRED'],
   CUSTOMER_REVISION_REQUIRED: ['PENDING_CUSTOMER_APPROVAL', 'REVISION_REQUIRED'],
   APPROVED: ['PENDING_ADMIN_AUTHORIZATION'],
   PENDING_ADMIN_AUTHORIZATION: ['AUTHORIZED'],
   AUTHORIZED: [],
   REJECTED: [],
+  CUSTOMER_REVIEW_EXPIRED: ['PENDING_CUSTOMER_APPROVAL'],
 }
 
 /**
@@ -69,7 +71,7 @@ export function requiresCustomerAction(status: CertificateStatus): boolean {
  * @returns true if staff must take action
  */
 export function requiresStaffAction(status: CertificateStatus): boolean {
-  return ['DRAFT', 'PENDING_REVIEW', 'REVISION_REQUIRED', 'PENDING_ADMIN_AUTHORIZATION'].includes(status)
+  return ['DRAFT', 'PENDING_REVIEW', 'REVISION_REQUIRED', 'PENDING_ADMIN_AUTHORIZATION', 'CUSTOMER_REVIEW_EXPIRED'].includes(status)
 }
 
 /**
@@ -88,6 +90,7 @@ export function getStatusLabel(status: CertificateStatus): string {
     PENDING_ADMIN_AUTHORIZATION: 'Pending Admin Authorization',
     AUTHORIZED: 'Authorized',
     REJECTED: 'Rejected',
+    CUSTOMER_REVIEW_EXPIRED: 'Review Expired',
   }
   return labels[status] || status
 }

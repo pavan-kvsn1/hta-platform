@@ -10,6 +10,8 @@ type CertificateStatus =
   | 'AUTHORIZED'
   | 'APPROVED'
   | 'REJECTED'
+  | 'CUSTOMER_REVIEW_EXPIRED'
+  | 'CONFLICT'
 
 interface StatusBadgeProps {
   status: CertificateStatus | string
@@ -64,6 +66,16 @@ const statusConfig: Record<
     label: 'Rejected',
     bgColor: 'bg-red-100',
     textColor: 'text-red-800',
+  },
+  CUSTOMER_REVIEW_EXPIRED: {
+    label: 'Review Expired',
+    bgColor: 'bg-red-50',
+    textColor: 'text-red-700',
+  },
+  CONFLICT: {
+    label: 'Sync Conflict',
+    bgColor: 'bg-purple-100',
+    textColor: 'text-purple-800',
   },
 }
 

@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
+import { BackLink } from '@/components/BackLink'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy | HTA Calibration',
@@ -11,12 +12,7 @@ export default function PrivacyPolicyPage() {
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="mb-8">
-          <Link
-            href="/"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            &larr; Back to Home
-          </Link>
+          <BackLink />
         </div>
 
         <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
@@ -197,7 +193,7 @@ export default function PrivacyPolicyPage() {
             <div className="mt-4 p-4 bg-muted rounded-lg">
               <p className="font-medium">HTA Instrumentation Pvt. Ltd.</p>
               <p className="text-muted-foreground">Email: services@htaipl.com</p>
-              <p className="text-muted-foreground">Address: [Company Address]</p>
+              <p className="text-muted-foreground">Address: # 73, Ramachandra Agrahara, Near T.R. Mills, Chamarajpet, Bangalore - 560 018 India</p>
             </div>
           </section>
         </div>

@@ -689,3 +689,18 @@
   .home-nav { padding: 0 16px; }
   .home-footer { padding: 20px 16px; }
 }
+
+/* Print styles for offline codes sheet */
+@media print {
+  body > * { visibility: hidden; }
+  #printable-codes, #printable-codes * { visibility: visible; }
+  #printable-codes {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+}

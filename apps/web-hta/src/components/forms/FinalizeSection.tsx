@@ -21,6 +21,14 @@ import {
   Users
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { FormSection } from './FormSection'
 import { ReviewerSelect } from './ReviewerSelect'
 import { useCertificateStore } from '@/lib/stores/certificate-store'
@@ -66,6 +74,7 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
   const [isFeedbackRefExpanded, setIsFeedbackRefExpanded] = useState(false)
   const [showSignatureModal, setShowSignatureModal] = useState(false)
   const [reviewerError, setReviewerError] = useState<string | null>(null)
+  const [modalState, setModalState] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({ open: false, title: '', message: '', type: 'error' })
 
   // Use store's reviewerId for reviewer selection
   const selectedReviewerId = formData.reviewerId
@@ -209,13 +218,13 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       if (standardReadingViolations > 0) {
         errors.push(`• ${standardReadingViolations} standard reading${standardReadingViolations !== 1 ? 's are' : ' is'} outside the operating range`)
       }
-      alert(`Cannot save draft due to critical errors:\n\n${errors.join('\n')}\n\nPlease fix these issues in Section 02 (UUC Details) and Section 05 (Results).`)
+      setModalState({ open: true, title: 'Cannot Save Draft', message: `Critical errors found:\n\n${errors.join('\n')}\n\nPlease fix these issues in Section 02 (UUC Details) and Section 05 (Results).`, type: 'error' })
       return
     }
 
     const result = await saveDraft()
     if (!result.success) {
-      alert(`Failed to save draft: ${result.error}`)
+      setModalState({ open: true, title: 'Save Failed', message: result.error || 'Failed to save draft', type: 'error' })
     }
   }
 
@@ -229,12 +238,12 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       if (standardReadingViolations > 0) {
         errors.push(`• ${standardReadingViolations} standard reading${standardReadingViolations !== 1 ? 's are' : ' is'} outside the operating range`)
       }
-      alert(`Cannot submit due to critical errors:\n\n${errors.join('\n')}\n\nPlease fix these issues in Section 02 (UUC Details) and Section 05 (Results).`)
+      setModalState({ open: true, title: 'Cannot Submit', message: `Critical errors found:\n\n${errors.join('\n')}\n\nPlease fix these issues in Section 02 (UUC Details) and Section 05 (Results).`, type: 'error' })
       return
     }
 
     if (!requiredItemsValid) {
-      alert('Please complete all required fields before submitting.')
+      setModalState({ open: true, title: 'Incomplete Fields', message: 'Please complete all required fields before submitting.', type: 'error' })
       return
     }
 
@@ -293,8 +302,7 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       // Success - clear section responses and redirect to dashboard
       clearSectionResponses()
       setShowSignatureModal(false)
-      alert('Certificate submitted successfully for peer review!')
-      router.push('/dashboard')
+      setModalState({ open: true, title: 'Submitted!', message: 'Certificate submitted successfully for peer review!', type: 'success' })
     } catch (error) {
       console.error('Submit error:', error)
       setSubmitError(error instanceof Error ? error.message : 'An error occurred')
@@ -544,6 +552,52 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
         <p className="text-center text-[11px] text-slate-400 font-medium">
           By submitting, this certificate will be sent to your selected peer for review.
         </p>
+
+        {/* Status Modal (replaces browser alert) */}
+        <Dialog
+          open={modalState.open}
+          onOpenChange={(open) => {
+            if (!open) {
+              setModalState(prev => ({ ...prev, open: false }))
+              if (modalState.type === 'success') {
+                router.push('/dashboard')
+              }
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                {modalState.type === 'success' ? (
+                  <div className="p-2 rounded-full bg-green-100">
+                    <CheckCircle className="size-5 text-green-600" />
+                  </div>
+                ) : (
+                  <div className="p-2 rounded-full bg-red-100">
+                    <AlertCircle className="size-5 text-red-600" />
+                  </div>
+                )}
+                <DialogTitle>{modalState.title}</DialogTitle>
+              </div>
+              <DialogDescription className="whitespace-pre-line pt-2">
+                {modalState.message}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  setModalState(prev => ({ ...prev, open: false }))
+                  if (modalState.type === 'success') {
+                    router.push('/dashboard')
+                  }
+                }}
+                className={modalState.type === 'success' ? 'bg-green-600 hover:bg-green-700' : ''}
+              >
+                {modalState.type === 'success' ? 'Go to Dashboard' : 'OK'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Signature Modal */}
         <SignatureModal

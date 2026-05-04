@@ -17,6 +17,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { apiFetch } from '@/lib/api-client'
 
 interface CustomerSidebarProps {
   userName: string
@@ -42,11 +43,30 @@ export function CustomerSidebar({
 }: CustomerSidebarProps) {
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
 
   // Load state from localStorage
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved === 'true') setIsCollapsed(true)
+  }, [])
+
+  // Fetch unread notification count
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await apiFetch('/api/notifications/unread-count')
+        const data = await res.json()
+        if (data.count !== undefined) setUnreadNotifications(data.count)
+      } catch { /* ignore */ }
+    }
+    fetchUnread()
+    const interval = setInterval(fetchUnread, 30000)
+    window.addEventListener('notifications-changed', fetchUnread)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('notifications-changed', fetchUnread)
+    }
   }, [])
 
   // Toggle and persist
@@ -94,7 +114,7 @@ export function CustomerSidebar({
       name: 'Notifications',
       href: '/customer/notifications',
       icon: Bell,
-      badge: 0,
+      badge: unreadNotifications,
       pocOnly: false,
     },
     {
@@ -108,7 +128,7 @@ export function CustomerSidebar({
       name: 'Users',
       href: '/customer/users',
       icon: Users,
-      badge: userCount,
+      badge: 0,
       pocOnly: true,
     },
     {

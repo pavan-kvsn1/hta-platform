@@ -7,7 +7,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
-import { FileText, ClipboardCheck, Bell, Settings, LogOut, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { FileText, ClipboardCheck, Bell, Settings, LogOut, ChevronLeft, ChevronRight, X, KeyRound, Inbox } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface DashboardSidebarProps {
@@ -57,7 +57,11 @@ export function DashboardSidebar({
     }
     fetchCount()
     const interval = setInterval(fetchCount, 30000)
-    return () => clearInterval(interval)
+    window.addEventListener('notifications-changed', fetchCount)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('notifications-changed', fetchCount)
+    }
   }, [])
 
   const getInitials = (name: string) => {
@@ -71,6 +75,8 @@ export function DashboardSidebar({
   const navItems = [
     { label: 'My Certificates', icon: FileText, href: '/dashboard', show: true },
     { label: 'Reviews', icon: ClipboardCheck, href: '/dashboard/reviewer', show: userRole === 'ENGINEER' || userRole === 'ADMIN' },
+    { label: 'Offline Codes', icon: KeyRound, href: '/dashboard/offline-codes', show: userRole === 'ENGINEER' || userRole === 'ADMIN' },
+    { label: 'My Requests', icon: Inbox, href: '/dashboard/requests', show: true },
     { label: 'Notifications', icon: Bell, href: '/notifications', show: true, badge: unreadCount },
     { label: 'Settings', icon: Settings, href: '/settings', show: true },
   ].filter((item) => item.show)
@@ -186,7 +192,14 @@ export function DashboardSidebar({
 
         {/* Sign Out */}
         <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
+          onClick={async () => {
+            if (window.electronAPI) {
+              await window.electronAPI.logout()
+              await signOut({ callbackUrl: '/desktop/login' })
+            } else {
+              signOut({ callbackUrl: '/login' })
+            }
+          }}
           title={!mobile && isCollapsed ? 'Sign out' : undefined}
           className={cn(
             'flex items-center gap-3 w-full px-3 py-3 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white transition-colors',

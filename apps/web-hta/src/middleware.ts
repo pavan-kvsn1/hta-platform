@@ -99,6 +99,14 @@ function getSecurityHeaders(): Record<string, string> {
 }
 
 export function middleware(request: NextRequest) {
+  // Desktop mode (Electron): redirect standard auth pages to desktop login
+  if (process.env.HTA_DESKTOP === '1') {
+    const { pathname } = request.nextUrl
+    if (pathname === '/login' || pathname === '/') {
+      return NextResponse.redirect(new URL('/desktop/login', request.url))
+    }
+  }
+
   // Create response with security headers
   const response = NextResponse.next()
 

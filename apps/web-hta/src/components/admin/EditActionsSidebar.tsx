@@ -26,6 +26,7 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { DatePicker } from '@/components/ui/date-picker'
 
 // Editable field definitions
 const EDITABLE_SECTIONS = {
@@ -319,13 +320,10 @@ export function EditActionsSidebar({
     switch (fieldConfig.type) {
       case 'date':
         return (
-          <div className="flex items-center gap-2 mt-1">
-            <Calendar className="h-4 w-4 text-gray-400" />
-            <Input
-              id="new-value"
-              type="date"
+          <div className="mt-1">
+            <DatePicker
               value={newValue}
-              onChange={(e) => setNewValue(e.target.value)}
+              onChange={setNewValue}
             />
           </div>
         )
