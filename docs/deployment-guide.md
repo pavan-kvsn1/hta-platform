@@ -817,11 +817,11 @@ docker build -f apps/worker/Dockerfile -t hta-worker:latest .
 
 # Tag for registry (both :latest and version tag)
 docker tag hta-api:latest $REGISTRY/hta-api:latest
-docker tag hta-api:latest $REGISTRY/hta-api:v1.0.33
+docker tag hta-api:latest $REGISTRY/hta-api:v1.0.35
 docker tag hta-web:latest $REGISTRY/hta-web:latest
-docker tag hta-web:latest $REGISTRY/hta-web:v1.0.40
+docker tag hta-web:latest $REGISTRY/hta-web:v1.0.43
 docker tag hta-worker:latest $REGISTRY/hta-worker:latest
-docker tag hta-worker:latest $REGISTRY/hta-worker:v1.0.23
+docker tag hta-worker:latest $REGISTRY/hta-worker:v1.0.25
 
 # Push images (push :latest - this is what K8s deployments use)
 docker push $REGISTRY/hta-api:latest
@@ -829,9 +829,9 @@ docker push $REGISTRY/hta-web:latest
 docker push $REGISTRY/hta-worker:latest
 
 # Optionally push version tags for rollback
-docker push $REGISTRY/hta-api:v1.0.33
-docker push $REGISTRY/hta-web:v1.0.40
-docker push $REGISTRY/hta-worker:v1.0.23
+docker push $REGISTRY/hta-api:v1.0.35
+docker push $REGISTRY/hta-web:v1.0.43
+docker push $REGISTRY/hta-worker:v1.0.25
 ```
 
 #### Option A: Build Locally (Linux/Mac)
@@ -936,7 +936,7 @@ Rename-Item apps\api\.env.local apps\api\.env.local.bak -ErrorAction SilentlyCon
 
 ```powershell
 # Set DATABASE_URL environment variable
-$env:DATABASE_URL="postgresql://hta_app:YOUR_PASSWORD@127.0.0.1:5432/hta_platform"
+$env:DATABASE_URL="postgresql://hta_app:hta_calibration_0809@127.0.0.1:5432/hta_platform"
 
 cd packages\database
 

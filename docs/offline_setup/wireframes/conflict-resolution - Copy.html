@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conflict Resolution — HTA Calibr8s Wireframe</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #0f172a; }
+
+  /* ════════════════════════════════════════════════════════════════════
+     PAGE 1: ENGINEER DASHBOARD (with Conflicts stat card + table badge)
+     ════════════════════════════════════════════════════════════════════ */
+
+  .page-label {
+    background: #0f172a; color: #94a3b8; padding: 10px 24px; font-size: 11px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    border-bottom: 2px solid #7c3aed;
+  }
+  .page-label span { color: #c4b5fd; }
+
+  .dashboard { padding: 32px 36px; }
+  .dashboard h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.025em; color: #0f172a; }
+  .dashboard .sub { font-size: 14px; color: #94a3b8; margin-top: 4px; }
+
+  /* Stat cards */
+  .stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin: 28px 0; }
+  .stat-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; border-left: 3px solid #cbd5e1; }
+  .stat-card .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-bottom: 10px; }
+  .stat-card .stat-value { font-size: 38px; font-weight: 800; line-height: 1; letter-spacing: -0.025em; color: #475569; }
+  .stat-card.draft { border-left-color: #cbd5e1; }
+  .stat-card.pending { border-left-color: #f59e0b; }
+  .stat-card.pending .stat-value { color: #b45309; }
+  .stat-card.approved { border-left-color: #22c55e; }
+  .stat-card.approved .stat-value { color: #15803d; }
+  .stat-card.revision { border-left-color: #ef4444; }
+  .stat-card.revision .stat-value { color: #dc2626; }
+  .stat-card.conflict { border-left-color: #7c3aed; }
+  .stat-card.conflict .stat-value { color: #7c3aed; }
+  .stat-card.conflict .pulse { display: inline-block; width: 8px; height: 8px; background: #7c3aed; border-radius: 50%; margin-left: 6px; animation: pulse 2s infinite; vertical-align: middle; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* Certificate Table mock */
+  .cert-table { background: white; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
+  .cert-table table { width: 100%; font-size: 13px; border-collapse: collapse; }
+  .cert-table thead { background: #f8fafc; }
+  .cert-table th { text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; border-bottom: 1px solid #e2e8f0; }
+  .cert-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #0f172a; }
+  .cert-table tr:hover { background: #f8fafc; }
+  .cert-table tr.conflict-row { background: #faf5ff; }
+  .cert-table tr.conflict-row:hover { background: #f3e8ff; }
+
+  .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge.draft { background: #f1f5f9; color: #64748b; }
+  .badge.pending { background: #fef3c7; color: #92400e; }
+  .badge.approved { background: #dcfce7; color: #166534; }
+  .badge.revision { background: #fee2e2; color: #991b1b; }
+  .badge.conflict { background: #f3e8ff; color: #7c3aed; font-weight: 700; }
+  .badge.conflict::before { content: ''; width: 6px; height: 6px; background: #7c3aed; border-radius: 50%; margin-right: 5px; animation: pulse 2s infinite; }
+
+  .resolve-link { font-size: 12px; font-weight: 600; color: #7c3aed; text-decoration: none; padding: 4px 10px; border: 1px solid #e9d5ff; border-radius: 7px; }
+  .resolve-link:hover { background: #f3e8ff; }
+
+  /* ════════════════════════════════════════════════════════════════════
+     PAGE 2: CONFLICT RESOLUTION VIEW
+     ════════════════════════════════════════════════════════════════════ */
+
+  /* Header */
+  .cr-header { background: white; border-bottom: 1px solid #e2e8f0; padding: 14px 28px; display: flex; align-items: center; gap: 14px; }
+  .cr-header .back-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; color: #64748b; text-decoration: none; font-size: 14px; background: white; }
+  .cr-header .back-btn:hover { background: #f8fafc; }
+  .cr-header h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.025em; color: #0f172a; }
+  .cr-header .conflict-badge { background: #f3e8ff; color: #7c3aed; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 999px; border: 1px solid #e9d5ff; }
+
+  /* Breadcrumb row */
+  .cr-breadcrumb { background: white; border-bottom: 1px solid #f1f5f9; padding: 9px 28px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #64748b; }
+  .cr-breadcrumb .sep { color: #e2e8f0; margin: 0 4px; }
+  .cr-breadcrumb .icon { color: #94a3b8; font-size: 13px; }
+
+  /* Toolbar */
+  .cr-toolbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 12px 28px; display: flex; align-items: center; justify-content: space-between; }
+  .cr-toolbar .left { display: flex; align-items: center; gap: 12px; }
+  .cr-toolbar .legend { display: flex; gap: 14px; font-size: 11px; color: #64748b; }
+  .cr-toolbar .legend span { display: flex; align-items: center; gap: 5px; }
+  .cr-toolbar .legend .dot { width: 10px; height: 10px; border-radius: 3px; }
+  .cr-toolbar .legend .dot.changed { background: #fef3c7; border: 1px solid #f59e0b; }
+  .cr-toolbar .legend .dot.added { background: #dcfce7; border: 1px solid #22c55e; }
+  .cr-toolbar .legend .dot.removed { background: #fee2e2; border: 1px solid #ef4444; }
+  .cr-toolbar .quick-btns { display: flex; gap: 6px; align-items: center; font-size: 12px; color: #64748b; }
+
+  .btn { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; background: white; color: #0f172a; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .btn:hover { background: #f8fafc; }
+  .btn.primary { background: #16a34a; color: white; border-color: #16a34a; }
+  .btn.primary:hover { background: #15803d; }
+  .btn.local-pick { color: #2563eb; border-color: #bfdbfe; }
+  .btn.local-pick:hover { background: #eff6ff; }
+  .btn.server-pick { color: #7c3aed; border-color: #e9d5ff; }
+  .btn.server-pick:hover { background: #faf5ff; }
+
+  /* Main content */
+  .cr-main { padding: 24px 28px; max-width: 1400px; }
+
+  /* Column headers */
+  .col-headers { display: grid; grid-template-columns: 1fr 44px 1fr; margin-bottom: 16px; }
+  .col-header { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; border-radius: 10px; }
+  .col-header.local { background: #eff6ff; color: #2563eb; }
+  .col-header.server { background: #faf5ff; color: #7c3aed; }
+  .col-header .sub { font-weight: 400; text-transform: none; letter-spacing: 0; color: #94a3b8; font-size: 11px; display: block; margin-top: 2px; }
+
+  /* ─── Collapsible Section (matches HTA view page) ─── */
+  .hta-section { background: white; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; margin-bottom: 10px; }
+  .hta-section-header { display: flex; align-items: center; padding: 14px 20px; cursor: pointer; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+  .hta-section-header .section-num { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; padding: 3px 8px; background: #f1f5f9; border-radius: 5px; margin-right: 10px; }
+  .hta-section-header .section-label { font-size: 15px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; flex: 1; }
+  .hta-section-header .change-count { font-size: 10px; font-weight: 600; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 999px; margin-left: 8px; }
+  .hta-section-header .no-change { font-size: 10px; font-weight: 500; color: #94a3b8; margin-left: 8px; }
+  .hta-section-header .chevron { color: #94a3b8; font-size: 15px; margin-left: 8px; }
+
+  .hta-section-body { padding: 20px; }
+
+  /* ─── Diff grid inside section body ─── */
+  .diff-grid { display: grid; grid-template-columns: 1fr 44px 1fr; gap: 0; }
+  .diff-card { border: 2px solid #e2e8f0; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all 0.15s; }
+  .diff-card:hover { border-color: #94a3b8; }
+  .diff-card.selected { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12); }
+  .diff-card.selected.server-side { border-color: #7c3aed; box-shadow: 0 0 0 2px rgba(124, 58, 234, 0.12); }
+  .diff-card .card-top { padding: 8px 14px; background: #f8fafc; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; }
+  .diff-card.selected .card-top { background: #eff6ff; }
+  .diff-card.selected.server-side .card-top { background: #faf5ff; }
+  .diff-card .radio { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 50%; margin-right: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .diff-card.selected .radio { border-color: #2563eb; background: #2563eb; }
+  .diff-card.selected.server-side .radio { border-color: #7c3aed; background: #7c3aed; }
+  .diff-card.selected .radio::after { content: ''; width: 6px; height: 6px; background: white; border-radius: 50%; }
+  .diff-card .card-side-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+  .diff-card.selected .card-side-label { color: #2563eb; }
+  .diff-card.selected.server-side .card-side-label { color: #7c3aed; }
+
+  .diff-card .card-body { padding: 14px; }
+  .diff-arrow { display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 18px; }
+
+  /* InfoField rows */
+  .info-field { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+  .info-field .f-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; }
+  .info-field .f-value { font-size: 14px; color: #0f172a; text-align: right; }
+  .info-field.changed { background: #fef3c7; margin: 2px -14px; padding: 4px 14px; border-radius: 5px; }
+  .info-field.changed .f-value { color: #92400e; font-weight: 600; }
+  .info-field.same .f-value { color: #94a3b8; }
+
+  /* No changes card */
+  .no-diff-card { border: 1px dashed #e2e8f0; border-radius: 10px; padding: 14px; opacity: 0.55; }
+  .no-diff-msg { text-align: center; font-size: 12px; color: #94a3b8; padding: 16px; }
+
+  /* Added / removed param */
+  .empty-side { border: 2px dashed #e2e8f0; border-radius: 10px; display: flex; align-items: center; justify-content: center; min-height: 100px; color: #94a3b8; font-size: 12px; opacity: 0.6; }
+
+  /* Results table */
+  .res-table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 8px; }
+  .res-table th { text-align: left; padding: 4px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #94a3b8; border-bottom: 1px solid #f1f5f9; }
+  .res-table td { padding: 4px 8px; color: #0f172a; }
+  .res-table tr.changed-row td { background: #fef3c7; }
+
+  /* Sticky footer */
+  .cr-footer { background: white; border-top: 1px solid #e2e8f0; padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; bottom: 0; z-index: 10; }
+  .cr-footer .summary { font-size: 12px; color: #64748b; }
+  .cr-footer .summary strong { color: #0f172a; }
+
+  /* Divider between pages */
+  .page-divider { height: 40px; background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 10px, #f1f5f9 10px, #f1f5f9 20px); }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     PAGE 1: ENGINEER DASHBOARD — "My Certificates"
+     Shows new Conflicts stat card + CONFLICT badge on table rows
+     ════════════════════════════════════════════════════════════════════════ -->
+
+<div class="page-label">Page 1 — <span>Engineer Dashboard (with Conflicts)</span></div>
+
+<div class="dashboard">
+  <h1>My Certificates</h1>
+  <p class="sub">Manage and track your calibration certificates</p>
+
+  <!-- Stat cards — 5 columns now (added Conflicts) -->
+  <div class="stat-grid">
+    <div class="stat-card draft">
+      <div class="stat-label">Drafts</div>
+      <div class="stat-value">12</div>
+    </div>
+    <div class="stat-card pending">
+      <div class="stat-label">Pending Review</div>
+      <div class="stat-value">5</div>
+    </div>
+    <div class="stat-card approved">
+      <div class="stat-label">Approved</div>
+      <div class="stat-value">48</div>
+    </div>
+    <div class="stat-card revision">
+      <div class="stat-label">Need Revision</div>
+      <div class="stat-value">2</div>
+    </div>
+    <div class="stat-card conflict">
+      <div class="stat-label">Sync Conflicts <span class="pulse"></span></div>
+      <div class="stat-value">1</div>
+    </div>
+  </div>
+
+  <!-- Certificate Table with CONFLICT row -->
+  <div class="cert-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Certificate #</th>
+          <th>Customer</th>
+          <th>UUC</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="conflict-row">
+          <td style="font-weight: 600;">HTA-CAL-2026-0142</td>
+          <td>Acme Manufacturing</td>
+          <td>Digital Pressure Gauge</td>
+          <td style="color: #64748b;">28 Apr 2026</td>
+          <td><span class="badge conflict">Sync Conflict</span></td>
+          <td style="text-align: right;"><a href="#page2" class="resolve-link">Resolve &rarr;</a></td>
+        </tr>
+        <tr>
+          <td style="font-weight: 600;">HTA-CAL-2026-0155</td>
+          <td>TechPro Industries</td>
+          <td>Torque Wrench</td>
+          <td style="color: #64748b;">29 Apr 2026</td>
+          <td><span class="badge draft">Draft</span></td>
+          <td style="text-align: right;"><span style="font-size: 12px; color: #64748b;">Edit</span></td>
+        </tr>
+        <tr>
+          <td style="font-weight: 600;">HTA-CAL-2026-0151</td>
+          <td>Supreme Metals</td>
+          <td>Vernier Caliper</td>
+          <td style="color: #64748b;">27 Apr 2026</td>
+          <td><span class="badge pending">Pending Review</span></td>
+          <td style="text-align: right;"><span style="font-size: 12px; color: #64748b;">View</span></td>
+        </tr>
+        <tr>
+          <td style="font-weight: 600;">HTA-CAL-2026-0148</td>
+          <td>Metro Steel</td>
+          <td>Micrometer</td>
+          <td style="color: #64748b;">26 Apr 2026</td>
+          <td><span class="badge approved">Approved</span></td>
+          <td style="text-align: right;"><span style="font-size: 12px; color: #64748b;">View / PDF</span></td>
+        </tr>
+        <tr>
+          <td style="font-weight: 600;">HTA-CAL-2026-0140</td>
+          <td>Acme Manufacturing</td>
+          <td>Temperature Controller</td>
+          <td style="color: #64748b;">25 Apr 2026</td>
+          <td><span class="badge revision">Revision Required</span></td>
+          <td style="text-align: right;"><span style="font-size: 12px; color: #64748b;">Edit</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="page-divider"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     PAGE 2: CONFLICT RESOLUTION VIEW
+     Matches HTA certificate view page design (CollapsibleSection, InfoField)
+     ════════════════════════════════════════════════════════════════════════ -->
+
+<div class="page-label" id="page2">Page 2 — <span>Conflict Resolution View (click "Resolve" above)</span></div>
+
+<!-- Header (matches certificate view) -->
+<div class="cr-header">
+  <a href="#" class="back-btn">&larr;</a>
+  <h1>HTA-CAL-2026-0142</h1>
+  <span class="conflict-badge">Sync Conflict</span>
+  <span style="margin-left: auto; font-size: 13px; color: #64748b;">Revision 3</span>
+</div>
+
+<!-- Breadcrumb (matches certificate view) -->
+<div class="cr-breadcrumb">
+  <span class="icon">&#128100;</span> Anand Sharma
+  <span class="sep">|</span>
+  <span class="icon">&#127970;</span> Acme Manufacturing Pvt Ltd
+  <span class="sep">|</span>
+  <span class="icon">&#128205;</span> Laboratory
+  <span class="sep">|</span>
+  Detected 12 min ago
+</div>
+
+<!-- Toolbar -->
+<div class="cr-toolbar">
+  <div class="left">
+    <div class="quick-btns">
+      Quick select:
+      <button class="btn local-pick" onclick="selectAll('local')">&#x2190; Use All Local</button>
+      <button class="btn server-pick" onclick="selectAll('server')">Use All Server &#x2192;</button>
+    </div>
+    <div class="legend">
+      <span><span class="dot changed"></span> Changed</span>
+      <span><span class="dot added"></span> Added</span>
+      <span><span class="dot removed"></span> Removed</span>
+    </div>
+  </div>
+  <div style="font-size: 12px; color: #64748b;" id="toolbar-count">5 of 6 sections selected</div>
+</div>
+
+<div class="cr-main">
+
+  <!-- Column Headers -->
+  <div class="col-headers">
+    <div class="col-header local">
+      Your Version (Local)
+      <span class="sub">Last edited 2 hours ago on this device</span>
+    </div>
+    <div></div>
+    <div class="col-header server">
+      Server Version
+      <span class="sub">Modified 45 min ago by Admin (Ravi Kumar)</span>
+    </div>
+  </div>
+
+  <!-- ═══ §1 Customer Details (2 changes) ═══ -->
+  <div class="hta-section">
+    <div class="hta-section-header">
+      <span class="section-num">&sect;1</span>
+      <span class="section-label">Customer Details</span>
+      <span class="change-count">2 changes</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="hta-section-body">
+      <div class="diff-grid">
+        <div class="diff-card selected" onclick="pick(this, 'local')">
+          <div class="card-top"><div class="radio"></div><span class="card-side-label">Local</span></div>
+          <div class="card-body">
+            <div class="info-field same"><span class="f-label">Name</span><span class="f-value">Acme Manufacturing Pvt Ltd</span></div>
+            <div class="info-field changed"><span class="f-label">Address</span><span class="f-value">Plot 42, Industrial Area, Chennai 600032</span></div>
+            <div class="info-field changed"><span class="f-label">Contact Name</span><span class="f-value">Rajesh Menon</span></div>
+            <div class="info-field same"><span class="f-label">Contact Email</span><span class="f-value">rajesh@acmemfg.in</span></div>
+          </div>
+        </div>
+        <div class="diff-arrow">&harr;</div>
+        <div class="diff-card" onclick="pick(this, 'server')">
+          <div class="card-top"><div class="radio"></div><span class="card-side-label">Server</span></div>
+          <div class="card-body">
+            <div class="info-field same"><span class="f-label">Name</span><span class="f-value">Acme Manufacturing Pvt Ltd</span></div>
+            <div class="info-field changed"><span class="f-label">Address</span><span class="f-value">Plot 42, SIDCO Industrial Estate, Chennai 600032</span></div>
+            <div class="info-field changed"><span class="f-label">Contact Name</span><span class="f-value">Suresh Iyer</span></div>
+            <div class="info-field same"><span class="f-label">Contact Email</span><span class="f-value">rajesh@acmemfg.in</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ §2 UUC Details (no changes) ═══ -->
+  <div class="hta-section">
+    <div class="hta-section-header">
+      <span class="section-num">&sect;2</span>
+      <span class="section-label">UUC Details</span>
+      <span class="no-change">No changes &mdash; identical</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="hta-section-body">
+      <div class="diff-grid">
+        <div class="no-diff-card">
+          <div class="info-field"><span class="f-label">Description</span><span class="f-value" style="color:#94a3b8">Digital Pressure Gauge</span></div>
+          <div class="info-field"><span class="f-label">Make / Model</span><span class="f-value" style="color:#94a3b8">Fluke / 700G30</span></div>
+          <div class="info-field"><span class="f-label">Serial Number</span><span class="f-value" style="color:#94a3b8">FLK-4821937</span></div>
+          <div class="info-field"><span class="f-label">Location</span><span class="f-value" style="color:#94a3b8">Pressure Lab - Bay 3</span></div>
+        </div>
+        <div class="diff-arrow">=</div>
+        <div class="no-diff-card">
+          <div class="info-field"><span class="f-label">Description</span><span class="f-value" style="color:#94a3b8">Digital Pressure Gauge</span></div>
+          <div class="info-field"><span class="f-label">Make / Model</span><span class="f-value" style="color:#94a3b8">Fluke / 700G30</span></div>
+          <div class="info-field"><span class="f-label">Serial Number</span><span class="f-value" style="color:#94a3b8">FLK-4821937</span></div>
+          <div class="info-field"><span class="f-label">Location</span><span class="f-value" style="color:#94a3b8">Pressure Lab - Bay 3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ §3 Calibration & Environment (1 change) ═══ -->
+  <div class="hta-section">
+    <div class="hta-section-header">
+      <span class="section-num">&sect;3</span>
+      <span class="section-label">Calibration Details & Environment</span>
+      <span class="change-count">1 change</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="hta-section-body">
+      <div class="diff-grid">
+        <div class="diff-card" onclick="pick(this, 'local')">
+          <div class="card-top"><div class="radio"></div><span class="card-side-label">Local</span></div>
+          <div class="card-body">
+            <div class="info-field same"><span class="f-label">Date of Calibration</span><span class="f-value">28 Apr 2026</span></div>
+            <div class="info-field same"><span class="f-label">SRF Number</span><span class="f-value">SRF-2026-0389</span></div>
+            <div class="info-field same"><span class="f-label">Due Date</span><span class="f-value">28 Apr 2027</span></div>
+            <div class="info-field changed"><span class="f-label">Ambient Temp</span><span class="f-value">23.5 &deg;C</span></div>
+            <div class="info-field same"><span class="f-label">Humidity</span><span class="f-value">52% RH</span></div>
+          </div>
+        </div>
+        <div class="diff-arrow">&harr;</div>
+        <div class="diff-card selected server-side" onclick="pick(this, 'server')">
+          <div class="card-top"><div class="radio"></div><span class="card-side-label">Server</span></div>
+          <div class="card-body">
+            <div class="info-field same"><span class="f-label">Date of Calibration</span><span class="f-value">28 Apr 2026</span></div>
+            <div class="info-field same"><span class="f-label">SRF Number</span><span class="f-value">SRF-2026-0389</span></div>
+            <div class="info-field same"><span class="f-label">Due Date</span><span class="f-value">28 Apr 2027</span></div>
+            <div class="info-field changed"><span class="f-label">Ambient Temp</span><span class="f-value">24.1 &deg;C</span></div>
+            <div class="info-field same"><span class="f-label">Humidity</span><span class="f-value">52% RH</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ §4 Parameter 1: Pressure (3 result changes) ═══ -->
+  <div class="hta-section">
+    <div class="hta-section-header">
+      <span class="section-num">&sect;4</span>
+      <span class="section-label">Parameter 1: Pressure <span style="font-weight:400;color:#94a3b8;font-size:13px">(bar)</span></span>
+      <span class="change-count">3 result changes</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="hta-section-body">
+      <div class="diff-grid">
+        <div class="diff-card selected" onclick="pick(this, 'local')">
+          <div class="card-top"><div class="radio"></div><span class="card-side-label">Local</span></div>
+          <div class="card-body">
+            <div class="info-field same"><span class="f-label">Range</span><span class="f-value">0 &ndash; 30 bar</span></div>
+            <div class="info-field same"><span class="f-label">Master Instrument</span><span class="f-value">HTA-MI-PG-001</span></div>
+            <table class="res-table">
+              <thead><tr><th>Pt</th><th>Standard</th><th>UUC Reading</th><th>Error</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>0.000</td><td>0.001</td><td>0.001</td><td style="color:#16a34a">OK</td></tr>
+                <tr class="changed-row"><td>2</td><td>6.000</td><td>6.012</td><td>0.012</td><td style="color:#16a34a">OK</td></tr>
+                <tr class="changed-row"><td>3</td><td>12.000</td><td>12.008</td><td>0.008</td><td style="color:#16a34a">OK</td></tr>
+                <tr><td>4</td><td>18.000</td><td>18.003</td><td>0.003</td><td style="color:#16a34a">OK</td></tr>
+                <tr class="changed-row"><td>5</td><td>24.000</td><td>24.015</td><td>0.015</td><td style="color:#dc2626">OOL</td></tr>
+                <tr><td>6</td><td>30.000</td><td>30.002</td><td>0.002</td><td style="color:#16a34a">OK</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="diff-arrow">&harr;</div>
+        <div class="diff-card" onclick="pick(this, 'server')">
+          <div class="card-top"><div class="radio"></div><span class="card-side-label">Server</span></div>
+          <div class="card-body">
+            <div class="info-field same"><span class="f-label">Range</span><span class="f-value">0 &ndash; 30 bar</span></div>
+            <div class="info-field same"><span class="f-label">Master Instrument</span><span class="f-value">HTA-MI-PG-001</span></div>
+            <table class="res-table">
+              <thead><tr><th>Pt</th><th>Standard</th><th>UUC Reading</th><th>Error</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>0.000</td><td>0.001</td><td>0.001</td><td style="color:#16a34a">OK</td></tr>
+                <tr class="changed-row"><td>2</td><td>6.000</td><td>5.998</td><td>-0.002</td><td style="color:#16a34a">OK</td></tr>
+                <tr class="changed-row"><td>3</td><td>12.000</td><td>12.003</td><td>0.003</td><td style="color:#16a34a">OK</td></tr>
+                <tr><td>4</td><td>18.000</td><td>18.003</td><td>0.003</td><td style="color:#16a34a">OK</td></tr>
+                <tr class="changed-row"><td>5</td><td>24.000</td><td>24.001</td><td>0.001</td><td style="color:#16a34a">OK</td></tr>
+                <tr><td>6</td><td>30.000</td><td>30.002</td><td>0.002</td><td style="color:#16a34a">OK</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ §5 Parameter 2: Temperature (added on server) ═══ -->
+  <div class="hta-section">
+    <div class="hta-section-header">
+      <span class="section-num">&sect;5</span>
+      <span class="section-label">Parameter 2: Temperature <span style="font-weight:400;color:#94a3b8;font-size:13px">(&deg;C)</span></span>
+      <span style="font-size:10px;font-weight:600;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:999px;margin-left:8px;">Added on server</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="hta-section-body">
+      <div class="diff-grid">
+        <div class="empty-side">Not present in local version</div>
+        <div class="diff-arrow">&rarr;</div>
+        <div class="diff-card selected server-side" onclick="pick(this, 'server')">
+          <div class="card-top"><div class="radio"></div><span class="card-side-label">Server (new)</span></div>
+          <div class="card-body">
+            <div class="info-field"><span class="f-label">Range</span><span class="f-value">-20 &ndash; 150 &deg;C</span></div>
+            <div class="info-field"><span class="f-label">Master Instrument</span><span class="f-value">HTA-MI-TC-003</span></div>
+            <table class="res-table">
+              <thead><tr><th>Pt</th><th>Standard</th><th>UUC Reading</th><th>Error</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>-20.0</td><td>-19.8</td><td>0.2</td></tr>
+                <tr><td>2</td><td>25.0</td><td>25.1</td><td>0.1</td></tr>
+                <tr><td>3</td><td>100.0</td><td>100.3</td><td>0.3</td></tr>
+                <tr><td>4</td><td>150.0</td><td>150.2</td><td>0.2</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ §6 Status & Conclusion (1 change) ═══ -->
+  <div class="hta-section">
+    <div class="hta-section-header">
+      <span class="section-num">&sect;6</span>
+      <span class="section-label">Remarks & Conclusion</span>
+      <span class="change-count">1 change</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="hta-section-body">
+      <div class="diff-grid">
+        <div class="diff-card selected" onclick="pick(this, 'local')">
+          <div class="card-top"><div class="radio"></div><span class="card-side-label">Local</span></div>
+          <div class="card-body">
+            <div class="info-field same"><span class="f-label">Calibration Status</span><span class="f-value">&#9679; Calibrated</span></div>
+            <div class="info-field changed"><span class="f-label">Status Notes</span><span class="f-value">Pending re-check on point 5 pressure reading</span></div>
+            <div class="info-field same"><span class="f-label">Old Sticker</span><span class="f-value">Removed</span></div>
+            <div class="info-field same"><span class="f-label">New Sticker</span><span class="f-value">Affixed</span></div>
+            <div class="info-field same"><span class="f-label">Conclusion</span><span class="f-value" style="font-size:12px">The instrument is within prescribed limits</span></div>
+          </div>
+        </div>
+        <div class="diff-arrow">&harr;</div>
+        <div class="diff-card" onclick="pick(this, 'server')">
+          <div class="card-top"><div class="radio"></div><span class="card-side-label">Server</span></div>
+          <div class="card-body">
+            <div class="info-field same"><span class="f-label">Calibration Status</span><span class="f-value">&#9679; Calibrated</span></div>
+            <div class="info-field changed"><span class="f-label">Status Notes</span><span class="f-value">Readings verified, ready for review</span></div>
+            <div class="info-field same"><span class="f-label">Old Sticker</span><span class="f-value">Removed</span></div>
+            <div class="info-field same"><span class="f-label">New Sticker</span><span class="f-value">Affixed</span></div>
+            <div class="info-field same"><span class="f-label">Conclusion</span><span class="f-value" style="font-size:12px">The instrument is within prescribed limits</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Sticky Footer -->
+<div class="cr-footer">
+  <div class="summary" id="footer-summary">
+    <strong>5 of 6</strong> sections resolved &mdash; 1 section still needs your selection
+  </div>
+  <div style="display: flex; gap: 8px;">
+    <button class="btn">Cancel</button>
+    <button class="btn primary">Resolve & Save</button>
+  </div>
+</div>
+
+<script>
+function pick(card, side) {
+  const grid = card.closest('.diff-grid');
+  grid.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected', 'server-side'));
+  card.classList.add('selected');
+  if (side === 'server') card.classList.add('server-side');
+  updateCounts();
+}
+
+function selectAll(side) {
+  document.querySelectorAll('.diff-grid').forEach(grid => {
+    const cards = grid.querySelectorAll('.diff-card');
+    if (cards.length < 2) return;
+    cards.forEach(c => c.classList.remove('selected', 'server-side'));
+    const target = side === 'local' ? cards[0] : cards[cards.length - 1];
+    if (target.classList.contains('diff-card')) {
+      target.classList.add('selected');
+      if (side === 'server') target.classList.add('server-side');
+    }
+  });
+  updateCounts();
+}
+
+function updateCounts() {
+  const grids = document.querySelectorAll('.diff-grid');
+  let total = 0, selected = 0;
+  grids.forEach(g => {
+    if (g.querySelector('.diff-card')) { total++; }
+    if (g.querySelector('.diff-card.selected')) { selected++; }
+  });
+  const remaining = total - selected;
+  document.getElementById('footer-summary').innerHTML =
+    `<strong>${selected} of ${total}</strong> sections resolved` +
+    (remaining > 0 ? ` &mdash; ${remaining} section${remaining > 1 ? 's' : ''} still need${remaining === 1 ? 's' : ''} your selection` : ' &mdash; <strong style="color:#16a34a">ready to save!</strong>');
+  document.getElementById('toolbar-count').textContent = `${selected} of ${total} sections selected`;
+}
+</script>
+
+</body>
+</html>

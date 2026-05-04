@@ -29,6 +29,7 @@ COPY packages/database/package.json ./packages/database/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/emails/package.json ./packages/emails/
+COPY packages/assets/package.json ./packages/assets/
 
 # Install ALL dependencies (need devDeps for build)
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
@@ -45,6 +46,9 @@ COPY --from=deps /app ./
 
 # Copy source code
 COPY . .
+
+# Generate derived assets (logos, base64 for PDFs) from packages/assets/logos/
+RUN node packages/assets/scripts/generate.mjs
 
 # Build all required packages
 RUN pnpm --filter @hta/database build

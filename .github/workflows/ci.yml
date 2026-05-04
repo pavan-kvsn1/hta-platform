@@ -60,6 +60,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate assets
+        run: node packages/assets/scripts/generate.mjs
+
       - name: Generate Prisma Clients
         run: |
           pnpm --filter @hta/database db:generate
@@ -91,6 +94,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate assets
+        run: node packages/assets/scripts/generate.mjs
 
       - name: Dependency audit
         run: pnpm audit --audit-level=high
@@ -142,6 +148,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate assets
+        run: node packages/assets/scripts/generate.mjs
 
       - name: Generate Prisma Clients
         run: |
@@ -199,6 +208,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate assets
+        run: node packages/assets/scripts/generate.mjs
 
       - name: Setup database
         run: |
@@ -299,6 +311,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate assets
+        run: node packages/assets/scripts/generate.mjs
 
       - name: Generate Prisma clients
         run: |

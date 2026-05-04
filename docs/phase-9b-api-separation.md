@@ -4495,7 +4495,9 @@ function buildCSP(nonce: string): string {
 
 ## 19. Disaster Recovery
 
-**Status:** ✅ Fully Implemented (pending first drill)
+**Status:** ✅ Implemented — backup-based strategy (no live replica)
+
+**Strategy:** 3-year automated PITR backups on Cloud SQL. No live DR replica deployed — cost-optimized for current scale (1 tenant, <5K certs/mo). Delhi replica Terraform config is ready (`enable_dr_replica = true`) for when scale justifies the ~$100/mo cost.
 
 ### Implementation Status
 
@@ -4503,12 +4505,24 @@ function buildCSP(nonce: string): string {
 |-----------|--------|----------|
 | CloudSQL backup config | ✅ Implemented | `terraform/modules/cloudsql/main.tf` |
 | Point-in-time recovery | ✅ Enabled | CloudSQL settings |
+| 3-year backup retention | ✅ Configured | `terraform/environments/production/main.tf` (1095 days) |
 | Storage versioning | ✅ Implemented | `terraform/modules/storage/main.tf` |
-| Cross-region replica | ✅ Config ready | `terraform/modules/cloudsql/replica.tf` |
+| Cross-region replica (Delhi) | 📋 Config ready, not deployed | `terraform/modules/cloudsql/replica.tf` — set `enable_dr_replica = true` to activate |
 | DR restore script | ✅ Implemented | `scripts/dr-restore.sh` |
 | DR drill script | ✅ Implemented | `scripts/dr-drill.sh` |
 | DR monitoring alerts | ✅ Implemented | `terraform/modules/monitoring/alerts.tf` |
 | DR drill checklist | 📋 Documented | See 19.3 below |
+
+### When to Enable the Delhi DR Replica
+
+| Signal | Threshold |
+|--------|-----------|
+| Multiple tenants with SLA requirements | > 2 tenants |
+| Revenue justifies $100/mo DR cost | > $1K/mo revenue |
+| Contractual uptime SLA (e.g., 99.9%) | Customer requirement |
+| Monthly certificate volume | > 10K certs/mo |
+
+To enable: set `enable_dr_replica = true` in `terraform.tfvars` and change `cloudsql_tier` to `db-custom-1-3840` (minimum for replicas). Run `terraform apply`.
 
 ### 19.1 Backup Configuration
 
@@ -4706,40 +4720,64 @@ fi
 **Date:** _______________
 ```
 
-### 19.4 Cross-Region Replica
+### 19.4 Cross-Region Replica (Dormant — Ready to Activate)
+
+**Status:** Config ready in Terraform, **not deployed**. Currently `enable_dr_replica = false`.
+
+**Region:** `asia-south2` (Delhi) — domestic DR for lower latency and egress costs vs international regions.
+
+**Cost when activated:** ~$100/mo (primary must be `db-custom-1-3840` + replica instance)
+
+**Activation:**
+```bash
+# In terraform.tfvars:
+# enable_dr_replica  = true
+# cloudsql_tier      = "db-custom-1-3840"  # Required — db-f1-micro doesn't support replicas
+
+terraform plan   # Verify changes
+terraform apply  # Creates Delhi replica
+```
+
+**Failover (manual promotion):**
+```bash
+gcloud sql instances promote-replica production-postgres-replica --project=hta-platform-prod
+# Then update DATABASE_URL in Secret Manager to point to promoted instance
+```
 
 ```hcl
-# terraform/modules/cloudsql/replica.tf
+# terraform/modules/cloudsql/replica.tf (actual implementation)
 
 resource "google_sql_database_instance" "replica" {
-  name                 = "hta-main-replica"
+  count = var.enable_replica ? 1 : 0
+
+  name                 = "${var.instance_name}-replica"
   master_instance_name = google_sql_database_instance.main.name
-  region               = "us-west1" # Different region from primary (asia-south1)
-  database_version     = "POSTGRES_16"
+  region               = var.replica_region   # asia-south2 (Delhi)
+  database_version     = var.database_version
 
   replica_configuration {
     failover_target = true
   }
 
   settings {
-    tier              = "db-custom-2-4096"
-    availability_type = "REGIONAL"
-    
+    tier              = var.replica_tier != null ? var.replica_tier : var.tier
+    availability_type = "ZONAL"   # No HA standby on the replica itself
+    disk_size         = var.disk_size
+    disk_type         = "PD_SSD"
+    disk_autoresize   = true
+
     backup_configuration {
-      enabled = false # Replica doesn't need separate backups
+      enabled = false  # Replica doesn't need separate backups
     }
 
     ip_configuration {
       ipv4_enabled    = false
-      private_network = var.vpc_network_id
+      private_network = var.replica_vpc_network_id != null ? var.replica_vpc_network_id : var.vpc_network_id
     }
   }
 
-  deletion_protection = true
+  deletion_protection = var.deletion_protection
 }
-
-# Failover command (manual)
-# gcloud sql instances failover hta-main-replica --project=hta-calibration-prod
 ```
 
 ### 19.5 GCS Storage Configuration
@@ -4805,13 +4843,23 @@ resource "google_storage_bucket" "main" {
 
 | Metric | Definition | Target | Current Capability | Status |
 |--------|------------|--------|-------------------|--------|
-| **RPO** | Maximum acceptable data loss | 1 hour | 5 min (PITR) | ✅ |
+| **RPO** | Maximum acceptable data loss | 1 hour | ~5 min (PITR) | ✅ |
 | **RTO** | Time to restore service | 1 hour | ~30 min (estimated) | ⏳ Untested |
 | **MTTR** | Mean time to repair | 2 hours | TBD | ⏳ |
-| **Backup frequency** | Automated backups | Daily | Daily 3 AM | ✅ |
-| **PITR window** | Point-in-time recovery | 7 days | Configurable | ✅ |
-| **Backup retention** | How long backups kept | 30 days | Configurable | ✅ |
-| **Geo-redundancy** | Cross-region failover | Yes | ⏳ Planned | ⏳ |
+| **Backup frequency** | Automated backups | Daily | Daily 3 AM IST | ✅ |
+| **PITR window** | Point-in-time recovery | 7 days | 7 days (transaction logs) | ✅ |
+| **Backup retention** | How long backups kept | 3 years | 1095 days configured | ✅ |
+| **Geo-redundancy** | Cross-region failover | Optional | Delhi replica ready, not deployed | 📋 Ready |
+
+#### Current Strategy vs With Delhi DR
+
+| | Backup-Only (Current) | + Delhi Replica |
+|--|----------------------|-----------------|
+| **RPO** | ~5 min | ~seconds |
+| **RTO** | ~30 min | ~2 min |
+| **Monthly cost** | ~$17 (db-f1-micro) | ~$117 (db-custom-1-3840 × 2) |
+| **Protects against** | Data corruption, accidental deletion, audits | Region outage, instant failover |
+| **Data history** | 3 years of point-in-time snapshots | Current state only |
 
 ### 19.7 Disaster Scenarios & Responses
 
@@ -6713,7 +6761,7 @@ integration-tests:
 > **Environments:** Dev + Production (no staging)
 > **Platform:** GKE Standard with Sustained Use Discount
 > **Queue:** Redis (Memorystore) + BullMQ
-> **Database:** Cloud SQL db-f1-micro, 50GB SSD
+> **Database:** Cloud SQL db-f1-micro, Zonal, 100GB SSD, 3-year backup retention
 > **Storage:** GCS (images) + Artifact Registry (Docker)
 > **Target Cost:** ~$150-175/month all-in (GCP + external services)
 > **Domain:** hta-calibration.com
@@ -6771,7 +6819,7 @@ For a small calibration certificate management application, a two-environment ap
 | **Single GKE cluster** | ~$70/mo | Both envs share cluster (namespace isolation) |
 | **Shared Redis instance** | ~$35/mo | Both envs use same Redis (key prefix isolation) |
 | **Shared Cloud SQL** | ~$10/mo | Same instance, separate databases |
-| **db-f1-micro** | ~$90/mo vs larger | Shared CPU, enough for 5K certs/mo |
+| **db-custom-1-3840** | ~$40/mo vs larger | Minimum tier for read replicas, enough for 5K certs/mo |
 
 #### Why Not Spot/Preemptible VMs?
 
@@ -6794,7 +6842,7 @@ For a small calibration certificate management application, a two-environment ap
 |----------|------|-----------------|
 | **GKE Cluster** | `hta-platform-cluster` (1 e2-medium node, sustained use) | Shared |
 | **Namespaces** | `hta-dev`, `hta-prod` | Separate |
-| **Cloud SQL** | `hta-db` (db-f1-micro, 50GB SSD) | Shared instance, separate databases |
+| **Cloud SQL** | `hta-db` (db-f1-micro, Zonal, 100GB SSD, 3-year backups) | Shared instance, separate databases |
 | **Memorystore Redis** | `hta-redis` (1GB Basic tier) | Shared instance, key prefix isolation |
 | **GCS Certificates** | `hta-dev-certificates`, `hta-prod-certificates` | Separate buckets |
 | **GCS Images** | `hta-dev-images`, `hta-prod-images` | Separate buckets |
@@ -7154,8 +7202,8 @@ GCS_IMAGES_BUCKET=hta-prod-images
 |----------|----------|------|--------------|
 | **Compute** | GKE Node | 1x e2-medium (sustained use) | ~$20 |
 | | GKE Management | Zonal cluster | Free |
-| **Database** | Cloud SQL | db-f1-micro, 50GB SSD | ~$17 |
-| | Automated Backups | 7-day retention | ~$2 |
+| **Database** | Cloud SQL | db-f1-micro, Zonal, 100GB SSD | ~$17 |
+| | Automated Backups | 3-year retention (1095 days) | ~$15-25 |
 | **Cache** | Memorystore Redis | 1GB Basic tier | ~$35 |
 | **Load Balancing** | HTTP(S) LB | Forwarding rules + traffic | ~$18 |
 | **Storage** | GCS Images | ~360GB Year 1 | ~$7 |
@@ -7171,7 +7219,7 @@ GCS_IMAGES_BUCKET=hta-prod-images
 | **Serverless** | Cloud Function | Image processing | ~$1 |
 | **DNS** | Cloud DNS | 1 zone | ~$1 |
 | | SSL Certificates | Managed | Free |
-| **GCP Subtotal** | | | **~$122/month** |
+| **GCP Subtotal** | | | **~$135/month** |
 
 #### 26.9.2 External Service Costs
 
@@ -7186,11 +7234,11 @@ GCS_IMAGES_BUCKET=hta-prod-images
 
 | Category | Year 1 | Year 2 | Year 3 |
 |----------|--------|--------|--------|
-| GCP Infrastructure | ~$122 | ~$130 | ~$140 |
+| GCP Infrastructure | ~$135 | ~$145 | ~$155 |
 | External Services | ~$25 | ~$25 | ~$45 |
-| **Total** | **~$147/month** | **~$155/month** | **~$185/month** |
+| **Total** | **~$160/month** | **~$170/month** | **~$200/month** |
 
-> Cost growth is primarily driven by GCS image storage (~$7/year increase)
+> No DR replica — PITR backups with 3-year retention provide RPO ~5 min, RTO ~30 min. Delhi DR replica available in Terraform (`enable_dr_replica = true`) when scale justifies it (~+$100/mo, requires db-custom-1-3840 minimum). Cost growth driven by GCS image storage (~$7/year increase) and backup storage growth.
 
 #### 26.9.4 Storage Growth Projection
 

@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Online Conflict Resolution — HTA Calibr8s Wireframe</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #0f172a; }
+
+  /* ════════════════════════════════════════════════════════════════════
+     PAGE LABEL (wireframe annotation)
+     ════════════════════════════════════════════════════════════════════ */
+  .page-label {
+    background: #0f172a; color: #94a3b8; padding: 10px 24px; font-size: 11px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    border-bottom: 2px solid #f59e0b;
+  }
+  .page-label span { color: #fbbf24; }
+
+  /* ════════════════════════════════════════════════════════════════════
+     PAGE 1: CERTIFICATE EDITOR — 409 Conflict Detected Toast
+     Shows the initial notification when conflict is detected on save
+     ════════════════════════════════════════════════════════════════════ */
+
+  .editor-mock {
+    background: white; min-height: 500px; position: relative;
+    border: 1px solid #e2e8f0; margin: 24px; border-radius: 14px; overflow: hidden;
+  }
+  .editor-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+  }
+  .editor-toolbar h2 { font-size: 16px; font-weight: 700; color: #0f172a; }
+  .editor-toolbar .breadcrumb { font-size: 12px; color: #94a3b8; }
+  .editor-toolbar .breadcrumb a { color: #64748b; text-decoration: none; }
+  .editor-body { padding: 24px; opacity: 0.3; }
+  .editor-body .field-row { display: flex; gap: 16px; margin-bottom: 16px; }
+  .editor-body .field { flex: 1; }
+  .editor-body .field label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
+  .editor-body .field input { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; color: #0f172a; }
+
+  .save-btn-mock {
+    padding: 8px 20px; background: #16a34a; color: white; border: none;
+    border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+
+  /* Conflict toast */
+  .conflict-toast {
+    position: absolute; top: 16px; right: 16px; left: 16px;
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px;
+    padding: 16px 20px; display: flex; align-items: flex-start; gap: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    z-index: 10;
+  }
+  .conflict-toast .icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+  .conflict-toast .content { flex: 1; }
+  .conflict-toast .title { font-size: 14px; font-weight: 700; color: #92400e; margin-bottom: 4px; }
+  .conflict-toast .desc { font-size: 13px; color: #a16207; line-height: 1.4; }
+  .conflict-toast .desc strong { color: #92400e; }
+  .conflict-toast .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .conflict-toast .actions .btn {
+    padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    border: 1px solid #e2e8f0; background: white; color: #0f172a; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px; text-decoration: none;
+  }
+  .conflict-toast .actions .btn:hover { background: #f8fafc; }
+  .conflict-toast .actions .btn.primary { background: #f59e0b; color: white; border-color: #f59e0b; }
+  .conflict-toast .actions .btn.primary:hover { background: #d97706; }
+  .conflict-toast .actions .btn.outline { color: #64748b; }
+
+  /* Page divider */
+  .page-divider { height: 40px; background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 10px, #f1f5f9 10px, #f1f5f9 20px); }
+
+  /* ════════════════════════════════════════════════════════════════════
+     PAGE 2: FULL-SCREEN CONFLICT RESOLUTION OVERLAY
+     Modal overlay that appears when user clicks "Review & Merge"
+     ════════════════════════════════════════════════════════════════════ */
+
+  .overlay-bg {
+    background: rgba(15, 23, 42, 0.6);
+    min-height: 100vh; padding: 0;
+    display: flex; align-items: flex-start; justify-content: center;
+  }
+
+  .overlay-panel {
+    background: white; width: 100%; max-width: 1100px;
+    margin: 24px auto; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    max-height: calc(100vh - 48px);
+    display: flex; flex-direction: column;
+  }
+
+  /* Overlay header */
+  .overlay-header {
+    padding: 16px 24px; border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    background: #fefce8;
+  }
+  .overlay-header .warn-icon {
+    width: 40px; height: 40px; border-radius: 10px; background: #fef3c7;
+    border: 1px solid #fde68a; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .overlay-header .header-text { flex: 1; }
+  .overlay-header .header-text h2 { font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
+  .overlay-header .header-text p { font-size: 13px; color: #64748b; margin-top: 2px; }
+  .overlay-header .close-btn {
+    width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0;
+    background: white; cursor: pointer; font-size: 16px; color: #64748b;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay-header .close-btn:hover { background: #f8fafc; }
+
+  /* Version info bar */
+  .version-bar {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    padding: 14px 24px; border-bottom: 1px solid #f1f5f9; flex-shrink: 0;
+  }
+  .version-card {
+    padding: 10px 14px; border-radius: 10px; display: flex; align-items: center; gap: 10px;
+  }
+  .version-card.yours { background: #eff6ff; border: 1px solid #bfdbfe; }
+  .version-card.theirs { background: #faf5ff; border: 1px solid #e9d5ff; }
+  .version-card .v-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .version-card.yours .v-label { color: #2563eb; }
+  .version-card.theirs .v-label { color: #7c3aed; }
+  .version-card .v-detail { font-size: 12px; color: #64748b; }
+  .version-card .v-avatar {
+    width: 28px; height: 28px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0;
+  }
+  .version-card.yours .v-avatar { background: #dbeafe; color: #2563eb; }
+  .version-card.theirs .v-avatar { background: #ede9fe; color: #7c3aed; }
+
+  /* Toolbar */
+  .overlay-toolbar {
+    padding: 10px 24px; border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    background: #f8fafc;
+  }
+  .overlay-toolbar .left { display: flex; align-items: center; gap: 12px; }
+  .overlay-toolbar .legend { display: flex; gap: 14px; font-size: 11px; color: #64748b; }
+  .overlay-toolbar .legend span { display: flex; align-items: center; gap: 5px; }
+  .overlay-toolbar .legend .dot { width: 10px; height: 10px; border-radius: 3px; }
+  .overlay-toolbar .legend .dot.changed { background: #fef3c7; border: 1px solid #f59e0b; }
+  .overlay-toolbar .quick-btns { display: flex; gap: 6px; align-items: center; font-size: 12px; color: #64748b; }
+
+  .btn { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; background: white; color: #0f172a; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .btn:hover { background: #f8fafc; }
+  .btn.primary { background: #16a34a; color: white; border-color: #16a34a; }
+  .btn.primary:hover { background: #15803d; }
+  .btn.mine-pick { color: #2563eb; border-color: #bfdbfe; }
+  .btn.mine-pick:hover { background: #eff6ff; }
+  .btn.theirs-pick { color: #7c3aed; border-color: #e9d5ff; }
+  .btn.theirs-pick:hover { background: #faf5ff; }
+  .btn.outline-amber { color: #92400e; border-color: #fde68a; }
+  .btn.outline-amber:hover { background: #fffbeb; }
+
+  /* Scrollable body */
+  .overlay-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+  /* ─── Collapsible Sections ─── */
+  .hta-section { background: white; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; margin-bottom: 10px; }
+  .hta-section-header { display: flex; align-items: center; padding: 12px 18px; cursor: pointer; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+  .hta-section-header .section-num { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; padding: 3px 8px; background: #f1f5f9; border-radius: 5px; margin-right: 10px; }
+  .hta-section-header .section-label { font-size: 14px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; flex: 1; }
+  .hta-section-header .change-count { font-size: 10px; font-weight: 600; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 999px; margin-left: 8px; }
+  .hta-section-header .no-change { font-size: 10px; font-weight: 500; color: #94a3b8; margin-left: 8px; }
+  .hta-section-header .chevron { color: #94a3b8; font-size: 14px; margin-left: 8px; transition: transform 0.2s; }
+  .hta-section-body { padding: 16px 18px; }
+
+  /* Resolution pill */
+  .res-pill { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-left: 8px; }
+  .res-pill.none { background: #fee2e2; color: #991b1b; }
+  .res-pill.partial { background: #fef3c7; color: #92400e; }
+  .res-pill.complete { background: #dcfce7; color: #166534; }
+
+  /* ─── Conflict table ─── */
+  .conflict-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .conflict-table thead th {
+    text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8;
+    border-bottom: 2px solid #e2e8f0; background: #f8fafc;
+  }
+  .conflict-table thead th.mine-col { color: #2563eb; background: #eff6ff; }
+  .conflict-table thead th.theirs-col { color: #7c3aed; background: #faf5ff; }
+  .conflict-table thead th.pick-col { text-align: center; width: 100px; }
+  .conflict-table tbody td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+
+  .conflict-table tr.same-row td { color: #94a3b8; }
+  .conflict-table tr.diff-row { background: #fffbeb; }
+  .conflict-table tr.diff-row td { color: #0f172a; }
+  .conflict-table tr.diff-row td.mine-val { font-weight: 600; }
+  .conflict-table tr.diff-row td.theirs-val { font-weight: 600; }
+  .conflict-table tr.diff-row td.mine-val.picked { background: #dbeafe; border-radius: 4px; }
+  .conflict-table tr.diff-row td.theirs-val.picked { background: #ede9fe; border-radius: 4px; }
+
+  /* L/S toggle (reused as M/T — Mine/Theirs) */
+  .pick-toggle { display: inline-flex; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+  .pick-toggle button {
+    padding: 3px 10px; font-size: 10px; font-weight: 600; border: none;
+    cursor: pointer; background: white; color: #64748b; transition: all 0.12s;
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .pick-toggle button:first-child { border-right: 1px solid #e2e8f0; }
+  .pick-toggle button.active-mine { background: #2563eb; color: white; }
+  .pick-toggle button.active-theirs { background: #7c3aed; color: white; }
+  .pick-toggle button:hover:not(.active-mine):not(.active-theirs) { background: #f8fafc; }
+
+  /* Section quick-select */
+  .section-quick { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .section-quick .label { font-size: 11px; color: #94a3b8; font-weight: 600; }
+
+  /* Sticky footer */
+  .overlay-footer {
+    padding: 14px 24px; border-top: 1px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    background: white;
+  }
+  .overlay-footer .summary { font-size: 12px; color: #64748b; }
+  .overlay-footer .summary strong { color: #0f172a; }
+
+  /* ════════════════════════════════════════════════════════════════════
+     PAGE 3: SIMPLE MODE — "Quick Resolve" for few conflicts
+     When there are <= 3 conflicting fields, show inline in a compact dialog
+     ════════════════════════════════════════════════════════════════════ */
+
+  .simple-dialog-bg {
+    background: rgba(15, 23, 42, 0.5);
+    min-height: 400px; padding: 60px 24px;
+    display: flex; align-items: flex-start; justify-content: center;
+  }
+  .simple-dialog {
+    background: white; width: 100%; max-width: 560px;
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .simple-dialog .sd-header {
+    padding: 20px 24px 16px; display: flex; align-items: flex-start; gap: 14px;
+  }
+  .simple-dialog .sd-icon {
+    width: 44px; height: 44px; border-radius: 12px; background: #fef3c7;
+    border: 1px solid #fde68a; display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .simple-dialog .sd-header h3 { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  .simple-dialog .sd-header p { font-size: 13px; color: #64748b; line-height: 1.4; }
+
+  .simple-dialog .sd-body { padding: 0 24px 20px; }
+
+  .inline-conflict {
+    border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .inline-conflict .ic-field {
+    padding: 8px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;
+  }
+  .inline-conflict .ic-options { display: grid; grid-template-columns: 1fr 1fr; }
+  .inline-conflict .ic-option {
+    padding: 12px 14px; cursor: pointer; border: 2px solid transparent;
+    transition: all 0.15s; position: relative;
+  }
+  .inline-conflict .ic-option:first-child { border-right: 1px solid #f1f5f9; }
+  .inline-conflict .ic-option .ic-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    margin-bottom: 4px; display: flex; align-items: center; gap: 5px;
+  }
+  .inline-conflict .ic-option.mine-side .ic-label { color: #2563eb; }
+  .inline-conflict .ic-option.theirs-side .ic-label { color: #7c3aed; }
+  .inline-conflict .ic-option .ic-value { font-size: 14px; color: #0f172a; font-weight: 500; }
+  .inline-conflict .ic-option .ic-meta { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+
+  .inline-conflict .ic-option.selected-mine {
+    background: #eff6ff; border-color: #2563eb;
+    border-radius: 8px; margin: 2px;
+  }
+  .inline-conflict .ic-option.selected-theirs {
+    background: #faf5ff; border-color: #7c3aed;
+    border-radius: 8px; margin: 2px;
+  }
+  .inline-conflict .ic-option .check-mark {
+    position: absolute; top: 8px; right: 8px; width: 18px; height: 18px;
+    border-radius: 50%; display: none; align-items: center; justify-content: center;
+    font-size: 11px; color: white; font-weight: 700;
+  }
+  .inline-conflict .ic-option.selected-mine .check-mark { display: flex; background: #2563eb; }
+  .inline-conflict .ic-option.selected-theirs .check-mark { display: flex; background: #7c3aed; }
+
+  .simple-dialog .sd-footer {
+    padding: 14px 24px; border-top: 1px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #f8fafc;
+  }
+  .simple-dialog .sd-footer .sd-count { font-size: 12px; color: #64748b; }
+
+  /* ════════════════════════════════════════════════════════════════════
+     ANNOTATION BOXES (explain wireframe choices)
+     ════════════════════════════════════════════════════════════════════ */
+  .annotation {
+    margin: 0 24px 24px; padding: 14px 18px; background: #ecfdf5; border: 1px solid #a7f3d0;
+    border-radius: 10px; font-size: 12px; color: #065f46; line-height: 1.5;
+  }
+  .annotation strong { color: #047857; }
+  .annotation ul { margin: 8px 0 0 16px; }
+  .annotation li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     PAGE 1: SAVE CONFLICT TOAST (Initial Detection)
+     When user clicks Save and gets a 409, this toast appears over the editor
+     ════════════════════════════════════════════════════════════════════════ -->
+
+<div class="page-label">Page 1 — <span>Save Conflict Detection (Toast on Certificate Editor)</span></div>
+
+<div class="annotation">
+  <strong>Context:</strong> User A is editing certificate HTA-CAL-2026-0142. While they were editing,
+  User B saved changes to the same certificate. When User A clicks Save, the API returns HTTP 409.
+  This toast appears immediately. The editor form stays visible but dimmed behind.
+</div>
+
+<div class="editor-mock">
+  <!-- Toast -->
+  <div class="conflict-toast">
+    <div class="icon">&#x26A0;&#xFE0F;</div>
+    <div class="content">
+      <div class="title">Save Conflict Detected</div>
+      <div class="desc">
+        This certificate was updated by <strong>Ravi Kumar</strong> 12 minutes ago while you were editing.
+        Your changes cannot be saved without resolving the differences.
+      </div>
+      <div class="actions">
+        <a href="#page2" class="btn primary">&#x1F50D; Review & Merge</a>
+        <button class="btn outline-amber">&#x2B07; Download My Changes</button>
+        <button class="btn outline">&#x21BB; Discard & Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dimmed editor behind -->
+  <div class="editor-toolbar">
+    <div>
+      <div class="breadcrumb"><a href="#">Dashboard</a> / <a href="#">Certificates</a> / Edit</div>
+      <h2>HTA-CAL-2026-0142 &mdash; Digital Pressure Gauge</h2>
+    </div>
+    <button class="save-btn-mock" style="opacity:0.4">Save Certificate</button>
+  </div>
+  <div class="editor-body">
+    <div class="field-row">
+      <div class="field"><label>Customer Name</label><input value="Acme Manufacturing Pvt Ltd" disabled></div>
+      <div class="field"><label>Contact Name</label><input value="Rajesh Menon" disabled></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Address</label><input value="Plot 42, Industrial Area, Chennai 600032" disabled></div>
+      <div class="field"><label>Contact Email</label><input value="rajesh@acmemfg.in" disabled></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>SRF Number</label><input value="SRF-2026-0389" disabled></div>
+      <div class="field"><label>Calibration Date</label><input value="2026-04-28" disabled></div>
+    </div>
+  </div>
+</div>
+
+<div class="annotation">
+  <strong>Three options:</strong>
+  <ul>
+    <li><strong>Review & Merge</strong> (primary) &mdash; Opens field-by-field comparison. Recommended when changes overlap.</li>
+    <li><strong>Download My Changes</strong> &mdash; Exports current form data as JSON backup. Same as current behavior.</li>
+    <li><strong>Discard & Refresh</strong> &mdash; Reloads with latest server version, losing unsaved edits. Same as current behavior.</li>
+  </ul>
+</div>
+
+<div class="page-divider"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     PAGE 2: FULL MERGE VIEW (Many Conflicts)
+     Full-screen overlay with field-by-field comparison, section collapsing,
+     and per-field Mine/Theirs toggle. Appears when user clicks "Review & Merge"
+     and there are 4+ conflicting fields.
+     ════════════════════════════════════════════════════════════════════════ -->
+
+<div class="page-label" id="page2">Page 2 — <span>Full Merge View (4+ conflicting fields)</span></div>
+
+<div class="annotation">
+  <strong>When to show this view:</strong> When the conflict diff has 4 or more changed fields across
+  multiple sections. For 1-3 conflicts, use the compact dialog (Page 3).
+  <br><br>
+  <strong>Key differences from offline version:</strong>
+  <ul>
+    <li>Opens as a modal overlay (not a full page) &mdash; user stays in the editor context</li>
+    <li>Labels are "Your Changes" vs "Saved Version" (not "Local" vs "Server")</li>
+    <li>Shows who made the conflicting save and when</li>
+    <li>No "Sync Conflict" status badge on dashboard &mdash; conflicts are transient (resolved immediately)</li>
+    <li>Simpler header &mdash; no breadcrumb/revision info (already visible in the editor behind)</li>
+  </ul>
+</div>
+
+<div class="overlay-bg">
+  <div class="overlay-panel">
+    <!-- Header -->
+    <div class="overlay-header">
+      <div class="warn-icon">&#x26A0;&#xFE0F;</div>
+      <div class="header-text">
+        <h2>Resolve Conflicting Changes</h2>
+        <p>HTA-CAL-2026-0142 &mdash; 9 fields differ between your version and the saved version. Pick which value to keep for each.</p>
+      </div>
+      <button class="close-btn" title="Close (changes not saved)">&times;</button>
+    </div>
+
+    <!-- Version info -->
+    <div class="version-bar">
+      <div class="version-card yours">
+        <div class="v-avatar">AS</div>
+        <div>
+          <div class="v-label">Your Changes</div>
+          <div class="v-detail">Unsaved edits from this session</div>
+        </div>
+      </div>
+      <div class="version-card theirs">
+        <div class="v-avatar">RK</div>
+        <div>
+          <div class="v-label">Saved Version</div>
+          <div class="v-detail">Saved by Ravi Kumar &bull; 12 min ago</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="overlay-toolbar">
+      <div class="left">
+        <div class="quick-btns">
+          Quick select all:
+          <button class="btn mine-pick" onclick="selectAll('mine')">&#x2190; Keep All Mine</button>
+          <button class="btn theirs-pick" onclick="selectAll('theirs')">Accept All Theirs &#x2192;</button>
+        </div>
+        <div class="legend">
+          <span><span class="dot changed"></span> Conflicting value</span>
+          <span style="color:#94a3b8">Grey = identical</span>
+        </div>
+      </div>
+      <div style="font-size: 12px; color: #64748b;" id="toolbar-count">0 of 9 resolved</div>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="overlay-body">
+
+      <!-- §1 Customer Details — 2 conflicts -->
+      <div class="hta-section" data-section="customer">
+        <div class="hta-section-header" onclick="toggleSection(this)">
+          <span class="section-num">&sect;1</span>
+          <span class="section-label">Customer Details</span>
+          <span class="change-count">2 conflicts</span>
+          <span class="res-pill none" id="customer-pill">0 / 2</span>
+          <span class="chevron">&#9660;</span>
+        </div>
+        <div class="hta-section-body">
+          <div class="section-quick">
+            <span class="label">This section:</span>
+            <button class="btn mine-pick" style="padding:3px 10px;font-size:11px" onclick="selectSection(this,'mine')">&#x2190; All mine</button>
+            <button class="btn theirs-pick" style="padding:3px 10px;font-size:11px" onclick="selectSection(this,'theirs')">All theirs &#x2192;</button>
+          </div>
+          <table class="conflict-table">
+            <thead>
+              <tr><th>Field</th><th class="mine-col">Your Value</th><th class="theirs-col">Saved Value</th><th class="pick-col">Use</th></tr>
+            </thead>
+            <tbody>
+              <tr class="same-row"><td>Customer Name</td><td>Acme Manufacturing Pvt Ltd</td><td>Acme Manufacturing Pvt Ltd</td><td style="text-align:center;font-size:11px;color:#94a3b8">&mdash;</td></tr>
+              <tr class="diff-row">
+                <td style="font-weight:600">Address</td>
+                <td class="mine-val">Plot 42, Industrial Area, Chennai 600032</td>
+                <td class="theirs-val">Plot 42, SIDCO Industrial Estate, Chennai 600032</td>
+                <td style="text-align:center"><div class="pick-toggle"><button onclick="pick(this,'mine')">M</button><button onclick="pick(this,'theirs')">T</button></div></td>
+              </tr>
+              <tr class="diff-row">
+                <td style="font-weight:600">Contact Name</td>
+                <td class="mine-val">Rajesh Menon</td>
+                <td class="theirs-val">Suresh Iyer</td>
+                <td style="text-align:center"><div class="pick-toggle"><button onclick="pick(this,'mine')">M</button><button onclick="pick(this,'theirs')">T</button></div></td>
+              </tr>
+              <tr class="same-row"><td>Contact Email</td><td>rajesh@acmemfg.in</td><td>rajesh@acmemfg.in</td><td style="text-align:center;font-size:11px;color:#94a3b8">&mdash;</td></tr>
+              <tr class="same-row"><td>Contact Phone</td><td>+91 44 2812 3456</td><td>+91 44 2812 3456</td><td style="text-align:center;font-size:11px;color:#94a3b8">&mdash;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- §2 UUC Details — no conflicts -->
+      <div class="hta-section" style="opacity:0.7">
+        <div class="hta-section-header" onclick="toggleSection(this)">
+          <span class="section-num">&sect;2</span>
+          <span class="section-label">UUC Details</span>
+          <span class="no-change">No conflicts</span>
+          <span class="chevron" style="transform:rotate(-90deg)">&#9660;</span>
+        </div>
+        <div class="hta-section-body" style="display:none;">
+          <table class="conflict-table" style="opacity:0.6">
+            <thead><tr><th>Field</th><th>Value (identical)</th></tr></thead>
+            <tbody>
+              <tr class="same-row"><td>Description</td><td>Digital Pressure Gauge</td></tr>
+              <tr class="same-row"><td>Make / Model</td><td>Fluke / 700G30</td></tr>
+              <tr class="same-row"><td>Serial Number</td><td>FLK-4821937</td></tr>
+              <tr class="same-row"><td>Range</td><td>0 &ndash; 30 bar</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- §3 Calibration & Environment — 1 conflict -->
+      <div class="hta-section" data-section="calibration">
+        <div class="hta-section-header" onclick="toggleSection(this)">
+          <span class="section-num">&sect;3</span>
+          <span class="section-label">Calibration Details & Environment</span>
+          <span class="change-count">1 conflict</span>
+          <span class="res-pill none" id="calibration-pill">0 / 1</span>
+          <span class="chevron">&#9660;</span>
+        </div>
+        <div class="hta-section-body">
+          <div class="section-quick">
+            <span class="label">This section:</span>
+            <button class="btn mine-pick" style="padding:3px 10px;font-size:11px" onclick="selectSection(this,'mine')">&#x2190; All mine</button>
+            <button class="btn theirs-pick" style="padding:3px 10px;font-size:11px" onclick="selectSection(this,'theirs')">All theirs &#x2192;</button>
+          </div>
+          <table class="conflict-table">
+            <thead>
+              <tr><th>Field</th><th class="mine-col">Your Value</th><th class="theirs-col">Saved Value</th><th class="pick-col">Use</th></tr>
+            </thead>
+            <tbody>
+              <tr class="same-row"><td>Date of Calibration</td><td>28 Apr 2026</td><td>28 Apr 2026</td><td style="text-align:center;font-size:11px;color:#94a3b8">&mdash;</td></tr>
+              <tr class="same-row"><td>SRF Number</td><td>SRF-2026-0389</td><td>SRF-2026-0389</td><td style="text-align:center;font-size:11px;color:#94a3b8">&mdash;</td></tr>
+              <tr class="diff-row">
+                <td style="font-weight:600">Ambient Temp</td>
+                <td class="mine-val">23.5 &deg;C</td>
+                <td class="theirs-val">24.1 &deg;C</td>
+                <td style="text-align:center"><div class="pick-toggle"><button onclick="pick(this,'mine')">M</button><button onclick="pick(this,'theirs')">T</button></div></td>
+              </tr>
+              <tr class="same-row"><td>Humidity</td><td>52% RH</td><td>52% RH</td><td style="text-align:center;font-size:11px;color:#94a3b8">&mdash;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- §4 Pressure Results — 3 conflicts -->
+      <div class="hta-section" data-section="pressure">
+        <div class="hta-section-header" onclick="toggleSection(this)">
+          <span class="section-num">&sect;4</span>
+          <span class="section-label">Parameter 1: Pressure <span style="font-weight:400;color:#94a3b8;font-size:13px">(bar)</span></span>
+          <span class="change-count">3 conflicts</span>
+          <span class="res-pill none" id="pressure-pill">0 / 3</span>
+          <span class="chevron">&#9660;</span>
+        </div>
+        <div class="hta-section-body">
+          <div style="display:flex;gap:24px;margin-bottom:10px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:12px;">
+            <span><span style="color:#94a3b8;font-weight:600">Master:</span> HTA-MI-PG-001</span>
+            <span><span style="color:#94a3b8;font-weight:600">Range:</span> 0&ndash;30 bar</span>
+            <span><span style="color:#94a3b8;font-weight:600">LC:</span> 0.001 bar</span>
+          </div>
+          <div class="section-quick">
+            <span class="label">This section:</span>
+            <button class="btn mine-pick" style="padding:3px 10px;font-size:11px" onclick="selectSection(this,'mine')">&#x2190; All mine</button>
+            <button class="btn theirs-pick" style="padding:3px 10px;font-size:11px" onclick="selectSection(this,'theirs')">All theirs &#x2192;</button>
+          </div>
+          <table class="conflict-table">
+            <thead>
+              <tr>
+                <th style="width:40px">Pt</th>
+                <th>Standard</th>
+                <th class="mine-col">UUC (Yours)</th>
+                <th class="mine-col">Error (Yours)</th>
+                <th class="theirs-col">UUC (Saved)</th>
+                <th class="theirs-col">Error (Saved)</th>
+                <th class="pick-col">Use</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="same-row">
+                <td>1</td><td>0.000</td><td>0.001</td><td>0.001</td><td>0.001</td><td>0.001</td>
+                <td style="text-align:center;font-size:11px;color:#94a3b8">&mdash;</td>
+              </tr>
+              <tr class="diff-row">
+                <td style="font-weight:700">2</td><td>6.000</td>
+                <td class="mine-val">6.012</td><td class="mine-val">0.012</td>
+                <td class="theirs-val">5.998</td><td class="theirs-val">-0.002</td>
+                <td style="text-align:center"><div class="pick-toggle"><button onclick="pick(this,'mine')">M</button><button onclick="pick(this,'theirs')">T</button></div></td>
+              </tr>
+              <tr class="diff-row">
+                <td style="font-weight:700">3</td><td>12.000</td>
+                <td class="mine-val">12.008</td><td class="mine-val">0.008</td>
+                <td class="theirs-val">12.003</td><td class="theirs-val">0.003</td>
+                <td style="text-align:center"><div class="pick-toggle"><button onclick="pick(this,'mine')">M</button><button onclick="pick(this,'theirs')">T</button></div></td>
+              </tr>
+              <tr class="same-row">
+                <td>4</td><td>18.000</td><td>18.003</td><td>0.003</td><td>18.003</td><td>0.003</td>
+                <td style="text-align:center;font-size:11px;color:#94a3b8">&mdash;</td>
+              </tr>
+              <tr class="diff-row">
+                <td style="font-weight:700">5</td><td>24.000</td>
+                <td class="mine-val">24.015</td><td class="mine-val">0.015</td>
+                <td class="theirs-val">24.001</td><td class="theirs-val">0.001</td>
+                <td style="text-align:center"><div class="pick-toggle"><button onclick="pick(this,'mine')">M</button><button onclick="pick(this,'theirs')">T</button></div></td>
+              </tr>
+              <tr class="same-row">
+                <td>6</td><td>30.000</td><td>30.002</td><td>0.002</td><td>30.002</td><td>0.002</td>
+                <td style="text-align:center;font-size:11px;color:#94a3b8">&mdash;</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top:10px;padding:8px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">
+            <strong>Note:</strong> Point 5 readings differ significantly &mdash; your value (24.015) vs saved (24.001). Verify before choosing.
+          </div>
+        </div>
+      </div>
+
+      <!-- §5 Temperature — no conflicts -->
+      <div class="hta-section" style="opacity:0.7">
+        <div class="hta-section-header" onclick="toggleSection(this)">
+          <span class="section-num">&sect;5</span>
+          <span class="section-label">Parameter 2: Temperature <span style="font-weight:400;color:#94a3b8;font-size:13px">(&deg;C)</span></span>
+          <span class="no-change">No conflicts</span>
+          <span class="chevron" style="transform:rotate(-90deg)">&#9660;</span>
+        </div>
+        <div class="hta-section-body" style="display:none;">
+          <table class="conflict-table" style="opacity:0.6">
+            <thead><tr><th>Pt</th><th>Standard</th><th>UUC</th><th>Error</th></tr></thead>
+            <tbody>
+              <tr class="same-row"><td>1</td><td>-20.0</td><td>-19.8</td><td>0.2</td></tr>
+              <tr class="same-row"><td>2</td><td>25.0</td><td>25.1</td><td>0.1</td></tr>
+              <tr class="same-row"><td>3</td><td>100.0</td><td>100.3</td><td>0.3</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- §6 Remarks — 3 conflicts -->
+      <div class="hta-section" data-section="remarks">
+        <div class="hta-section-header" onclick="toggleSection(this)">
+          <span class="section-num">&sect;6</span>
+          <span class="section-label">Remarks & Conclusion</span>
+          <span class="change-count">3 conflicts</span>
+          <span class="res-pill none" id="remarks-pill">0 / 3</span>
+          <span class="chevron">&#9660;</span>
+        </div>
+        <div class="hta-section-body">
+          <div class="section-quick">
+            <span class="label">This section:</span>
+            <button class="btn mine-pick" style="padding:3px 10px;font-size:11px" onclick="selectSection(this,'mine')">&#x2190; All mine</button>
+            <button class="btn theirs-pick" style="padding:3px 10px;font-size:11px" onclick="selectSection(this,'theirs')">All theirs &#x2192;</button>
+          </div>
+          <table class="conflict-table">
+            <thead>
+              <tr><th>Field</th><th class="mine-col">Your Value</th><th class="theirs-col">Saved Value</th><th class="pick-col">Use</th></tr>
+            </thead>
+            <tbody>
+              <tr class="same-row"><td>Calibration Status</td><td>Calibrated</td><td>Calibrated</td><td style="text-align:center;font-size:11px;color:#94a3b8">&mdash;</td></tr>
+              <tr class="diff-row">
+                <td style="font-weight:600">Status Notes</td>
+                <td class="mine-val">Pending re-check on point 5 pressure reading</td>
+                <td class="theirs-val">Readings verified, ready for review</td>
+                <td style="text-align:center"><div class="pick-toggle"><button onclick="pick(this,'mine')">M</button><button onclick="pick(this,'theirs')">T</button></div></td>
+              </tr>
+              <tr class="diff-row">
+                <td style="font-weight:600">Old Sticker</td>
+                <td class="mine-val">Not removed</td>
+                <td class="theirs-val">Removed</td>
+                <td style="text-align:center"><div class="pick-toggle"><button onclick="pick(this,'mine')">M</button><button onclick="pick(this,'theirs')">T</button></div></td>
+              </tr>
+              <tr class="diff-row">
+                <td style="font-weight:600">Conclusion</td>
+                <td class="mine-val">The instrument requires re-calibration at point 5</td>
+                <td class="theirs-val">The instrument is within prescribed limits</td>
+                <td style="text-align:center"><div class="pick-toggle"><button onclick="pick(this,'mine')">M</button><button onclick="pick(this,'theirs')">T</button></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="overlay-footer">
+      <div class="summary" id="footer-summary">
+        <strong>0 of 9</strong> conflicts resolved
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn">Cancel</button>
+        <button class="btn outline-amber" onclick="window.alert('Downloads form data as JSON backup')">&#x2B07; Download Backup</button>
+        <button class="btn primary" id="save-btn" style="opacity:0.5">Save Merged Version</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page-divider"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     PAGE 3: COMPACT DIALOG (1-3 conflicts)
+     Simpler inline card-based picker for small numbers of conflicts
+     ════════════════════════════════════════════════════════════════════════ -->
+
+<div class="page-label">Page 3 — <span>Compact Dialog (1&ndash;3 conflicting fields)</span></div>
+
+<div class="annotation">
+  <strong>When to show this view:</strong> When the conflict diff has only 1&ndash;3 changed fields.
+  A full-screen merge view would be overkill. Instead, show a focused dialog with card-based
+  side-by-side comparison. Each card is clickable to select that version.
+</div>
+
+<div class="simple-dialog-bg">
+  <div class="simple-dialog">
+    <!-- Header -->
+    <div class="sd-header">
+      <div class="sd-icon">&#x26A0;&#xFE0F;</div>
+      <div>
+        <h3>Resolve 2 Conflicting Fields</h3>
+        <p>
+          <strong style="color:#7c3aed">Ravi Kumar</strong> updated this certificate 12 min ago.
+          Pick which value to keep for each field.
+        </p>
+      </div>
+    </div>
+
+    <!-- Conflict cards -->
+    <div class="sd-body">
+
+      <!-- Conflict 1: Contact Name -->
+      <div class="inline-conflict">
+        <div class="ic-field">Contact Name</div>
+        <div class="ic-options">
+          <div class="ic-option mine-side selected-mine" onclick="pickInline(this, 'mine')">
+            <span class="check-mark">&#x2713;</span>
+            <div class="ic-label">&#x1F4DD; Your Value</div>
+            <div class="ic-value">Rajesh Menon</div>
+            <div class="ic-meta">Your unsaved edit</div>
+          </div>
+          <div class="ic-option theirs-side" onclick="pickInline(this, 'theirs')">
+            <span class="check-mark">&#x2713;</span>
+            <div class="ic-label">&#x1F4BE; Saved Value</div>
+            <div class="ic-value">Suresh Iyer</div>
+            <div class="ic-meta">Saved by Ravi Kumar</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conflict 2: Ambient Temp -->
+      <div class="inline-conflict">
+        <div class="ic-field">Ambient Temperature</div>
+        <div class="ic-options">
+          <div class="ic-option mine-side" onclick="pickInline(this, 'mine')">
+            <span class="check-mark">&#x2713;</span>
+            <div class="ic-label">&#x1F4DD; Your Value</div>
+            <div class="ic-value">23.5 &deg;C</div>
+            <div class="ic-meta">Your unsaved edit</div>
+          </div>
+          <div class="ic-option theirs-side selected-theirs" onclick="pickInline(this, 'theirs')">
+            <span class="check-mark">&#x2713;</span>
+            <div class="ic-label">&#x1F4BE; Saved Value</div>
+            <div class="ic-value">24.1 &deg;C</div>
+            <div class="ic-meta">Saved by Ravi Kumar</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="sd-footer">
+      <div class="sd-count">2 of 2 resolved &mdash; <strong style="color:#16a34a">ready to save</strong></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn" style="font-size:12px">Cancel</button>
+        <button class="btn primary" style="font-size:12px">Save Merged Version</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="annotation" style="margin-top: 24px;">
+  <strong>Implementation flow summary:</strong>
+  <ul>
+    <li><strong>Step 1:</strong> User clicks Save &rarr; API returns 409 with <code>{ serverVersion, serverTimestamp, updatedBy }</code></li>
+    <li><strong>Step 2:</strong> Frontend fetches the latest certificate data from the server</li>
+    <li><strong>Step 3:</strong> Deep-diff the user's form data against the server version to find changed fields</li>
+    <li><strong>Step 4:</strong> If &le;3 conflicts &rarr; show compact dialog (Page 3). If &ge;4 &rarr; show full merge (Page 2).</li>
+    <li><strong>Step 5:</strong> User picks per field. On "Save Merged Version", POST the merged payload with the server's <code>updatedAt</code> as the new base version.</li>
+    <li><strong>Step 6:</strong> If another conflict happens during merge-save (unlikely), repeat the flow.</li>
+  </ul>
+</div>
+
+<div class="page-divider"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     COMPARISON: Online vs Offline
+     ════════════════════════════════════════════════════════════════════════ -->
+
+<div class="page-label">Reference — <span>Online vs Offline Conflict Resolution Comparison</span></div>
+
+<div style="padding: 24px; max-width: 900px;">
+  <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+    <thead>
+      <tr style="border-bottom: 2px solid #e2e8f0;">
+        <th style="text-align:left; padding: 10px; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Aspect</th>
+        <th style="text-align:left; padding: 10px; color: #f59e0b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Online (This Wireframe)</th>
+        <th style="text-align:left; padding: 10px; color: #7c3aed; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Offline / Desktop</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px; font-weight: 600;">Trigger</td>
+        <td style="padding: 10px;">HTTP 409 on save (concurrent edit)</td>
+        <td style="padding: 10px;">Sync detects version mismatch on reconnect</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px; font-weight: 600;">Presentation</td>
+        <td style="padding: 10px;">Modal overlay on editor</td>
+        <td style="padding: 10px;">Full dedicated page</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px; font-weight: 600;">Labels</td>
+        <td style="padding: 10px;">"Your Changes" / "Saved Version"</td>
+        <td style="padding: 10px;">"Local" / "Server"</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px; font-weight: 600;">Persistence</td>
+        <td style="padding: 10px;">Transient &mdash; resolved immediately or discarded</td>
+        <td style="padding: 10px;">Persisted as CONFLICT status until resolved</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px; font-weight: 600;">Adaptive UI</td>
+        <td style="padding: 10px;">Compact dialog for 1&ndash;3 conflicts, full view for 4+</td>
+        <td style="padding: 10px;">Always full page (offline sync may have many changes)</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px; font-weight: 600;">Dashboard badge</td>
+        <td style="padding: 10px;">None (conflicts are ephemeral)</td>
+        <td style="padding: 10px;">"Sync Conflict" status + dashboard stat card</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px; font-weight: 600;">Fallback</td>
+        <td style="padding: 10px;">Download JSON backup + Discard & Refresh</td>
+        <td style="padding: 10px;">Download JSON backup</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: 600;">Shared code</td>
+        <td style="padding: 10px;" colspan="2">Same conflict-table, pick-toggle, section-collapse, and resolution counting logic</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+/* ── Pick a single value (M or T) ── */
+function pick(btn, side) {
+  const toggle = btn.parentElement;
+  const row = btn.closest('tr');
+
+  toggle.querySelectorAll('button').forEach(b => b.classList.remove('active-mine', 'active-theirs'));
+  btn.classList.add(side === 'mine' ? 'active-mine' : 'active-theirs');
+
+  row.querySelectorAll('.mine-val, .theirs-val').forEach(td => td.classList.remove('picked'));
+  row.querySelectorAll('.' + (side === 'mine' ? 'mine-val' : 'theirs-val')).forEach(td => td.classList.add('picked'));
+
+  updateCounts();
+}
+
+/* ── Global: all conflicts ── */
+function selectAll(side) {
+  document.querySelectorAll('.overlay-body .diff-row .pick-toggle').forEach(toggle => {
+    const btns = toggle.querySelectorAll('button');
+    pick(side === 'mine' ? btns[0] : btns[1], side);
+  });
+}
+
+/* ── Per-section ── */
+function selectSection(btn, side) {
+  btn.closest('.hta-section').querySelectorAll('.diff-row .pick-toggle').forEach(toggle => {
+    const btns = toggle.querySelectorAll('button');
+    pick(side === 'mine' ? btns[0] : btns[1], side);
+  });
+}
+
+/* ── Collapse/expand ── */
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  const chev = header.querySelector('.chevron');
+  if (body.style.display === 'none') {
+    body.style.display = '';
+    chev.style.transform = 'rotate(0deg)';
+  } else {
+    body.style.display = 'none';
+    chev.style.transform = 'rotate(-90deg)';
+  }
+}
+
+/* ── Counts ── */
+function updateCounts() {
+  const body = document.querySelector('.overlay-body');
+  let total = 0, resolved = 0;
+  body.querySelectorAll('.diff-row').forEach(row => {
+    total++;
+    if (row.querySelector('.active-mine, .active-theirs')) resolved++;
+  });
+  const rem = total - resolved;
+  document.getElementById('footer-summary').innerHTML =
+    `<strong>${resolved} of ${total}</strong> conflicts resolved` +
+    (rem > 0 ? ` &mdash; ${rem} remaining` : ' &mdash; <strong style="color:#16a34a">ready to save!</strong>');
+  document.getElementById('toolbar-count').textContent = `${resolved} of ${total} resolved`;
+  document.getElementById('save-btn').style.opacity = rem === 0 ? '1' : '0.5';
+
+  // Per-section pills
+  ['customer','calibration','pressure','remarks'].forEach(id => {
+    const sec = body.querySelector(`[data-section="${id}"]`);
+    const pill = document.getElementById(id + '-pill');
+    if (!sec || !pill) return;
+    const rows = sec.querySelectorAll('.diff-row');
+    let t = rows.length, d = 0;
+    rows.forEach(r => { if (r.querySelector('.active-mine, .active-theirs')) d++; });
+    pill.textContent = `${d} / ${t}`;
+    pill.className = 'res-pill ' + (d === 0 ? 'none' : d === t ? 'complete' : 'partial');
+  });
+}
+
+/* ── Compact dialog: inline pick ── */
+function pickInline(option, side) {
+  const conflict = option.closest('.inline-conflict');
+  conflict.querySelectorAll('.ic-option').forEach(o => {
+    o.classList.remove('selected-mine', 'selected-theirs');
+  });
+  option.classList.add(side === 'mine' ? 'selected-mine' : 'selected-theirs');
+}
+
+updateCounts();
+</script>
+
+</body>
+</html>

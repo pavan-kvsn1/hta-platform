@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobile Navbar Fix — HTA Calibr8s Wireframe</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #0f172a; }
+
+  /* Wireframe annotation */
+  .page-label {
+    background: #0f172a; color: #94a3b8; padding: 10px 24px; font-size: 11px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    border-bottom: 2px solid #ef4444;
+  }
+  .page-label span { color: #fca5a5; }
+  .page-label.good { border-bottom-color: #22c55e; }
+  .page-label.good span { color: #86efac; }
+
+  .annotation {
+    margin: 16px; padding: 14px 18px; border-radius: 10px;
+    font-size: 12px; line-height: 1.5;
+  }
+  .annotation.bad { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .annotation.good { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  .annotation strong { font-weight: 700; }
+  .annotation code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+  .annotation ul { margin: 8px 0 0 16px; }
+  .annotation li { margin-bottom: 4px; }
+
+  .page-divider { height: 40px; background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 10px, #f1f5f9 10px, #f1f5f9 20px); }
+
+  /* ── Phone frame ── */
+  .phone-frame {
+    width: 375px; margin: 24px auto; border-radius: 28px;
+    border: 3px solid #334155; background: #04090f; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .phone-frame.wide { width: 430px; } /* larger phone viewport */
+
+  /* ── Shared nav styles ── */
+  .mock-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; height: 56px; background: rgba(4, 9, 15, 0.88);
+    backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .mock-logo { display: flex; align-items: center; gap: 8px; }
+  .mock-logo .icon {
+    width: 34px; height: 34px; border-radius: 6px; background: #1e3a5f;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: #93c5fd; flex-shrink: 0;
+  }
+  .mock-logo .text { font-size: 13px; font-weight: 700; color: white; white-space: nowrap; }
+
+  .mock-nav-links {
+    display: flex; gap: 2px; flex-shrink: 0;
+  }
+  .mock-nav-link {
+    padding: 6px 8px; font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.45);
+    text-decoration: none; border-radius: 6px; white-space: nowrap;
+  }
+
+  .mock-hamburger {
+    width: 36px; height: 36px; border-radius: 8px; background: rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    border: none; cursor: pointer;
+  }
+  .mock-hamburger .bar {
+    width: 18px; height: 2px; background: white; border-radius: 1px;
+    position: relative;
+  }
+  .mock-hamburger .bar::before,
+  .mock-hamburger .bar::after {
+    content: ''; position: absolute; left: 0; width: 100%; height: 2px;
+    background: white; border-radius: 1px;
+  }
+  .mock-hamburger .bar::before { top: -6px; }
+  .mock-hamburger .bar::after { top: 6px; }
+
+  .mock-login-btn {
+    padding: 7px 14px; border-radius: 8px; background: #1a6fdb;
+    font-size: 12px; font-weight: 700; color: white; white-space: nowrap;
+    text-decoration: none; flex-shrink: 0;
+  }
+
+  /* ── Mobile menu dropdown ── */
+  .mock-mobile-menu {
+    background: rgba(4, 9, 15, 0.96); backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .mock-menu-item {
+    display: block; padding: 12px 14px; border-radius: 10px;
+    font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.55);
+    text-decoration: none;
+  }
+  .mock-menu-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 8px 0; }
+  .mock-menu-cta {
+    display: block; text-align: center; padding: 14px;
+    border-radius: 10px; background: #1a6fdb; color: white;
+    font-size: 15px; font-weight: 700; text-decoration: none; margin-top: 4px;
+  }
+  .mock-menu-cta.ghost {
+    background: transparent; border: 1px solid rgba(255,255,255,0.14);
+    color: rgba(255,255,255,0.6); margin-top: 0;
+  }
+
+  /* ── Hero mock (just enough to show context) ── */
+  .mock-hero {
+    padding: 24px 20px; background: #04090f;
+  }
+  .mock-eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+    color: #00d4b4; background: rgba(0,212,180,0.09); border: 1px solid rgba(0,212,180,0.2);
+    padding: 4px 10px; border-radius: 100px; margin-bottom: 16px;
+  }
+  .mock-eyebrow .dot {
+    width: 5px; height: 5px; border-radius: 50%; background: #00d4b4;
+  }
+  .mock-hero h1 {
+    font-size: 32px; font-weight: 900; line-height: 1.08; letter-spacing: -0.04em;
+    color: #f0f4ff; margin-bottom: 14px;
+  }
+  .mock-hero h1 .hi { color: #1a6fdb; }
+  .mock-hero p {
+    font-size: 14px; color: rgba(255,255,255,0.38); line-height: 1.65; margin-bottom: 24px;
+  }
+  .mock-hero-ctas { display: flex; flex-direction: column; gap: 10px; }
+  .mock-hero-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px 24px; border-radius: 12px; font-size: 15px; font-weight: 700;
+    text-decoration: none;
+  }
+  .mock-hero-btn.primary { background: #1a6fdb; color: white; }
+  .mock-hero-btn.ghost {
+    background: transparent; border: 1px solid rgba(255,255,255,0.14);
+    color: rgba(255,255,255,0.55);
+  }
+
+  /* Problem callout arrows */
+  .callout-arrow {
+    position: absolute; font-size: 11px; font-weight: 600; color: #ef4444;
+    display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .callout-arrow .line { width: 32px; height: 2px; background: #ef4444; }
+
+  /* Side-by-side */
+  .side-by-side {
+    display: flex; gap: 32px; justify-content: center; flex-wrap: wrap;
+    padding: 0 24px;
+  }
+  .side-label {
+    text-align: center; font-size: 13px; font-weight: 700; padding: 8px;
+    margin-bottom: 0;
+  }
+  .side-label.bad { color: #dc2626; }
+  .side-label.good { color: #16a34a; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     CURRENT STATE (BROKEN)
+     ════════════════════════════════════════════════════════════════════════ -->
+
+<div class="page-label">Current State — <span>Mobile Navbar (Broken)</span></div>
+
+<div class="annotation bad">
+  <strong>Problem:</strong> On mobile, "Features" and "How it works" links are visible directly in the
+  navbar alongside the hamburger menu. This creates a cramped layout and is redundant &mdash; those
+  same links also appear inside the mobile menu when the hamburger is tapped.
+  <ul>
+    <li><code>.nav-links</code> is only hidden at <code>max-width: 640px</code> in CSS</li>
+    <li>The hamburger shows below Tailwind's <code>sm</code> breakpoint (<code>640px</code>)</li>
+    <li>At viewport widths near 640px (common on modern phones), both can be visible simultaneously</li>
+    <li>Even below 640px, the nav feels cramped on smaller phones when "Features" + "How it works" are in the bar</li>
+  </ul>
+</div>
+
+<div class="side-by-side">
+  <!-- Current: Menu Closed -->
+  <div>
+    <div class="side-label bad">Current &mdash; Menu Closed</div>
+    <div class="phone-frame">
+      <div class="mock-nav">
+        <div class="mock-logo">
+          <div class="icon">HTA</div>
+          <div class="text">HTA Instrumentation</div>
+        </div>
+        <div class="mock-nav-links">
+          <a class="mock-nav-link" style="color:rgba(255,255,255,0.45)">Features</a>
+          <a class="mock-nav-link" style="color:rgba(255,255,255,0.45)">How it works</a>
+        </div>
+        <div class="mock-hamburger"><div class="bar"></div></div>
+      </div>
+      <div class="mock-hero">
+        <div class="mock-eyebrow"><span class="dot"></span> CALIBRATION MANAGEMENT SYSTEM</div>
+        <h1>Calibration certificates, <span class="hi">done right.</span></h1>
+        <p>Streamline your entire calibration workflow &mdash; from instrument setup to certificate authorization.</p>
+        <div class="mock-hero-ctas">
+          <a class="mock-hero-btn primary">Customer Login &rarr;</a>
+          <a class="mock-hero-btn ghost">Staff Login &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current: Menu Open -->
+  <div>
+    <div class="side-label bad">Current &mdash; Menu Open (redundant links)</div>
+    <div class="phone-frame">
+      <div class="mock-nav">
+        <div class="mock-logo">
+          <div class="icon">HTA</div>
+          <div class="text">HTA Instrumentation</div>
+        </div>
+        <div class="mock-nav-links">
+          <a class="mock-nav-link" style="color:rgba(255,255,255,0.45)">Features</a>
+          <a class="mock-nav-link" style="color:rgba(255,255,255,0.45)">How it works</a>
+        </div>
+        <div class="mock-hamburger"><div class="bar"></div></div>
+      </div>
+      <!-- Duplicate links in dropdown -->
+      <div class="mock-mobile-menu">
+        <a class="mock-menu-item" style="position:relative">
+          Features
+          <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:9px;font-weight:700;color:#ef4444;background:#fef2f2;padding:2px 6px;border-radius:4px;border:1px solid #fecaca">DUPLICATE</span>
+        </a>
+        <a class="mock-menu-item" style="position:relative">
+          How it works
+          <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:9px;font-weight:700;color:#ef4444;background:#fef2f2;padding:2px 6px;border-radius:4px;border:1px solid #fecaca">DUPLICATE</span>
+        </a>
+        <div class="mock-menu-divider"></div>
+        <a class="mock-menu-item">Customer Login</a>
+        <a class="mock-menu-cta">Staff Login</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page-divider" style="margin-top:32px"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     PROPOSED FIX
+     ════════════════════════════════════════════════════════════════════════ -->
+
+<div class="page-label good">Proposed Fix — <span>Clean Mobile Navbar</span></div>
+
+<div class="annotation good">
+  <strong>Fix:</strong> On mobile/tablet (&lt; <code>lg</code> / 1024px), hide <code>.nav-links</code> and "Staff Login"
+  button from the navbar bar. Only show logo + hamburger. Move <strong>all navigation</strong> into the mobile
+  menu dropdown: Features, How it works, Customer Login, and Staff Login.
+  <ul>
+    <li>Hide <code>.nav-links</code> below <code>lg</code> (1024px) instead of <code>sm</code> (640px)</li>
+    <li>Switch hamburger/Staff Login toggle from <code>sm</code> to <code>lg</code> breakpoint</li>
+    <li>No duplicate links &mdash; the navbar bar has only logo + hamburger on mobile</li>
+    <li>Mobile menu becomes the single source of navigation on smaller screens</li>
+  </ul>
+</div>
+
+<div class="side-by-side">
+  <!-- Proposed: Menu Closed -->
+  <div>
+    <div class="side-label good">Proposed &mdash; Menu Closed</div>
+    <div class="phone-frame">
+      <div class="mock-nav">
+        <div class="mock-logo">
+          <div class="icon">HTA</div>
+          <div class="text">HTA Instrumentation</div>
+        </div>
+        <!-- No nav links here on mobile! Clean and spacious -->
+        <div class="mock-hamburger"><div class="bar"></div></div>
+      </div>
+      <div class="mock-hero">
+        <div class="mock-eyebrow"><span class="dot"></span> CALIBRATION MANAGEMENT SYSTEM</div>
+        <h1>Calibration certificates, <span class="hi">done right.</span></h1>
+        <p>Streamline your entire calibration workflow &mdash; from instrument setup to certificate authorization.</p>
+        <div class="mock-hero-ctas">
+          <a class="mock-hero-btn primary">Customer Login &rarr;</a>
+          <a class="mock-hero-btn ghost">Staff Login &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Proposed: Menu Open -->
+  <div>
+    <div class="side-label good">Proposed &mdash; Menu Open</div>
+    <div class="phone-frame">
+      <div class="mock-nav">
+        <div class="mock-logo">
+          <div class="icon">HTA</div>
+          <div class="text">HTA Instrumentation</div>
+        </div>
+        <div class="mock-hamburger"><div class="bar"></div></div>
+      </div>
+      <!-- All navigation in dropdown — single source of truth -->
+      <div class="mock-mobile-menu">
+        <a class="mock-menu-item">Features</a>
+        <a class="mock-menu-item">How it works</a>
+        <div class="mock-menu-divider"></div>
+        <a class="mock-menu-item">Customer Login</a>
+        <a class="mock-menu-cta">Staff Login</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page-divider" style="margin-top:32px"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     DESKTOP (unchanged — for reference)
+     ════════════════════════════════════════════════════════════════════════ -->
+
+<div class="page-label good">Desktop View — <span>No Change (Reference)</span></div>
+
+<div class="annotation good">
+  <strong>Desktop (1024px+):</strong> No changes. Nav links and Staff Login remain visible in the
+  navbar bar. Hamburger is hidden. This is the existing correct behavior.
+</div>
+
+<div style="max-width: 900px; margin: 24px auto; border-radius: 12px; border: 2px solid #334155; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.15);">
+  <div style="background: rgba(4,9,15,0.95); padding: 0 40px; height: 64px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.07);">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:36px;height:36px;border-radius:6px;background:#1e3a5f;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#93c5fd;">HTA</div>
+      <span style="font-size:14px;font-weight:700;color:white;">HTA Instrumentation</span>
+    </div>
+    <div style="display:flex; gap:4px;">
+      <a style="padding:8px 14px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5);border-radius:8px;text-decoration:none;">Features</a>
+      <a style="padding:8px 14px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5);border-radius:8px;text-decoration:none;">How it works</a>
+    </div>
+    <a style="padding:8px 18px;border-radius:9px;background:#1a6fdb;color:white;font-size:13px;font-weight:700;text-decoration:none;">Staff Login</a>
+  </div>
+  <div style="background:#04090f;padding:32px 40px;display:flex;align-items:center;gap:40px;">
+    <div style="flex:1;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#00d4b4;background:rgba(0,212,180,0.09);border:1px solid rgba(0,212,180,0.2);padding:4px 10px;border-radius:100px;display:inline-block;margin-bottom:14px;">
+        &#x25CF; CALIBRATION MANAGEMENT SYSTEM
+      </div>
+      <div style="font-size:28px;font-weight:900;line-height:1.1;letter-spacing:-0.04em;color:#f0f4ff;margin-bottom:10px;">
+        Calibration certificates, <span style="color:#1a6fdb">done right.</span>
+      </div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.38);line-height:1.65;">
+        Streamline your entire calibration workflow...
+      </div>
+    </div>
+    <div style="flex:0.6;height:120px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.15);font-size:12px;">
+      [Certificate Card Visual]
+    </div>
+  </div>
+</div>
+
+<div class="page-divider" style="margin-top:32px"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     CODE CHANGE SUMMARY
+     ════════════════════════════════════════════════════════════════════════ -->
+
+<div class="page-label good">Implementation Notes — <span>Code Changes Required</span></div>
+
+<div style="padding: 24px; max-width: 800px; margin: 0 auto;">
+  <table style="width:100%; border-collapse: collapse; font-size: 13px; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+    <thead>
+      <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+        <th style="text-align:left; padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8;">File</th>
+        <th style="text-align:left; padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8;">Change</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 12px 16px; font-weight: 600; font-family: monospace; font-size: 12px; color: #7c3aed;">Navbar.tsx</td>
+        <td style="padding: 12px 16px;">
+          <div style="margin-bottom: 8px;">
+            <strong>Nav links wrapper:</strong> Add <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;">hidden lg:flex</code> to hide below 1024px
+          </div>
+          <div style="margin-bottom: 8px;">
+            <strong>Staff Login:</strong> Change <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;">hidden sm:inline-flex</code> &rarr; <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;">hidden lg:inline-flex</code>
+          </div>
+          <div>
+            <strong>Hamburger:</strong> Change <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;">flex sm:hidden</code> &rarr; <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;">flex lg:hidden</code>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 16px; font-weight: 600; font-family: monospace; font-size: 12px; color: #7c3aed;">home.css</td>
+        <td style="padding: 12px 16px;">
+          <div>
+            <strong>Remove</strong> the <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;">@media (max-width: 640px) { .nav-links { display: none; } }</code> rule &mdash; Tailwind's <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;">hidden lg:flex</code> handles it now
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top: 24px; padding: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; font-size: 12px; color: #166534; line-height: 1.5;">
+    <strong>Result:</strong>
+    <ul style="margin: 8px 0 0 16px;">
+      <li><strong>&lt; 1024px:</strong> Logo + hamburger only. Tapping hamburger shows: Features, How it works, Customer Login, Staff Login</li>
+      <li><strong>&ge; 1024px:</strong> Logo + Features + How it works + Staff Login (no hamburger). Unchanged from current desktop.</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

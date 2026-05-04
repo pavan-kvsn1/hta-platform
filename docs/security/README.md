@@ -7,6 +7,7 @@ This directory contains security documentation for the HTA Platform.
 | Document | Description |
 |----------|-------------|
 | [security-architecture.md](./security-architecture.md) | Comprehensive security architecture including CSP, XSS detection, alerting, and compliance |
+| [soc2_posture.md](../soc2_posture.md) | SOC2/ISO 27001 posture assessment with gap analysis and remediation roadmap |
 
 ## Quick Links
 
