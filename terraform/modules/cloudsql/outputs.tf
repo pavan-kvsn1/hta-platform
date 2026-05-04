@@ -22,3 +22,8 @@ output "database_user" {
   description = "Database user"
   value       = google_sql_user.main.name
 }
+
+output "service_account_email" {
+  description = "Cloud SQL instance service account (needed for GCS export permissions)"
+  value       = google_sql_database_instance.main.service_account_email_address
+}

@@ -22,13 +22,13 @@ variable "database_version" {
 variable "tier" {
   description = "Machine tier"
   type        = string
-  default     = "db-custom-2-4096"
+  default     = "db-f1-micro"
 }
 
 variable "availability_type" {
   description = "Availability type (REGIONAL or ZONAL)"
   type        = string
-  default     = "REGIONAL"
+  default     = "ZONAL"
 }
 
 variable "disk_size" {
@@ -70,6 +70,18 @@ variable "database_password" {
   sensitive   = true
 }
 
+variable "enable_public_ip" {
+  description = "Enable public IP on Cloud SQL instance"
+  type        = bool
+  default     = false
+}
+
+variable "enable_query_insights" {
+  description = "Enable Query Insights (requires dedicated-core tier, not supported on db-f1-micro/db-g1-small)"
+  type        = bool
+  default     = true
+}
+
 variable "enable_iam_auth" {
   description = "Enable IAM authentication for Cloud SQL Auth Proxy"
   type        = bool
@@ -101,7 +113,7 @@ variable "enable_replica" {
 variable "replica_region" {
   description = "Region for the read replica (should differ from primary)"
   type        = string
-  default     = "us-west1"
+  default     = "asia-south2"  # Delhi
 }
 
 variable "replica_tier" {

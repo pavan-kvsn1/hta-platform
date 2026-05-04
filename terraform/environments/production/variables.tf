@@ -35,6 +35,12 @@ variable "services_cidr" {
 }
 
 # GKE
+variable "gke_zone" {
+  description = "GCP zone for zonal GKE cluster (must be in var.region)"
+  type        = string
+  default     = "asia-south1-b"
+}
+
 variable "gke_node_count" {
   description = "Number of nodes per zone"
   type        = number
@@ -44,7 +50,7 @@ variable "gke_node_count" {
 variable "gke_machine_type" {
   description = "GKE node machine type"
   type        = string
-  default     = "e2-standard-4"
+  default     = "e2-medium"
 }
 
 variable "gke_disk_size_gb" {
@@ -61,15 +67,15 @@ variable "gke_node_locations" {
 
 # Cloud SQL
 variable "cloudsql_tier" {
-  description = "Cloud SQL machine tier"
+  description = "Cloud SQL machine tier (db-custom-1-3840 minimum required for read replicas)"
   type        = string
-  default     = "db-custom-2-4096"
+  default     = "db-custom-1-3840"
 }
 
 variable "cloudsql_disk_size" {
-  description = "Cloud SQL disk size in GB"
+  description = "Cloud SQL disk size in GB (cannot shrink — only increase)"
   type        = number
-  default     = 20
+  default     = 100  # Already provisioned at 100, Cloud SQL doesn't allow shrink
 }
 
 variable "database_name" {
@@ -94,20 +100,20 @@ variable "database_password" {
 variable "enable_dr_replica" {
   description = "Enable cross-region read replica for DR"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "dr_replica_region" {
   description = "Region for DR replica (should differ from primary)"
   type        = string
-  default     = "us-west1"
+  default     = "asia-south2"  # Delhi - domestic DR, lower latency & egress costs
 }
 
 # Redis
 variable "redis_tier" {
   description = "Redis tier (BASIC or STANDARD_HA)"
   type        = string
-  default     = "STANDARD_HA"
+  default     = "BASIC"
 }
 
 variable "redis_memory_size_gb" {

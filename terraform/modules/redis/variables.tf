@@ -16,7 +16,7 @@ variable "instance_name" {
 variable "tier" {
   description = "Service tier (BASIC or STANDARD_HA)"
   type        = string
-  default     = "STANDARD_HA"
+  default     = "BASIC"
 }
 
 variable "memory_size_gb" {

@@ -27,10 +27,9 @@ resource "google_sql_database_instance" "main" {
     }
 
     ip_configuration {
-      ipv4_enabled    = false
+      ipv4_enabled    = var.enable_public_ip
       private_network = var.vpc_network_id
       # mTLS - requires client certificates (handled by Cloud SQL Auth Proxy)
-      # Keep require_ssl to avoid state conflict (deprecated but needed for migration)
       require_ssl = true
       ssl_mode    = "TRUSTED_CLIENT_CERTIFICATE_REQUIRED"
     }
@@ -41,11 +40,14 @@ resource "google_sql_database_instance" "main" {
       update_track = "stable"
     }
 
-    insights_config {
-      query_insights_enabled  = true
-      query_string_length     = 1024
-      record_application_tags = true
-      record_client_address   = true
+    dynamic "insights_config" {
+      for_each = var.enable_query_insights ? [1] : []
+      content {
+        query_insights_enabled  = true
+        query_string_length     = 1024
+        record_application_tags = true
+        record_client_address   = true
+      }
     }
 
     database_flags {

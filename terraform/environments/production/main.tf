@@ -124,6 +124,7 @@ module "gke" {
 
   project_id   = var.project_id
   region       = var.region
+  zone         = var.gke_zone  # Zonal cluster = free management fee
   cluster_name = "${var.environment}-cluster"
   environment  = var.environment
 
@@ -134,11 +135,12 @@ module "gke" {
   services_range_name = "services"
 
   min_node_count  = var.gke_node_count
-  max_node_count  = var.gke_node_count * 3  # Allow scaling to 3x
+  max_node_count  = var.gke_node_count * 2  # Max 2 nodes
   machine_type    = var.gke_machine_type
   disk_size_gb    = var.gke_disk_size_gb
   node_locations  = var.gke_node_locations
-  service_account = google_service_account.gke_nodes.email
+  service_account     = google_service_account.gke_nodes.email
+  deletion_protection = true
 }
 
 # GKE Node Service Account
@@ -181,15 +183,19 @@ module "cloudsql" {
   tier             = var.cloudsql_tier
   disk_size        = var.cloudsql_disk_size
 
-  availability_type     = "REGIONAL"
+  availability_type     = "ZONAL"    # No HA standby needed at current scale
   deletion_protection   = true
-  backup_retention_days = 30
+  backup_retention_days = 365       # Max allowed by GCP (use GCS exports for longer retention)
 
   vpc_network_id = google_compute_network.main.id
 
   database_name     = var.database_name
   database_user     = var.database_user
   database_password = var.database_password
+
+  # db-f1-micro doesn't support Query Insights (requires dedicated-core)
+  enable_query_insights = false
+  enable_public_ip      = false
 
   # Enable IAM authentication for Cloud SQL Auth Proxy
   enable_iam_auth              = true
@@ -212,14 +218,14 @@ module "redis" {
 
   project_id    = var.project_id
   region        = var.region
-  instance_name = "${var.environment}-redis"
+  instance_name = "${var.environment}-redis-basic"
 
   tier           = var.redis_tier
   memory_size_gb = var.redis_memory_size_gb
   vpc_network_id = google_compute_network.main.id
 
-  auth_enabled            = true
-  transit_encryption_mode = "SERVER_AUTHENTICATION"
+  auth_enabled            = false
+  transit_encryption_mode = "DISABLED"
 
   labels = {
     environment = var.environment
@@ -280,6 +286,43 @@ module "uploads_bucket" {
 
   admin_members = [
     "serviceAccount:${local.api_sa_email}",
+  ]
+
+  labels = {
+    environment = var.environment
+  }
+}
+
+# =============================================================================
+# Desktop App Releases Bucket (Electron auto-update)
+# =============================================================================
+# Public read access so electron-updater can fetch latest.yml + installer.
+# GitHub Actions uploads releases here during CI/CD.
+
+module "desktop_releases_bucket" {
+  source = "../../modules/storage"
+
+  project_id    = var.project_id
+  bucket_name   = "${var.project_id}-desktop-releases"
+  location      = var.region
+  storage_class = "STANDARD"
+
+  versioning_enabled = true
+
+  lifecycle_rules = [
+    {
+      action_type        = "Delete"
+      num_newer_versions = 5  # Keep last 5 versions
+    }
+  ]
+
+  admin_members = [
+    "serviceAccount:${google_service_account.github_actions.email}",
+  ]
+
+  # Public read for electron-updater
+  viewer_members = [
+    "allUsers",
   ]
 
   labels = {
@@ -473,6 +516,29 @@ resource "google_project_iam_member" "github_actions_gke_developer" {
 #   # Who can access Argo CD (Google account emails)
 #   authorized_members = var.iap_authorized_members
 # }
+
+# =============================================================================
+# Cloud SQL Long-Term Export (3-year retention)
+# =============================================================================
+# GCP built-in backups max at 365 days. This exports daily to GCS with a
+# 3-year lifecycle rule for audit/compliance retention.
+# Estimated cost: ~$1-2/month (Nearline storage)
+
+module "sql_export" {
+  source = "../../modules/sql-export"
+
+  project_id            = var.project_id
+  region                = var.region
+  bucket_name           = "${var.project_id}-sql-exports"
+  sql_instance_name     = module.cloudsql.instance_name
+  sql_instance_sa_email = module.cloudsql.service_account_email
+  database_name         = var.database_name
+  retention_days        = 1095  # 3 years
+
+  labels = {
+    environment = var.environment
+  }
+}
 
 # =============================================================================
 # Monitoring & Alerting

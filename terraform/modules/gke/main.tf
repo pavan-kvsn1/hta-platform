@@ -4,10 +4,12 @@
 
 resource "google_container_cluster" "main" {
   name     = var.cluster_name
-  location = var.region
+  location = var.zone  # Zonal cluster = free management fee ($0 vs $73/mo for regional)
   project  = var.project_id
 
-  # Use regional cluster for HA
+  deletion_protection = var.deletion_protection
+
+  # Additional zones for node distribution (optional)
   node_locations = var.node_locations
 
   # We manage node pools separately
@@ -85,7 +87,7 @@ resource "google_container_cluster" "main" {
 
 resource "google_container_node_pool" "primary" {
   name     = "${var.cluster_name}-primary"
-  location = var.region
+  location = var.zone
   cluster  = google_container_cluster.main.name
   project  = var.project_id
 

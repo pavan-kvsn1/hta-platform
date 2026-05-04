@@ -9,6 +9,8 @@ metadata:
     app.kubernetes.io/component: frontend
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: hta-web
@@ -38,8 +40,8 @@ spec:
                 name: api-secrets  # For DATABASE_URL if web needs direct DB access
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "200m"
+              memory: "128Mi"
+              cpu: "100m"
             limits:
               memory: "512Mi"
               cpu: "500m"

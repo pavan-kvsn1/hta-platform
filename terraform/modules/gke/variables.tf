@@ -8,6 +8,11 @@ variable "region" {
   type        = string
 }
 
+variable "zone" {
+  description = "GCP zone for zonal cluster (e.g., asia-south1-a). Zonal clusters have no management fee."
+  type        = string
+}
+
 variable "cluster_name" {
   description = "GKE cluster name"
   type        = string
@@ -59,7 +64,7 @@ variable "release_channel" {
 variable "machine_type" {
   description = "Machine type for nodes"
   type        = string
-  default     = "e2-standard-2"
+  default     = "e2-medium"
 }
 
 variable "disk_size_gb" {
@@ -77,10 +82,16 @@ variable "min_node_count" {
 variable "max_node_count" {
   description = "Maximum number of nodes"
   type        = number
-  default     = 5
+  default     = 2
 }
 
 variable "service_account" {
   description = "Service account email for GKE nodes"
   type        = string
+}
+
+variable "deletion_protection" {
+  description = "Whether to enable deletion protection on the cluster"
+  type        = bool
+  default     = true
 }

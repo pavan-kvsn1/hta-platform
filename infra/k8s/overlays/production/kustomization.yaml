@@ -23,29 +23,11 @@ images:
 
 # Production-specific patches
 patches:
-  # Increase API replicas for production
+  # Keep 1 replica on e2-medium (HPA handles scaling if node autoscales)
   - patch: |-
       - op: replace
         path: /spec/replicas
-        value: 3
-    target:
-      kind: Deployment
-      name: hta-api
-
-  # Increase resource limits for production
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: "512Mi"
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: "500m"
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: "2Gi"
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: "2000m"
+        value: 1
     target:
       kind: Deployment
       name: hta-api

@@ -79,6 +79,11 @@ output "web_service_account_email" {
   value       = google_service_account.web.email
 }
 
+output "desktop_releases_url" {
+  description = "Desktop app releases bucket URL (for electron-updater)"
+  value       = "https://storage.googleapis.com/${var.project_id}-desktop-releases"
+}
+
 # Argo CD / IAP outputs
 output "argocd_url" {
   description = "Argo CD URL"

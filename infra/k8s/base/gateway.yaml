@@ -15,7 +15,7 @@ metadata:
   labels:
     app.kubernetes.io/name: hta-platform
   annotations:
-    networking.gke.io/pre-shared-certs: mcrt-91136e4b-2072-4a7d-ace8-3363b7f75629
+    networking.gke.io/pre-shared-certs: mcrt-91136e4b-2072-4a7d-ace8-3363b7f75629,hta-calibration-cert
 spec:
   gatewayClassName: gke-l7-global-external-managed
   addresses:
@@ -40,7 +40,7 @@ spec:
       tls:
         mode: Terminate
         options:
-          networking.gke.io/pre-shared-certs: mcrt-91136e4b-2072-4a7d-ace8-3363b7f75629
+          networking.gke.io/pre-shared-certs: mcrt-91136e4b-2072-4a7d-ace8-3363b7f75629,hta-calibration-cert
 ---
 # Main routing rules for app subdomain
 apiVersion: gateway.networking.k8s.io/v1
@@ -58,6 +58,7 @@ spec:
       sectionName: https
   hostnames:
     - "app.hta-calibration.com"
+    - "hta-calibration.com"
   rules:
     # NextAuth routes: /api/auth/* -> hta-web (Next.js handles auth)
     - matches:

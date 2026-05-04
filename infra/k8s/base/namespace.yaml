@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: hta-prod
+  name: hta-platform
   labels:
     app.kubernetes.io/name: hta-platform
     environment: production

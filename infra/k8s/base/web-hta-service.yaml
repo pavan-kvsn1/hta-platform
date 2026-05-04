@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: hta-web
-  namespace: hta-prod
+  namespace: hta-platform
   labels:
     app: hta-web
     app.kubernetes.io/name: hta-web
