@@ -20,7 +20,7 @@ This document captures every known gap in the test infrastructure and provides a
 ## Priority Tiers
 
 - **P0** — Blocks CI correctness. Existing tests silently don't run, or configs are broken.
-- **P1** — Coverage for recently shipped features. No tests exist at all.
+- **P1** — Coverage for recently shipped features. No tests exist at all. (14 items)
 - **P2** — E2E depth. Tests exist but only verify navigation, not actions.
 - **P3** — Hardening. Coverage thresholds, desktop app, compliance wiring.
 
@@ -213,6 +213,130 @@ Tests to add:
 
 ---
 
+### P1-8: Desktop auth API routes
+
+**Routes:**
+- `apps/web-hta/src/app/api/auth/desktop-login/route.ts` (~100 lines, new)
+- `apps/web-hta/src/app/api/auth/desktop-session/route.ts` (~59 lines, new)
+
+`desktop-login` proxies email/password to the Fastify API and encodes a NextAuth session cookie with device binding. `desktop-session` restores a session from a stored user profile (PIN unlock flow).
+
+Tests to add:
+- **Unit** (`apps/web-hta/tests/unit/desktop-auth-routes.test.ts`):
+  - `desktop-login`: successful credential proxy returns session cookie
+  - `desktop-login`: invalid credentials returns 401
+  - `desktop-login`: network-unreachable error handling (API down)
+  - `desktop-login`: deviceId is included in JWT payload
+  - `desktop-session`: restores session from stored profile
+  - `desktop-session`: rejects missing/invalid profile data
+  - Cookie security settings (httpOnly, sameSite)
+
+---
+
+### P1-9: Desktop login page
+
+**Component:** `apps/web-hta/src/app/desktop/login/page.tsx` (~426 lines, new)
+
+Multi-view auth page with three states: login (first-time setup), unlock (password + challenge code), and password-only (re-entry). Integrates with ElectronAPI for device status, auth state, and offline unlock.
+
+Tests to add:
+- **Unit** (`apps/web-hta/tests/unit/desktop-login-page.test.tsx`):
+  - Renders login view when no stored credentials
+  - Renders unlock view when credentials exist and codes available
+  - Renders password-only view when no challenge codes remain
+  - Challenge-response validation (4-char code matching)
+  - Disables login button when offline on first-time setup
+  - Tracks failed unlock attempts, shows remaining count
+  - Success navigates to dashboard
+
+---
+
+### P1-10: Offline codes shared utility
+
+**Module:** `packages/shared/src/offline-codes/index.ts` (~77 lines, new)
+
+Pure crypto logic: `generateChallengeResponsePairs()` creates a 50-pair grid (A1–E10) with 4-char alphanumeric values. `hashCode()` normalizes and SHA-256 hashes codes.
+
+Tests to add:
+- **Unit** (`packages/shared/tests/offline-codes.test.ts`):
+  - Grid generation produces correct count (default 50)
+  - Key format matches pattern (A1, B5, E10, etc.)
+  - Values are 4 chars from restricted charset (no ambiguous 0/O, 1/I)
+  - All values unique within a batch
+  - `hashCode()` normalizes uppercase and strips whitespace
+  - `hashCode()` produces consistent SHA-256 output
+  - Custom count parameter works
+
+---
+
+### P1-11: Conflict resolution page
+
+**Component:** `apps/web-hta/src/app/(dashboard)/dashboard/certificates/[id]/resolve/page.tsx` (~809 lines, new)
+
+Desktop-only sync conflict UI. Shows side-by-side diff of local vs. server versions, lets engineer pick resolution per field, supports bulk select, handles parameter-level conflicts.
+
+Tests to add:
+- **Unit** (`apps/web-hta/tests/unit/conflict-resolution.test.tsx`):
+  - Loads local + server versions from electronAPI
+  - Detects field-level and parameter-level conflicts
+  - Conflict counter updates as picks are made
+  - Bulk "use all local" / "use all server" selects all conflicts
+  - Save button disabled until all conflicts resolved
+  - Builds correct merged data structure on submit
+  - Calls `electronAPI.resolveConflict()` with merged data
+
+---
+
+### P1-12: My Requests page
+
+**Component:** `apps/web-hta/src/app/(dashboard)/dashboard/requests/page.tsx` (~302 lines, new)
+
+Lists user's internal requests with status filtering (ALL/PENDING/APPROVED/REJECTED), search, and pagination.
+
+Tests to add:
+- **Unit** (`apps/web-hta/tests/unit/my-requests-page.test.tsx`):
+  - Fetches and renders request list
+  - Status filter changes API query
+  - Search filters by title/details
+  - Pagination controls (prev/next, page count)
+  - Status badge colors match status
+  - Type icons map correctly (OFFLINE_CODE_REQUEST → KeyRound)
+  - Admin note displays on rejected requests
+  - Empty state when no requests
+
+---
+
+### P1-13: Refresh token service (desktop support)
+
+**Service:** `apps/api/src/services/refresh-token.ts` (~200 lines, updated)
+
+New `tokenType: 'web' | 'desktop'` field with different expiry (7d vs 30d). Desktop tokens are device-bound via `deviceId`.
+
+Tests to add:
+- **Unit** (`apps/api/tests/unit/refresh-token.test.ts`):
+  - Creates web token with 7-day expiry
+  - Creates desktop token with 30-day expiry and deviceId
+  - Validates token hasn't expired
+  - Validates device binding — rejects if deviceId mismatch
+  - Rotation revokes old token, creates new one
+  - Revocation stores reason
+
+---
+
+### P1-14: Worker cleanup jobs
+
+**Module:** `apps/worker/src/jobs/cleanup.ts` (~346 lines, updated)
+
+New functions: `cleanupExpiredOfflineCodes()` deactivates expired batches and queues expiry emails. `cleanupExpiredReviews()` transitions timed-out customer reviews (48h window) to CUSTOMER_REVIEW_EXPIRED status.
+
+Tests to add:
+- **Unit** (extend `apps/worker/tests/unit/cleanup.test.ts`):
+  - `cleanupExpiredOfflineCodes()`: finds active batches past expiresAt, sets isActive=false, queues email
+  - `cleanupExpiredReviews()`: finds PENDING_CUSTOMER_APPROVAL certs past 48h, transitions status, creates certificateEvent, notifies reviewer/engineer
+  - Error handling: individual failures don't block other cleanups
+
+---
+
 ## P2 — E2E Depth
 
 ### P2-1: E2E tests verify navigation only, not actions
@@ -367,6 +491,13 @@ Copy this checklist into a tracking issue:
 - [ ] P1-5: DeviceListClient unit tests
 - [ ] P1-6: OfflineCodeRequestClient unit tests
 - [ ] P1-7: Email template render tests
+- [ ] P1-8: Desktop auth API routes unit tests
+- [ ] P1-9: Desktop login page unit tests
+- [ ] P1-10: Offline codes shared utility unit tests
+- [ ] P1-11: Conflict resolution page unit tests
+- [ ] P1-12: My Requests page unit tests
+- [ ] P1-13: Refresh token service unit tests
+- [ ] P1-14: Worker cleanup jobs unit tests
 
 ## P2 — E2E Depth
 - [ ] P2-1: Make existing E2E specs complete actions, remove defensive patterns

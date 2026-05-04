@@ -81,6 +81,41 @@ describe('getEmailSubject', () => {
     })
   })
 
+  describe('customer-review-registered template', () => {
+    it('returns subject with certificate number', () => {
+      const subject = getEmailSubject('customer-review-registered', { certificateNumber: 'CERT-010' })
+      expect(subject).toBe('Certificate CERT-010 Ready for Review')
+    })
+  })
+
+  describe('customer-authorized-registered template', () => {
+    it('returns subject with certificate number', () => {
+      const subject = getEmailSubject('customer-authorized-registered', { certificateNumber: 'CERT-011' })
+      expect(subject).toBe('Certificate CERT-011 Authorized')
+    })
+  })
+
+  describe('customer-authorized-token template', () => {
+    it('returns subject with certificate number', () => {
+      const subject = getEmailSubject('customer-authorized-token', { certificateNumber: 'CERT-012' })
+      expect(subject).toBe('Certificate CERT-012 Authorized - Download Available')
+    })
+  })
+
+  describe('reviewer-customer-expired template', () => {
+    it('returns subject with certificate number', () => {
+      const subject = getEmailSubject('reviewer-customer-expired', { certificateNumber: 'CERT-013' })
+      expect(subject).toBe('Customer Review Expired - Certificate CERT-013')
+    })
+  })
+
+  describe('offline-codes-expiry template', () => {
+    it('returns correct subject', () => {
+      const subject = getEmailSubject('offline-codes-expiry', {})
+      expect(subject).toBe('Your Offline Access Codes Have Expired')
+    })
+  })
+
   describe('unknown template', () => {
     it('returns default subject for unknown template', () => {
       const subject = getEmailSubject('unknown-template' as EmailTemplate, {})
@@ -163,6 +198,56 @@ describe('renderEmail', () => {
     })
 
     expect(result.subject).toBe('Certificate CERT-104 Ready for Review')
+    expect(result.html).toContain('Mocked Email')
+  })
+
+  it('renders customer-review-registered template', async () => {
+    const result = await renderEmail({
+      template: 'customer-review-registered',
+      props: { certificateNumber: 'CERT-110', customerName: 'Test Customer', reviewUrl: 'https://example.com/review' },
+    })
+
+    expect(result.subject).toBe('Certificate CERT-110 Ready for Review')
+    expect(result.html).toContain('Mocked Email')
+  })
+
+  it('renders customer-authorized-registered template', async () => {
+    const result = await renderEmail({
+      template: 'customer-authorized-registered',
+      props: { certificateNumber: 'CERT-111', customerName: 'Test Customer', downloadUrl: 'https://example.com/download' },
+    })
+
+    expect(result.subject).toBe('Certificate CERT-111 Authorized')
+    expect(result.html).toContain('Mocked Email')
+  })
+
+  it('renders customer-authorized-token template', async () => {
+    const result = await renderEmail({
+      template: 'customer-authorized-token',
+      props: { certificateNumber: 'CERT-112', downloadUrl: 'https://example.com/download?token=abc' },
+    })
+
+    expect(result.subject).toBe('Certificate CERT-112 Authorized - Download Available')
+    expect(result.html).toContain('Mocked Email')
+  })
+
+  it('renders reviewer-customer-expired template', async () => {
+    const result = await renderEmail({
+      template: 'reviewer-customer-expired',
+      props: { certificateNumber: 'CERT-113', customerName: 'Expired Corp', reviewerName: 'Rajesh' },
+    })
+
+    expect(result.subject).toBe('Customer Review Expired - Certificate CERT-113')
+    expect(result.html).toContain('Mocked Email')
+  })
+
+  it('renders offline-codes-expiry template', async () => {
+    const result = await renderEmail({
+      template: 'offline-codes-expiry',
+      props: { userName: 'Kiran', loginUrl: 'https://example.com/login' },
+    })
+
+    expect(result.subject).toBe('Your Offline Access Codes Have Expired')
     expect(result.html).toContain('Mocked Email')
   })
 
