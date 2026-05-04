@@ -1,0 +1,30 @@
+appId: com.htacalibr8s.desktop
+productName: HTA Calibr8s
+copyright: Copyright (c) 2026 HTA Calibr8s
+
+win:
+  target: nsis
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: false
+
+directories:
+  output: release
+
+afterPack: scripts/after-pack.js
+
+files:
+  - dist/**/*
+  - resources/**/*
+  - "!src"
+
+asarUnpack:
+  - dist/migrations/**/*
+  - node_modules/@journeyapps/sqlcipher/lib/binding/**/*.node
+
+publish:
+  provider: generic
+  url: https://storage.googleapis.com/hta-platform-prod-desktop-releases

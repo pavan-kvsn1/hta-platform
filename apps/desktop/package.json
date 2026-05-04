@@ -1,0 +1,58 @@
+{
+  "name": "hta-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HTA Calibr8s Desktop — Offline calibration certificate drafting",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "tsc && node -e \"const fs=require('fs'),p=require('path');const s='src/migrations',d='dist/migrations';fs.mkdirSync(d,{recursive:true});fs.readdirSync(s).filter(f=>f.endsWith('.sql')).forEach(f=>fs.copyFileSync(p.join(s,f),p.join(d,f)))\" && concurrently -n electron,tsc \"electron .\" \"tsc -w --preserveWatchOutput\"",
+    "build": "tsc && node -e \"const fs=require('fs'),p=require('path');const s='src/migrations',d='dist/migrations';fs.mkdirSync(d,{recursive:true});fs.readdirSync(s).filter(f=>f.endsWith('.sql')).forEach(f=>fs.copyFileSync(p.join(s,f),p.join(d,f)))\"",
+    "start": "electron .",
+    "prepackage": "node scripts/copy-standalone.js",
+    "package": "electron-builder --win",
+    "package:dir": "electron-builder --win --dir"
+  },
+  "dependencies": {
+    "@journeyapps/sqlcipher": "^5.3.1",
+    "electron-updater": "^6.8.0"
+  },
+  "build": {
+    "appId": "com.htaipl.calibr8s",
+    "productName": "HTA Calibr8s",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "!dist/migrations/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/migrations",
+        "to": "migrations",
+        "filter": ["**/*.sql"]
+      }
+    ],
+    "asarUnpack": [
+      "dist/migrations/**/*",
+      "node_modules/@journeyapps/sqlcipher/**/*"
+    ],
+    "afterPack": "./scripts/after-pack.js",
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.0.0",
+    "electron": "^41.3.0",
+    "electron-builder": "^26.8.0",
+    "typescript": "^5.7.0"
+  }
+}
