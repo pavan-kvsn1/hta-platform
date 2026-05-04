@@ -10,7 +10,7 @@
     "./themes": "./src/themes/index.ts"
   },
   "scripts": {
-    "test": "echo 'No tests yet'",
+    "test": "vitest run",
     "test:unit": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/"
