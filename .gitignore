@@ -52,6 +52,16 @@ tfplan
 terraform.tfvars
 !terraform.tfvars.example
 
+# Desktop build artifacts
+apps/desktop/release/
+apps/desktop/.next-standalone/
+
+# Generated assets (run "pnpm --filter @hta/assets gen" to regenerate)
+apps/web-hta/public/hta-logo.jpg
+apps/web-hta/public/logo.png
+apps/web-hta/src/components/pdf/logo-base64.ts
+apps/desktop/resources/icon.ico
+
 # Temporary files
 temp.yaml
 ns-patch.json
