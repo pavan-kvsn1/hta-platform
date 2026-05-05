@@ -1,41 +1,61 @@
-import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
-import { getDb, withTenantId } from '@/lib/prisma'
+'use client'
 
-// Render at runtime, not build time (needs database)
-export const dynamic = 'force-dynamic'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { apiFetch } from '@/lib/api-client'
+import { Loader2 } from 'lucide-react'
 
-export default async function NewCertificatePage() {
-  const session = await auth()
+export default function NewCertificatePage() {
+  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
 
-  if (!session?.user) {
-    redirect('/login')
+  useEffect(() => {
+    async function createDraft() {
+      try {
+        const res = await apiFetch('/api/certificates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create-draft' }),
+        })
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          setError(data.error || 'Failed to create draft')
+          return
+        }
+
+        const { id } = await res.json()
+        router.replace(`/dashboard/certificates/${id}/edit`)
+      } catch (err) {
+        setError('Failed to create certificate. Please try again.')
+      }
+    }
+
+    createDraft()
+  }, [router])
+
+  if (error) {
+    return (
+      <div className="h-full bg-[#f1f5f9] flex items-center justify-center">
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-8 max-w-md text-center">
+          <p className="text-[14px] text-[#dc2626] mb-4">{error}</p>
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 text-[13px] font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] rounded-[9px]"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    )
   }
 
-  // Only ENGINEER and ADMIN can create certificates
-  if (session.user.role !== 'ENGINEER' && session.user.role !== 'ADMIN') {
-    redirect('/dashboard')
-  }
-
-  // Generate a temporary certificate number (user will update in form)
-  const timestamp = Date.now()
-  const tempNumber = `DRAFT-${timestamp}`
-
-  // Get tenant-scoped database client
-  const db = await getDb()
-
-  // Create a new draft certificate (tenantId auto-injected by scoped client)
-  const certificate = await db.certificate.create({
-    data: withTenantId({
-      certificateNumber: tempNumber,
-      status: 'DRAFT',
-      currentRevision: 1,
-      calibratedAt: 'HTA Calibration Laboratory',
-      createdById: session.user.id,
-      lastModifiedById: session.user.id,
-    }),
-  })
-
-  // Redirect to the edit page
-  redirect(`/dashboard/certificates/${certificate.id}/edit`)
+  return (
+    <div className="h-full bg-[#f1f5f9] flex items-center justify-center">
+      <div className="flex items-center gap-3">
+        <Loader2 className="size-5 animate-spin text-[#7c3aed]" />
+        <span className="text-[14px] text-[#64748b]">Creating draft certificate...</span>
+      </div>
+    </div>
+  )
 }

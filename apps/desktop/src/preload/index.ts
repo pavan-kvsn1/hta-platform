@@ -9,6 +9,9 @@ const ALLOWED_INVOKE_CHANNELS = [
   'image:save', 'image:get-path', 'image:list',
   'sync:status', 'sync:trigger',
   'ref:master-instruments', 'ref:customers',
+  'vpn:provision', 'vpn:status',
+  'auth:get-access-token',
+  'app:load-production',
 ] as const
 
 const ALLOWED_ON_CHANNELS = [
@@ -86,4 +89,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('ref:master-instruments' satisfies InvokeChannel),
   getCustomers: () =>
     ipcRenderer.invoke('ref:customers' satisfies InvokeChannel),
+
+  // ─── VPN ─────────────────────────────────────────────────────────────
+  vpnProvision: (token: string) =>
+    ipcRenderer.invoke('vpn:provision' satisfies InvokeChannel, token),
+  vpnStatus: () =>
+    ipcRenderer.invoke('vpn:status' satisfies InvokeChannel),
+  getAccessToken: () =>
+    ipcRenderer.invoke('auth:get-access-token' satisfies InvokeChannel),
+  loadProductionApp: () =>
+    ipcRenderer.invoke('app:load-production' satisfies InvokeChannel),
 })

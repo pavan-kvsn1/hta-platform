@@ -28,6 +28,13 @@ function getJwtSecret(): Uint8Array {
 }
 
 export async function POST(request: NextRequest) {
+  if (process.env.HTA_DESKTOP === '1') {
+    return NextResponse.json(
+      { error: 'Not available in desktop mode' },
+      { status: 404 }
+    )
+  }
+
   try {
     const cookieStore = await cookies()
     const rawToken = cookieStore.get(COOKIE_NAME)?.value

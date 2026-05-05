@@ -33,7 +33,8 @@ export default function DesktopLoginPage() {
   const checkAuthStatus = useCallback(async () => {
     const api = window.electronAPI
     if (!api) {
-      router.replace('/login')
+      // Running in a browser, not Electron — show the login form directly
+      setView('login')
       return
     }
 
@@ -45,7 +46,7 @@ export default function DesktopLoginPage() {
     if (status.isUnlocked) {
       const profile = await api.getUserProfile()
       if (profile) await restoreSession(profile)
-      router.replace('/dashboard')
+      window.location.href = '/dashboard'
       return
     }
 
@@ -129,8 +130,8 @@ export default function DesktopLoginPage() {
         return
       }
 
-      // 3. Go to dashboard — session cookie already set by desktop-login route
-      router.replace('/dashboard')
+      // 3. Go to dashboard — full reload so SessionProvider picks up the new cookie
+      window.location.href = '/dashboard'
     } catch (err) {
       setError('Cannot connect to server. Please check your network.')
     } finally {
@@ -168,7 +169,7 @@ export default function DesktopLoginPage() {
       const profile = await api.getUserProfile()
       if (profile) await restoreSession(profile)
 
-      router.replace('/dashboard')
+      window.location.href = '/dashboard'
     } catch (err) {
       setError('Unlock failed: ' + String(err))
     } finally {
@@ -199,7 +200,7 @@ export default function DesktopLoginPage() {
       const profile = await api.getUserProfile()
       if (profile) await restoreSession(profile)
 
-      router.replace('/dashboard')
+      window.location.href = '/dashboard'
     } catch (err) {
       setError('Unlock failed: ' + String(err))
     } finally {

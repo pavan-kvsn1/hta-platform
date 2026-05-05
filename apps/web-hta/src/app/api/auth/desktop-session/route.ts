@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { encode } from 'next-auth/jwt'
 import { cookies } from 'next/headers'
 
-const SESSION_COOKIE = 'authjs.session-token'
+const SESSION_COOKIE = '__Secure-authjs.session-token'
 const SESSION_MAX_AGE = 4 * 60 * 60 // 4 hours
 
 export async function POST(request: NextRequest) {
@@ -48,11 +48,12 @@ export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, sessionToken, {
     httpOnly: true,
-    secure: false,
+    secure: true,
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_MAX_AGE,
   })
+  cookieStore.delete('authjs.session-token')
 
   return NextResponse.json({ success: true })
 }

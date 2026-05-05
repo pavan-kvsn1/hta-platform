@@ -10,6 +10,9 @@ nsis:
   oneClick: false
   perMachine: true
   allowToChangeInstallationDirectory: false
+  # Install WireGuard MSI silently before the app files are laid down.
+  # WireGuard must be per-machine so the tunnel service can run as SYSTEM.
+  include: resources/installer-extras.nsh
 
 directories:
   output: release
@@ -20,6 +23,8 @@ files:
   - dist/**/*
   - resources/**/*
   - "!src"
+  - "!resources/installer-extras.nsh"
+  - "!resources/wireguard-amd64.msi"
 
 asarUnpack:
   - dist/migrations/**/*

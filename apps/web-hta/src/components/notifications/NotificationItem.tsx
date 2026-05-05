@@ -13,6 +13,7 @@ import {
   UserPlus,
   Bell,
   KeyRound,
+  Monitor,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -42,6 +43,9 @@ const NOTIFICATION_ICONS: Record<string, { icon: typeof Bell; bg: string; color:
   // Purple — offline codes
   OFFLINE_CODE_APPROVED: { icon: KeyRound, bg: 'bg-[#ede9fe]', color: 'text-[#6d28d9]' },
   OFFLINE_CODE_REQUESTED: { icon: KeyRound, bg: 'bg-[#dbeafe]', color: 'text-[#2563eb]' },
+  DESKTOP_VPN_REQUESTED: { icon: Monitor, bg: 'bg-[#ecfdf5]', color: 'text-[#065f46]' },
+  DESKTOP_VPN_APPROVED: { icon: Monitor, bg: 'bg-[#ecfdf5]', color: 'text-[#065f46]' },
+  DESKTOP_VPN_REJECTED: { icon: XCircle, bg: 'bg-[#fee2e2]', color: 'text-[#dc2626]' },
 }
 
 const DEFAULT_ICON = { icon: Bell, bg: 'bg-[#f1f5f9]', color: 'text-[#94a3b8]' }
@@ -62,6 +66,9 @@ const NON_CERT_ROUTES: Record<string, string> = {
   OFFLINE_CODE_APPROVED: '/dashboard/offline-codes',
   OFFLINE_CODE_REJECTED: '/dashboard/offline-codes',
   OFFLINE_CODE_REQUESTED: '/admin/requests',
+  DESKTOP_VPN_REQUESTED: '/admin/requests',
+  DESKTOP_VPN_APPROVED: '/dashboard/offline-codes',
+  DESKTOP_VPN_REJECTED: '/dashboard/offline-codes',
 }
 
 function getNavigationPath(

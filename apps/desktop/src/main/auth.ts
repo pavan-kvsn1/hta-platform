@@ -247,6 +247,7 @@ export async function unlockWithPasswordOnly(password: string): Promise<{
   success: boolean
   attemptsRemaining?: number
   error?: string
+  refreshToken?: string
 }> {
   const deviceId = getCredential('device-id')
   const userId = getCredential('user-id')
@@ -267,12 +268,16 @@ export async function unlockWithPasswordOnly(password: string): Promise<{
   const key = deriveKey(password, deviceId, userId, salt)
 
   // Validate password by attempting decryption
+  let refreshToken: string
   try {
     const stored = JSON.parse(tokenData)
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(stored.iv, 'base64'))
     decipher.setAuthTag(Buffer.from(stored.tag, 'base64'))
-    decipher.update(Buffer.from(stored.data, 'base64'))
-    decipher.final() // Throws if wrong password
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(stored.data, 'base64')),
+      decipher.final(), // Throws if wrong password
+    ])
+    refreshToken = decrypted.toString('utf8')
   } catch {
     // Wrong password
     const newAttempts = attempts + 1
@@ -301,7 +306,7 @@ export async function unlockWithPasswordOnly(password: string): Promise<{
     console.error('[auth] unlockWithPasswordOnly post-unlock DB error:', err)
   }
 
-  return { success: true }
+  return { success: true, refreshToken }
 }
 
 // ─── Auth Status ────────────────────────────────────────────────────────────

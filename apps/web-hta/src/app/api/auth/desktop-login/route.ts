@@ -11,7 +11,7 @@ import { encode } from 'next-auth/jwt'
 import { cookies } from 'next/headers'
 
 const API_BASE = process.env.HTA_API_URL || 'http://localhost:4000'
-const SESSION_COOKIE = 'authjs.session-token'
+const SESSION_COOKIE = '__Secure-authjs.session-token'
 const SESSION_MAX_AGE = 4 * 60 * 60 // 4 hours (matches auth config)
 
 export async function POST(request: NextRequest) {
@@ -73,15 +73,16 @@ export async function POST(request: NextRequest) {
     salt: SESSION_COOKIE,
   })
 
-  // Set the session cookie
+  // Set the session cookie and clear any stale non-secure cookie
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, sessionToken, {
     httpOnly: true,
-    secure: false, // localhost in Electron
+    secure: true, // Chromium treats localhost as secure context
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_MAX_AGE,
   })
+  cookieStore.delete('authjs.session-token')
 
   // Return user data and tokens for Electron PIN setup
   return NextResponse.json({

@@ -197,7 +197,8 @@ export function DashboardSidebar({
               await window.electronAPI.logout()
               await signOut({ callbackUrl: '/desktop/login' })
             } else {
-              signOut({ callbackUrl: '/login' })
+              await signOut({ redirect: false })
+              window.location.href = 'https://hta-calibration.com'
             }
           }}
           title={!mobile && isCollapsed ? 'Sign out' : undefined}

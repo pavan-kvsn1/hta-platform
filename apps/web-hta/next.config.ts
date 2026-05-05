@@ -78,7 +78,8 @@ const nextConfig: NextConfig = {
   // In production, the Gateway/Ingress routes /api/* directly to the API service
   async rewrites() {
     // Skip rewrites in production - Gateway handles routing
-    if (process.env.NODE_ENV === 'production') {
+    // Keep rewrites active for desktop builds (HTA_DESKTOP=1) since there's no Gateway
+    if (process.env.NODE_ENV === 'production' && process.env.HTA_DESKTOP !== '1') {
       return { beforeFiles: [], afterFiles: [], fallback: [] }
     }
 

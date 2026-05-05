@@ -45,6 +45,10 @@ interface ElectronAPI {
   // Reference data
   getMasterInstruments: () => Promise<unknown>
   getCustomers: () => Promise<unknown>
+
+  // VPN
+  vpnProvision: (token: string) => Promise<{ success: boolean; error?: string }>
+  vpnStatus: () => Promise<{ configured: boolean; active: boolean }>
 }
 
 declare global {

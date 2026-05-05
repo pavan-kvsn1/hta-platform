@@ -8,9 +8,10 @@
     "dev": "tsc && node -e \"const fs=require('fs'),p=require('path');const s='src/migrations',d='dist/migrations';fs.mkdirSync(d,{recursive:true});fs.readdirSync(s).filter(f=>f.endsWith('.sql')).forEach(f=>fs.copyFileSync(p.join(s,f),p.join(d,f)))\" && concurrently -n electron,tsc \"electron .\" \"tsc -w --preserveWatchOutput\"",
     "build": "tsc && node -e \"const fs=require('fs'),p=require('path');const s='src/migrations',d='dist/migrations';fs.mkdirSync(d,{recursive:true});fs.readdirSync(s).filter(f=>f.endsWith('.sql')).forEach(f=>fs.copyFileSync(p.join(s,f),p.join(d,f)))\"",
     "start": "electron .",
-    "prepackage": "node scripts/copy-standalone.js",
+    "prepackage": "node scripts/download-wireguard.js && node scripts/copy-standalone.js",
     "package": "electron-builder --win",
     "package:dir": "electron-builder --win --dir",
+    "build:full": "node scripts/build-full.js",
     "test": "vitest run tests/unit",
     "test:unit": "vitest run tests/unit"
   },

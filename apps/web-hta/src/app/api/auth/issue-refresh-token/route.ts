@@ -48,6 +48,14 @@ function getJwtSecret(): Uint8Array {
 }
 
 export async function POST(request: NextRequest) {
+  // Desktop mode has no database — tokens are managed via Electron IPC
+  if (process.env.HTA_DESKTOP === '1') {
+    return NextResponse.json(
+      { error: 'Not available in desktop mode' },
+      { status: 404 }
+    )
+  }
+
   try {
     // Verify NextAuth session
     const session = await auth()

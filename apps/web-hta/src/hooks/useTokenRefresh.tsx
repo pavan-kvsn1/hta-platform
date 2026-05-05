@@ -48,7 +48,8 @@ export function useTokenRefresh(options: UseTokenRefreshOptions = {}) {
         if (onRefreshFailure) {
           onRefreshFailure()
         } else {
-          await signOut({ redirect: true, callbackUrl: '/login' })
+          await signOut({ redirect: false })
+          window.location.href = 'https://hta-calibration.com'
         }
         return false
       }
@@ -141,6 +142,8 @@ export function useTokenRefresh(options: UseTokenRefreshOptions = {}) {
  * Add this to your layout or providers
  */
 export function TokenRefreshProvider({ children }: { children: React.ReactNode }) {
-  useTokenRefresh()
+  // Disable token refresh in desktop/Electron mode — desktop handles its own token lifecycle
+  const isDesktop = typeof window !== 'undefined' && 'electronAPI' in window
+  useTokenRefresh({ enabled: !isDesktop })
   return <>{children}</>
 }

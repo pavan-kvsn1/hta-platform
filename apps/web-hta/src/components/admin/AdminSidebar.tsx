@@ -238,7 +238,7 @@ export function AdminSidebar({
 
         {/* Sign Out */}
         <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
+          onClick={async () => { await signOut({ redirect: false }); window.location.href = 'https://hta-calibration.com' }}
           title={isCollapsed ? 'Sign out' : undefined}
           className={cn(
             'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[#cbd5e1] hover:bg-[#334155] hover:text-white transition-colors',

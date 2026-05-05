@@ -18,16 +18,44 @@ const offlineCodesRoutes: FastifyPluginAsync = async (fastify) => {
     const tenantId = request.tenantId
     const userId = request.user!.sub
 
-    const [batchStatus, latestRequest] = await Promise.all([
+    const [batchStatus, latestRequest, latestVpnRequest, vpnPeer, user] = await Promise.all([
       getBatchStatus({ tenantId, userId }),
       prisma.internalRequest.findFirst({
         where: { requestedById: userId, type: 'OFFLINE_CODE_REQUEST' },
         orderBy: { createdAt: 'desc' },
         select: { id: true, status: true, adminNote: true, createdAt: true },
       }),
+      prisma.internalRequest.findFirst({
+        where: { requestedById: userId, type: 'DESKTOP_VPN_REQUEST' },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, status: true, adminNote: true, createdAt: true },
+      }),
+      prisma.vpnPeer.findUnique({
+        where: { userId },
+        select: { ipAddress: true, provisionedAt: true, isActive: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { vpnProvisioningToken: true, vpnTokenGeneratedAt: true },
+      }),
     ])
 
-    return { ...batchStatus, pendingRequest: latestRequest }
+    return {
+      ...batchStatus,
+      pendingRequest: latestRequest,
+      vpn: {
+        latestRequest: latestVpnRequest,
+        provisioningToken: user?.vpnProvisioningToken || null,
+        tokenGeneratedAt: user?.vpnTokenGeneratedAt?.toISOString() || null,
+        peer: vpnPeer
+          ? {
+              ipAddress: vpnPeer.ipAddress,
+              provisionedAt: vpnPeer.provisionedAt.toISOString(),
+              isActive: vpnPeer.isActive,
+            }
+          : null,
+      },
+    }
   })
 
   // POST /api/offline-codes/validate — Validate a challenge-response

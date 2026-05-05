@@ -26,6 +26,7 @@ import {
   Eye,
   PenLine,
   KeyRound,
+  Monitor,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
@@ -55,6 +56,7 @@ interface Counts {
     sectionUnlock: number
     fieldChange: number
     offlineCodeRequest: number
+    desktopVpnRequest: number
     userAddition: number
     pocChange: number
     accountDeletion: number
@@ -86,6 +88,13 @@ const TYPE_CONFIG = {
     badgeBg: 'bg-[#ede9fe]',
     badgeText: 'text-[#6d28d9]',
     borderColor: 'border-l-[#a78bfa]',
+  },
+  DESKTOP_VPN_REQUEST: {
+    icon: Monitor,
+    shortLabel: 'Desktop VPN',
+    badgeBg: 'bg-[#ecfdf5]',
+    badgeText: 'text-[#065f46]',
+    borderColor: 'border-l-[#10b981]',
   },
   USER_ADDITION: {
     icon: UserPlus,
@@ -328,11 +337,12 @@ export default function AdminRequestsPage() {
 
         {/* Summary Cards - Only for Pending */}
         {statusFilter === 'PENDING' && counts && (
-          <div className="grid grid-cols-7 gap-3 mb-5">
+          <div className="grid grid-cols-8 gap-3 mb-5">
             {([
               { key: 'SECTION_UNLOCK', count: counts.pending.sectionUnlock, label: 'Section Unlock', borderColor: 'border-l-[#3b82f6]', countColor: 'text-[#1d4ed8]', activeBg: 'bg-[#eff6ff]' },
               { key: 'FIELD_CHANGE', count: counts.pending.fieldChange, label: 'Field Change', borderColor: 'border-l-[#eab308]', countColor: 'text-[#a16207]', activeBg: 'bg-[#fefce8]' },
               { key: 'OFFLINE_CODE_REQUEST', count: counts.pending.offlineCodeRequest, label: 'Offline Code', borderColor: 'border-l-[#a78bfa]', countColor: 'text-[#6d28d9]', activeBg: 'bg-[#ede9fe]' },
+              { key: 'DESKTOP_VPN_REQUEST', count: counts.pending.desktopVpnRequest, label: 'Desktop VPN', borderColor: 'border-l-[#10b981]', countColor: 'text-[#065f46]', activeBg: 'bg-[#ecfdf5]' },
               { key: 'USER_ADDITION', count: counts.pending.userAddition, label: 'User Addition', borderColor: 'border-l-[#22c55e]', countColor: 'text-[#15803d]', activeBg: 'bg-[#f0fdf4]' },
               { key: 'POC_CHANGE', count: counts.pending.pocChange, label: 'POC Change', borderColor: 'border-l-[#8b5cf6]', countColor: 'text-[#7c3aed]', activeBg: 'bg-[#faf5ff]' },
               { key: 'ACCOUNT_DELETION', count: counts.pending.accountDeletion, label: 'Account Deletion', borderColor: 'border-l-[#ef4444]', countColor: 'text-[#dc2626]', activeBg: 'bg-[#fef2f2]' },
@@ -369,6 +379,7 @@ export default function AdminRequestsPage() {
                 <SelectItem value="SECTION_UNLOCK">Section Unlock</SelectItem>
                 <SelectItem value="FIELD_CHANGE">Field Change</SelectItem>
                 <SelectItem value="OFFLINE_CODE_REQUEST">Offline Code</SelectItem>
+                <SelectItem value="DESKTOP_VPN_REQUEST">Desktop VPN</SelectItem>
                 <SelectItem value="USER_ADDITION">User Addition</SelectItem>
                 <SelectItem value="POC_CHANGE">POC Change</SelectItem>
                 <SelectItem value="ACCOUNT_DELETION">Account Deletion</SelectItem>

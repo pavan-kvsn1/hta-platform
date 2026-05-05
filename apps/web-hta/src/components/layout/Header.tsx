@@ -25,7 +25,8 @@ export function Header({ title, showAutoSave = true }: HeaderProps) {
   }
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/login' })
+    await signOut({ redirect: false })
+    window.location.href = 'https://hta-calibration.com'
   }
 
   const getDashboardLink = (role: string) => {

@@ -29,9 +29,18 @@ import {
   FileText,
   UserCog,
   AlertCircle,
+  Monitor,
+  RefreshCw,
+  ShieldOff,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserTATMetrics } from '@/components/admin/UserTATMetrics'
+
+interface VpnStatus {
+  peer: { ipAddress: string; provisionedAt: string; revokedAt: string | null; isActive: boolean } | null
+  hasProvisioningToken: boolean
+  latestRequest: { id: string; status: string; createdAt: string } | null
+}
 
 interface User {
   id: string
@@ -45,6 +54,7 @@ interface User {
   signatureUrl: string | null
   assignedAdmin: { id: string; name: string } | null
   engineers: { id: string; name: string; email: string }[]
+  vpn?: VpnStatus
   createdAt: string
   updatedAt: string
 }
@@ -77,6 +87,9 @@ export default function EditUserPage({
   const [admins, setAdmins] = useState<Admin[]>([])
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
   const [showReactivateDialog, setShowReactivateDialog] = useState(false)
+  const [vpnRevoking, setVpnRevoking] = useState(false)
+  const [vpnRegenerating, setVpnRegenerating] = useState(false)
+  const [vpnError, setVpnError] = useState('')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -173,6 +186,42 @@ export default function EditUserPage({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reactivate user')
       setShowReactivateDialog(false)
+    }
+  }
+
+  const refreshUser = async () => {
+    const res = await apiFetch(`/api/admin/users/${id}`)
+    const userData = await res.json()
+    if (userData.user) setUser(userData.user)
+  }
+
+  const handleVpnRevoke = async () => {
+    setVpnError('')
+    setVpnRevoking(true)
+    try {
+      const res = await apiFetch(`/api/admin/users/${id}/vpn`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to revoke VPN access')
+      await refreshUser()
+    } catch (err) {
+      setVpnError(err instanceof Error ? err.message : 'Failed to revoke VPN access')
+    } finally {
+      setVpnRevoking(false)
+    }
+  }
+
+  const handleVpnRegenToken = async () => {
+    setVpnError('')
+    setVpnRegenerating(true)
+    try {
+      const res = await apiFetch(`/api/admin/users/${id}/vpn/token`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to regenerate token')
+      await refreshUser()
+    } catch (err) {
+      setVpnError(err instanceof Error ? err.message : 'Failed to regenerate token')
+    } finally {
+      setVpnRegenerating(false)
     }
   }
 
@@ -487,6 +536,75 @@ export default function EditUserPage({
                 </div>
               </div>
             )}
+            {/* Desktop VPN */}
+            <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-5">
+              <h2 className="text-[14px] font-semibold text-[#0f172a] flex items-center gap-2 mb-4">
+                <Monitor className="size-4 text-[#94a3b8]" />
+                Desktop VPN
+              </h2>
+
+              {vpnError && (
+                <p className="text-[12px] text-[#dc2626] mb-3">{vpnError}</p>
+              )}
+
+              {user.vpn?.peer?.isActive ? (
+                <div className="space-y-3">
+                  <div className="divide-y divide-[#f1f5f9] text-[13px]">
+                    <div className="flex justify-between py-2">
+                      <span className="text-[#64748b]">Status</span>
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-[#ecfdf5] text-[#065f46]">Active</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-[#64748b]">IP</span>
+                      <span className="font-mono text-[12px] text-[#0f172a]">{user.vpn.peer.ipAddress}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-[#64748b]">Since</span>
+                      <span className="text-[#0f172a]">{new Date(user.vpn.peer.provisionedAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={handleVpnRegenToken}
+                      disabled={vpnRegenerating}
+                      className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 text-[11.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[8px] transition-colors disabled:opacity-50"
+                    >
+                      {vpnRegenerating ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
+                      New Token
+                    </button>
+                    <button
+                      onClick={handleVpnRevoke}
+                      disabled={vpnRevoking}
+                      className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 text-[11.5px] font-semibold text-[#dc2626] border border-[#fecaca] bg-white hover:bg-[#fef2f2] rounded-[8px] transition-colors disabled:opacity-50"
+                    >
+                      {vpnRevoking ? <Loader2 className="size-3 animate-spin" /> : <ShieldOff className="size-3" />}
+                      Revoke
+                    </button>
+                  </div>
+                </div>
+              ) : user.vpn?.hasProvisioningToken ? (
+                <div className="space-y-3">
+                  <div className="px-3 py-2 bg-[#fffbeb] border border-[#fde68a] rounded-[8px]">
+                    <p className="text-[12px] text-[#92400e]">Token issued — awaiting provisioning</p>
+                  </div>
+                  <button
+                    onClick={handleVpnRegenToken}
+                    disabled={vpnRegenerating}
+                    className="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 text-[11.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[8px] transition-colors disabled:opacity-50"
+                  >
+                    {vpnRegenerating ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
+                    Regenerate Token
+                  </button>
+                </div>
+              ) : user.vpn?.latestRequest?.status === 'PENDING' ? (
+                <p className="text-[12.5px] text-[#64748b]">
+                  Request pending —{' '}
+                  <span className="text-[#d97706]">awaiting review</span>
+                </p>
+              ) : (
+                <p className="text-[12.5px] text-[#94a3b8]">No VPN access configured</p>
+              )}
+            </div>
           </div>
         </div>
 

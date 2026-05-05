@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, net, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, session, net, ipcMain, Menu, safeStorage } from 'electron'
 import path from 'path'
 import { setupTlsPinning, checkInactivityWipe, wipeAllLocalData } from './security'
 import { setupOfflineAuth, unlockWithPasswordAndCode, unlockWithPasswordOnly, getAuthStatus, getDeviceId, getUserId, getUserProfile, clearCredentials } from './auth'
@@ -7,19 +7,84 @@ import { registerDevice, checkDeviceStatus, sendHeartbeat } from './device'
 import { registerDraftHandlers, registerImageHandlers, registerConflictHandlers } from './ipc-handlers'
 import { SyncEngine } from './sync-engine'
 import { preCacheReferenceData, getCachedMasterInstruments, getCachedCustomers } from './ref-cache'
+import { vpnProvision, vpnStatus } from './vpn'
 import { autoUpdater } from 'electron-updater'
 
 // In packaged builds, app.isPackaged is true and resourcesPath points to bundled Next.js.
 // During dev, app.isPackaged is false — we load from the external Next.js dev server.
 const IS_DEV = !app.isPackaged
-const APP_URL = 'http://localhost:3000'
+let APP_URL = 'http://localhost:3000'
 const API_BASE = process.env.HTA_API_URL || 'http://localhost:4000'
+// Public provisioning endpoint — reachable before VPN is up
+const PROVISION_URL = process.env.HTA_PROVISION_URL || 'http://35.200.149.46'
+// Production web app — accessed through VPN after provisioning
+const PRODUCTION_APP_URL = process.env.HTA_PRODUCTION_URL || 'http://10.0.0.17:30081'
 
 // Hide default menu bar (File, Edit, View, Window, Help)
 Menu.setApplicationMenu(null)
 
+/** Find a free TCP port starting from the given port */
+function findFreePort(startPort: number): Promise<number> {
+  return new Promise((resolve) => {
+    const net = require('net') as typeof import('net')
+    const server = net.createServer()
+    server.listen(startPort, 'localhost', () => {
+      server.close(() => resolve(startPort))
+    })
+    server.on('error', () => {
+      resolve(findFreePort(startPort + 1))
+    })
+  })
+}
+
 let mainWindow: BrowserWindow | null = null
 let syncEngine: SyncEngine | null = null
+let cachedAccessToken: string | null = null
+let cachedRefreshToken: string | null = null
+const ACCESS_TOKEN_FILE = path.join(app.getPath('userData'), '.access-token')
+
+/** Persist access token to disk via safeStorage (survives restarts) */
+function persistAccessToken(token: string): void {
+  try {
+    const encrypted = safeStorage.encryptString(token)
+    require('fs').writeFileSync(ACCESS_TOKEN_FILE, encrypted)
+  } catch { /* ignore */ }
+}
+
+/** Load persisted access token from disk */
+function loadPersistedAccessToken(): string | null {
+  try {
+    const fs = require('fs') as typeof import('fs')
+    if (!fs.existsSync(ACCESS_TOKEN_FILE)) return null
+    const encrypted = fs.readFileSync(ACCESS_TOKEN_FILE)
+    return safeStorage.decryptString(encrypted)
+  } catch {
+    return null
+  }
+}
+
+/** Fetch a fresh access token from the Fastify API using a refresh token */
+async function refreshAccessToken(refreshToken: string): Promise<void> {
+  try {
+    // Use VPN gateway (10.100.0.1) when VPN is up, fall back to public gateway
+    const apiUrl = net.isOnline() ? 'http://10.100.0.1' : PROVISION_URL
+    const res = await fetch(`${apiUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': 'hta-calibration' },
+      body: JSON.stringify({ refreshToken }),
+    })
+    const body = await res.text()
+    console.log('[auth] Refresh response:', res.status, body.slice(0, 200))
+    if (res.ok) {
+      const data = JSON.parse(body) as { accessToken: string }
+      cachedAccessToken = data.accessToken
+      persistAccessToken(data.accessToken)
+      console.log('[auth] Access token set successfully')
+    }
+  } catch (err) {
+    console.warn('[auth] Failed to refresh access token:', err)
+  }
+}
 let syncInterval: ReturnType<typeof setInterval> | null = null
 let refCacheInterval: ReturnType<typeof setInterval> | null = null
 let cachedAuthToken: string | null = null
@@ -51,9 +116,7 @@ function createWindow() {
 
   mainWindow.loadURL(`${APP_URL}/desktop/login`)
 
-  if (IS_DEV) {
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
-  }
+  mainWindow.webContents.openDevTools({ mode: 'detach' })
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -71,11 +134,18 @@ async function startNextServer(): Promise<void> {
     throw new Error(`Next.js server not found: ${serverPath}`)
   }
 
-  process.env.PORT = '3000'
+  // Find a free port starting from 3000
+  const port = await findFreePort(3000)
+  APP_URL = `http://localhost:${port}`
+  console.log(`[next] Using port ${port}`)
+
+  process.env.PORT = String(port)
   process.env.HOSTNAME = 'localhost'
-  process.env.AUTH_SECRET = process.env.AUTH_SECRET || require('crypto').randomBytes(32).toString('base64')
-  process.env.NEXTAUTH_URL = 'http://localhost:3000'
+  process.env.NODE_ENV = 'development'
+  process.env.AUTH_SECRET = 'RCjgdLq8K5ZYHIG5Fkz3ld3MEKmkgI/u9d+Hl8YnMog='
+  process.env.NEXTAUTH_URL = `http://localhost:${port}`
   process.env.HTA_DESKTOP = '1'
+  process.env.HTA_API_URL = process.env.HTA_API_URL || 'http://10.100.0.1'
   // Prisma needs DATABASE_URL to instantiate without crashing.
   // Desktop doesn't use Prisma directly — auth goes through the remote API.
   process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://localhost:5432/placeholder'
@@ -123,9 +193,43 @@ function pollConnectivity() {
 // Connectivity
 ipcMain.handle('app:online-status', () => net.isOnline())
 
+// Access token for API calls (used by renderer's apiFetch)
+// Auto-refreshes from cached refresh token if access token is null (e.g., after app restart)
+ipcMain.handle('auth:get-access-token', async () => {
+  // 1. Return cached token if available
+  if (cachedAccessToken) return cachedAccessToken
+
+  // 2. Try refreshing from cached refresh token
+  if (cachedRefreshToken) {
+    await refreshAccessToken(cachedRefreshToken)
+    if (cachedAccessToken) return cachedAccessToken
+  }
+
+  // 3. Try loading persisted access token from disk (survives restarts)
+  const persisted = loadPersistedAccessToken()
+  if (persisted) {
+    cachedAccessToken = persisted
+    return cachedAccessToken
+  }
+
+  // 4. All token sources exhausted — renderer should prompt re-login
+  console.warn('[auth] No valid access token available — user needs to re-authenticate')
+  return null
+})
+
+// Switch to production web app after VPN is established
+ipcMain.handle('app:load-production', () => {
+  if (mainWindow) {
+    mainWindow.loadURL(`${PRODUCTION_APP_URL}/login`)
+  }
+})
+
 // Auth: first-time setup (called after online login — password used as encryption key)
 ipcMain.handle('auth:setup', async (_event, password: string, userId: string, refreshToken: string, accessToken: string, userProfile?: Record<string, unknown>) => {
   try {
+    cachedAccessToken = accessToken
+    cachedRefreshToken = refreshToken
+    persistAccessToken(accessToken)
     const { deviceId } = await setupOfflineAuth(password, userId, refreshToken, userProfile)
 
     // Register device with server if online
@@ -170,8 +274,10 @@ ipcMain.handle('auth:setup', async (_event, password: string, userId: string, re
 ipcMain.handle('auth:unlock', async (_event, password: string, challengeKey: string, responseValue: string) => {
   const result = await unlockWithPasswordAndCode(password, challengeKey, responseValue)
 
-  // Start sync loop on successful full auth
+  // Start sync loop and refresh access token on successful full auth
   if (result.success && result.refreshToken) {
+    cachedRefreshToken = result.refreshToken
+    await refreshAccessToken(result.refreshToken)
     const deviceId = getDeviceId()
     const userId = getUserId()
     if (deviceId && userId) {
@@ -184,7 +290,12 @@ ipcMain.handle('auth:unlock', async (_event, password: string, challengeKey: str
 
 // Auth: password-only re-entry (idle timeout)
 ipcMain.handle('auth:unlock-password-only', async (_event, password: string) => {
-  return unlockWithPasswordOnly(password)
+  const result = await unlockWithPasswordOnly(password)
+  if (result.success && result.refreshToken) {
+    cachedRefreshToken = result.refreshToken
+    await refreshAccessToken(result.refreshToken)
+  }
+  return result
 })
 
 // Auth: check current auth state
@@ -341,6 +452,16 @@ ipcMain.handle('ref:customers', async () => {
   }
 })
 
+// ─── VPN ───────────────────────────────────────────────────────────────────
+
+ipcMain.handle('vpn:provision', async (_event, token: string) => {
+  return vpnProvision(token, PROVISION_URL)
+})
+
+ipcMain.handle('vpn:status', async () => {
+  return vpnStatus()
+})
+
 // ─── App Lifecycle ──────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
@@ -360,14 +481,26 @@ app.whenReady().then(async () => {
   createWindow()
   pollConnectivity()
 
-  // Auto-updates (production only — skipped in dev)
-  if (!IS_DEV) {
+  // After window is created, check VPN status and redirect to provisioning if needed
+  mainWindow?.webContents.once('did-finish-load', async () => {
+    try {
+      const vpnState = await vpnStatus()
+      if (!vpnState.configured) {
+        mainWindow?.loadURL(`${APP_URL}/desktop/vpn-setup`)
+      }
+    } catch {
+      // Non-fatal — proceed without VPN check
+    }
+  })
+
+  // Auto-updates (production only — skipped in dev and unpacked builds)
+  const updateConfigPath = path.join(process.resourcesPath || '', 'app-update.yml')
+  if (!IS_DEV && require('fs').existsSync(updateConfigPath)) {
     autoUpdater.autoDownload = true
     autoUpdater.autoInstallOnAppQuit = true
     autoUpdater.checkForUpdatesAndNotify().catch((err) => {
       console.error('[updater] Update check failed:', err)
     })
-    // Re-check every 6 hours
     setInterval(() => {
       autoUpdater.checkForUpdatesAndNotify().catch(() => {})
     }, 6 * 60 * 60 * 1000)

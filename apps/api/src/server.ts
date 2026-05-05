@@ -20,6 +20,7 @@ import chatRoutes from './routes/chat/index.js'
 import securityRoutes from './routes/security/index.js'
 import deviceRoutes from './routes/devices/index.js'
 import offlineCodesRoutes from './routes/devices/codes.js'
+import vpnRoutes from './routes/vpn/index.js'
 
 // Import middleware
 import { tenantMiddleware } from './middleware/tenant.js'
@@ -155,6 +156,9 @@ await server.register(deviceRoutes, { prefix: '/api/devices' })
 
 // Offline codes routes
 await server.register(offlineCodesRoutes, { prefix: '/api/offline-codes' })
+
+// VPN provisioning (public endpoint — no auth, rate-limited)
+await server.register(vpnRoutes, { prefix: '/api/vpn' })
 
 // =============================================================================
 // START SERVER

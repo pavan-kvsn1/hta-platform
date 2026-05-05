@@ -23,10 +23,10 @@ module.exports = async function afterPack(context) {
 
 function copyDirRecursive(src, dest) {
   fs.mkdirSync(dest, { recursive: true })
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const srcPath = path.join(src, entry.name)
-    const destPath = path.join(dest, entry.name)
-    if (entry.isDirectory()) {
+  for (const name of fs.readdirSync(src)) {
+    const srcPath = path.join(src, name)
+    const destPath = path.join(dest, name)
+    if (fs.statSync(srcPath).isDirectory()) {
       copyDirRecursive(srcPath, destPath)
     } else {
       fs.copyFileSync(srcPath, destPath)

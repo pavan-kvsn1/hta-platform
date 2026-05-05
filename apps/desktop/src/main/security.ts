@@ -8,7 +8,12 @@ import path from 'path'
 // Update this map when rotating TLS certificates.
 
 const PINNED_HOSTS: Record<string, string> = {
-  // 'api.htacalibr8s.com': 'sha256/YOUR_CERT_FINGERPRINT_HERE',
+  // WireGuard gateway — engineers reach the API through this VM.
+  // Fingerprint: run the following once the VM's TLS cert is issued:
+  //   openssl s_client -connect 35.200.149.46:443 </dev/null 2>/dev/null \
+  //     | openssl x509 -fingerprint -sha256 -noout
+  // Then replace the placeholder below.
+  // '35.200.149.46': 'sha256/REPLACE_WITH_ACTUAL_FINGERPRINT',
 }
 
 export function setupTlsPinning(ses: Session): void {

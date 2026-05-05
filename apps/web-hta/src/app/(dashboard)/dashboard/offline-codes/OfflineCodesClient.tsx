@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { apiFetch } from '@/lib/api-client'
-import { KeyRound, Printer, Send, AlertTriangle, Monitor, Clock, XCircle } from 'lucide-react'
+import {
+  KeyRound, Printer, Send, AlertTriangle, Monitor,
+  Clock, XCircle, Copy, Check, Laptop,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface CodePair {
   sequence: number
@@ -18,6 +22,13 @@ interface PendingRequest {
   createdAt: string
 }
 
+interface VpnInfo {
+  latestRequest: PendingRequest | null
+  provisioningToken: string | null
+  tokenGeneratedAt: string | null
+  peer: { ipAddress: string; provisionedAt: string; isActive: boolean } | null
+}
+
 interface BatchStatus {
   hasBatch: boolean
   batchId?: string
@@ -27,6 +38,7 @@ interface BatchStatus {
   expiresAt?: string
   isExpired?: boolean
   pendingRequest?: PendingRequest | null
+  vpn?: VpnInfo
 }
 
 interface Device {
@@ -49,6 +61,10 @@ export function OfflineCodesClient() {
   const [requesting, setRequesting] = useState(false)
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [reason, setReason] = useState('')
+  const [requestingVpn, setRequestingVpn] = useState(false)
+  const [vpnReason, setVpnReason] = useState('')
+  const [showVpnRequestForm, setShowVpnRequestForm] = useState(false)
+  const [tokenCopied, setTokenCopied] = useState(false)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -77,28 +93,38 @@ export function OfflineCodesClient() {
       const res = await apiFetch('/api/internal-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'OFFLINE_CODE_REQUEST',
-          reason: reason || undefined,
-        }),
+        body: JSON.stringify({ type: 'OFFLINE_CODE_REQUEST', reason: reason || undefined }),
       })
-      if (res.ok) {
-        setShowRequestForm(false)
-        setReason('')
-        await fetchStatus()
-      }
+      if (res.ok) { setShowRequestForm(false); setReason(''); await fetchStatus() }
     } catch { /* ignore */ }
     setRequesting(false)
   }
 
-  const handlePrint = () => {
-    window.print()
+  const handleVpnRequest = async () => {
+    setRequestingVpn(true)
+    try {
+      const res = await apiFetch('/api/internal-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'DESKTOP_VPN_REQUEST', reason: vpnReason || undefined }),
+      })
+      if (res.ok) { setShowVpnRequestForm(false); setVpnReason(''); await fetchStatus() }
+    } catch { /* ignore */ }
+    setRequestingVpn(false)
+  }
+
+  const copyToken = async (token: string) => {
+    try {
+      await navigator.clipboard.writeText(token)
+      setTokenCopied(true)
+      setTimeout(() => setTokenCopied(false), 2000)
+    } catch { /* ignore */ }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      <div className="h-full bg-[#f1f5f9] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7c3aed]" />
       </div>
     )
   }
@@ -106,256 +132,399 @@ export function OfflineCodesClient() {
   const pairGrid = status?.pairs ? buildGrid(status.pairs) : null
   const usedKeySet = new Set(status?.pairs?.filter((p) => p.used).map((p) => p.key) || [])
   const pendingRequest = status?.pendingRequest
+  const vpn = status?.vpn
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Offline Access Codes</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Challenge-response card for the desktop app when working offline
-        </p>
-      </div>
+    <div className="h-full overflow-auto bg-[#f1f5f9]">
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-5">
 
-      {/* Request Status Banners */}
-      {pendingRequest?.status === 'PENDING' && (
-        <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <Clock className="h-5 w-5 text-amber-600 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-amber-800">Request Pending</p>
-            <p className="text-sm text-amber-700">
-              Your card request is awaiting admin approval. Submitted {new Date(pendingRequest.createdAt).toLocaleDateString()}.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {pendingRequest?.status === 'REJECTED' && !status?.hasBatch && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <XCircle className="h-5 w-5 text-red-600 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-red-800">Request Rejected</p>
-            <p className="text-sm text-red-700">
-              {pendingRequest.adminNote || 'Your card request was rejected. You may submit a new request.'}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Batch Status Card */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <KeyRound className="h-5 w-5 text-blue-600" />
-          <h2 className="text-lg font-semibold text-slate-900">Card Status</h2>
+        {/* Page Header */}
+        <div>
+          <h1 className="text-[22px] font-bold text-[#0f172a] flex items-center gap-2.5">
+            <KeyRound className="size-[22px] text-[#94a3b8]" />
+            Offline Access
+          </h1>
+          <p className="text-[13px] text-[#94a3b8] mt-1">
+            Challenge-response card and desktop app setup
+          </p>
         </div>
 
-        {status?.hasBatch ? (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-3 bg-slate-50 rounded-lg">
-                <p className="text-2xl font-bold text-slate-900">{status.remaining}</p>
-                <p className="text-xs text-slate-500">Remaining</p>
-              </div>
-              <div className="text-center p-3 bg-slate-50 rounded-lg">
-                <p className="text-2xl font-bold text-slate-900">{status.total}</p>
-                <p className="text-xs text-slate-500">Total</p>
-              </div>
-              <div className="text-center p-3 bg-slate-50 rounded-lg">
-                <p className="text-sm font-medium text-slate-900">
-                  {status.expiresAt ? new Date(status.expiresAt).toLocaleDateString() : '-'}
-                </p>
-                <p className="text-xs text-slate-500">Expires</p>
-              </div>
-            </div>
-
-            {status.isExpired && (
-              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                <p className="text-sm text-amber-800">
-                  Your card has expired. Request a new one below.
-                </p>
-              </div>
+        {/* ── Offline Code Card ───────────────────────────────────────────── */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          <div className="px-5 py-[14px] border-b border-[#f1f5f9] flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+              Challenge-Response Card
+            </span>
+            {status?.hasBatch && !status.isExpired && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-[#f0fdf4] text-[#16a34a]">
+                Active
+              </span>
             )}
-
-            {!status.isExpired && status.remaining !== undefined && status.remaining < 10 && (
-              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                <p className="text-sm text-amber-800">
-                  Running low on codes. Request a new card before your next onsite visit.
-                </p>
-              </div>
+            {status?.isExpired && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-[#fef2f2] text-[#dc2626]">
+                Expired
+              </span>
             )}
           </div>
-        ) : (
-          <p className="text-sm text-slate-500">
-            No active card. Request one to use with the desktop app.
-          </p>
-        )}
 
-        {/* Request New Card */}
-        {pendingRequest?.status !== 'PENDING' && (
-          <div className="mt-4">
-            {showRequestForm ? (
-              <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
-                <p className="text-sm text-slate-600">
-                  {status?.hasBatch && !status.isExpired
-                    ? 'Requesting a new card will replace your current one when approved.'
-                    : 'Submit a request for a new challenge-response card.'}
-                </p>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Reason (optional) — e.g., codes running low, card expired, lost printout"
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={2}
-                />
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleRequest}
-                    disabled={requesting}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    <Send className="h-4 w-4" />
-                    {requesting ? 'Submitting...' : 'Submit Request'}
-                  </button>
-                  <button
-                    onClick={() => { setShowRequestForm(false); setReason('') }}
-                    className="px-4 py-2 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-100"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowRequestForm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
-              >
-                <Send className="h-4 w-4" />
-                Request New Card
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Challenge-Response Grid */}
-      {pairGrid && (
-        <div className="bg-white rounded-lg border border-slate-200 p-6" id="printable-codes">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">Your Challenge-Response Card</h2>
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 print:hidden"
-            >
-              <Printer className="h-4 w-4" />
-              Print
-            </button>
-          </div>
-
-          <p className="text-sm text-slate-500 mb-4 print:hidden">
-            The desktop app will show a key (e.g., &quot;B4&quot;). Enter the matching value from this card.
-            Used codes are struck through and cannot be reused.
-          </p>
-
-          <div className="text-center text-sm text-slate-500 mb-3 hidden print:block">
-            HTA Calibr8s — Challenge-Response Card — Valid until: {status?.expiresAt ? new Date(status.expiresAt).toLocaleDateString() : ''}
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse font-mono text-sm">
-              <thead>
-                <tr>
-                  <th className="p-2 bg-slate-100 border border-slate-300 w-10"></th>
-                  {Array.from({ length: COLS }, (_, i) => (
-                    <th key={i} className="p-2 bg-slate-100 border border-slate-300 text-center text-slate-600 font-semibold">
-                      {i + 1}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {ROW_LABELS.map((row) => (
-                  <tr key={row}>
-                    <td className="p-2 bg-slate-100 border border-slate-300 text-center text-slate-600 font-semibold">
-                      {row}
-                    </td>
-                    {Array.from({ length: COLS }, (_, c) => {
-                      const key = `${row}${c + 1}`
-                      const value = pairGrid[key] || '—'
-                      const isUsed = usedKeySet.has(key)
-                      return (
-                        <td
-                          key={c}
-                          className={`p-2 border border-slate-300 text-center tracking-wider ${
-                            isUsed
-                              ? 'line-through text-slate-400 bg-red-50'
-                              : 'text-slate-900'
-                          }`}
-                        >
-                          {value}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <p className="text-xs text-slate-400 mt-3 text-center">
-            Valid until: {status?.expiresAt ? new Date(status.expiresAt).toLocaleDateString() : ''} &mdash; {status?.remaining}/{status?.total} remaining
-          </p>
-        </div>
-      )}
-
-      {/* Registered Devices */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Monitor className="h-5 w-5 text-blue-600" />
-          <h2 className="text-lg font-semibold text-slate-900">Registered Devices</h2>
-        </div>
-
-        {devices.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            No devices registered. Register a device from the desktop app to get started.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {devices.map((d) => (
-              <div
-                key={d.id}
-                className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
-              >
+          <div className="p-5">
+            {/* Request status banners */}
+            {pendingRequest?.status === 'PENDING' && (
+              <div className="flex items-center gap-3 p-3.5 bg-[#fffbeb] border border-[#fde68a] rounded-[9px] mb-4">
+                <Clock className="size-4 text-[#d97706] shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-slate-900">{d.deviceName}</p>
-                  <p className="text-xs text-slate-500">
-                    {d.platform} &mdash; Registered {new Date(d.registeredAt).toLocaleDateString()}
+                  <p className="text-[12.5px] font-semibold text-[#92400e]">Request pending admin approval</p>
+                  <p className="text-[12px] text-[#b45309]">
+                    Submitted {new Date(pendingRequest.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  {d.lastSyncAt && (
-                    <span className="text-xs text-slate-400">
-                      Last sync: {new Date(d.lastSyncAt).toLocaleDateString()}
-                    </span>
-                  )}
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      d.status === 'ACTIVE'
-                        ? 'bg-green-100 text-green-700'
-                        : d.status === 'REVOKED'
-                        ? 'bg-red-100 text-red-700'
-                        : d.status === 'WIPE_PENDING'
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {d.status}
-                  </span>
-                </div>
               </div>
-            ))}
+            )}
+
+            {pendingRequest?.status === 'REJECTED' && !status?.hasBatch && (
+              <div className="flex items-center gap-3 p-3.5 bg-[#fef2f2] border border-[#fecaca] rounded-[9px] mb-4">
+                <XCircle className="size-4 text-[#dc2626] shrink-0" />
+                <p className="text-[12.5px] text-[#dc2626]">
+                  {pendingRequest.adminNote || 'Your request was rejected. You may submit a new one.'}
+                </p>
+              </div>
+            )}
+
+            {/* Batch stats */}
+            {status?.hasBatch ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Remaining', value: status.remaining },
+                    { label: 'Total', value: status.total },
+                    { label: 'Expires', value: status.expiresAt ? new Date(status.expiresAt).toLocaleDateString() : '—' },
+                  ].map((s) => (
+                    <div key={s.label} className="text-center p-3 bg-[#f8fafc] rounded-[9px] border border-[#e2e8f0]">
+                      <p className="text-[22px] font-extrabold text-[#0f172a]">{s.value}</p>
+                      <p className="text-[11px] text-[#94a3b8] mt-0.5">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {status.isExpired && (
+                  <div className="flex items-center gap-2 p-3 bg-[#fef2f2] border border-[#fecaca] rounded-[9px]">
+                    <AlertTriangle className="size-4 text-[#dc2626] shrink-0" />
+                    <p className="text-[12.5px] text-[#dc2626]">Card expired — request a new one below.</p>
+                  </div>
+                )}
+
+                {!status.isExpired && (status.remaining ?? 0) < 10 && (
+                  <div className="flex items-center gap-2 p-3 bg-[#fffbeb] border border-[#fde68a] rounded-[9px]">
+                    <AlertTriangle className="size-4 text-[#d97706] shrink-0" />
+                    <p className="text-[12.5px] text-[#92400e]">Running low — request a new card soon.</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-[13px] text-[#94a3b8]">No active card. Request one below.</p>
+            )}
+
+            {/* Request new card */}
+            {pendingRequest?.status !== 'PENDING' && (
+              <div className="mt-4">
+                {showRequestForm ? (
+                  <div className="p-4 bg-[#f8fafc] border border-[#e2e8f0] rounded-[9px] space-y-3">
+                    <p className="text-[12.5px] text-[#64748b]">
+                      {status?.hasBatch && !status.isExpired
+                        ? 'A new card will replace your current one when approved.'
+                        : 'Submit a request for a new challenge-response card.'}
+                    </p>
+                    <textarea
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      placeholder="Reason (optional)"
+                      rows={2}
+                      className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] resize-none placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
+                    />
+                    <div className="flex gap-2.5">
+                      <button
+                        onClick={handleRequest}
+                        disabled={requesting}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] rounded-[9px] transition-colors disabled:opacity-50"
+                      >
+                        <Send className="size-3.5" />
+                        {requesting ? 'Submitting…' : 'Submit Request'}
+                      </button>
+                      <button
+                        onClick={() => { setShowRequestForm(false); setReason('') }}
+                        className="px-4 py-2 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowRequestForm(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] rounded-[9px] transition-colors"
+                  >
+                    <Send className="size-3.5" />
+                    Request New Card
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Code Grid ───────────────────────────────────────────────────── */}
+        {pairGrid && (
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden" id="printable-codes">
+            <div className="px-5 py-[14px] border-b border-[#f1f5f9] flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                Your Card
+              </span>
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[7px] transition-colors print:hidden"
+              >
+                <Printer className="size-3.5" />
+                Print
+              </button>
+            </div>
+
+            <div className="p-5">
+              <p className="text-[12.5px] text-[#64748b] mb-4 print:hidden">
+                The desktop app shows a key (e.g. &quot;B4&quot;) — enter the matching value from this card.
+                Struck-through codes have been used.
+              </p>
+
+              <div className="hidden print:block text-center text-[12px] text-[#64748b] mb-3">
+                HTA Calibr8s — Challenge-Response Card — Valid until:{' '}
+                {status?.expiresAt ? new Date(status.expiresAt).toLocaleDateString() : ''}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse font-mono text-[13px]">
+                  <thead>
+                    <tr>
+                      <th className="p-2 bg-[#f8fafc] border border-[#e2e8f0] w-10" />
+                      {Array.from({ length: COLS }, (_, i) => (
+                        <th key={i} className="p-2 bg-[#f8fafc] border border-[#e2e8f0] text-center text-[#64748b] font-semibold">
+                          {i + 1}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ROW_LABELS.map((row) => (
+                      <tr key={row}>
+                        <td className="p-2 bg-[#f8fafc] border border-[#e2e8f0] text-center text-[#64748b] font-semibold">
+                          {row}
+                        </td>
+                        {Array.from({ length: COLS }, (_, c) => {
+                          const key = `${row}${c + 1}`
+                          const isUsed = usedKeySet.has(key)
+                          return (
+                            <td
+                              key={c}
+                              className={cn(
+                                'p-2 border border-[#e2e8f0] text-center tracking-wider',
+                                isUsed ? 'line-through text-[#cbd5e1] bg-[#fef2f2]' : 'text-[#0f172a]'
+                              )}
+                            >
+                              {pairGrid[key] || '—'}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="text-[11px] text-[#94a3b8] mt-3 text-center">
+                Valid until: {status?.expiresAt ? new Date(status.expiresAt).toLocaleDateString() : ''} &mdash; {status?.remaining}/{status?.total} remaining
+              </p>
+            </div>
           </div>
         )}
+
+        {/* ── Desktop App Setup ────────────────────────────────────────────── */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          <div className="px-5 py-[14px] border-b border-[#f1f5f9] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Laptop className="size-4 text-[#94a3b8]" />
+              <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                Desktop App Setup
+              </span>
+            </div>
+            {vpn?.peer?.isActive && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-[#ecfdf5] text-[#065f46]">
+                Connected
+              </span>
+            )}
+          </div>
+
+          <div className="p-5">
+            {vpn?.peer?.isActive ? (
+              /* Provisioned */
+              <div className="flex items-center gap-3 p-3.5 bg-[#f0fdf4] border border-[#bbf7d0] rounded-[9px]">
+                <Check className="size-4 text-[#16a34a] shrink-0" />
+                <div>
+                  <p className="text-[12.5px] font-semibold text-[#14532d]">Desktop app configured</p>
+                  <p className="text-[12px] text-[#166534]">
+                    Connected via VPN ({vpn.peer.ipAddress}) since {new Date(vpn.peer.provisionedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+
+            ) : vpn?.provisioningToken ? (
+              /* Token ready */
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-[9px]">
+                  <Check className="size-4 text-[#2563eb] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[12.5px] font-semibold text-[#1e3a8a]">Access approved</p>
+                    <p className="text-[12px] text-[#1d4ed8]">
+                      Open the desktop app and enter this token on the first-run screen.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 px-4 py-3 bg-[#f8fafc] border border-[#e2e8f0] rounded-[9px]">
+                  <code className="flex-1 font-mono text-[15px] tracking-widest text-[#0f172a] select-all">
+                    {vpn.provisioningToken}
+                  </code>
+                  <button
+                    onClick={() => copyToken(vpn.provisioningToken!)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[7px] transition-colors"
+                  >
+                    {tokenCopied
+                      ? <><Check className="size-3.5 text-[#16a34a]" /> Copied</>
+                      : <><Copy className="size-3.5" /> Copy</>
+                    }
+                  </button>
+                </div>
+                <p className="text-[11px] text-[#94a3b8]">
+                  Valid for 7 days from approval. Cleared automatically once the app connects.
+                </p>
+              </div>
+
+            ) : vpn?.latestRequest?.status === 'PENDING' ? (
+              /* Pending */
+              <div className="flex items-center gap-3 p-3.5 bg-[#fffbeb] border border-[#fde68a] rounded-[9px]">
+                <Clock className="size-4 text-[#d97706] shrink-0" />
+                <div>
+                  <p className="text-[12.5px] font-semibold text-[#92400e]">Request pending admin approval</p>
+                  <p className="text-[12px] text-[#b45309]">
+                    Submitted {new Date(vpn.latestRequest.createdAt).toLocaleDateString()}. You&apos;ll be notified when reviewed.
+                  </p>
+                </div>
+              </div>
+
+            ) : vpn?.latestRequest?.status === 'REJECTED' ? (
+              /* Rejected */
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3.5 bg-[#fef2f2] border border-[#fecaca] rounded-[9px]">
+                  <XCircle className="size-4 text-[#dc2626] shrink-0" />
+                  <p className="text-[12.5px] text-[#dc2626]">
+                    {vpn.latestRequest.adminNote || 'Your request was rejected. You may submit a new one.'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowVpnRequestForm(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] rounded-[9px] transition-colors"
+                >
+                  <Send className="size-3.5" />
+                  Request Again
+                </button>
+              </div>
+
+            ) : (
+              /* No request yet */
+              <div className="space-y-3">
+                <p className="text-[13px] text-[#64748b]">
+                  Request access to connect the desktop app to the HTA platform. An admin will review and approve your request.
+                </p>
+                {showVpnRequestForm ? (
+                  <div className="p-4 bg-[#f8fafc] border border-[#e2e8f0] rounded-[9px] space-y-3">
+                    <textarea
+                      value={vpnReason}
+                      onChange={(e) => setVpnReason(e.target.value)}
+                      placeholder="Reason (optional)"
+                      rows={2}
+                      className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] resize-none placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
+                    />
+                    <div className="flex gap-2.5">
+                      <button
+                        onClick={handleVpnRequest}
+                        disabled={requestingVpn}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] rounded-[9px] transition-colors disabled:opacity-50"
+                      >
+                        <Send className="size-3.5" />
+                        {requestingVpn ? 'Submitting…' : 'Submit Request'}
+                      </button>
+                      <button
+                        onClick={() => { setShowVpnRequestForm(false); setVpnReason('') }}
+                        className="px-4 py-2 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowVpnRequestForm(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] rounded-[9px] transition-colors"
+                  >
+                    <Monitor className="size-3.5" />
+                    Request Desktop Access
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Registered Devices ───────────────────────────────────────────── */}
+        <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          <div className="px-5 py-[14px] border-b border-[#f1f5f9] flex items-center gap-2">
+            <Monitor className="size-4 text-[#94a3b8]" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+              Registered Devices
+            </span>
+            {devices.length > 0 && (
+              <span className="ml-auto text-[11px] font-semibold text-[#64748b]">{devices.length}</span>
+            )}
+          </div>
+
+          <div className="p-5">
+            {devices.length === 0 ? (
+              <p className="text-[13px] text-[#94a3b8]">
+                No devices registered. Register from the desktop app to get started.
+              </p>
+            ) : (
+              <div className="divide-y divide-[#f1f5f9]">
+                {devices.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                    <div>
+                      <p className="text-[13px] font-medium text-[#0f172a]">{d.deviceName}</p>
+                      <p className="text-[11px] text-[#94a3b8] mt-0.5">
+                        {d.platform} &mdash; Registered {new Date(d.registeredAt).toLocaleDateString()}
+                        {d.lastSyncAt && ` · Last sync ${new Date(d.lastSyncAt).toLocaleDateString()}`}
+                      </p>
+                    </div>
+                    <span className={cn(
+                      'px-2 py-0.5 rounded-md text-[11px] font-semibold',
+                      d.status === 'ACTIVE' && 'bg-[#f0fdf4] text-[#16a34a]',
+                      d.status === 'REVOKED' && 'bg-[#fef2f2] text-[#dc2626]',
+                      d.status === 'WIPE_PENDING' && 'bg-[#fffbeb] text-[#d97706]',
+                      !['ACTIVE', 'REVOKED', 'WIPE_PENDING'].includes(d.status) && 'bg-[#f1f5f9] text-[#64748b]',
+                    )}>
+                      {d.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   )
@@ -363,8 +532,6 @@ export function OfflineCodesClient() {
 
 function buildGrid(pairs: CodePair[]): Record<string, string> {
   const grid: Record<string, string> = {}
-  for (const p of pairs) {
-    grid[p.key] = p.value
-  }
+  for (const p of pairs) grid[p.key] = p.value
   return grid
 }

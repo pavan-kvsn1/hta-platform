@@ -5,6 +5,7 @@ import { safeJsonParse } from '@/lib/utils/safe-json'
 import { InternalRequestClient } from './InternalRequestClient'
 import { CustomerRequestView } from './CustomerRequestView'
 import { OfflineCodeRequestClient } from './OfflineCodeRequestClient'
+import { DesktopVpnRequestClient } from './DesktopVpnRequestClient'
 
 // Render at runtime, not build time (needs database)
 export const dynamic = 'force-dynamic'
@@ -199,6 +200,28 @@ export default async function RequestDetailPage({ params, searchParams }: Props)
 
   if (!internalRequest) {
     notFound()
+  }
+
+  // DESKTOP_VPN_REQUEST has no certificate — render VPN-specific view
+  if ((internalRequest.type as string) === 'DESKTOP_VPN_REQUEST') {
+    const requestData = safeJsonParse<{ reason?: string | null }>(
+      internalRequest.data,
+      { reason: null }
+    )
+    return (
+      <DesktopVpnRequestClient
+        request={{
+          id: internalRequest.id,
+          status: internalRequest.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+          data: requestData,
+          requestedBy: internalRequest.requestedBy,
+          reviewedBy: internalRequest.reviewedBy,
+          reviewedAt: internalRequest.reviewedAt?.toISOString() || null,
+          adminNote: internalRequest.adminNote,
+          createdAt: internalRequest.createdAt.toISOString(),
+        }}
+      />
+    )
   }
 
   // OFFLINE_CODE_REQUEST has no certificate — render a simpler view

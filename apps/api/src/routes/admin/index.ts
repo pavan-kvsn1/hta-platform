@@ -6,6 +6,7 @@ import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 import { createLogger } from '@hta/shared'
 import { queueStaffActivationEmail, enqueueNotification } from '../../services/queue.js'
 import { generateCodeBatch } from '../../services/offline-codes.js'
+import { generateVpnProvisioningToken } from '../../services/vpn.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
 
 const logger = createLogger('admin-routes')
@@ -2004,10 +2005,10 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Type filtering
-    const fetchInternal = type === 'ALL' || type === 'SECTION_UNLOCK' || type === 'FIELD_CHANGE' || type === 'OFFLINE_CODE_REQUEST'
+    const fetchInternal = type === 'ALL' || type === 'SECTION_UNLOCK' || type === 'FIELD_CHANGE' || type === 'OFFLINE_CODE_REQUEST' || type === 'DESKTOP_VPN_REQUEST'
     const fetchCustomer = type === 'ALL' || type === 'USER_ADDITION' || type === 'POC_CHANGE' || type === 'ACCOUNT_DELETION' || type === 'DATA_EXPORT'
 
-    if (type === 'SECTION_UNLOCK' || type === 'OFFLINE_CODE_REQUEST') {
+    if (type === 'SECTION_UNLOCK' || type === 'OFFLINE_CODE_REQUEST' || type === 'DESKTOP_VPN_REQUEST') {
       internalWhere.type = type
     }
     // FIELD_CHANGE filter is applied in JS after fetch (enum not in generated client yet)
@@ -2021,6 +2022,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       sectionUnlockPendingCount,
       fieldChangePendingCount,
       offlineCodeRequestPendingCount,
+      desktopVpnRequestPendingCount,
       userAddPendingCount,
       pocChangePendingCount,
       accountDeletionPendingCount,
@@ -2031,13 +2033,15 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       customerRejectedCount,
     ] = await Promise.all([
       prisma.internalRequest.count({ where: { status: 'PENDING', type: 'SECTION_UNLOCK' } }),
-      // FIELD_CHANGE not in generated client yet — count all pending internal minus section unlocks and offline code requests
+      // FIELD_CHANGE not in generated client yet — count all pending internal minus others
       prisma.internalRequest.count({ where: { status: 'PENDING' } }).then(async (total) => {
         const sectionUnlockCount = await prisma.internalRequest.count({ where: { status: 'PENDING', type: 'SECTION_UNLOCK' } })
         const offlineCodeCount = await prisma.internalRequest.count({ where: { status: 'PENDING', type: 'OFFLINE_CODE_REQUEST' } })
-        return total - sectionUnlockCount - offlineCodeCount
+        const desktopVpnCount = await prisma.internalRequest.count({ where: { status: 'PENDING', type: 'DESKTOP_VPN_REQUEST' } })
+        return total - sectionUnlockCount - offlineCodeCount - desktopVpnCount
       }),
       prisma.internalRequest.count({ where: { status: 'PENDING', type: 'OFFLINE_CODE_REQUEST' } }),
+      prisma.internalRequest.count({ where: { status: 'PENDING', type: 'DESKTOP_VPN_REQUEST' } }),
       prisma.customerRequest.count({ where: { status: 'PENDING', type: 'USER_ADDITION' } }),
       prisma.customerRequest.count({ where: { status: 'PENDING', type: 'POC_CHANGE' } }),
       prisma.customerRequest.count({ where: { status: 'PENDING', type: 'ACCOUNT_DELETION' } }),
@@ -2123,6 +2127,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         details = fields.map((f: string) => FIELD_LABELS[f] || f).join(', ') || 'No fields specified'
       } else if (r.type === 'OFFLINE_CODE_REQUEST') {
         details = (dataObj?.reason as string) || 'No reason provided'
+      } else if (r.type === 'DESKTOP_VPN_REQUEST') {
+        details = (dataObj?.reason as string) || 'No reason provided'
       }
 
       return {
@@ -2130,11 +2136,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         category: 'internal' as const,
         type: r.type,
         status: r.status,
-        title: r.type === 'OFFLINE_CODE_REQUEST'
+        title: (r.type === 'OFFLINE_CODE_REQUEST' || r.type === 'DESKTOP_VPN_REQUEST')
           ? r.requestedBy.name || 'Unknown'
           : r.certificate?.certificateNumber || 'Unknown Certificate',
         subtitle: r.type === 'OFFLINE_CODE_REQUEST'
           ? 'Offline Code Card Request'
+          : r.type === 'DESKTOP_VPN_REQUEST'
+          ? 'Desktop VPN Access Request'
           : `by ${r.requestedBy.name || 'Unknown'}`,
         details,
         requestedBy: r.requestedBy.name || 'Unknown',
@@ -2178,6 +2186,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       ? normalizedInternal.filter(r => (r.type as string) === 'FIELD_CHANGE')
       : type === 'OFFLINE_CODE_REQUEST'
       ? normalizedInternal.filter(r => (r.type as string) === 'OFFLINE_CODE_REQUEST')
+      : type === 'DESKTOP_VPN_REQUEST'
+      ? normalizedInternal.filter(r => (r.type as string) === 'DESKTOP_VPN_REQUEST')
       : normalizedInternal
 
     // Merge and sort by createdAt desc
@@ -2198,11 +2208,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           sectionUnlock: sectionUnlockPendingCount,
           fieldChange: fieldChangePendingCount,
           offlineCodeRequest: offlineCodeRequestPendingCount,
+          desktopVpnRequest: desktopVpnRequestPendingCount,
           userAddition: userAddPendingCount,
           pocChange: pocChangePendingCount,
           accountDeletion: accountDeletionPendingCount,
           dataExport: dataExportPendingCount,
-          total: sectionUnlockPendingCount + fieldChangePendingCount + offlineCodeRequestPendingCount + userAddPendingCount + pocChangePendingCount + accountDeletionPendingCount + dataExportPendingCount,
+          total: sectionUnlockPendingCount + fieldChangePendingCount + offlineCodeRequestPendingCount + desktopVpnRequestPendingCount + userAddPendingCount + pocChangePendingCount + accountDeletionPendingCount + dataExportPendingCount,
         },
         approved: internalApprovedCount + customerApprovedCount,
         rejected: internalRejectedCount + customerRejectedCount,
@@ -2470,6 +2481,41 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
             },
           })
         }
+      }
+    }
+
+    // Handle DESKTOP_VPN_REQUEST (no certificate involved)
+    if (internalRequest.type === 'DESKTOP_VPN_REQUEST') {
+      if (newStatus === 'APPROVED') {
+        const token = generateVpnProvisioningToken()
+
+        await prisma.user.update({
+          where: { id: internalRequest.requestedById },
+          data: {
+            vpnProvisioningToken: token,
+            vpnTokenGeneratedAt: new Date(),
+          },
+        })
+
+        await prisma.notification.create({
+          data: {
+            userId: internalRequest.requestedById,
+            type: 'DESKTOP_VPN_APPROVED',
+            title: 'Desktop VPN Access Approved',
+            message: 'Your desktop VPN request has been approved. Your provisioning token is ready on the offline codes page.',
+            data: JSON.stringify({ requestId: internalRequest.id }),
+          },
+        })
+      } else {
+        await prisma.notification.create({
+          data: {
+            userId: internalRequest.requestedById,
+            type: 'DESKTOP_VPN_REJECTED',
+            title: 'Desktop VPN Access Rejected',
+            message: `Your desktop VPN request was rejected.${body.adminNote ? ` Reason: ${body.adminNote}` : ''}`,
+            data: JSON.stringify({ requestId: internalRequest.id, adminNote: body.adminNote }),
+          },
+        })
       }
     }
 
@@ -2941,6 +2987,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           where: { isActive: true },
           select: { id: true, name: true, email: true },
         },
+        vpnPeer: {
+          select: { ipAddress: true, provisionedAt: true, revokedAt: true, isActive: true },
+        },
         _count: {
           select: { createdCertificates: true },
         },
@@ -2965,6 +3014,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       ),
     }
 
+    // Get latest VPN request
+    const vpnRequest = await prisma.internalRequest.findFirst({
+      where: { requestedById: id, type: 'DESKTOP_VPN_REQUEST' },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, status: true, createdAt: true },
+    })
+
     return {
       user: {
         id: user.id,
@@ -2981,6 +3037,20 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         engineers: user.engineers,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
+        vpn: {
+          peer: user.vpnPeer
+            ? {
+                ipAddress: user.vpnPeer.ipAddress,
+                provisionedAt: user.vpnPeer.provisionedAt.toISOString(),
+                revokedAt: user.vpnPeer.revokedAt?.toISOString() || null,
+                isActive: user.vpnPeer.isActive,
+              }
+            : null,
+          hasProvisioningToken: !!user.vpnProvisioningToken,
+          latestRequest: vpnRequest
+            ? { id: vpnRequest.id, status: vpnRequest.status, createdAt: vpnRequest.createdAt.toISOString() }
+            : null,
+        },
       },
       stats,
     }
@@ -3428,6 +3498,67 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       ...certMetrics,
       requestHandling,
     }
+  })
+
+  // ============================================================================
+  // VPN MANAGEMENT
+  // ============================================================================
+
+  // DELETE /api/admin/users/:id/vpn - Revoke VPN access for a user
+  fastify.delete<{ Params: { id: string } }>('/users/:id/vpn', {
+    preHandler: [requireMasterAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id } = request.params
+
+    const peer = await prisma.vpnPeer.findFirst({
+      where: { userId: id, user: { tenantId } },
+    })
+
+    if (!peer) {
+      return reply.status(404).send({ error: 'No VPN peer found for this user' })
+    }
+
+    if (!peer.isActive) {
+      return reply.status(400).send({ error: 'VPN access is already revoked' })
+    }
+
+    await prisma.vpnPeer.update({
+      where: { id: peer.id },
+      data: { isActive: false, revokedAt: new Date() },
+    })
+
+    // Rebuild peers.conf without this peer
+    const { syncPeersToGcs } = await import('../../services/vpn.js')
+    await syncPeersToGcs()
+
+    return { success: true, message: 'VPN access revoked' }
+  })
+
+  // POST /api/admin/users/:id/vpn/token - Regenerate provisioning token
+  fastify.post<{ Params: { id: string } }>('/users/:id/vpn/token', {
+    preHandler: [requireMasterAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id } = request.params
+
+    const user = await prisma.user.findFirst({
+      where: { tenantId, id },
+      select: { id: true },
+    })
+
+    if (!user) {
+      return reply.status(404).send({ error: 'User not found' })
+    }
+
+    const token = generateVpnProvisioningToken()
+
+    await prisma.user.update({
+      where: { id },
+      data: { vpnProvisioningToken: token, vpnTokenGeneratedAt: new Date() },
+    })
+
+    return { success: true, message: 'New provisioning token generated' }
   })
 
   // ============================================================================

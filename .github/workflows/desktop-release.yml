@@ -1,0 +1,158 @@
+name: Desktop Release
+
+# Triggered manually or on version tags (e.g. desktop/v1.2.3)
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.2.3)"
+        required: true
+        type: string
+  push:
+    tags:
+      - "desktop/v*"
+
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false  # Never cancel a release in flight
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  # ===========================================================================
+  # BUILD
+  # Runs on Windows so that:
+  #   - electron-builder can produce a native Windows NSIS installer
+  #   - WireGuard MSI can be verified (same arch as target)
+  # ===========================================================================
+  build:
+    name: Build Windows Installer
+    runs-on: windows-latest
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Node / pnpm ──────────────────────────────────────────────────────
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install monorepo dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ── Build shared packages ────────────────────────────────────────────
+      - name: Build @hta/shared
+        run: pnpm --filter @hta/shared build
+
+      - name: Build @hta/database
+        run: pnpm --filter @hta/database generate
+
+      # ── Build Next.js web app (standalone) ───────────────────────────────
+      - name: Build web app (Next.js standalone)
+        env:
+          NODE_ENV: production
+          # Dummy values — the desktop app uses the remote API, not the DB directly
+          DATABASE_URL: postgresql://localhost:5432/placeholder
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: http://localhost:3000
+        run: pnpm --filter web-hta build
+
+      # ── Compile Electron main process ────────────────────────────────────
+      - name: Compile Electron TypeScript
+        working-directory: apps/desktop
+        run: pnpm build
+
+      # ── Set version from tag or input ────────────────────────────────────
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # Extract from tag: desktop/v1.2.3 → 1.2.3
+            VERSION="${GITHUB_REF_NAME#desktop/v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Bump package.json version
+        working-directory: apps/desktop
+        run: node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version='${{ steps.version.outputs.version }}';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+
+      # ── Download WireGuard MSI ───────────────────────────────────────────
+      - name: Download WireGuard installer
+        working-directory: apps/desktop
+        run: node scripts/download-wireguard.js
+
+      # ── Copy Next.js standalone output into resources ────────────────────
+      - name: Copy Next.js standalone into Electron resources
+        working-directory: apps/desktop
+        run: node scripts/copy-standalone.js
+
+      # ── Package with electron-builder ────────────────────────────────────
+      - name: Package installer (electron-builder)
+        working-directory: apps/desktop
+        env:
+          # Skip the prepackage scripts — we already ran them above
+          npm_lifecycle_event: package
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --config electron-builder.yml
+
+      # ── Upload artifact ──────────────────────────────────────────────────
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hta-calibr8s-windows-${{ steps.version.outputs.version }}
+          path: apps/desktop/release/*.exe
+          retention-days: 30
+
+  # ===========================================================================
+  # PUBLISH
+  # Upload installer + latest.yml to GCS so existing installs can auto-update
+  # ===========================================================================
+  publish:
+    name: Publish to GCS
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write  # Required for Workload Identity Federation
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hta-calibr8s-windows-${{ needs.build.outputs.version || inputs.version }}
+          path: release-artifacts
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DESKTOP_RELEASES_SA }}
+
+      - name: Upload to GCS
+        uses: google-github-actions/upload-cloud-storage@v2
+        with:
+          path: release-artifacts
+          destination: hta-platform-prod-desktop-releases
+          glob: "*.exe"
+          headers: |-
+            content-type: application/octet-stream
+
+      - name: Upload latest.yml
+        uses: google-github-actions/upload-cloud-storage@v2
+        with:
+          path: release-artifacts
+          destination: hta-platform-prod-desktop-releases
+          glob: "latest.yml"
+          headers: |-
+            content-type: application/yaml

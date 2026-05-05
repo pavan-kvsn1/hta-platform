@@ -84,6 +84,21 @@ output "desktop_releases_url" {
   value       = "https://storage.googleapis.com/${var.project_id}-desktop-releases"
 }
 
+output "wireguard_external_ip" {
+  description = "WireGuard gateway static public IP — use in engineer VPN configs and for TLS pinning"
+  value       = module.wireguard.external_ip
+}
+
+output "wireguard_peers_bucket" {
+  description = "GCS bucket for WireGuard peer management"
+  value       = module.wireguard.peers_bucket_name
+}
+
+output "wireguard_server_pubkey_path" {
+  description = "GCS path to server public key — read by provisioning API endpoint"
+  value       = module.wireguard.server_public_key_gcs_path
+}
+
 # Argo CD / IAP outputs
 output "argocd_url" {
   description = "Argo CD URL"

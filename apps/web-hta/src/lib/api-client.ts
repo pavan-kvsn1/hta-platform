@@ -21,6 +21,18 @@ let tokenExpiresAt: number = 0
  * Get or refresh access token
  */
 async function getAccessToken(): Promise<string | null> {
+  // In Electron, get token from main process (no database needed)
+  const electronApi = typeof window !== 'undefined'
+    ? (window as unknown as { electronAPI?: { getAccessToken?: () => Promise<string | null> } }).electronAPI
+    : undefined
+  if (electronApi?.getAccessToken) {
+    try {
+      return await electronApi.getAccessToken()
+    } catch {
+      return null
+    }
+  }
+
   // Return cached token if still valid (with 30s buffer)
   if (accessToken && Date.now() < tokenExpiresAt - 30000) {
     return accessToken

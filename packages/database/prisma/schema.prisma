@@ -200,6 +200,11 @@ model User {
   devices                        DeviceRegistration[]
   offlineCodeBatches             OfflineCodeBatch[]
 
+  // Desktop VPN provisioning (WireGuard request-approval flow)
+  vpnProvisioningToken           String?                       @unique
+  vpnTokenGeneratedAt            DateTime?
+  vpnPeer                        VpnPeer?
+
   // Two-Factor Authentication (2FA)
   totpSecret                     String?                       // Encrypted TOTP secret
   totpEnabled                    Boolean                       @default(false)
@@ -1067,6 +1072,7 @@ enum InternalRequestType {
   SECTION_UNLOCK
   FIELD_CHANGE
   OFFLINE_CODE_REQUEST
+  DESKTOP_VPN_REQUEST
 }
 
 enum InternalRequestStatus {
@@ -1097,4 +1103,25 @@ enum InvoiceStatus {
   PAID
   OVERDUE
   CANCELLED
+}
+
+// ============================================================================
+// DESKTOP VPN — WireGuard peer registry
+// ============================================================================
+// One record per provisioned engineer device. Created when the engineer
+// completes the first-run VPN setup in the desktop app.
+
+model VpnPeer {
+  id            String    @id @default(cuid())
+  userId        String    @unique              // one VPN peer per engineer
+  user          User      @relation(fields: [userId], references: [id])
+  tenantId      String
+  publicKey     String    @unique              // WireGuard Curve25519 public key
+  ipAddress     String    @unique              // assigned 10.100.0.x
+  provisionedAt DateTime  @default(now())
+  revokedAt     DateTime?
+  isActive      Boolean   @default(true)
+
+  @@index([tenantId])
+  @@index([isActive])
 }

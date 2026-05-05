@@ -118,7 +118,7 @@ const internalRequestRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Validate request type
-    if (!['SECTION_UNLOCK', 'FIELD_CHANGE', 'OFFLINE_CODE_REQUEST'].includes(body.type)) {
+    if (!['SECTION_UNLOCK', 'FIELD_CHANGE', 'OFFLINE_CODE_REQUEST', 'DESKTOP_VPN_REQUEST'].includes(body.type)) {
       return reply.status(400).send({ error: 'Invalid request type' })
     }
 
@@ -162,6 +162,64 @@ const internalRequestRoutes: FastifyPluginAsync = async (fastify) => {
             type: 'OFFLINE_CODE_REQUESTED',
             title: 'Offline Code Card Requested',
             message: `${created.requestedBy.name} has requested a new offline code card.${body.reason ? ` Reason: ${body.reason}` : ''}`,
+            data: JSON.stringify({ requestId: created.id }),
+          })),
+        })
+      }
+
+      return {
+        success: true,
+        request: {
+          id: created.id,
+          type: created.type,
+          status: created.status,
+          data: { reason: body.reason || null },
+          requestedBy: created.requestedBy,
+          createdAt: created.createdAt.toISOString(),
+        },
+      }
+    }
+
+    // DESKTOP_VPN_REQUEST — no certificate needed, request desktop VPN access
+    if (body.type === 'DESKTOP_VPN_REQUEST') {
+      // Check for existing pending request
+      const existingPending = await prisma.internalRequest.findFirst({
+        where: { requestedById: userId, type: 'DESKTOP_VPN_REQUEST', status: 'PENDING' },
+      })
+      if (existingPending) {
+        return reply.status(400).send({
+          error: 'You already have a pending desktop VPN access request',
+        })
+      }
+
+      const requestData = JSON.stringify({ reason: body.reason || null })
+
+      const created = await prisma.internalRequest.create({
+        data: {
+          type: 'DESKTOP_VPN_REQUEST',
+          status: 'PENDING',
+          requestedById: userId,
+          certificateId: null,
+          data: requestData,
+        },
+        include: {
+          requestedBy: { select: { id: true, name: true, email: true } },
+        },
+      })
+
+      // Notify all tenant admins
+      const admins = await prisma.user.findMany({
+        where: { tenantId, role: 'ADMIN', isActive: true },
+        select: { id: true },
+      })
+
+      if (admins.length > 0) {
+        await prisma.notification.createMany({
+          data: admins.map((admin) => ({
+            userId: admin.id,
+            type: 'DESKTOP_VPN_REQUESTED',
+            title: 'Desktop VPN Access Requested',
+            message: `${created.requestedBy.name} has requested desktop VPN access.${body.reason ? ` Reason: ${body.reason}` : ''}`,
             data: JSON.stringify({ requestId: created.id }),
           })),
         })

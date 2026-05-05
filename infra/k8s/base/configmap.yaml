@@ -7,17 +7,22 @@ metadata:
     app.kubernetes.io/name: hta-platform
 data:
   # CORS configuration
-  cors-origins: "https://app.hta.example.com"
+  CORS_ORIGINS: "https://app.hta.example.com"
 
   # GCS bucket for certificate images
-  gcs-bucket-name: "hta-certificates-prod"
+  GCS_BUCKET: "hta-certificates-prod"
 
   # Email configuration
-  email-from: "HTA Calibration <noreply@htacalibration.com>"
+  EMAIL_FROM: "HTA Calibration <noreply@htacalibration.com>"
 
   # Logging level
-  log-level: "info"
+  LOG_LEVEL: "info"
 
   # Frontend configuration
-  nextauth-url: "https://app.hta.example.com"
-  api-url: "https://api.hta.example.com"
+  NEXTAUTH_URL: "https://app.hta.example.com"
+  API_URL: "https://api.hta.example.com"
+
+  # WireGuard VPN
+  WG_SERVER_ENDPOINT: "35.200.149.46:51820"
+  WG_DNS: "10.100.0.1"
+  WG_PEERS_BUCKET: "hta-platform-prod-wireguard"

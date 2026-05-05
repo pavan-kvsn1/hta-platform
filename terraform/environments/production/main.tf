@@ -331,6 +331,31 @@ module "desktop_releases_bucket" {
 }
 
 # =============================================================================
+# WireGuard VPN Gateway
+# =============================================================================
+# Private VPN tunnel so engineers' Windows laptops can reach the API at
+# 10.8.3.226 without exposing the API to the public internet.
+# Full scope: docs/todos/wireguard-vpn-integration.md
+
+module "wireguard" {
+  source = "../../modules/wireguard"
+
+  project_id          = var.project_id
+  environment         = var.environment
+  region              = var.region
+  zone                = "${var.region}-b"  # Match GKE node pool zone (asia-south1-b)
+  network             = google_compute_network.main.self_link
+  subnetwork          = google_compute_subnetwork.main.self_link
+  api_sa_email        = local.api_sa_email
+  gke_nodes_sa_email  = google_service_account.gke_nodes.email
+
+  labels = {
+    environment = var.environment
+    component   = "wireguard-gateway"
+  }
+}
+
+# =============================================================================
 # Secrets
 # =============================================================================
 
