@@ -131,6 +131,59 @@ apiFetch → API returns 401
 - GKE services: `hta-api-vpn` (NodePort 30080), `hta-web-vpn` (NodePort 30081)
 - Peer sync: cron every 30s → `gs://hta-platform-prod-wireguard/peers.conf` → `wg syncconf`
 
+## Issue 8: Offline codes not stored during first login
+
+**Problem:** `registerDevice()` during first login calls the API at `http://10.100.0.1` (VPN gateway) to get offline code hashes. If the VPN is broken or not yet connected when first login happens, `registerDevice` fails silently → no codes stored in SQLCipher → offline unlock falls back to password-only (no 2FA challenge) → reduced security.
+
+**Impact:** The challenge-response screen never appears offline. User only gets password-only unlock.
+
+**Fix (does not touch VPN):**
+1. In `apps/desktop/src/main/index.ts` `auth:setup` handler: if `registerDevice` fails, store a flag `needs-code-sync: true` in credentials
+2. On every subsequent online launch (VPN connected), check the flag and retry `registerDevice` to fetch codes
+3. Also retry code fetch during the sync loop (`startSyncLoop`) — if codes are empty, fetch them as part of sync
+4. The offline codes endpoint `GET /api/devices/codes` already returns the code pairs. The desktop just needs to call it and store the hashes.
+
+**Files:**
+- `apps/desktop/src/main/index.ts` — retry logic in `auth:setup` and `startSyncLoop`
+- `apps/desktop/src/main/sync.ts` — add code sync to the periodic sync
+
+---
+
+## Issue 9: VPN-down not detected as offline
+
+**Problem:** `isElectronOffline()` in `api-client.ts` calls `window.electronAPI.isOffline()` which uses Electron's `net.isOnline()`. This checks internet connectivity, NOT VPN status. When VPN is down but internet is up, the app thinks it's online → tries API calls through VPN → times out → dashboard stuck.
+
+**Impact:** Dashboard hangs instead of showing cached data when VPN is down.
+
+**Fix (does not touch VPN):**
+1. In `apps/desktop/src/main/index.ts`: add an `app:is-api-reachable` IPC handler that pings `http://10.100.0.1/api/health` with a 3-second timeout
+2. In `api-client.ts`: `isElectronOffline()` checks BOTH `net.isOnline()` AND the API reachability check
+3. Cache the reachability result for 30 seconds to avoid pinging on every API call
+4. When unreachable: the existing offline intercept routes requests to `window.electronAPI.handleOfflineRequest()` → SQLCipher
+
+**Files:**
+- `apps/desktop/src/main/index.ts` — `app:is-api-reachable` IPC handler
+- `apps/desktop/src/preload/index.ts` — expose new IPC
+- `apps/web-hta/src/lib/api-client.ts` — update `isElectronOffline()` to check API reachability
+
+---
+
+## Issue 10: Dashboard has no offline fallback UI
+
+**Problem:** When API calls fail (offline or VPN down), the engineer dashboard shows empty/blank with no indication of what's wrong. The `EngineerDashboardClient` doesn't handle fetch failures gracefully.
+
+**Impact:** User sees an empty screen and doesn't know if the app is broken or just offline.
+
+**Fix (does not touch VPN):**
+1. In `EngineerDashboardClient`: catch `apiFetch` errors and show an offline banner: "You're offline. Showing cached data." or "Cannot reach server. Check your VPN connection."
+2. When offline: show locally cached certificate drafts from SQLCipher instead of an empty dashboard
+3. Add a "Retry" button that re-fetches when the user reconnects
+
+**Files:**
+- `apps/web-hta/src/app/(dashboard)/dashboard/EngineerDashboardClient.tsx` — error handling + offline UI
+
+---
+
 ## Build Sequence
 
 ```powershell
@@ -149,9 +202,25 @@ npm run package:dir
 
 ## Test Checklist
 
+**Online (VPN connected):**
 - [ ] First login: provision → login → dashboard shows data
 - [ ] Close and reopen: unlock → dashboard shows data
-- [ ] Minimize and restore: dashboard still has data
+- [ ] Minimize and restore after 4+ hours: 401 retry refreshes token → data loads
 - [ ] Port 3000 occupied: app still starts on fallback port
-- [ ] Offline: unlock with password + code → cached data available
+
+**Offline codes:**
+- [ ] First login stores offline code hashes in SQLCipher
+- [ ] If first login fails to get codes, retry on next online launch (Issue 8)
+- [ ] Offline unlock shows challenge key (e.g., "B4") from printed card
+- [ ] Correct code + password → unlocks → shows cached data
+
+**Offline / VPN down:**
+- [ ] VPN down detected as offline (Issue 9) → offline intercept fires
+- [ ] Dashboard shows offline banner + cached drafts (Issue 10)
 - [ ] Back online: sync pushes local changes
+- [ ] Retry button re-fetches dashboard data
+
+**Security:**
+- [ ] 5 failed unlock attempts → device wipe
+- [ ] Offline code consumed on each full unlock (not password-only)
+- [ ] Challenge key rotated after each unlock
