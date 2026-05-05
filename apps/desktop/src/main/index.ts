@@ -1,7 +1,7 @@
 import { app, BrowserWindow, session, net, ipcMain, Menu, safeStorage } from 'electron'
 import path from 'path'
 import { setupTlsPinning, checkInactivityWipe, wipeAllLocalData } from './security'
-import { setupOfflineAuth, unlockWithPasswordAndCode, unlockWithPasswordOnly, getAuthStatus, getDeviceId, getUserId, getUserProfile, clearCredentials, setCredential, getCredential } from './auth'
+import { setupOfflineAuth, unlockWithPasswordAndCode, unlockWithPasswordOnly, getAuthStatus, getDeviceId, getUserId, getUserProfile, clearCredentials, setCredential, getCredential, getLatestRefreshToken } from './auth'
 import { closeDb, dbExists, getDb } from './sqlite-db'
 import { registerDevice, checkDeviceStatus, sendHeartbeat } from './device'
 import { registerDraftHandlers, registerImageHandlers, registerConflictHandlers } from './ipc-handlers'
@@ -76,9 +76,16 @@ async function refreshAccessToken(refreshToken: string): Promise<void> {
     const body = await res.text()
     console.log('[auth] Refresh response:', res.status, body.slice(0, 200))
     if (res.ok) {
-      const data = JSON.parse(body) as { accessToken: string }
+      const data = JSON.parse(body) as { accessToken: string; refreshToken?: string }
       cachedAccessToken = data.accessToken
       persistAccessToken(data.accessToken)
+      // Persist rotated refresh token so it survives app restarts
+      if (data.refreshToken) {
+        cachedRefreshToken = data.refreshToken
+        const { updateStoredRefreshToken } = require('./auth')
+        updateStoredRefreshToken(data.refreshToken)
+        console.log('[auth] Refresh token rotated and persisted')
+      }
       console.log('[auth] Access token set successfully')
     }
   } catch (err) {
@@ -206,10 +213,11 @@ ipcMain.handle('app:is-api-reachable', async () => {
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3000)
-    const res = await fetch('http://10.100.0.1/api/health', { signal: controller.signal })
+    // Any HTTP response (even 404) means VPN + nginx gateway is reachable
+    await fetch('http://10.100.0.1/', { signal: controller.signal })
     clearTimeout(timeout)
-    apiReachableCache = { value: res.ok, timestamp: Date.now() }
-    return res.ok
+    apiReachableCache = { value: true, timestamp: Date.now() }
+    return true
   } catch {
     apiReachableCache = { value: false, timestamp: Date.now() }
     return false
@@ -322,13 +330,20 @@ ipcMain.handle('auth:unlock', async (_event, password: string, challengeKey: str
   const result = await unlockWithPasswordAndCode(password, challengeKey, responseValue)
 
   // Start sync loop and refresh access token on successful full auth
-  if (result.success && result.refreshToken) {
-    cachedRefreshToken = result.refreshToken
-    await refreshAccessToken(result.refreshToken)
-    const deviceId = getDeviceId()
-    const userId = getUserId()
-    if (deviceId && userId) {
-      startSyncLoop(result.refreshToken, deviceId, userId)
+  if (result.success) {
+    // Prefer DPAPI-stored rotated token, fall back to password-decrypted one
+    const refreshToken = getLatestRefreshToken() || result.refreshToken
+    if (refreshToken) {
+      cachedRefreshToken = refreshToken
+      await refreshAccessToken(refreshToken)
+      if (!cachedAccessToken) {
+        return { ...result, needsReauth: true }
+      }
+      const deviceId = getDeviceId()
+      const userId = getUserId()
+      if (deviceId && userId) {
+        startSyncLoop(refreshToken, deviceId, userId)
+      }
     }
   }
 
@@ -338,9 +353,15 @@ ipcMain.handle('auth:unlock', async (_event, password: string, challengeKey: str
 // Auth: password-only re-entry (idle timeout)
 ipcMain.handle('auth:unlock-password-only', async (_event, password: string) => {
   const result = await unlockWithPasswordOnly(password)
-  if (result.success && result.refreshToken) {
-    cachedRefreshToken = result.refreshToken
-    await refreshAccessToken(result.refreshToken)
+  if (result.success) {
+    const refreshToken = getLatestRefreshToken() || result.refreshToken
+    if (refreshToken) {
+      cachedRefreshToken = refreshToken
+      await refreshAccessToken(refreshToken)
+      if (!cachedAccessToken) {
+        return { ...result, needsReauth: true }
+      }
+    }
   }
   return result
 })

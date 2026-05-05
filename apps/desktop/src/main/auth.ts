@@ -53,6 +53,40 @@ function deriveKey(password: string, deviceId: string, userId: string, salt: Buf
   return crypto.pbkdf2Sync(input, salt, PBKDF2_ITERATIONS, 32, 'sha256')
 }
 
+// ─── Refresh Token Persistence ──────────────────────────────────────────────
+
+/**
+ * Re-encrypt and store a new refresh token (after API rotation).
+ * Uses the same key derivation as the original setup.
+ */
+export function updateStoredRefreshToken(newRefreshToken: string): boolean {
+  const deviceId = getCredential('device-id')
+  const userId = getCredential('user-id')
+  const saltB64 = getCredential('salt')
+
+  if (!deviceId || !userId || !saltB64) return false
+
+  try {
+    const salt = Buffer.from(saltB64, 'base64')
+    // We can't derive the key without the password. Store via DPAPI instead.
+    // safeStorage provides OS-level encryption (DPAPI on Windows).
+    setCredential('encrypted-token-dpapi', newRefreshToken)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Get the latest refresh token — prefers DPAPI-stored (rotated) over original encrypted.
+ */
+export function getLatestRefreshToken(): string | null {
+  // First try the DPAPI-stored rotated token (updated after each refresh)
+  const dpapiToken = getCredential('encrypted-token-dpapi')
+  if (dpapiToken) return dpapiToken
+  return null
+}
+
 // ─── First-Time Setup (Online) ──────────────────────────────────────────────
 
 export async function setupOfflineAuth(

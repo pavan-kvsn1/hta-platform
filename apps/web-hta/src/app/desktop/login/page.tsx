@@ -13,6 +13,7 @@ type AuthView = 'loading' | 'login' | 'unlock' | 'password-only'
 
 export default function DesktopLoginPage() {
   const router = useRouter()
+  const forceReauth = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('reauth') === 'true'
   const [view, setView] = useState<AuthView>('loading')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -35,6 +36,13 @@ export default function DesktopLoginPage() {
     if (!api) {
       // Running in a browser, not Electron — show the login form directly
       setView('login')
+      return
+    }
+
+    // Force fresh login when tokens are dead (redirected from 401 retry)
+    if (forceReauth) {
+      setView('login')
+      setError('Your session expired. Please sign in again to get fresh credentials.')
       return
     }
 
@@ -164,6 +172,12 @@ export default function DesktopLoginPage() {
         return
       }
 
+      if (result.needsReauth) {
+        setView('login')
+        setError('Your session expired. Please sign in again to get fresh credentials.')
+        return
+      }
+
       setCodesRemaining(result.codesRemaining)
 
       const profile = await api.getUserProfile()
@@ -194,6 +208,12 @@ export default function DesktopLoginPage() {
           return
         }
         setError(result.error || `Incorrect password. ${result.attemptsRemaining} attempts remaining.`)
+        return
+      }
+
+      if (result.needsReauth) {
+        setView('login')
+        setError('Your session expired. Please sign in again to get fresh credentials.')
         return
       }
 

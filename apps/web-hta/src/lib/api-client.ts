@@ -138,8 +138,8 @@ export async function apiFetch(
     if (newToken) {
       return doApiFetch(input, init)
     }
-    // Refresh failed — redirect to login for re-auth
-    window.location.href = '/desktop/login'
+    // Refresh failed — force fresh login (not unlock, which uses the same dead token)
+    window.location.href = '/desktop/login?reauth=true'
   }
 
   return response

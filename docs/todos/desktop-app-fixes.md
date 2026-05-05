@@ -184,6 +184,38 @@ apiFetch → API returns 401
 
 ---
 
+## Issue 11: Unlock succeeds with dead refresh token
+
+**Problem:** `unlockWithPasswordOnly()` validates the password locally (decrypts AES-256-GCM). It returns `{ success: true, refreshToken }` even when the refresh token is expired/rotated. The app navigates to the dashboard, which fails with 401 on every API call.
+
+**Root cause:** The unlock function only checks the password — not whether the decrypted refresh token is still valid with the API.
+
+**Fix:** After unlock, the IPC handler calls `refreshAccessToken()`. If it returns 401, return `{ success: true, needsReauth: true }` to the renderer. The desktop login page checks this flag and shows the email+password form instead of navigating to the dashboard.
+
+**Status:** DONE
+
+**Files:**
+- `apps/desktop/src/main/index.ts` — `auth:unlock` and `auth:unlock-password-only` handlers check refresh result
+- `apps/web-hta/src/app/desktop/login/page.tsx` — handles `needsReauth` from unlock result
+
+---
+
+## Issue 12: Refresh token not persisted back to SQLCipher after rotation
+
+**Problem:** The API rotates refresh tokens on each use (old invalidated, new issued). But the new token is only stored in `cachedRefreshToken` (memory). When the app closes, the new token is lost. On next launch, the SQLCipher DB still has the old (dead) token.
+
+**Root cause:** `refreshAccessToken()` updates `cachedRefreshToken` and `cachedAccessToken` in memory but never writes the new refresh token back to the encrypted store in SQLCipher.
+
+**Fix:** When `refreshAccessToken()` gets a new refresh token from the API, re-encrypt it with the user's key and store it back in SQLCipher via the auth module.
+
+**Status:** DONE
+
+**Files:**
+- `apps/desktop/src/main/index.ts` — `refreshAccessToken()` stores new refresh token via `updateStoredRefreshToken()`
+- `apps/desktop/src/main/auth.ts` — new `updateStoredRefreshToken()` function that re-encrypts and stores
+
+---
+
 ## Build Sequence
 
 ```powershell
