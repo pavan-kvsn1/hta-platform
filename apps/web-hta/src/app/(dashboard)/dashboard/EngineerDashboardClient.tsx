@@ -2,7 +2,7 @@
 
 import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, WifiOff, RefreshCw } from 'lucide-react'
 import { CertificateTable } from '@/components/dashboard/CertificateTable'
 
 interface TatInfo {
@@ -26,10 +26,13 @@ interface Stats {
 export function EngineerDashboardClient() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isOffline, setIsOffline] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const fetchCounts = useCallback(async () => {
     try {
       setIsLoading(true)
+      setFetchError(null)
       const response = await apiFetch('/api/certificates/engineer/counts')
       if (response.ok) {
         const data = await response.json()
@@ -42,6 +45,28 @@ export function EngineerDashboardClient() {
           } catch { /* ignore */ }
         }
         setStats(data)
+        setIsOffline(false)
+      } else if (response.status === 401) {
+        setFetchError('Session expired. Please log in again.')
+      } else {
+        setFetchError('Failed to load data from server.')
+      }
+    } catch {
+      // Network error — likely offline or VPN down
+      setIsOffline(true)
+      // Try to load local draft count from Electron if available
+      const electronAPI = (window as unknown as { electronAPI?: { listDrafts: () => Promise<{ status: string }[]> } }).electronAPI
+      if (electronAPI?.listDrafts) {
+        try {
+          const drafts = await electronAPI.listDrafts()
+          setStats({
+            draft: drafts.filter((d: { status: string }) => d.status !== 'CONFLICT').length,
+            pending: 0,
+            approved: 0,
+            revision: 0,
+            conflict: drafts.filter((d: { status: string }) => d.status === 'CONFLICT').length,
+          })
+        } catch { /* ignore */ }
       }
     } finally {
       setIsLoading(false)
@@ -65,6 +90,43 @@ export function EngineerDashboardClient() {
   return (
     <div className="h-full overflow-auto bg-[#f1f5f9]">
       <div className="px-6 sm:px-9 py-8">
+        {/* Offline / Error banner */}
+        {isOffline && (
+          <div className="flex items-center gap-3 p-3.5 bg-[#fffbeb] border border-[#fde68a] rounded-[14px] mb-5">
+            <WifiOff className="size-5 text-[#d97706] shrink-0" />
+            <div className="flex-1">
+              <p className="text-[13px] font-semibold text-[#92400e]">Offline Mode</p>
+              <p className="text-[12px] text-[#b45309]">
+                Cannot reach the server. Showing locally cached data. Your drafts are safe and will sync when reconnected.
+              </p>
+            </div>
+            <button
+              onClick={fetchCounts}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#92400e] border border-[#fde68a] bg-white hover:bg-[#fffbeb] rounded-[9px] transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              Retry
+            </button>
+          </div>
+        )}
+
+        {fetchError && !isOffline && (
+          <div className="flex items-center gap-3 p-3.5 bg-[#fef2f2] border border-[#fecaca] rounded-[14px] mb-5">
+            <div className="flex-1">
+              <p className="text-[13px] font-semibold text-[#dc2626]">{fetchError}</p>
+            </div>
+            <button
+              onClick={fetchCounts}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#dc2626] border border-[#fecaca] bg-white hover:bg-[#fef2f2] rounded-[9px] transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Page header */}
         <div className="mb-7">
           <h1 className="text-[26px] font-extrabold tracking-tight text-[#0f172a]">My Certificates</h1>

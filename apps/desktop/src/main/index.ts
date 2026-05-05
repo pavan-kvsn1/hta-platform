@@ -1,7 +1,7 @@
 import { app, BrowserWindow, session, net, ipcMain, Menu, safeStorage } from 'electron'
 import path from 'path'
 import { setupTlsPinning, checkInactivityWipe, wipeAllLocalData } from './security'
-import { setupOfflineAuth, unlockWithPasswordAndCode, unlockWithPasswordOnly, getAuthStatus, getDeviceId, getUserId, getUserProfile, clearCredentials } from './auth'
+import { setupOfflineAuth, unlockWithPasswordAndCode, unlockWithPasswordOnly, getAuthStatus, getDeviceId, getUserId, getUserProfile, clearCredentials, setCredential, getCredential } from './auth'
 import { closeDb, dbExists, getDb } from './sqlite-db'
 import { registerDevice, checkDeviceStatus, sendHeartbeat } from './device'
 import { registerDraftHandlers, registerImageHandlers, registerConflictHandlers } from './ipc-handlers'
@@ -193,6 +193,29 @@ function pollConnectivity() {
 // Connectivity
 ipcMain.handle('app:online-status', () => net.isOnline())
 
+// API reachability check (VPN might be down even if internet is up)
+let apiReachableCache: { value: boolean; timestamp: number } = { value: false, timestamp: 0 }
+const API_REACHABLE_CACHE_MS = 30_000 // Cache for 30 seconds
+
+ipcMain.handle('app:is-api-reachable', async () => {
+  // Return cached result if fresh
+  if (Date.now() - apiReachableCache.timestamp < API_REACHABLE_CACHE_MS) {
+    return apiReachableCache.value
+  }
+
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3000)
+    const res = await fetch('http://10.100.0.1/api/health', { signal: controller.signal })
+    clearTimeout(timeout)
+    apiReachableCache = { value: res.ok, timestamp: Date.now() }
+    return res.ok
+  } catch {
+    apiReachableCache = { value: false, timestamp: Date.now() }
+    return false
+  }
+})
+
 // Access token for API calls (used by renderer's apiFetch)
 // Auto-refreshes from cached refresh token if access token is null (e.g., after app restart)
 ipcMain.handle('auth:get-access-token', async () => {
@@ -279,7 +302,10 @@ ipcMain.handle('auth:setup', async (_event, password: string, userId: string, re
         }
       } catch (err) {
         console.error('[auth] Device registration failed (will retry on sync):', err)
+        setCredential('needs-code-sync', 'true')
       }
+    } else {
+      setCredential('needs-code-sync', 'true')
     }
 
     // Start sync loop after initial setup
@@ -364,6 +390,35 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
   // Run sync every 30 seconds when online
   syncInterval = setInterval(async () => {
     if (!net.isOnline() || !syncEngine) return
+
+    // Retry offline code fetch if needed
+    if (getCredential('needs-code-sync') === 'true') {
+      try {
+        const token = cachedAccessToken || loadPersistedAccessToken()
+        const did = getDeviceId()
+        if (token && did) {
+          const regResult = await registerDevice(API_BASE, token, did)
+          if (regResult.codes?.length) {
+            const crypto = require('crypto') as typeof import('crypto')
+            for (const c of regResult.codes) {
+              const hash = crypto.createHash('sha256')
+                .update(c.value.toUpperCase().replace(/\s/g, ''))
+                .digest('hex')
+              await db.run(
+                'INSERT OR IGNORE INTO offline_codes (id, code_hash, key, sequence, batch_id) VALUES (?, ?, ?, ?, ?)',
+                crypto.randomUUID(), hash, c.key, c.sequence, 'sync'
+              )
+            }
+            const { prepareNextChallenge } = await import('./auth')
+            await prepareNextChallenge()
+            setCredential('needs-code-sync', 'false')
+            console.log(`[sync] Stored ${regResult.codes.length} offline codes (retry)`)
+          }
+        }
+      } catch (err) {
+        console.warn('[sync] Code sync retry failed:', err)
+      }
+    }
 
     try {
       const result = await syncEngine.run()

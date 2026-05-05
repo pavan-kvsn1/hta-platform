@@ -81,8 +81,37 @@ export function clearAccessToken(): void {
  */
 const OFFLINE_ROUTES = ['/api/certificates', '/api/instruments']
 
+// Cache API reachability check result to avoid async in the hot path
+let _apiReachable = true
+let _apiCheckPending = false
+
+function checkApiReachability(): void {
+  const api = typeof window !== 'undefined'
+    ? (window as unknown as { electronAPI?: { isApiReachable?: () => Promise<boolean> } }).electronAPI
+    : undefined
+  if (api?.isApiReachable && !_apiCheckPending) {
+    _apiCheckPending = true
+    api.isApiReachable().then((reachable) => {
+      _apiReachable = reachable
+    }).catch(() => {
+      _apiReachable = false
+    }).finally(() => {
+      _apiCheckPending = false
+    })
+  }
+}
+
 function isElectronOffline(): boolean {
-  return typeof window !== 'undefined' && !!window.electronAPI?.isOffline()
+  if (typeof window === 'undefined') return false
+  const api = (window as unknown as { electronAPI?: { isOffline?: () => boolean } }).electronAPI
+  if (!api) return false
+
+  // Check both: no internet OR API unreachable (VPN down)
+  if (api.isOffline?.()) return true
+
+  // Trigger async reachability check for next call
+  checkApiReachability()
+  return !_apiReachable
 }
 
 function isDraftRoute(url: string): boolean {

@@ -19,13 +19,13 @@ function ensureCredDir(): void {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 }
 
-function setCredential(key: string, value: string): void {
+export function setCredential(key: string, value: string): void {
   ensureCredDir()
   const encrypted = safeStorage.encryptString(value)
   fs.writeFileSync(path.join(CRED_DIR(), key), encrypted)
 }
 
-function getCredential(key: string): string | null {
+export function getCredential(key: string): string | null {
   const filePath = path.join(CRED_DIR(), key)
   if (!fs.existsSync(filePath)) return null
   try {
