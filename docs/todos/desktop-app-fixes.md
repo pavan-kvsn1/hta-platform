@@ -28,19 +28,34 @@
 
 ---
 
-## Issue 2: Refresh token invalidation
+## Issue 2: Access token expires after 4 hours
 
-**Problem:** Refresh tokens get rotated (old one invalidated) on each use. During development/testing, multiple provision cycles burn through tokens. On app restart, the stored refresh token is often already invalid → `refreshAccessToken()` returns 401 → `cachedAccessToken` stays null → all API calls fail with 401.
+**Problem:** Access token has a 4-hour lifetime. `TokenRefreshProvider` is disabled in Electron (it uses Prisma-dependent routes). After 4 hours, all API calls return 401 and the dashboard goes empty.
 
-**Fix:** 
-1. During first login (`handleLogin` → `auth:setup`), the fresh access token is stored. This works.
-2. On app restart, the unlock flow decrypts the stored refresh token and calls `refreshAccessToken()`. If the token is expired/rotated, this fails silently.
-3. When refresh fails, fall back to re-authentication: prompt the user to log in again (online) rather than showing an empty dashboard.
-4. Consider storing the access token in safeStorage (persists across restarts) alongside the refresh token. Only refresh when the access token expires.
+**Approach:** 401-retry in `apiFetch` (Electron only). Does NOT touch the web app's `TokenRefreshProvider` or any web auth routes.
 
-**Files:** 
-- `apps/desktop/src/main/index.ts` — `refreshAccessToken()`, `auth:get-access-token` handler
-- `apps/desktop/src/main/auth.ts` — `unlockWithPasswordAndCode()`, `unlockWithPasswordOnly()`
+**Flow:**
+```
+apiFetch → API returns 401
+  → is Electron? → call window.electronAPI.refreshAccessToken()
+    → main process calls Fastify POST /api/auth/refresh via VPN gateway
+    → new token cached + persisted to safeStorage
+  → retry original request with new token
+  → if still 401 → redirect to /desktop/login (re-auth)
+```
+
+**Risk mitigations:**
+- Retry exactly ONCE to prevent infinite loop
+- Single refresh lock to prevent race conditions (multiple 401s triggering concurrent refreshes)
+- VPN timeout caught gracefully (don't crash, show offline state)
+- Refresh token expired (>7 days) → redirect to login
+
+**Status:** DONE
+
+**Files changed:**
+- `apps/web-hta/src/lib/api-client.ts` — 401 retry logic in `apiFetch` for Electron
+- `apps/desktop/src/main/index.ts` — `auth:refresh-access-token` IPC handler
+- `apps/desktop/src/preload/index.ts` — expose `refreshAccessToken` IPC
 
 ---
 

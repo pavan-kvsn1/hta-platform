@@ -98,6 +98,28 @@ export async function apiFetch(
     return window.electronAPI!.handleOfflineRequest(input, init)
   }
 
+  const response = await doApiFetch(input, init)
+
+  // Electron 401 retry: refresh token via IPC and retry once
+  const electronApi = typeof window !== 'undefined'
+    ? (window as unknown as { electronAPI?: { refreshAccessToken?: () => Promise<string | null> } }).electronAPI
+    : undefined
+  if (response.status === 401 && electronApi?.refreshAccessToken) {
+    const newToken = await electronApi.refreshAccessToken()
+    if (newToken) {
+      return doApiFetch(input, init)
+    }
+    // Refresh failed — redirect to login for re-auth
+    window.location.href = '/desktop/login'
+  }
+
+  return response
+}
+
+async function doApiFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
   const token = await getAccessToken()
 
   const headers = new Headers(init?.headers)

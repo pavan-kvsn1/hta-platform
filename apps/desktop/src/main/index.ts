@@ -217,6 +217,27 @@ ipcMain.handle('auth:get-access-token', async () => {
   return null
 })
 
+// Refresh access token on demand (called by renderer when API returns 401)
+let isRefreshing = false
+ipcMain.handle('auth:refresh-access-token', async () => {
+  // Lock to prevent concurrent refreshes (multiple 401s at once)
+  if (isRefreshing) {
+    // Wait for the ongoing refresh to finish, then return whatever we have
+    await new Promise(r => setTimeout(r, 2000))
+    return cachedAccessToken
+  }
+
+  isRefreshing = true
+  try {
+    if (cachedRefreshToken) {
+      await refreshAccessToken(cachedRefreshToken)
+    }
+    return cachedAccessToken
+  } finally {
+    isRefreshing = false
+  }
+})
+
 // Switch to production web app after VPN is established
 ipcMain.handle('app:load-production', () => {
   if (mainWindow) {
