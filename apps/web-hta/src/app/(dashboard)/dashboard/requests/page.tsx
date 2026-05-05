@@ -7,6 +7,7 @@ import {
   Unlock,
   PenLine,
   KeyRound,
+  Monitor,
   ChevronRight,
   ChevronLeft,
   Inbox,
@@ -64,6 +65,13 @@ const TYPE_CONFIG = {
     badgeBg: 'bg-[#ede9fe]',
     badgeText: 'text-[#6d28d9]',
     borderColor: 'border-l-[#a78bfa]',
+  },
+  DESKTOP_VPN_REQUEST: {
+    icon: Monitor,
+    label: 'Desktop VPN',
+    badgeBg: 'bg-[#ecfdf5]',
+    badgeText: 'text-[#065f46]',
+    borderColor: 'border-l-[#10b981]',
   },
 }
 
