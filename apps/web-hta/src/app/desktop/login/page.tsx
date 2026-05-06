@@ -172,7 +172,7 @@ export default function DesktopLoginPage() {
         return
       }
 
-      if (result.needsReauth) {
+      if ((result as Record<string, unknown>).needsReauth) {
         setView('login')
         setError('Your session expired. Please sign in again to get fresh credentials.')
         return
@@ -211,7 +211,7 @@ export default function DesktopLoginPage() {
         return
       }
 
-      if (result.needsReauth) {
+      if ((result as Record<string, unknown>).needsReauth) {
         setView('login')
         setError('Your session expired. Please sign in again to get fresh credentials.')
         return
