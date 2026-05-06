@@ -91,7 +91,9 @@ export function EngineerDashboardClient() {
         // Gateway error — VPN down or server unreachable
         await loadOfflineData()
       } else {
-        setFetchError('Failed to load data from server.')
+        // Any other error — likely offline too
+        console.warn('[dashboard] API returned:', response.status)
+        await loadOfflineData()
       }
     } catch {
       // Network error — likely offline or VPN down
@@ -239,9 +241,17 @@ export function EngineerDashboardClient() {
               </table>
             </div>
           </div>
-        ) : !isOffline ? (
+        ) : isOffline ? (
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-8 text-center">
+            <WifiOff className="size-10 mx-auto mb-3 text-[#e2e8f0]" />
+            <p className="text-[13px] font-medium text-[#64748b]">No cached certificates</p>
+            <p className="text-[12px] text-[#94a3b8] mt-1">
+              Certificates will be cached locally after your first online session. You can still create new drafts.
+            </p>
+          </div>
+        ) : (
           <CertificateTable userRole="ENGINEER" />
-        ) : null}
+        )}
       </div>
     </div>
   )
