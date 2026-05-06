@@ -415,51 +415,12 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
     userId,
   )
 
-  // Run sync every 30 seconds when online
+  const FAST_SYNC_MS = 2 * 60 * 1000  // 2 min — draft push
+  const SLOW_SYNC_MS = 10 * 60 * 1000 // 10 min — cert/image/counts cache
+
+  // ── Fast loop: push local drafts every 2 min ──
   syncInterval = setInterval(async () => {
     if (!net.isOnline() || !syncEngine) return
-
-    // Retry offline code fetch if needed
-    if (getCredential('needs-code-sync') === 'true') {
-      try {
-        const token = cachedAccessToken || loadPersistedAccessToken()
-        if (token) {
-          // Fetch offline code pairs from the API
-          const apiUrl = 'http://10.100.0.1'
-          const codesRes = await fetch(`${apiUrl}/api/offline-codes`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'X-Tenant-ID': 'hta-calibration',
-            },
-          })
-          if (codesRes.ok) {
-            const codesData = await codesRes.json() as {
-              hasBatch: boolean
-              pairs?: Array<{ sequence: number; key: string; value: string; used: boolean }>
-            }
-            if (codesData.hasBatch && codesData.pairs?.length) {
-              const crypto = require('crypto') as typeof import('crypto')
-              for (const c of codesData.pairs) {
-                if (c.used) continue
-                const hash = crypto.createHash('sha256')
-                  .update(c.value.toUpperCase().replace(/\s/g, ''))
-                  .digest('hex')
-                await db.run(
-                  'INSERT OR IGNORE INTO offline_codes (id, code_hash, key, sequence, batch_id) VALUES (?, ?, ?, ?, ?)',
-                  crypto.randomUUID(), hash, c.key, c.sequence, 'sync'
-                )
-              }
-              const { prepareNextChallenge } = await import('./auth')
-              await prepareNextChallenge()
-              setCredential('needs-code-sync', 'false')
-              console.log(`[sync] Stored ${codesData.pairs.filter(c => !c.used).length} offline codes`)
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[sync] Code sync retry failed:', err)
-      }
-    }
 
     try {
       const result = await syncEngine.run()
@@ -469,49 +430,142 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
         auditLogs: result.auditLogs,
       })
     } catch (err) {
-      console.error('[sync] Sync cycle failed:', err)
+      console.error('[sync] Draft sync failed:', err)
     }
+  }, FAST_SYNC_MS)
 
-    // Cache certificates from server for offline dashboard
-    try {
-      const token = cachedAccessToken || loadPersistedAccessToken()
-      if (token) {
-        const res = await fetch('http://10.100.0.1/api/certificates/engineer?limit=100', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-Tenant-ID': 'hta-calibration',
-          },
-        })
-        if (res.ok) {
-          const data = await res.json() as {
-            certificates: Array<{
-              id: string; certificateNumber: string; status: string
-              customerName: string; uucDescription: string
-              dateOfCalibration: string; currentVersion: number
-              reviewerName?: string; createdAt: string
-            }>
+  // ── Slow loop: cache certs, counts, codes every 10 min ──
+  const runSlowSync = async () => {
+    if (!net.isOnline()) return
+    const token = cachedAccessToken || loadPersistedAccessToken()
+    if (!token) return
+
+    const headers = { 'Authorization': `Bearer ${token}`, 'X-Tenant-ID': 'hta-calibration' }
+    const apiUrl = 'http://10.100.0.1'
+
+    // 1. Offline code fetch (retry until success)
+    if (getCredential('needs-code-sync') === 'true') {
+      try {
+        const codesRes = await fetch(`${apiUrl}/api/offline-codes`, { headers })
+        if (codesRes.ok) {
+          const codesData = await codesRes.json() as {
+            hasBatch: boolean
+            pairs?: Array<{ sequence: number; key: string; value: string; used: boolean }>
           }
-          if (data.certificates?.length) {
-            for (const cert of data.certificates) {
+          if (codesData.hasBatch && codesData.pairs?.length) {
+            const crypto = require('crypto') as typeof import('crypto')
+            for (const c of codesData.pairs) {
+              if (c.used) continue
+              const hash = crypto.createHash('sha256')
+                .update(c.value.toUpperCase().replace(/\s/g, ''))
+                .digest('hex')
               await db.run(
-                `INSERT OR REPLACE INTO cached_certificates
-                 (id, certificate_number, status, customer_name, uuc_description,
-                  date_of_calibration, current_revision, reviewer_name, created_at, updated_at, cached_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-                cert.id, cert.certificateNumber, cert.status,
-                cert.customerName, cert.uucDescription,
-                cert.dateOfCalibration, cert.currentVersion,
-                cert.reviewerName || null, cert.createdAt, cert.createdAt
+                'INSERT OR IGNORE INTO offline_codes (id, code_hash, key, sequence, batch_id) VALUES (?, ?, ?, ?, ?)',
+                crypto.randomUUID(), hash, c.key, c.sequence, 'sync'
               )
             }
-            console.log(`[sync] Cached ${data.certificates.length} certificates`)
+            const { prepareNextChallenge } = await import('./auth')
+            await prepareNextChallenge()
+            setCredential('needs-code-sync', 'false')
+            console.log(`[sync] Stored ${codesData.pairs.filter(c => !c.used).length} offline codes`)
           }
         }
+      } catch (err) {
+        console.warn('[sync] Code sync retry failed:', err)
       }
-    } catch (err) {
-      // Non-fatal — certificate caching is best-effort
     }
-  }, 30_000)
+
+    // 2. Cache engineer's actionable certificates
+    try {
+      const res = await fetch(`${apiUrl}/api/certificates/engineer?limit=100&status=DRAFT,REVISION_REQUIRED`, { headers })
+      if (res.ok) {
+        const data = await res.json() as { certificates: Array<Record<string, unknown>> }
+        if (data.certificates?.length) {
+          for (const cert of data.certificates) {
+            await db.run(
+              `INSERT OR REPLACE INTO cached_certificates
+               (id, certificate_number, status, customer_name, uuc_description,
+                date_of_calibration, current_revision, reviewer_name, created_at, updated_at, cached_at, role)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'creator')`,
+              cert.id, cert.certificateNumber, cert.status,
+              cert.customerName, cert.uucDescription,
+              cert.dateOfCalibration, cert.currentVersion,
+              cert.reviewerName || null, cert.createdAt, cert.createdAt
+            )
+          }
+          console.log(`[sync] Cached ${data.certificates.length} engineer certs`)
+        }
+      }
+    } catch { /* best-effort */ }
+
+    // 3. Cache reviewer's actionable certificates
+    try {
+      const res = await fetch(`${apiUrl}/api/certificates/reviewer?limit=100&status=PENDING_REVIEW,CUSTOMER_REVISION_REQUIRED`, { headers })
+      if (res.ok) {
+        const data = await res.json() as { certificates: Array<Record<string, unknown>> }
+        if (data.certificates?.length) {
+          for (const cert of data.certificates) {
+            await db.run(
+              `INSERT OR REPLACE INTO cached_certificates
+               (id, certificate_number, status, customer_name, uuc_description,
+                date_of_calibration, current_revision, reviewer_name, created_at, updated_at, cached_at, role)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'reviewer')`,
+              cert.id, cert.certificateNumber, cert.status,
+              cert.customerName, cert.uucDescription,
+              cert.dateOfCalibration, cert.currentVersion,
+              (cert as Record<string, unknown>).createdByName || null, cert.createdAt, cert.createdAt
+            )
+          }
+          console.log(`[sync] Cached ${data.certificates.length} reviewer certs`)
+        }
+      }
+    } catch { /* best-effort */ }
+
+    // 4. Cache stat counts
+    try {
+      const [engRes, revRes] = await Promise.all([
+        fetch(`${apiUrl}/api/certificates/engineer/counts`, { headers }),
+        fetch(`${apiUrl}/api/certificates/reviewer/counts`, { headers }),
+      ])
+      if (engRes.ok) {
+        const counts = await engRes.json()
+        await db.run(
+          "INSERT OR REPLACE INTO session_meta (key, value) VALUES ('engineer_counts', ?)",
+          JSON.stringify(counts)
+        )
+      }
+      if (revRes.ok) {
+        const counts = await revRes.json()
+        await db.run(
+          "INSERT OR REPLACE INTO session_meta (key, value) VALUES ('reviewer_counts', ?)",
+          JSON.stringify(counts)
+        )
+      }
+      console.log('[sync] Cached stat counts')
+    } catch { /* best-effort */ }
+
+    // 5. Update last synced timestamp
+    await db.run(
+      "INSERT OR REPLACE INTO session_meta (key, value) VALUES ('last_synced_at', ?)",
+      new Date().toISOString()
+    )
+
+    mainWindow?.webContents.send('sync:status', {
+      online: true,
+      lastSyncedAt: new Date().toISOString(),
+    })
+  }
+
+  // Run slow sync immediately, then every 10 min
+  runSlowSync().catch(err => console.warn('[sync] Initial slow sync failed:', err))
+  const slowSyncInterval = setInterval(() => {
+    runSlowSync().catch(err => console.warn('[sync] Slow sync failed:', err))
+  }, SLOW_SYNC_MS)
+
+  // Also run draft sync immediately
+  if (syncEngine && net.isOnline()) {
+    syncEngine.run().catch(() => {})
+  }
 
   // Initial reference data cache (best-effort, uses access token)
   if (cachedAccessToken) {
@@ -528,7 +582,7 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
     })
   }, 4 * 60 * 60 * 1000)
 
-  console.log('[sync] Sync loop started (30s interval)')
+  console.log('[sync] Sync loop started (drafts: 2min, cache: 10min)')
 }
 
 function stopSyncLoop(): void {

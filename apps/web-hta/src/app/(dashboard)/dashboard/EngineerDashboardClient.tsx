@@ -2,8 +2,12 @@
 
 import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2, WifiOff, RefreshCw } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { CertificateTable } from '@/components/dashboard/CertificateTable'
+import { OfflineBanner } from '@/components/desktop/OfflineBanner'
+import { PendingSyncSummary } from '@/components/desktop/PendingSyncSummary'
+import { SyncToast } from '@/components/desktop/SyncToast'
+import { OfflineHistoryFooter } from '@/components/desktop/OfflineHistoryFooter'
 
 interface TatInfo {
   overdue: number
@@ -37,24 +41,35 @@ export function EngineerDashboardClient() {
   const [isOffline, setIsOffline] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [offlineCerts, setOfflineCerts] = useState<CachedCertificate[]>([])
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
 
   const loadOfflineData = useCallback(async () => {
     setIsOffline(true)
     const electronAPI = (window as unknown as { electronAPI?: {
       listDrafts?: () => Promise<{ id: string; certificateNumber?: string; customerName?: string; status: string; updatedAt?: string }[]>
-      listCachedCertificates?: () => Promise<CachedCertificate[]>
+      listCachedCertificates?: (role?: string) => Promise<CachedCertificate[]>
+      getSyncStatus?: () => Promise<{ lastSyncedAt: string | null; engineerCounts: Stats | null }>
     } }).electronAPI
 
     if (electronAPI) {
       try {
-        // Try cached certificates first
+        // Load cached certificates (creator role)
         if (electronAPI.listCachedCertificates) {
-          const cached = await electronAPI.listCachedCertificates()
+          const cached = await electronAPI.listCachedCertificates('creator')
           setOfflineCerts(cached || [])
         }
 
-        // Get draft counts
-        if (electronAPI.listDrafts) {
+        // Load cached stat counts
+        if (electronAPI.getSyncStatus) {
+          const syncStatus = await electronAPI.getSyncStatus()
+          setLastSyncedAt(syncStatus.lastSyncedAt)
+          if (syncStatus.engineerCounts) {
+            setStats(syncStatus.engineerCounts)
+          }
+        }
+
+        // Fallback: get draft counts from local DB
+        if (!stats && electronAPI.listDrafts) {
           const drafts = await electronAPI.listDrafts()
           setStats({
             draft: drafts.filter(d => d.status !== 'CONFLICT').length,
@@ -66,7 +81,7 @@ export function EngineerDashboardClient() {
         }
       } catch { /* ignore */ }
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchCounts = useCallback(async () => {
     try {
@@ -120,40 +135,26 @@ export function EngineerDashboardClient() {
   return (
     <div className="h-full overflow-auto bg-[#f1f5f9]">
       <div className="px-6 sm:px-9 py-8">
-        {/* Offline / Error banner */}
+        {/* Sync toast (after reconnect) */}
+        <SyncToast />
+
+        {/* Offline banner */}
         {isOffline && (
-          <div className="flex items-center gap-3 p-3.5 bg-[#fffbeb] border border-[#fde68a] rounded-[14px] mb-5">
-            <WifiOff className="size-5 text-[#d97706] shrink-0" />
-            <div className="flex-1">
-              <p className="text-[13px] font-semibold text-[#92400e]">Offline Mode</p>
-              <p className="text-[12px] text-[#b45309]">
-                Cannot reach the server. Showing locally cached data. Your drafts are safe and will sync when reconnected.
-              </p>
-            </div>
-            <button
-              onClick={fetchCounts}
-              disabled={isLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#92400e] border border-[#fde68a] bg-white hover:bg-[#fffbeb] rounded-[9px] transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              Retry
-            </button>
-          </div>
+          <OfflineBanner
+            message="Showing your active certificates. Go online for full history and to sync changes."
+            onRetry={fetchCounts}
+            isRetrying={isLoading}
+            lastSyncedAt={lastSyncedAt}
+          />
         )}
 
+        {/* Pending sync summary */}
+        <PendingSyncSummary />
+
+        {/* Auth error */}
         {fetchError && !isOffline && (
           <div className="flex items-center gap-3 p-3.5 bg-[#fef2f2] border border-[#fecaca] rounded-[14px] mb-5">
-            <div className="flex-1">
-              <p className="text-[13px] font-semibold text-[#dc2626]">{fetchError}</p>
-            </div>
-            <button
-              onClick={fetchCounts}
-              disabled={isLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#dc2626] border border-[#fecaca] bg-white hover:bg-[#fef2f2] rounded-[9px] transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              Retry
-            </button>
+            <p className="text-[13px] font-semibold text-[#dc2626]">{fetchError}</p>
           </div>
         )}
 
@@ -164,6 +165,9 @@ export function EngineerDashboardClient() {
         </div>
 
         {/* Stat cards */}
+        {isOffline && lastSyncedAt && (
+          <p className="text-[11px] text-[#94a3b8] mb-2">(as of {new Date(lastSyncedAt).toLocaleString()})</p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-7">
           {[
             { label: 'Drafts', value: counts.draft, borderColor: 'border-l-[#cbd5e1]', countColor: 'text-[#475569]', tatKey: 'draft' as const },
@@ -242,13 +246,17 @@ export function EngineerDashboardClient() {
             </div>
           </div>
         ) : isOffline ? (
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-8 text-center">
-            <WifiOff className="size-10 mx-auto mb-3 text-[#e2e8f0]" />
-            <p className="text-[13px] font-medium text-[#64748b]">No cached certificates</p>
-            <p className="text-[12px] text-[#94a3b8] mt-1">
-              Certificates will be cached locally after your first online session. You can still create new drafts.
-            </p>
-          </div>
+          <>
+            {offlineCerts.length === 0 && (
+              <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-8 text-center">
+                <p className="text-[13px] font-medium text-[#64748b]">No cached certificates</p>
+                <p className="text-[12px] text-[#94a3b8] mt-1">
+                  Certificates will be cached locally after your first online session.
+                </p>
+              </div>
+            )}
+            <OfflineHistoryFooter />
+          </>
         ) : (
           <CertificateTable userRole="ENGINEER" />
         )}

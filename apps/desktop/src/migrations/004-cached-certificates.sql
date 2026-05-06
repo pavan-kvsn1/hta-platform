@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS cached_certificates (
   reviewer_name TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  cached_at TEXT NOT NULL DEFAULT (datetime('now'))
+  cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+  role TEXT NOT NULL DEFAULT 'creator'  -- 'creator' or 'reviewer'
 );

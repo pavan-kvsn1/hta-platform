@@ -253,36 +253,69 @@ export function registerDraftHandlers(): void {
   })
 
   // ─── certificates:list-cached (offline fallback) ───────────────────
-  ipcMain.handle('certificates:list-cached', async () => {
+  ipcMain.handle('certificates:list-cached', async (_event, role?: string) => {
     const { userId } = ids()
     const db = getDb()
 
-    // Combine cached server certificates + local drafts
+    // Cached server certificates filtered by role
+    const roleFilter = role || 'creator'
     const cached = await db.all<Record<string, unknown>>(
       `SELECT id, certificate_number as certificateNumber, customer_name as customerName,
-              status, updated_at as updatedAt
-       FROM cached_certificates ORDER BY updated_at DESC LIMIT 50`
-    )
-    const drafts = await db.all<Record<string, unknown>>(
-      `SELECT id, certificate_number as certificateNumber, customer_name as customerName,
-              status, updated_at as updatedAt
-       FROM drafts WHERE engineer_id = ? ORDER BY updated_at DESC LIMIT 50`,
-      userId
+              status, updated_at as updatedAt, reviewer_name as reviewerName, role
+       FROM cached_certificates WHERE role = ? ORDER BY updated_at DESC LIMIT 50`,
+      roleFilter
     )
 
-    // Merge: drafts first (local changes take priority), then cached server certs
-    const seen = new Set<string>()
-    const merged: Record<string, unknown>[] = []
-    for (const d of drafts) {
-      seen.add(d.id as string)
-      merged.push(d)
-    }
-    for (const c of cached) {
-      if (!seen.has(c.id as string)) {
-        merged.push(c)
+    // For creator role, also include local drafts (take priority)
+    if (roleFilter === 'creator') {
+      const drafts = await db.all<Record<string, unknown>>(
+        `SELECT id, certificate_number as certificateNumber, customer_name as customerName,
+                status, updated_at as updatedAt
+         FROM drafts WHERE engineer_id = ? ORDER BY updated_at DESC LIMIT 50`,
+        userId
+      )
+      const seen = new Set<string>()
+      const merged: Record<string, unknown>[] = []
+      for (const d of drafts) {
+        seen.add(d.id as string)
+        merged.push({ ...d, role: 'creator' })
       }
+      for (const c of cached) {
+        if (!seen.has(c.id as string)) merged.push(c)
+      }
+      return merged
     }
-    return merged
+
+    return cached
+  })
+
+  // ─── sync:get-status ──────────────────────────────────────────────
+  ipcMain.handle('sync:get-status', async () => {
+    try {
+      const db = getDb()
+      const lastSync = await db.get<{ value: string }>('SELECT value FROM session_meta WHERE key = ?', 'last_synced_at')
+      const engCounts = await db.get<{ value: string }>('SELECT value FROM session_meta WHERE key = ?', 'engineer_counts')
+      const revCounts = await db.get<{ value: string }>('SELECT value FROM session_meta WHERE key = ?', 'reviewer_counts')
+
+      // Pending sync counts
+      const pendingDrafts = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM drafts WHERE synced_at IS NULL OR updated_at > synced_at')
+      const pendingImages = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM draft_images WHERE synced = 0')
+      const pendingAudit = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM audit_log WHERE synced = 0')
+
+      return {
+        online: require('electron').net.isOnline(),
+        lastSyncedAt: lastSync?.value || null,
+        engineerCounts: engCounts?.value ? JSON.parse(engCounts.value) : null,
+        reviewerCounts: revCounts?.value ? JSON.parse(revCounts.value) : null,
+        pending: {
+          drafts: pendingDrafts?.cnt || 0,
+          images: pendingImages?.cnt || 0,
+          auditLogs: pendingAudit?.cnt || 0,
+        },
+      }
+    } catch {
+      return { online: require('electron').net.isOnline(), lastSyncedAt: null, engineerCounts: null, reviewerCounts: null, pending: { drafts: 0, images: 0, auditLogs: 0 } }
+    }
   })
 
   // ─── draft:delete ──────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 'use client'
 
 import { apiFetch } from '@/lib/api-client'
+import { SyncStatusBadge } from '@/components/desktop/SyncStatusBadge'
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
@@ -189,6 +190,11 @@ export function DashboardSidebar({
             </div>
           )}
         </div>
+
+        {/* Sync Status (desktop only) */}
+        {typeof window !== 'undefined' && 'electronAPI' in window && !mobile && !isCollapsed && (
+          <SyncStatusBadge />
+        )}
 
         {/* Sign Out */}
         <button
