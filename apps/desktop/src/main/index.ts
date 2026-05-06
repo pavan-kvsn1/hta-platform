@@ -513,6 +513,22 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
             )
           }
           console.log(`[sync] Cached ${data.certificates.length} engineer certs`)
+
+          // Fetch full data for actionable certs (DRAFT, REVISION_REQUIRED)
+          for (const cert of data.certificates) {
+            if (cert.status === 'DRAFT' || cert.status === 'REVISION_REQUIRED') {
+              try {
+                const fullRes = await fetch(`${apiUrl}/api/certificates/${cert.id}`, { headers })
+                if (fullRes.ok) {
+                  const fullData = await fullRes.json()
+                  await db.run(
+                    'UPDATE cached_certificates SET full_data = ? WHERE id = ?',
+                    JSON.stringify(fullData), cert.id
+                  )
+                }
+              } catch { /* skip individual cert */ }
+            }
+          }
         }
       } else {
         console.warn('[sync] Engineer certs fetch:', res.status)

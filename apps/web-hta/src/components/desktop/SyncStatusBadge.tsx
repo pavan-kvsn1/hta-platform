@@ -10,7 +10,7 @@ interface SyncStatus {
   pending?: { drafts: number; images: number; auditLogs: number }
 }
 
-export function SyncStatusBadge() {
+export function SyncStatusBadge({ compact = false }: { compact?: boolean } = {}) {
   const [status, setStatus] = useState<SyncStatus | null>(null)
   const [syncing, setSyncing] = useState(false)
 
@@ -45,6 +45,22 @@ export function SyncStatusBadge() {
 
   const pending = status.pending
   const hasPending = pending && (pending.drafts > 0 || pending.images > 0 || pending.auditLogs > 0)
+
+  if (compact) {
+    return (
+      <div className="flex justify-center py-2" title={
+        syncing ? 'Syncing...' :
+        status.online ? `Online — synced ${status.lastSyncedAt ? formatDistanceToNow(new Date(status.lastSyncedAt), { addSuffix: true }) : 'never'}` :
+        `Offline${status.lastSyncedAt ? ` — last synced ${formatDistanceToNow(new Date(status.lastSyncedAt), { addSuffix: true })}` : ''}`
+      }>
+        <div className={`size-2.5 rounded-full ${
+          syncing ? 'bg-[#3b82f6] animate-pulse' :
+          status.online ? 'bg-[#16a34a]' :
+          'bg-[#d97706]'
+        }`} />
+      </div>
+    )
+  }
 
   return (
     <div className="px-3 py-2.5">

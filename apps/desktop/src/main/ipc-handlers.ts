@@ -289,6 +289,22 @@ export function registerDraftHandlers(): void {
     return cached
   })
 
+  // ─── certificates:get-cached-full (offline editing fallback) ────────
+  ipcMain.handle('certificates:get-cached-full', async (_event, certId: string) => {
+    try {
+      const db = getDb()
+      const row = await db.get<{ full_data: string }>(
+        'SELECT full_data FROM cached_certificates WHERE id = ?', certId
+      )
+      if (row?.full_data) {
+        return JSON.parse(row.full_data)
+      }
+      return null
+    } catch {
+      return null
+    }
+  })
+
   // ─── sync:get-status ──────────────────────────────────────────────
   ipcMain.handle('sync:get-status', async () => {
     try {
@@ -302,8 +318,20 @@ export function registerDraftHandlers(): void {
       const pendingImages = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM draft_images WHERE synced = 0')
       const pendingAudit = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM audit_log WHERE synced = 0')
 
+      // Check API reachability (not just internet)
+      let apiReachable = false
+      if (require('electron').net.isOnline()) {
+        try {
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 3000)
+          await fetch('http://10.100.0.1/', { signal: controller.signal })
+          clearTimeout(timeout)
+          apiReachable = true
+        } catch { /* unreachable */ }
+      }
+
       return {
-        online: require('electron').net.isOnline(),
+        online: apiReachable,
         lastSyncedAt: lastSync?.value || null,
         engineerCounts: engCounts?.value ? JSON.parse(engCounts.value) : null,
         reviewerCounts: revCounts?.value ? JSON.parse(revCounts.value) : null,
@@ -314,7 +342,7 @@ export function registerDraftHandlers(): void {
         },
       }
     } catch {
-      return { online: require('electron').net.isOnline(), lastSyncedAt: null, engineerCounts: null, reviewerCounts: null, pending: { drafts: 0, images: 0, auditLogs: 0 } }
+      return { online: false, lastSyncedAt: null, engineerCounts: null, reviewerCounts: null, pending: { drafts: 0, images: 0, auditLogs: 0 } }
     }
   })
 

@@ -192,8 +192,8 @@ export function DashboardSidebar({
         </div>
 
         {/* Sync Status (desktop only) */}
-        {typeof window !== 'undefined' && 'electronAPI' in window && !mobile && !isCollapsed && (
-          <SyncStatusBadge />
+        {typeof window !== 'undefined' && 'electronAPI' in window && !mobile && (
+          <SyncStatusBadge compact={isCollapsed} />
         )}
 
         {/* Sign Out */}

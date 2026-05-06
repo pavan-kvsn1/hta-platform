@@ -11,6 +11,7 @@ export default function NewCertificatePage() {
 
   useEffect(() => {
     async function createDraft() {
+      // Try online first
       try {
         const res = await apiFetch('/api/certificates', {
           method: 'POST',
@@ -18,17 +19,33 @@ export default function NewCertificatePage() {
           body: JSON.stringify({ action: 'create-draft' }),
         })
 
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          setError(data.error || 'Failed to create draft')
+        if (res.ok) {
+          const { id } = await res.json()
+          router.replace(`/dashboard/certificates/${id}/edit`)
           return
         }
-
-        const { id } = await res.json()
-        router.replace(`/dashboard/certificates/${id}/edit`)
-      } catch (err) {
-        setError('Failed to create certificate. Please try again.')
+      } catch {
+        // API unreachable — try offline
       }
+
+      // Offline: create local draft via Electron IPC
+      const electronAPI = (window as unknown as { electronAPI?: {
+        createDraft?: () => Promise<{ id: string }>
+      } }).electronAPI
+
+      if (electronAPI?.createDraft) {
+        try {
+          const tempNumber = `DRAFT-${Date.now()}`
+          const { id } = await electronAPI.createDraft()
+          router.replace(`/dashboard/certificates/${id}/edit?offline=true&tempNumber=${encodeURIComponent(tempNumber)}`)
+          return
+        } catch {
+          setError('Failed to create offline draft.')
+          return
+        }
+      }
+
+      setError('Failed to create certificate. Please check your connection.')
     }
 
     createDraft()
