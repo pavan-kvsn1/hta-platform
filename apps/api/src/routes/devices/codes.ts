@@ -80,6 +80,45 @@ const offlineCodesRoutes: FastifyPluginAsync = async (fastify) => {
 
     return { valid: true }
   })
+
+  // POST /api/offline-codes/mark-used — Mark codes as consumed (synced from desktop app)
+  fastify.post<{
+    Body: { keys: string[] }
+  }>('/mark-used', {
+    preHandler: [requireStaff],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const { keys } = request.body
+
+    if (!keys || !Array.isArray(keys) || keys.length === 0) {
+      return reply.status(400).send({ error: 'keys array is required' })
+    }
+
+    // Find the user's active batch
+    const batch = await prisma.offlineCodeBatch.findFirst({
+      where: { tenantId, userId, isActive: true },
+    })
+
+    if (!batch) {
+      return reply.status(404).send({ error: 'No active batch found' })
+    }
+
+    // Mark matching codes as used
+    const result = await prisma.offlineCode.updateMany({
+      where: {
+        batchId: batch.id,
+        key: { in: keys.map(k => k.toUpperCase()) },
+        used: false,
+      },
+      data: {
+        used: true,
+        usedAt: new Date(),
+      },
+    })
+
+    return { marked: result.count }
+  })
 }
 
 export default offlineCodesRoutes

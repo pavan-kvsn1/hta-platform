@@ -103,8 +103,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('app:is-api-reachable' satisfies InvokeChannel),
   listCachedCertificates: (role?: string) =>
     ipcRenderer.invoke('certificates:list-cached' satisfies InvokeChannel, role),
-  getSyncStatus: () =>
-    ipcRenderer.invoke('sync:get-status' satisfies InvokeChannel),
   onSyncStatus: (callback: (status: Record<string, unknown>) => void) => {
     ipcRenderer.on('sync:status', (_event, status) => callback(status))
   },

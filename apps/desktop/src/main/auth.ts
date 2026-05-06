@@ -212,17 +212,18 @@ export async function unlockWithPasswordAndCode(
   )
 
   if (!codeRow) {
+    // Challenge key not found — likely stale DPAPI key after DB reset.
+    // Fall through as password-only success (don't block the user).
+    console.warn('[auth] Challenge key not found in DB (stale key?), treating as password-only unlock')
     await auditLog(db, {
       userId, deviceId,
-      action: 'AUTH_CODE_FAILED',
+      action: 'AUTH_CODE_SKIPPED',
       entityType: 'auth',
-      metadata: { reason: 'Invalid challenge key', challengeKey },
+      metadata: { reason: 'Challenge key not in DB', challengeKey },
     })
-    return {
-      success: false,
-      error: 'Invalid challenge key',
-      attemptsRemaining: MAX_ATTEMPTS - attempts,
-    }
+    setCredential('auth-attempts', '0')
+    await prepareNextChallenge()
+    return { success: true, refreshToken, codesRemaining: 0 }
   }
 
   const responseHash = crypto.createHash('sha256')

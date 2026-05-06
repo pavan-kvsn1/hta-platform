@@ -443,8 +443,9 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
     const headers = { 'Authorization': `Bearer ${token}`, 'X-Tenant-ID': 'hta-calibration' }
     const apiUrl = 'http://10.100.0.1'
 
-    // 1. Offline code fetch (retry until success)
-    if (getCredential('needs-code-sync') === 'true') {
+    // 1. Offline code fetch (retry until success, or when codes table is empty)
+    const codesCount = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM offline_codes WHERE used = 0')
+    if (getCredential('needs-code-sync') === 'true' || (codesCount?.cnt ?? 0) === 0) {
       try {
         const codesRes = await fetch(`${apiUrl}/api/offline-codes`, { headers })
         if (codesRes.ok) {
@@ -475,9 +476,27 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
       }
     }
 
-    // 2. Cache engineer's actionable certificates
+    // 1b. Sync used offline codes back to server
     try {
-      const res = await fetch(`${apiUrl}/api/certificates/engineer?limit=100&status=DRAFT,REVISION_REQUIRED`, { headers })
+      const usedKeys = await db.all<{ key: string }>(
+        'SELECT key FROM offline_codes WHERE used = 1 AND synced_to_server = 0'
+      )
+      if (usedKeys.length > 0) {
+        const res = await fetch(`${apiUrl}/api/offline-codes/mark-used`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keys: usedKeys.map(r => r.key) }),
+        })
+        if (res.ok) {
+          await db.run('UPDATE offline_codes SET synced_to_server = 1 WHERE used = 1 AND synced_to_server = 0')
+          console.log(`[sync] Synced ${usedKeys.length} used offline codes to server`)
+        }
+      }
+    } catch { /* best-effort */ }
+
+    // 2. Cache engineer's certificates
+    try {
+      const res = await fetch(`${apiUrl}/api/certificates/engineer?limit=100`, { headers })
       if (res.ok) {
         const data = await res.json() as { certificates: Array<Record<string, unknown>> }
         if (data.certificates?.length) {
@@ -495,12 +514,14 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
           }
           console.log(`[sync] Cached ${data.certificates.length} engineer certs`)
         }
+      } else {
+        console.warn('[sync] Engineer certs fetch:', res.status)
       }
-    } catch { /* best-effort */ }
+    } catch (err) { console.warn('[sync] Engineer certs error:', err) }
 
     // 3. Cache reviewer's actionable certificates
     try {
-      const res = await fetch(`${apiUrl}/api/certificates/reviewer?limit=100&status=PENDING_REVIEW,CUSTOMER_REVISION_REQUIRED`, { headers })
+      const res = await fetch(`${apiUrl}/api/certificates/reviewer?limit=100`, { headers })
       if (res.ok) {
         const data = await res.json() as { certificates: Array<Record<string, unknown>> }
         if (data.certificates?.length) {
@@ -518,8 +539,10 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
           }
           console.log(`[sync] Cached ${data.certificates.length} reviewer certs`)
         }
+      } else {
+        console.warn('[sync] Reviewer certs fetch:', res.status)
       }
-    } catch { /* best-effort */ }
+    } catch (err) { console.warn('[sync] Reviewer certs error:', err) }
 
     // 4. Cache stat counts
     try {
@@ -542,6 +565,16 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
         )
       }
       console.log('[sync] Cached stat counts')
+    } catch { /* best-effort */ }
+
+    // 4b. Cache reference data (instruments, customers) if not recently cached
+    try {
+      const lastRefCache = await db.get<{ value: string }>("SELECT value FROM session_meta WHERE key = 'last_ref_cache'")
+      const hoursSinceRefCache = lastRefCache ? (Date.now() - new Date(lastRefCache.value).getTime()) / (1000 * 60 * 60) : 999
+      if (hoursSinceRefCache >= 4) {
+        await preCacheReferenceData(db, apiUrl, token, userId, deviceId || '')
+        await db.run("INSERT OR REPLACE INTO session_meta (key, value) VALUES ('last_ref_cache', ?)", new Date().toISOString())
+      }
     } catch { /* best-effort */ }
 
     // 5. Cache images for actionable certificates (max 500MB total)
