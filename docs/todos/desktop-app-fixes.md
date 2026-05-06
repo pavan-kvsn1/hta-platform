@@ -247,6 +247,63 @@ apiFetch → API returns 401
 
 ---
 
+## Issue 14: Offline dashboard shows error instead of cached certificates
+
+**Problem:** When offline/VPN down, the dashboard shows "Failed to load data from server" (red error banner) instead of "Offline Mode" (amber banner) with locally cached certificates.
+
+**Root causes:**
+1. **Wrong offline detection:** The API returns a response (502 from nginx gateway) rather than throwing a network error. The `EngineerDashboardClient` catch block only handles thrown errors (network failures). A 502 response goes through the `else` branch → "Failed to load" error, not "Offline Mode."
+2. **No certificate data from SQLCipher:** Even when offline IS detected, the dashboard only shows draft counts from `electronAPI.listDrafts()`. The actual certificate table (`CertificateTable` component) fetches from the API — it has no SQLCipher fallback.
+3. **Sync engine caches data but dashboard doesn't read it:** The sync engine stores certificates, instruments, and other data in SQLCipher. But the dashboard components don't have a path to read from SQLCipher when the API is unavailable.
+
+**What should happen offline:**
+- Amber "Offline Mode" banner: "Cannot reach the server. Showing locally cached data. Your drafts are safe and will sync when reconnected."
+- Certificate table populated from SQLCipher (synced certificates + local drafts)
+- Stat cards show counts from local data
+- Create/edit drafts works (already supported via Electron IPC)
+- "Retry" button to re-check connectivity
+
+**Fix plan:**
+
+### Step 1: Fix offline detection
+In `EngineerDashboardClient.tsx`, treat 502 and 504 responses as offline (not just thrown errors):
+```typescript
+if (response.ok) { ... }
+else if (response.status === 401) { setFetchError('Session expired') }
+else if (response.status === 502 || response.status === 504) { setIsOffline(true) }
+else { setFetchError('Failed to load') }
+```
+
+### Step 2: Add IPC handler for cached certificates
+In `apps/desktop/src/main/index.ts`, add `certificates:list-cached` IPC handler that reads from SQLCipher:
+```typescript
+ipcMain.handle('certificates:list-cached', async () => {
+  const db = getDb()
+  return db.all('SELECT * FROM drafts ORDER BY updated_at DESC')
+})
+```
+Expose in preload. Add to `electron.d.ts`.
+
+### Step 3: Dashboard reads from SQLCipher when offline
+In `EngineerDashboardClient.tsx`, when offline:
+1. Call `window.electronAPI.listCachedCertificates()` 
+2. Build stats from the local data
+3. Pass to `CertificateTable` (may need adapter for local data shape)
+
+### Step 4: CertificateTable accepts local data
+The `CertificateTable` component currently fetches its own data from the API. Add a `localData` prop that bypasses the API fetch and renders from the provided data.
+
+**Files:**
+- `apps/web-hta/src/app/(dashboard)/dashboard/EngineerDashboardClient.tsx` — offline detection + local data rendering
+- `apps/web-hta/src/components/dashboard/CertificateTable.tsx` — accept local data prop
+- `apps/desktop/src/main/index.ts` — `certificates:list-cached` IPC handler
+- `apps/desktop/src/preload/index.ts` — expose new IPC
+- `apps/web-hta/src/types/electron.d.ts` — type declaration
+
+**Status:** Open
+
+---
+
 ## Build Sequence
 
 ```powershell

@@ -14,7 +14,9 @@ import { autoUpdater } from 'electron-updater'
 // During dev, app.isPackaged is false — we load from the external Next.js dev server.
 const IS_DEV = !app.isPackaged
 let APP_URL = 'http://localhost:3000'
-const API_BASE = process.env.HTA_API_URL || 'http://localhost:4000'
+// Lazy getter — HTA_API_URL is set later in startNextServer
+function getApiBase(): string { return process.env.HTA_API_URL || 'http://10.100.0.1' }
+const API_BASE = 'http://10.100.0.1' // Default for early references
 // Public provisioning endpoint — reachable before VPN is up
 const PROVISION_URL = process.env.HTA_PROVISION_URL || 'http://35.200.149.46'
 // Production web app — accessed through VPN after provisioning
@@ -361,6 +363,11 @@ ipcMain.handle('auth:unlock-password-only', async (_event, password: string) => 
       if (!cachedAccessToken) {
         return { ...result, needsReauth: true }
       }
+      const deviceId = getDeviceId()
+      const userId = getUserId()
+      if (deviceId && userId) {
+        startSyncLoop(refreshToken, deviceId, userId)
+      }
     }
   }
   return result
@@ -416,24 +423,37 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
     if (getCredential('needs-code-sync') === 'true') {
       try {
         const token = cachedAccessToken || loadPersistedAccessToken()
-        const did = getDeviceId()
-        if (token && did) {
-          const regResult = await registerDevice(API_BASE, token, did)
-          if (regResult.codes?.length) {
-            const crypto = require('crypto') as typeof import('crypto')
-            for (const c of regResult.codes) {
-              const hash = crypto.createHash('sha256')
-                .update(c.value.toUpperCase().replace(/\s/g, ''))
-                .digest('hex')
-              await db.run(
-                'INSERT OR IGNORE INTO offline_codes (id, code_hash, key, sequence, batch_id) VALUES (?, ?, ?, ?, ?)',
-                crypto.randomUUID(), hash, c.key, c.sequence, 'sync'
-              )
+        if (token) {
+          // Fetch offline code pairs from the API
+          const apiUrl = 'http://10.100.0.1'
+          const codesRes = await fetch(`${apiUrl}/api/offline-codes`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'X-Tenant-ID': 'hta-calibration',
+            },
+          })
+          if (codesRes.ok) {
+            const codesData = await codesRes.json() as {
+              hasBatch: boolean
+              pairs?: Array<{ sequence: number; key: string; value: string; used: boolean }>
             }
-            const { prepareNextChallenge } = await import('./auth')
-            await prepareNextChallenge()
-            setCredential('needs-code-sync', 'false')
-            console.log(`[sync] Stored ${regResult.codes.length} offline codes (retry)`)
+            if (codesData.hasBatch && codesData.pairs?.length) {
+              const crypto = require('crypto') as typeof import('crypto')
+              for (const c of codesData.pairs) {
+                if (c.used) continue
+                const hash = crypto.createHash('sha256')
+                  .update(c.value.toUpperCase().replace(/\s/g, ''))
+                  .digest('hex')
+                await db.run(
+                  'INSERT OR IGNORE INTO offline_codes (id, code_hash, key, sequence, batch_id) VALUES (?, ?, ?, ?, ?)',
+                  crypto.randomUUID(), hash, c.key, c.sequence, 'sync'
+                )
+              }
+              const { prepareNextChallenge } = await import('./auth')
+              await prepareNextChallenge()
+              setCredential('needs-code-sync', 'false')
+              console.log(`[sync] Stored ${codesData.pairs.filter(c => !c.used).length} offline codes`)
+            }
           }
         }
       } catch (err) {
