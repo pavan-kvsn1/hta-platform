@@ -39,6 +39,27 @@ const customersRoutes: FastifyPluginAsync = async (fastify) => {
     return { customers }
   })
 
+  // GET /api/customers/all - List all active customer accounts (for desktop sync/cache)
+  fastify.get('/all', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const tenantId = request.tenantId
+
+    const customers = await prisma.customerAccount.findMany({
+      where: { tenantId, isActive: true },
+      select: {
+        id: true,
+        companyName: true,
+        address: true,
+        contactEmail: true,
+        contactPhone: true,
+      },
+      orderBy: { companyName: 'asc' },
+    })
+
+    return { customers }
+  })
+
   // GET /api/customers/users - Search customer users (contacts) for a given company
   fastify.get('/users', {
     preHandler: [requireStaff],

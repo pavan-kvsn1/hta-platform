@@ -39,35 +39,18 @@ export async function preCacheReferenceData(
     console.error('[ref-cache] Failed to cache master instruments:', err)
   }
 
-  // Cache customers (search API — fetch all by using a broad query)
+  // Cache customers
   try {
-    const res = await fetch(`${apiBase}/api/customers/search?q=a&limit=20`, { headers })
+    const res = await fetch(`${apiBase}/api/customers/all`, { headers })
     if (res.ok) {
-      const data = await res.json() as { customers?: { id: string }[] }
-      const items = data.customers || []
-      for (const item of items) {
+      const data = await res.json() as { customers: { id: string }[] }
+      for (const item of (data.customers || [])) {
         await db.run(
           "INSERT OR REPLACE INTO ref_customers (id, data, cached_at) VALUES (?, ?, datetime('now'))",
           item.id, JSON.stringify(item)
         )
       }
-      // Also fetch other common starting letters
-      for (const letter of ['b', 'c', 'd', 'e', 'h', 'i', 'm', 'p', 'r', 's', 't', 'w']) {
-        try {
-          const r2 = await fetch(`${apiBase}/api/customers/search?q=${letter}&limit=20`, { headers })
-          if (r2.ok) {
-            const d2 = await r2.json() as { customers?: { id: string }[] }
-            for (const c of (d2.customers || [])) {
-              await db.run(
-                "INSERT OR REPLACE INTO ref_customers (id, data, cached_at) VALUES (?, ?, datetime('now'))",
-                c.id, JSON.stringify(c)
-              )
-            }
-          }
-        } catch { /* skip letter */ }
-      }
-      const total = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM ref_customers')
-      console.log(`[ref-cache] Cached ${total?.cnt || 0} customers`)
+      console.log(`[ref-cache] Cached ${(data.customers || []).length} customers`)
     } else {
       console.warn('[ref-cache] Customers response:', res.status)
     }
