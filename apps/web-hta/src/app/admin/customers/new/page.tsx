@@ -27,6 +27,7 @@ import {
   UserPlus,
   Clock,
   AlertCircle,
+  Mail,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -43,6 +44,7 @@ export default function CreateCustomerPage() {
   const [error, setError] = useState('')
   const [admins, setAdmins] = useState<Admin[]>([])
 
+  const [enablePortal, setEnablePortal] = useState(false)
   const [formData, setFormData] = useState({
     companyName: '',
     address: '',
@@ -69,20 +71,20 @@ export default function CreateCustomerPage() {
       return
     }
 
-    if (!formData.pocName.trim()) {
-      setError('POC name is required')
-      return
-    }
-
-    if (!formData.pocEmail.trim()) {
-      setError('POC email is required')
-      return
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.pocEmail)) {
-      setError('Please enter a valid POC email address')
-      return
+    if (enablePortal) {
+      if (!formData.pocName.trim()) {
+        setError('POC name is required when portal is enabled')
+        return
+      }
+      if (!formData.pocEmail.trim()) {
+        setError('POC email is required when portal is enabled')
+        return
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(formData.pocEmail)) {
+        setError('Please enter a valid POC email address')
+        return
+      }
     }
 
     setLoading(true)
@@ -97,8 +99,10 @@ export default function CreateCustomerPage() {
           contactEmail: formData.contactEmail || undefined,
           contactPhone: formData.contactPhone || undefined,
           assignedAdminId: formData.assignedAdminId || undefined,
-          pocName: formData.pocName,
-          pocEmail: formData.pocEmail,
+          ...(enablePortal ? {
+            pocName: formData.pocName,
+            pocEmail: formData.pocEmail,
+          } : {}),
         }),
       })
 
@@ -117,7 +121,7 @@ export default function CreateCustomerPage() {
   }
 
   const selectedAdmin = admins.find((a) => a.id === formData.assignedAdminId)
-  const isFormValid = formData.companyName.trim() && formData.pocName.trim() && formData.pocEmail.trim()
+  const isFormValid = formData.companyName.trim() && (!enablePortal || (formData.pocName.trim() && formData.pocEmail.trim()))
 
   return (
     <div className="h-full overflow-auto bg-[#f1f5f9]">
@@ -213,43 +217,75 @@ export default function CreateCustomerPage() {
                 </div>
               </div>
 
-              {/* Primary POC */}
+              {/* Portal Access Toggle */}
               <div>
                 <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-4">
-                  Primary Point of Contact
+                  Portal Access
                 </h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
-                        POC Name <span className="text-[#dc2626]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="John Smith"
-                        value={formData.pocName}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, pocName: e.target.value }))}
-                        className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
-                        POC Email <span className="text-[#dc2626]">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        placeholder="john.smith@company.com"
-                        value={formData.pocEmail}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, pocEmail: e.target.value }))}
-                        className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
-                      />
-                    </div>
+                <div className="flex items-center justify-between p-3 bg-[#f8fafc] border border-[#e2e8f0] rounded-[9px]">
+                  <div>
+                    <p className="text-[12.5px] font-semibold text-[#0f172a]">Enable customer portal</p>
+                    <p className="text-[11px] text-[#94a3b8] mt-0.5">
+                      {enablePortal
+                        ? 'Customer will receive login credentials to access the portal.'
+                        : 'Customer will review certificates via email token links only.'}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-[#94a3b8]">
-                    The POC is the main contact for this customer who can manage users and approve certificates.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEnablePortal(!enablePortal)}
+                    className={cn(
+                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                      enablePortal ? 'bg-[#16a34a]' : 'bg-[#cbd5e1]'
+                    )}
+                  >
+                    <span className={cn(
+                      'inline-block h-4 w-4 rounded-full bg-white transition-transform',
+                      enablePortal ? 'translate-x-6' : 'translate-x-1'
+                    )} />
+                  </button>
                 </div>
               </div>
+
+              {/* Primary POC (only when portal enabled) */}
+              {enablePortal && (
+                <div>
+                  <h3 className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-4">
+                    Primary Point of Contact
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                          POC Name <span className="text-[#dc2626]">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="John Smith"
+                          value={formData.pocName}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, pocName: e.target.value }))}
+                          className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[12.5px] font-semibold text-[#0f172a] mb-1.5">
+                          POC Email <span className="text-[#dc2626]">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          placeholder="john.smith@company.com"
+                          value={formData.pocEmail}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, pocEmail: e.target.value }))}
+                          className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-[#94a3b8]">
+                      The POC is the main contact for this customer who can manage users and approve certificates.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Assignment */}
               <div>
@@ -307,7 +343,7 @@ export default function CreateCustomerPage() {
                   ) : (
                     <Building2 className="size-3.5" />
                   )}
-                  {loading ? 'Creating...' : 'Create Account'}
+                  {loading ? 'Creating...' : enablePortal ? 'Create & Send Invitation' : 'Create Customer'}
                 </button>
               </div>
             </form>
@@ -337,8 +373,11 @@ export default function CreateCustomerPage() {
                     )}>
                       {formData.companyName || 'Company Name'}
                     </h4>
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#f0fdf4] text-[#16a34a] mt-1">
-                      Active
+                    <span className={cn(
+                      'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold mt-1',
+                      enablePortal ? 'bg-[#eff6ff] text-[#1d4ed8]' : 'bg-[#f1f5f9] text-[#64748b]'
+                    )}>
+                      {enablePortal ? 'Portal' : 'Token-only'}
                     </span>
                   </div>
                 </div>
@@ -431,39 +470,68 @@ export default function CreateCustomerPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-3">
-                <div className="size-7 rounded-full bg-[#eff6ff] flex items-center justify-center shrink-0">
-                  <Send className="size-4 text-[#2563eb]" />
-                </div>
-                <div>
-                  <p className="text-[13px] font-medium text-[#0f172a]">Invitation Sent</p>
-                  <p className="text-[11px] text-[#94a3b8] mt-0.5">
-                    POC receives an email to activate their account and set password
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="size-7 rounded-full bg-[#fffbeb] flex items-center justify-center shrink-0">
-                  <Clock className="size-4 text-[#d97706]" />
-                </div>
-                <div>
-                  <p className="text-[13px] font-medium text-[#0f172a]">Awaiting Activation</p>
-                  <p className="text-[11px] text-[#94a3b8] mt-0.5">
-                    POC status shows &quot;Pending&quot; until they complete activation
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="size-7 rounded-full bg-[#faf5ff] flex items-center justify-center shrink-0">
-                  <ArrowRight className="size-4 text-[#7c3aed]" />
-                </div>
-                <div>
-                  <p className="text-[13px] font-medium text-[#0f172a]">Ready to Use</p>
-                  <p className="text-[11px] text-[#94a3b8] mt-0.5">
-                    Once activated, POC can add users and manage certificates
-                  </p>
-                </div>
-              </div>
+              {enablePortal ? (
+                <>
+                  <div className="flex gap-3">
+                    <div className="size-7 rounded-full bg-[#eff6ff] flex items-center justify-center shrink-0">
+                      <Send className="size-4 text-[#2563eb]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium text-[#0f172a]">Invitation Sent</p>
+                      <p className="text-[11px] text-[#94a3b8] mt-0.5">
+                        POC receives an email to activate their account
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="size-7 rounded-full bg-[#fffbeb] flex items-center justify-center shrink-0">
+                      <Clock className="size-4 text-[#d97706]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium text-[#0f172a]">Awaiting Activation</p>
+                      <p className="text-[11px] text-[#94a3b8] mt-0.5">
+                        POC status shows &quot;Pending&quot; until activation
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="size-7 rounded-full bg-[#faf5ff] flex items-center justify-center shrink-0">
+                      <ArrowRight className="size-4 text-[#7c3aed]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium text-[#0f172a]">Ready to Use</p>
+                      <p className="text-[11px] text-[#94a3b8] mt-0.5">
+                        POC can add users and manage certificates
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-3">
+                    <div className="size-7 rounded-full bg-[#eff6ff] flex items-center justify-center shrink-0">
+                      <Mail className="size-4 text-[#2563eb]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium text-[#0f172a]">Reviews via Token Links</p>
+                      <p className="text-[11px] text-[#94a3b8] mt-0.5">
+                        Certificates sent for review via email links — no login needed
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="size-7 rounded-full bg-[#faf5ff] flex items-center justify-center shrink-0">
+                      <ArrowRight className="size-4 text-[#7c3aed]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium text-[#0f172a]">Upgrade Anytime</p>
+                      <p className="text-[11px] text-[#94a3b8] mt-0.5">
+                        You can add portal access later from the customer detail page
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

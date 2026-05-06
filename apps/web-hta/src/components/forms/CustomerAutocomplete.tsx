@@ -28,7 +28,7 @@ interface CustomerAutocompleteProps {
   address: string
   contactName: string
   contactEmail: string
-  onCustomerSelect: (customer: { name: string; address: string }) => void
+  onCustomerSelect: (customer: { id: string; name: string; address: string }) => void
   onNameChange: (name: string) => void
   onAddressChange: (address: string) => void
   onContactNameChange: (name: string) => void
@@ -170,6 +170,7 @@ export function CustomerAutocomplete({
 
   const handleSelect = (customer: Customer) => {
     onCustomerSelect({
+      id: customer.id,
       name: customer.companyName,
       address: customer.address || '',
     })
@@ -437,10 +438,13 @@ export function CustomerAutocomplete({
         )}
       </div>
 
-      {value.length >= 2 && !isLoading && customers.length === 0 && isOpen && (
-        <p className="text-xs text-slate-500 px-1">
-          No matching customers found. You can enter a new customer name.
-        </p>
+      {value.length >= 2 && !isLoading && customers.length === 0 && (
+        <div className="flex items-center gap-2 px-1 py-2">
+          <Building2 className="size-3.5 text-amber-500 shrink-0" />
+          <p className="text-xs text-amber-600 font-medium">
+            Customer not found. Ask your admin to create the account first.
+          </p>
+        </div>
       )}
     </div>
   )

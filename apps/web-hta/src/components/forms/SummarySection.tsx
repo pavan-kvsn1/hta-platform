@@ -434,6 +434,7 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
             onCustomerSelect={(customer) => {
               setFormField('customerName', customer.name)
               setFormField('customerAddress', customer.address)
+              setFormField('customerAccountId', customer.id)
             }}
             onNameChange={(name) => setFormField('customerName', name)}
             onAddressChange={(address) => setFormField('customerAddress', address)}

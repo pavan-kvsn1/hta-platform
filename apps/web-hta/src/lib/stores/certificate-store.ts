@@ -111,6 +111,7 @@ export interface CertificateFormData {
   dueDateNotApplicable: boolean  // If true, due date shows as "Not Applicable" on certificate
   customerName: string
   customerAddress: string
+  customerAccountId: string
   customerContactName: string
   customerContactEmail: string
 
@@ -364,6 +365,7 @@ const initialFormData: CertificateFormData = {
   dueDateNotApplicable: false,
   customerName: '',
   customerAddress: '',
+  customerAccountId: '',
   customerContactName: '',
   customerContactEmail: '',
 

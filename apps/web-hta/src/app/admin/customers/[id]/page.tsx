@@ -274,6 +274,12 @@ export default function CustomerDetailPage({
                   >
                     {account.isActive ? 'Active' : 'Inactive'}
                   </span>
+                  <span className={cn(
+                    'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold',
+                    users.length > 0 ? 'bg-[#eff6ff] text-[#1d4ed8]' : 'bg-[#f1f5f9] text-[#64748b]'
+                  )}>
+                    {users.length > 0 ? 'Portal' : 'Token-only'}
+                  </span>
                 </div>
                 <p className="text-[12px] text-[#94a3b8]">
                   Created {format(new Date(account.createdAt), 'PPP')}
@@ -522,7 +528,8 @@ export default function CustomerDetailPage({
                 {users.length === 0 ? (
                   <div className="text-center py-10">
                     <Users className="size-8 mx-auto mb-2 text-[#e2e8f0]" />
-                    <p className="text-[13px] text-[#94a3b8] mb-3">No users registered yet</p>
+                    <p className="text-[13px] font-medium text-[#64748b] mb-1">Token-only Customer</p>
+                    <p className="text-[12px] text-[#94a3b8] mb-3">Add a user to enable portal access for this customer.</p>
                     <button
                       onClick={() => setShowAddUserDialog(true)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors"

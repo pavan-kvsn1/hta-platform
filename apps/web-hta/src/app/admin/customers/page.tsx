@@ -45,6 +45,7 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('true')
+  const [accessFilter, setAccessFilter] = useState<'ALL' | 'PORTAL' | 'TOKEN'>('ALL')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [totalPendingRequests, setTotalPendingRequests] = useState(0)
@@ -143,6 +144,25 @@ export default function CustomersPage() {
               />
             </div>
             <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Access</label>
+              <div className="flex gap-1">
+                {(['ALL', 'PORTAL', 'TOKEN'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => { setAccessFilter(t); setPage(1) }}
+                    className={cn(
+                      'px-3 py-2 text-[12px] font-semibold rounded-[9px] border transition-colors',
+                      accessFilter === t
+                        ? 'bg-[#0f172a] text-white border-[#0f172a]'
+                        : 'bg-white text-[#64748b] border-[#e2e8f0] hover:bg-[#f8fafc]'
+                    )}
+                  >
+                    {t === 'ALL' ? 'All' : t === 'PORTAL' ? 'Portal' : 'Token-only'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Status</label>
               <select
                 value={activeFilter}
@@ -163,7 +183,11 @@ export default function CustomersPage() {
             <div className="flex items-center justify-center py-16">
               <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
             </div>
-          ) : accounts.length === 0 ? (
+          ) : accounts.filter(a =>
+              accessFilter === 'ALL' ? true :
+              accessFilter === 'PORTAL' ? a.userCount > 0 :
+              a.userCount === 0
+            ).length === 0 ? (
             <div className="text-center py-16">
               <Building2 className="size-10 mx-auto mb-3 text-[#e2e8f0]" />
               <p className="text-[13px] text-[#94a3b8]">No customer accounts found</p>
@@ -174,6 +198,7 @@ export default function CustomersPage() {
                 <thead>
                   <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Company</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[90px]">Access</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Primary POC</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Users</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Certs</th>
@@ -183,13 +208,34 @@ export default function CustomersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {accounts.map((account) => (
+                  {accounts.filter(a =>
+                    accessFilter === 'ALL' ? true :
+                    accessFilter === 'PORTAL' ? a.userCount > 0 :
+                    a.userCount === 0
+                  ).map((account) => (
                     <tr
                       key={account.id}
                       className="border-b border-[#f1f5f9] cursor-pointer hover:bg-[#f8fafc] transition-colors"
                       onClick={() => router.push(`/admin/customers/${account.id}`)}
                     >
-                      <td className="py-2.5 px-4 font-medium text-[#0f172a]">{account.companyName}</td>
+                      <td className="py-2.5 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-[#0f172a]">{account.companyName}</span>
+                          {!account.contactEmail && (
+                            <span className="px-1 py-0.5 rounded text-[9px] font-bold bg-[#fffbeb] text-[#d97706]">incomplete</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <span className={cn(
+                          'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold',
+                          account.userCount > 0
+                            ? 'bg-[#eff6ff] text-[#1d4ed8]'
+                            : 'bg-[#f1f5f9] text-[#64748b]'
+                        )}>
+                          {account.userCount > 0 ? 'Portal' : 'Token-only'}
+                        </span>
+                      </td>
                       <td className="py-2.5 px-4">
                         {account.primaryPoc ? (
                           <div>
@@ -293,17 +339,10 @@ export default function CustomersPage() {
 
         {/* Legend */}
         <div className="mt-3 flex flex-wrap gap-4 text-[11px] text-[#94a3b8]">
-          <span className="flex items-center gap-1">
-            <Crown className="size-3 text-[#d97706]" /> = Primary POC
-          </span>
-          <span>
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#fffbeb] text-[#d97706] font-bold text-[10px] mr-1">Pending</span>
-            = POC not activated
-          </span>
-          <span>
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#fef2f2] text-[#dc2626] font-bold text-[10px] mr-1">N</span>
-            = Pending requests
-          </span>
+          <span><span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#eff6ff] text-[#1d4ed8] font-bold text-[10px] mr-1">Portal</span>= has login users</span>
+          <span><span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#f1f5f9] text-[#64748b] font-bold text-[10px] mr-1">Token-only</span>= review via links</span>
+          <span className="flex items-center gap-1"><Crown className="size-3 text-[#d97706]" /> = Primary POC</span>
+          <span><span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#fffbeb] text-[#d97706] font-bold text-[10px] mr-1">incomplete</span>= missing contact info</span>
           <span className="ml-auto">Click row to view</span>
         </div>
       </div>
