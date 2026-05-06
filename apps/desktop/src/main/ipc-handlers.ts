@@ -257,12 +257,32 @@ export function registerDraftHandlers(): void {
     const { userId } = ids()
     const db = getDb()
 
-    return db.all<Record<string, unknown>>(
+    // Combine cached server certificates + local drafts
+    const cached = await db.all<Record<string, unknown>>(
+      `SELECT id, certificate_number as certificateNumber, customer_name as customerName,
+              status, updated_at as updatedAt
+       FROM cached_certificates ORDER BY updated_at DESC LIMIT 50`
+    )
+    const drafts = await db.all<Record<string, unknown>>(
       `SELECT id, certificate_number as certificateNumber, customer_name as customerName,
               status, updated_at as updatedAt
        FROM drafts WHERE engineer_id = ? ORDER BY updated_at DESC LIMIT 50`,
       userId
     )
+
+    // Merge: drafts first (local changes take priority), then cached server certs
+    const seen = new Set<string>()
+    const merged: Record<string, unknown>[] = []
+    for (const d of drafts) {
+      seen.add(d.id as string)
+      merged.push(d)
+    }
+    for (const c of cached) {
+      if (!seen.has(c.id as string)) {
+        merged.push(c)
+      }
+    }
+    return merged
   })
 
   // ─── draft:delete ──────────────────────────────────────────────────

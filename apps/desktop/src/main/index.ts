@@ -471,6 +471,46 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
     } catch (err) {
       console.error('[sync] Sync cycle failed:', err)
     }
+
+    // Cache certificates from server for offline dashboard
+    try {
+      const token = cachedAccessToken || loadPersistedAccessToken()
+      if (token) {
+        const res = await fetch('http://10.100.0.1/api/certificates/engineer?limit=100', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-Tenant-ID': 'hta-calibration',
+          },
+        })
+        if (res.ok) {
+          const data = await res.json() as {
+            certificates: Array<{
+              id: string; certificateNumber: string; status: string
+              customerName: string; uucDescription: string
+              dateOfCalibration: string; currentVersion: number
+              reviewerName?: string; createdAt: string
+            }>
+          }
+          if (data.certificates?.length) {
+            for (const cert of data.certificates) {
+              await db.run(
+                `INSERT OR REPLACE INTO cached_certificates
+                 (id, certificate_number, status, customer_name, uuc_description,
+                  date_of_calibration, current_revision, reviewer_name, created_at, updated_at, cached_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+                cert.id, cert.certificateNumber, cert.status,
+                cert.customerName, cert.uucDescription,
+                cert.dateOfCalibration, cert.currentVersion,
+                cert.reviewerName || null, cert.createdAt, cert.createdAt
+              )
+            }
+            console.log(`[sync] Cached ${data.certificates.length} certificates`)
+          }
+        }
+      }
+    } catch (err) {
+      // Non-fatal — certificate caching is best-effort
+    }
   }, 30_000)
 
   // Initial reference data cache (best-effort)
