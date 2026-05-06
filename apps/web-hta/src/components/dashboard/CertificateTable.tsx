@@ -213,12 +213,23 @@ export function CertificateTable({
           )}
         </Button>
         {/* New certificate */}
-        <Link href="/dashboard/certificates/new">
-          <Button className="h-10 px-[18px] rounded-[9px] bg-primary text-white text-sm font-bold tracking-[-0.01em]">
+        {typeof window !== 'undefined' && (window as unknown as { electronAPI?: { isOffline?: () => boolean } }).electronAPI?.isOffline?.() ? (
+          <Button
+            disabled
+            title="Requires online connection"
+            className="h-10 px-[18px] rounded-[9px] bg-primary/50 text-white text-sm font-bold tracking-[-0.01em] cursor-not-allowed"
+          >
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             New Certificate
           </Button>
-        </Link>
+        ) : (
+          <Link href="/dashboard/certificates/new">
+            <Button className="h-10 px-[18px] rounded-[9px] bg-primary text-white text-sm font-bold tracking-[-0.01em]">
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              New Certificate
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Collapsible Date Filter Panel */}

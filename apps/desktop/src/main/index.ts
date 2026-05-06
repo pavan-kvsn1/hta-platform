@@ -544,7 +544,55 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
       console.log('[sync] Cached stat counts')
     } catch { /* best-effort */ }
 
-    // 5. Update last synced timestamp
+    // 5. Cache images for actionable certificates (max 500MB total)
+    try {
+      const { saveImageEncrypted } = await import('./file-store')
+      const cachedCerts = await db.all<{ id: string }>(
+        "SELECT id FROM cached_certificates WHERE status IN ('DRAFT', 'REVISION_REQUIRED', 'PENDING_REVIEW', 'CUSTOMER_REVISION_REQUIRED')"
+      )
+      let totalCachedBytes = 0
+      const MAX_CACHE_BYTES = 500 * 1024 * 1024 // 500MB
+
+      for (const cert of cachedCerts) {
+        if (totalCachedBytes > MAX_CACHE_BYTES) break
+
+        // Check if images already cached for this cert
+        const existing = await db.get<{ cnt: number }>(
+          'SELECT COUNT(*) as cnt FROM cached_images WHERE certificate_id = ?', cert.id
+        )
+        if (existing && existing.cnt > 0) continue
+
+        try {
+          const imgListRes = await fetch(`${apiUrl}/api/certificates/${cert.id}/images`, { headers })
+          if (!imgListRes.ok) continue
+          const imgList = await imgListRes.json() as { images: Array<{ id: string; imageType: string; fileName: string; mimeType: string; fileSize: number; url?: string }> }
+
+          for (const img of (imgList.images || [])) {
+            if (totalCachedBytes > MAX_CACHE_BYTES) break
+            const downloadUrl = img.url || `${apiUrl}/api/certificates/${cert.id}/images/${img.id}/file`
+            try {
+              const fileRes = await fetch(downloadUrl, { headers })
+              if (!fileRes.ok) continue
+              const buffer = Buffer.from(await fileRes.arrayBuffer())
+              const ext = (img.mimeType?.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+              const { localPath, id: localId, sizeBytes } = saveImageEncrypted(cert.id, buffer, ext)
+
+              await db.run(
+                `INSERT OR IGNORE INTO cached_images (id, certificate_id, image_type, local_path, original_name, mime_type, size_bytes)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                localId, cert.id, img.imageType, localPath, img.fileName, img.mimeType, sizeBytes
+              )
+              totalCachedBytes += sizeBytes
+            } catch { /* skip individual image */ }
+          }
+        } catch { /* skip cert */ }
+      }
+      if (totalCachedBytes > 0) {
+        console.log(`[sync] Cached ${Math.round(totalCachedBytes / 1024)}KB of images`)
+      }
+    } catch { /* best-effort */ }
+
+    // 6. Update last synced timestamp
     await db.run(
       "INSERT OR REPLACE INTO session_meta (key, value) VALUES ('last_synced_at', ?)",
       new Date().toISOString()

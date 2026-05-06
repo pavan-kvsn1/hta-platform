@@ -244,6 +244,9 @@ export function ReviewerPageClient({
   const [isRejecting, setIsRejecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Offline detection — disable review actions
+  const isElectronOffline = typeof window !== 'undefined' && !!(window as unknown as { electronAPI?: { isOffline?: () => boolean } }).electronAPI?.isOffline?.()
+
   // Modal states
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showRevisionModal, setShowRevisionModal] = useState(false)
@@ -929,7 +932,13 @@ export function ReviewerPageClient({
                 </div>
               )}
 
-              {canReview && (
+              {canReview && isElectronOffline && (
+                <div className="p-2.5 bg-[#fffbeb] border border-[#fde68a] rounded-lg text-[12px] text-[#92400e]">
+                  Review actions require an online connection.
+                </div>
+              )}
+
+              {canReview && !isElectronOffline && (
                 <div className="space-y-2">
                   <Button
                     onClick={() => setShowApproveModal(true)}
