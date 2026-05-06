@@ -174,6 +174,28 @@ Collapsed: ● (just the dot, colored green/amber/red)
 
 ---
 
+## Issue 6: Serve cached images offline
+
+**Current:** The edit page loads images from the API (`GET /api/certificates/:id/images/:imageId/file`). Offline, this fails. The image caching step downloads and encrypts images to disk in the `cached_images` table, but there's no IPC handler to serve them back to the renderer.
+
+**Fix:** Add `images:get-cached` IPC handler that reads encrypted cached images from disk and returns them as data URLs for display.
+
+### Flow
+
+1. Edit page tries to load image from API → fails offline
+2. Falls back to `window.electronAPI.getCachedImage(certId, imageId)`
+3. IPC handler looks up `cached_images` table for the `local_path`
+4. Reads and decrypts the file using `readImageDecrypted` from `file-store.ts`
+5. Returns as base64 data URL → image displays
+
+### Files
+
+- `apps/desktop/src/main/ipc-handlers.ts` — add `images:get-cached` handler
+- `apps/desktop/src/preload/index.ts` — expose IPC
+- Certificate edit/view page — fall back to cached images when API fails
+
+---
+
 ## Implementation order
 
 1. **Issue 3 + 4:** Fix sync status badge (quick, no data changes)

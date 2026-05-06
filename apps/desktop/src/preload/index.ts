@@ -12,6 +12,8 @@ const ALLOWED_INVOKE_CHANNELS = [
   'app:is-api-reachable',
   'certificates:list-cached',
   'certificates:get-cached-full',
+  'images:get-cached',
+  'images:list-cached',
   'sync:get-status',
   'vpn:provision', 'vpn:status',
   'auth:get-access-token',
@@ -106,6 +108,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('certificates:list-cached' satisfies InvokeChannel, role),
   getCachedCertificateFull: (certId: string) =>
     ipcRenderer.invoke('certificates:get-cached-full' satisfies InvokeChannel, certId),
+  getCachedImage: (certificateId: string, imageId: string) =>
+    ipcRenderer.invoke('images:get-cached' satisfies InvokeChannel, certificateId, imageId),
+  listCachedImages: (certificateId: string) =>
+    ipcRenderer.invoke('images:list-cached' satisfies InvokeChannel, certificateId),
   onSyncStatus: (callback: (status: Record<string, unknown>) => void) => {
     ipcRenderer.on('sync:status', (_event, status) => callback(status))
   },

@@ -289,6 +289,40 @@ export function registerDraftHandlers(): void {
     return cached
   })
 
+  // ─── images:get-cached (serve cached images offline) ────────────────
+  ipcMain.handle('images:get-cached', async (_event, certificateId: string, imageId: string) => {
+    try {
+      const db = getDb()
+      const row = await db.get<{ local_path: string; mime_type: string }>(
+        'SELECT local_path, mime_type FROM cached_images WHERE id = ? AND certificate_id = ?',
+        imageId, certificateId
+      )
+      if (!row) return null
+
+      const buffer = readImageDecrypted(row.local_path)
+      if (!buffer) return null
+
+      const base64 = buffer.toString('base64')
+      const mimeType = row.mime_type || 'image/jpeg'
+      return `data:${mimeType};base64,${base64}`
+    } catch {
+      return null
+    }
+  })
+
+  // ─── images:list-cached (list all cached images for a cert) ────────
+  ipcMain.handle('images:list-cached', async (_event, certificateId: string) => {
+    try {
+      const db = getDb()
+      return db.all<Record<string, unknown>>(
+        'SELECT id, image_type, original_name, mime_type, size_bytes FROM cached_images WHERE certificate_id = ?',
+        certificateId
+      )
+    } catch {
+      return []
+    }
+  })
+
   // ─── certificates:get-cached-full (offline editing fallback) ────────
   ipcMain.handle('certificates:get-cached-full', async (_event, certId: string) => {
     try {
