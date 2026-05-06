@@ -271,6 +271,7 @@ model CustomerAccount {
   // Other relations
   assignedAdmin   User?                  @relation("AdminToCustomerAccount", fields: [assignedAdminId], references: [id])
   primaryPoc      CustomerUser?          @relation("PrimaryPOC", fields: [primaryPocId], references: [id])
+  certificates    Certificate[]
   registrations   CustomerRegistration[]
   requests        CustomerRequest[]
   users           CustomerUser[]         @relation("CustomerUsers")
@@ -453,9 +454,13 @@ model Certificate {
   signedPdfPath                 String?
   customerContactName           String?
   customerContactEmail          String?
+  customerAccountId             String?
 
   // Tenant relation
   tenant                        Tenant                        @relation(fields: [tenantId], references: [id])
+
+  // Customer account link (optional — legacy certs may not have this)
+  customerAccount               CustomerAccount?              @relation(fields: [customerAccountId], references: [id])
 
   // Other relations
   approvalTokens                ApprovalToken[]
@@ -482,6 +487,7 @@ model Certificate {
   @@index([tenantId, status])
   @@index([createdById])
   @@index([reviewerId])
+  @@index([customerAccountId])
 }
 
 model CertificateEvent {
