@@ -216,6 +216,37 @@ apiFetch → API returns 401
 
 ---
 
+## Issue 13: SQLCipher native module fails in packaged app
+
+**Problem:** `openDb()` fails with `SQLITE_NOTADB: file is not a database` even when the DB file doesn't exist (should create a fresh one). The `@journeyapps/sqlcipher` native binding isn't working correctly in the packaged Electron app.
+
+**Impact:** Non-blocking. Auth, API calls, and dashboard all work. Only offline draft caching is broken (local SQLCipher reads/writes fail).
+
+**Symptoms:**
+- `[auth] unlockWithPasswordOnly post-unlock DB error: SQLITE_NOTADB`
+- `Error occurred in handler for 'draft:list': SQLITE_NOTADB`
+- DB file at `%APPDATA%\HTA Calibr8s\hta-offline.db` doesn't exist (can't even create one)
+
+**Likely causes:**
+1. Native `.node` binding not properly extracted from ASAR — `electron-builder.yml` has `asarUnpack` for `node_modules/@journeyapps/sqlcipher/lib/binding/**/*.node` but the actual path in the packaged app might differ
+2. `electron-rebuild` compiled the binding for a different Electron ABI version
+3. The PRAGMA key format passed to SQLCipher is invalid in this context
+
+**Investigation steps:**
+1. Check if the `.node` file exists in the unpacked location: `release\win-unpacked\resources\app.asar.unpacked\node_modules\@journeyapps\sqlcipher\lib\binding\`
+2. Verify the Electron version matches the compiled native binding: `npx electron --version` vs what electron-rebuild targeted
+3. Test `openDb` in isolation: add a debug IPC handler that just tries to create a fresh DB at a temp path
+4. Check if the issue is the key format: try opening without encryption first to isolate SQLCipher vs key issue
+
+**Status:** Open — non-blocking, deferred to next session
+
+**Files:**
+- `apps/desktop/src/main/sqlite-db.ts` — `openDb()` function
+- `apps/desktop/electron-builder.yml` — `asarUnpack` config
+- `apps/desktop/package.json` — `build.asarUnpack` config (duplicate, may conflict)
+
+---
+
 ## Build Sequence
 
 ```powershell
