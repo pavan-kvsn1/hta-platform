@@ -27,7 +27,6 @@ import {
   UserPlus,
   Clock,
   AlertCircle,
-  Mail,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 

@@ -41,6 +41,11 @@ docs
 .DS_Store
 Thumbs.db
 
+# Desktop app build artifacts
+apps/desktop/.next-standalone
+apps/desktop/release
+apps/desktop/resources/wireguard-amd64.msi
+
 # Turborepo
 .turbo
 **/.turbo
