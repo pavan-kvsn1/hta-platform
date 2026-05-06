@@ -304,6 +304,47 @@ The `CertificateTable` component currently fetches its own data from the API. Ad
 
 ---
 
+## Issue 15: Sync interval too aggressive + no sync status indicator
+
+**Problem:** The sync loop runs every 30 seconds, fetching certificates, offline codes, reference data, and running the draft sync engine. This is excessive for the data volume and wastes bandwidth/battery. Also, the user has no visibility into whether the app is online/offline or when data was last synced.
+
+**Fix plan:**
+
+### Part A: Adjust sync intervals
+| What | Current | Proposed |
+|---|---|---|
+| Draft sync (push local changes) | 30s | 2 min |
+| Certificate cache (pull from server) | 30s | 10 min |
+| Offline code sync retry | 30s | 10 min (stop after success) |
+| Reference data (instruments, customers) | 4 hours | 4 hours (keep) |
+
+- Draft sync stays more frequent (2 min) because local changes need to reach the server relatively quickly
+- Certificate cache and offline codes are less urgent — 10 min is fine
+- All syncs skip when `net.isOnline()` is false
+
+### Part B: Sync status indicator in UI
+Add a status bar/badge in the dashboard sidebar or header showing:
+- **Online:** green dot + "Synced 2 minutes ago"
+- **Offline:** amber dot + "Offline — last synced May 4, 2026 at 3:42 PM"
+- **Syncing:** spinning icon + "Syncing..."
+- **Error:** red dot + "Sync failed — retry in 2 min"
+
+**Implementation:**
+1. In `apps/desktop/src/main/index.ts`: track `lastSyncedAt` timestamp, broadcast via IPC `sync:status` event
+2. Store `lastSyncedAt` in SQLCipher `session_meta` table (persists across restarts)
+3. In the web app: add `SyncStatusBadge` component that listens for `sync:status` events via `window.electronAPI.onSyncStatus(callback)`
+4. Add to `DashboardSidebar` or dashboard header (only renders when `window.electronAPI` exists)
+
+**Files:**
+- `apps/desktop/src/main/index.ts` — adjust intervals, track + broadcast sync status
+- `apps/desktop/src/preload/index.ts` — expose `onSyncStatus` listener
+- `apps/web-hta/src/components/layout/DashboardSidebar.tsx` — render `SyncStatusBadge`
+- `apps/web-hta/src/components/SyncStatusBadge.tsx` — new component
+
+**Status:** Open
+
+---
+
 ## Build Sequence
 
 ```powershell
