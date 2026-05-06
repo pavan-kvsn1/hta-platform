@@ -23,11 +23,50 @@ interface Stats {
   }
 }
 
+interface CachedCertificate {
+  id: string
+  certificateNumber: string
+  customerName: string
+  status: string
+  updatedAt: string
+}
+
 export function EngineerDashboardClient() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isOffline, setIsOffline] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [offlineCerts, setOfflineCerts] = useState<CachedCertificate[]>([])
+
+  const loadOfflineData = useCallback(async () => {
+    setIsOffline(true)
+    const electronAPI = (window as unknown as { electronAPI?: {
+      listDrafts?: () => Promise<{ id: string; certificateNumber?: string; customerName?: string; status: string; updatedAt?: string }[]>
+      listCachedCertificates?: () => Promise<CachedCertificate[]>
+    } }).electronAPI
+
+    if (electronAPI) {
+      try {
+        // Try cached certificates first
+        if (electronAPI.listCachedCertificates) {
+          const cached = await electronAPI.listCachedCertificates()
+          setOfflineCerts(cached || [])
+        }
+
+        // Get draft counts
+        if (electronAPI.listDrafts) {
+          const drafts = await electronAPI.listDrafts()
+          setStats({
+            draft: drafts.filter(d => d.status !== 'CONFLICT').length,
+            pending: 0,
+            approved: 0,
+            revision: 0,
+            conflict: drafts.filter(d => d.status === 'CONFLICT').length,
+          })
+        }
+      } catch { /* ignore */ }
+    }
+  }, [])
 
   const fetchCounts = useCallback(async () => {
     try {
@@ -48,26 +87,15 @@ export function EngineerDashboardClient() {
         setIsOffline(false)
       } else if (response.status === 401) {
         setFetchError('Session expired. Please log in again.')
+      } else if (response.status === 502 || response.status === 504 || response.status === 503) {
+        // Gateway error — VPN down or server unreachable
+        await loadOfflineData()
       } else {
         setFetchError('Failed to load data from server.')
       }
     } catch {
       // Network error — likely offline or VPN down
-      setIsOffline(true)
-      // Try to load local draft count from Electron if available
-      const electronAPI = (window as unknown as { electronAPI?: { listDrafts: () => Promise<{ status: string }[]> } }).electronAPI
-      if (electronAPI?.listDrafts) {
-        try {
-          const drafts = await electronAPI.listDrafts()
-          setStats({
-            draft: drafts.filter((d: { status: string }) => d.status !== 'CONFLICT').length,
-            pending: 0,
-            approved: 0,
-            revision: 0,
-            conflict: drafts.filter((d: { status: string }) => d.status === 'CONFLICT').length,
-          })
-        } catch { /* ignore */ }
-      }
+      await loadOfflineData()
     } finally {
       setIsLoading(false)
     }
@@ -176,8 +204,44 @@ export function EngineerDashboardClient() {
           })}
         </div>
 
-        {/* Certificate Table */}
-        <CertificateTable userRole="ENGINEER" />
+        {/* Certificate Table — online from API, offline from SQLCipher */}
+        {isOffline && offlineCerts.length > 0 ? (
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+            <div className="px-5 py-[14px] border-b border-[#f1f5f9]">
+              <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                Cached Certificates
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Certificate #</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Customer</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Status</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Last Modified</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {offlineCerts.map((cert) => (
+                    <tr key={cert.id} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc]">
+                      <td className="py-2.5 px-4 font-medium text-[#0f172a]">{cert.certificateNumber}</td>
+                      <td className="py-2.5 px-4 text-[#64748b]">{cert.customerName || '—'}</td>
+                      <td className="py-2.5 px-4">
+                        <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#f1f5f9] text-[#64748b]">
+                          {cert.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-4 text-[#94a3b8]">{cert.updatedAt ? new Date(cert.updatedAt).toLocaleDateString() : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : !isOffline ? (
+          <CertificateTable userRole="ENGINEER" />
+        ) : null}
       </div>
     </div>
   )

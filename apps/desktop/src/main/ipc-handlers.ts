@@ -252,6 +252,19 @@ export function registerDraftHandlers(): void {
     )
   })
 
+  // ─── certificates:list-cached (offline fallback) ───────────────────
+  ipcMain.handle('certificates:list-cached', async () => {
+    const { userId } = ids()
+    const db = getDb()
+
+    return db.all<Record<string, unknown>>(
+      `SELECT id, certificate_number as certificateNumber, customer_name as customerName,
+              status, updated_at as updatedAt
+       FROM drafts WHERE engineer_id = ? ORDER BY updated_at DESC LIMIT 50`,
+      userId
+    )
+  })
+
   // ─── draft:delete ──────────────────────────────────────────────────
   ipcMain.handle('draft:delete', async (_event, id: string) => {
     const { userId, deviceId } = ids()

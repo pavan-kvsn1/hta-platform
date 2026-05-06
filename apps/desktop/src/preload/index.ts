@@ -10,6 +10,7 @@ const ALLOWED_INVOKE_CHANNELS = [
   'sync:status', 'sync:trigger',
   'ref:master-instruments', 'ref:customers',
   'app:is-api-reachable',
+  'certificates:list-cached',
   'vpn:provision', 'vpn:status',
   'auth:get-access-token',
   'auth:refresh-access-token',
@@ -99,6 +100,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('vpn:status' satisfies InvokeChannel),
   isApiReachable: () =>
     ipcRenderer.invoke('app:is-api-reachable' satisfies InvokeChannel),
+  listCachedCertificates: () =>
+    ipcRenderer.invoke('certificates:list-cached' satisfies InvokeChannel),
   getAccessToken: () =>
     ipcRenderer.invoke('auth:get-access-token' satisfies InvokeChannel),
   refreshAccessToken: () =>
