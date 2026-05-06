@@ -513,15 +513,17 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
     }
   }, 30_000)
 
-  // Initial reference data cache (best-effort)
-  preCacheReferenceData(db, API_BASE, refreshToken, userId, deviceId).catch((err) => {
-    console.error('[ref-cache] Initial cache failed:', err)
-  })
+  // Initial reference data cache (best-effort, uses access token)
+  if (cachedAccessToken) {
+    preCacheReferenceData(db, API_BASE, cachedAccessToken, userId, deviceId).catch((err) => {
+      console.error('[ref-cache] Initial cache failed:', err)
+    })
+  }
 
   // Refresh reference data every 4 hours
   refCacheInterval = setInterval(() => {
-    if (!net.isOnline()) return
-    preCacheReferenceData(db, API_BASE, refreshToken, userId, deviceId).catch((err) => {
+    if (!net.isOnline() || !cachedAccessToken) return
+    preCacheReferenceData(db, API_BASE, cachedAccessToken, userId, deviceId).catch((err) => {
       console.error('[ref-cache] Periodic refresh failed:', err)
     })
   }, 4 * 60 * 60 * 1000)
@@ -578,9 +580,9 @@ ipcMain.handle('sync:trigger', async () => {
     // Also refresh reference data on manual sync
     const deviceId = getDeviceId()
     const userId = getUserId()
-    if (deviceId && userId && cachedAuthToken) {
+    if (deviceId && userId && cachedAccessToken) {
       const db = getDb()
-      preCacheReferenceData(db, API_BASE, cachedAuthToken, userId, deviceId).catch(() => {})
+      preCacheReferenceData(db, API_BASE, cachedAccessToken, userId, deviceId).catch(() => {})
     }
 
     return { success: true, result }

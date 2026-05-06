@@ -15,7 +15,7 @@ export async function preCacheReferenceData(
 ): Promise<void> {
   if (!net.isOnline()) return
 
-  const headers = { 'Authorization': `Bearer ${token}` }
+  const headers = { 'Authorization': `Bearer ${token}`, 'X-Tenant-ID': 'hta-calibration' }
 
   // Cache master instruments
   try {
