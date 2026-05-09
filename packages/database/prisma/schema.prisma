@@ -1118,15 +1118,16 @@ enum InvoiceStatus {
 // completes the first-run VPN setup in the desktop app.
 
 model VpnPeer {
-  id            String    @id @default(cuid())
-  userId        String    @unique              // one VPN peer per engineer
-  user          User      @relation(fields: [userId], references: [id])
-  tenantId      String
-  publicKey     String    @unique              // WireGuard Curve25519 public key
-  ipAddress     String    @unique              // assigned 10.100.0.x
-  provisionedAt DateTime  @default(now())
-  revokedAt     DateTime?
-  isActive      Boolean   @default(true)
+  id               String    @id @default(cuid())
+  userId           String    @unique              // one VPN peer per engineer
+  user             User      @relation(fields: [userId], references: [id])
+  tenantId         String
+  publicKey        String    @unique              // WireGuard Curve25519 public key
+  ipAddress        String    @unique              // assigned 10.100.0.x
+  provisionedAt    DateTime  @default(now())
+  revokedAt        DateTime?
+  isActive         Boolean   @default(true)
+  reprovisionToken String?   @unique              // device-bound token for silent re-provisioning
 
   @@index([tenantId])
   @@index([isActive])

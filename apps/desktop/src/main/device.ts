@@ -27,6 +27,7 @@ export async function registerDevice(
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
+      'X-Tenant-ID': 'hta-calibration',
     },
     body: JSON.stringify({
       deviceId,
@@ -64,16 +65,14 @@ export async function checkDeviceStatus(
 
   try {
     const res = await fetch(`${apiBase}/api/devices/${deviceId}/status`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${token}`, 'X-Tenant-ID': 'hta-calibration' },
     })
 
     if (!res.ok) {
-      // If 404, device may have been deleted server-side
-      if (res.status === 404) {
-        await wipeAllLocalData('Device not found on server')
-        return { status: 'REVOKED' }
-      }
-      return { status: 'ACTIVE' } // Network error — assume active
+      // Don't wipe on 404 — device may not be registered yet or endpoint may not exist.
+      // Only wipe on explicit REVOKED/WIPE_PENDING status in the response body.
+      console.log(`[device] Status check returned ${res.status} — assuming active`)
+      return { status: 'ACTIVE' }
     }
 
     const data = await res.json() as DeviceStatus
@@ -109,6 +108,6 @@ export async function sendHeartbeat(
 
   await fetch(`${apiBase}/api/devices/${deviceId}/heartbeat`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
+    headers: { 'Authorization': `Bearer ${token}`, 'X-Tenant-ID': 'hta-calibration' },
   }).catch(() => {}) // Best-effort
 }

@@ -118,7 +118,40 @@ export function CertificateTable({
       const res = await apiFetch(`/api/certificates/engineer?${params}`)
       if (res.ok) {
         const data = await res.json()
-        setCertificates(data.certificates)
+        let certs: CertificateListItem[] = data.certificates
+
+        // In Electron, merge local conflict drafts into the table
+        const electronAPI = typeof window !== 'undefined'
+          ? (window as unknown as { electronAPI?: { listDrafts?: () => Promise<{ id: string; certificate_number?: string; customer_name?: string; uuc_description?: string; date_of_calibration?: string; status: string; updated_at?: string; revision?: number }[]> } }).electronAPI
+          : undefined
+        if (electronAPI?.listDrafts && (statusFilter === 'all' || statusFilter === 'CONFLICT')) {
+          try {
+            const drafts = await electronAPI.listDrafts()
+            const conflicts = drafts.filter(d => d.status === 'CONFLICT').map(d => ({
+              id: d.id,
+              certificateNumber: d.certificate_number || 'Offline Draft',
+              status: 'CONFLICT',
+              customerName: d.customer_name || '',
+              uucDescription: d.uuc_description || '',
+              dateOfCalibration: d.date_of_calibration || '',
+              currentVersion: d.revision || 1,
+              createdAt: d.updated_at || '',
+            }))
+            if (conflicts.length > 0) {
+              const conflictIds = new Set(conflicts.map(c => c.id))
+              // Override API versions with local conflict status, prepend any new ones
+              certs = [
+                ...conflicts.filter(c => !certs.some(existing => existing.id === c.id)),
+                ...certs.map(c => conflictIds.has(c.id)
+                  ? { ...c, status: 'CONFLICT' }
+                  : c
+                ),
+              ]
+            }
+          } catch { /* ignore */ }
+        }
+
+        setCertificates(certs)
         setPagination(data.pagination)
       }
     } catch (error) {

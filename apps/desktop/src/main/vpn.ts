@@ -21,6 +21,18 @@ const WG_EXE = 'C:\\Program Files\\WireGuard\\wireguard.exe'
 const WG_TOOL = 'C:\\Program Files\\WireGuard\\wg.exe'
 
 const VPN_FLAG_FILE = path.join(app.getPath('userData'), '.vpn-provisioned')
+const REPROVISION_TOKEN_FILE = path.join(app.getPath('userData'), '.reprovision-token')
+
+/** Load the stored re-provision token (for auto-heal) */
+export function loadReprovisionToken(): string | null {
+  try {
+    if (!fs.existsSync(REPROVISION_TOKEN_FILE)) return null
+    const encrypted = fs.readFileSync(REPROVISION_TOKEN_FILE)
+    return safeStorage.decryptString(encrypted)
+  } catch {
+    return null
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -45,13 +57,12 @@ function buildWgConf(params: {
   serverPublicKey: string
   serverEndpoint: string
   serverIp: string
-  dns: string
 }): string {
   return [
     '[Interface]',
     `PrivateKey = ${params.privateKey}`,
     `Address = ${params.assignedIp}/32`,
-    `DNS = ${params.dns}`,
+    // No DNS line — system DNS stays untouched
     '',
     '[Peer]',
     `PublicKey = ${params.serverPublicKey}`,
@@ -132,7 +143,14 @@ export async function vpnProvision(
       serverEndpoint: string
       assignedIp: string
       serverIp: string
-      dns: string
+      reprovisionToken?: string
+    }
+
+    // Store re-provision token for auto-heal (survives app restarts via safeStorage)
+    if (config.reprovisionToken) {
+      const rpTokenPath = path.join(app.getPath('userData'), '.reprovision-token')
+      fs.writeFileSync(rpTokenPath, safeStorage.encryptString(config.reprovisionToken))
+      console.log('[vpn] Re-provision token stored')
     }
 
     // 3. Write hta-vpn.conf to a temp directory
@@ -146,19 +164,42 @@ export async function vpnProvision(
       serverPublicKey: config.serverPublicKey,
       serverEndpoint: config.serverEndpoint,
       serverIp: config.serverIp,
-      dns: config.dns,
     })
 
     fs.writeFileSync(confPath, wgConf, { mode: 0o600 })
 
-    // 4. Install WireGuard tunnel service (UAC elevation — same command tested manually)
+    // 4. Uninstall existing tunnel (if any) then install fresh via batch script
     console.log('[vpn] Installing tunnel service from:', confPath)
     const { execSync: runSync } = require('child_process')
+
+    // Write a batch script that does uninstall + install in one elevated session
+    const batPath = path.join(app.getPath('temp'), 'hta-vpn-install.bat')
+    const batContent = [
+      '@echo off',
+      `"${WG_EXE}" /uninstalltunnelservice hta-vpn 2>nul`,
+      'timeout /t 2 /nobreak >nul',
+      `"${WG_EXE}" /installtunnelservice "${confPath}"`,
+    ].join('\r\n')
+    fs.writeFileSync(batPath, batContent)
+
+    // Run the batch script elevated (single UAC prompt for both operations)
     runSync(
-      `powershell -Command "Start-Process -FilePath '${WG_EXE}' -ArgumentList '/installtunnelservice','${confPath}' -Verb RunAs -Wait"`,
+      `powershell -Command "Start-Process -FilePath '${batPath}' -Verb RunAs -Wait"`,
       { encoding: 'utf8', timeout: 60000 }
     )
     console.log('[vpn] Tunnel service install completed')
+
+    // Verify service exists
+    try {
+      const { stdout } = await execFileAsync('sc', ['query', 'WireGuardTunnel$hta-vpn'])
+      if (stdout.includes('RUNNING')) {
+        console.log('[vpn] Tunnel service verified RUNNING')
+      } else {
+        console.warn('[vpn] Tunnel service not running after install')
+      }
+    } catch {
+      console.error('[vpn] Tunnel service NOT FOUND after install')
+    }
 
     // 6. Persist provisioned flag via Electron safeStorage (DPAPI-backed on Windows)
     const flagValue = safeStorage.encryptString('true')
@@ -170,18 +211,32 @@ export async function vpnProvision(
   }
 }
 
-/** Check WireGuard tunnel service status */
-export async function vpnStatus(): Promise<{ configured: boolean; active: boolean }> {
+/** Check WireGuard tunnel service status + actual connectivity */
+export async function vpnStatus(): Promise<{ configured: boolean; serviceRunning: boolean; connected: boolean; active: boolean }> {
   const configured = fs.existsSync(VPN_FLAG_FILE)
 
-  if (!configured) return { configured: false, active: false }
+  if (!configured) return { configured: false, serviceRunning: false, connected: false, active: false }
 
+  let serviceRunning = false
   try {
-    // sc query returns exit code 0 if running, non-zero otherwise
     const { stdout } = await execFileAsync('sc', ['query', 'WireGuardTunnel$hta-vpn'])
-    const active = stdout.includes('RUNNING')
-    return { configured: true, active }
+    serviceRunning = stdout.includes('RUNNING')
   } catch {
-    return { configured: true, active: false }
+    serviceRunning = false
   }
+
+  let connected = false
+  if (serviceRunning) {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 3000)
+      await fetch('http://10.100.0.1/', { signal: controller.signal })
+      clearTimeout(timeout)
+      connected = true
+    } catch {
+      connected = false
+    }
+  }
+
+  return { configured, serviceRunning, connected, active: serviceRunning }
 }

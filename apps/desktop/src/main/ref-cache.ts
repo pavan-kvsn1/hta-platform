@@ -58,6 +58,25 @@ export async function preCacheReferenceData(
     console.error('[ref-cache] Failed to cache customers:', err)
   }
 
+  // Cache reviewers
+  try {
+    const res = await fetch(`${apiBase}/api/users/reviewers`, { headers })
+    if (res.ok) {
+      const data = await res.json() as { reviewers: { id: string }[] }
+      for (const item of (data.reviewers || [])) {
+        await db.run(
+          "INSERT OR REPLACE INTO ref_reviewers (id, data, cached_at) VALUES (?, ?, datetime('now'))",
+          item.id, JSON.stringify(item)
+        )
+      }
+      console.log(`[ref-cache] Cached ${(data.reviewers || []).length} reviewers`)
+    } else {
+      console.warn('[ref-cache] Reviewers response:', res.status)
+    }
+  } catch (err) {
+    console.error('[ref-cache] Failed to cache reviewers:', err)
+  }
+
   await auditLog(db, { userId, deviceId, action: 'REF_DATA_CACHED', entityType: 'sync' })
 }
 
@@ -74,5 +93,13 @@ export async function getCachedMasterInstruments(db: WrappedDb): Promise<unknown
  */
 export async function getCachedCustomers(db: WrappedDb): Promise<unknown[]> {
   const rows = await db.all<{ data: string }>('SELECT data FROM ref_customers')
+  return rows.map(r => JSON.parse(r.data))
+}
+
+/**
+ * Read cached reviewers from SQLCipher.
+ */
+export async function getCachedReviewers(db: WrappedDb): Promise<unknown[]> {
+  const rows = await db.all<{ data: string }>('SELECT data FROM ref_reviewers')
   return rows.map(r => JSON.parse(r.data))
 }

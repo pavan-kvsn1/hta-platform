@@ -50,6 +50,19 @@ export function ReviewerSelect({
         const data = await res.json()
         setReviewers(data.reviewers)
       } catch (err) {
+        // Offline fallback: try cached reviewers from Electron IPC
+        const electronAPI = typeof window !== 'undefined'
+          ? (window as unknown as { electronAPI?: { getReviewers?: () => Promise<Reviewer[]> } }).electronAPI
+          : undefined
+        if (electronAPI?.getReviewers) {
+          try {
+            const cached = await electronAPI.getReviewers()
+            if (cached?.length) {
+              setReviewers(cached)
+              return
+            }
+          } catch { /* fall through to error */ }
+        }
         setFetchError('Unable to load reviewers')
         console.error('Fetch reviewers error:', err)
       } finally {

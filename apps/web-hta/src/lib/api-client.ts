@@ -77,9 +77,13 @@ export function clearAccessToken(): void {
  * Prepends API_BASE_URL if path starts with /api/
  */
 /**
- * Routes that the Electron app can handle offline (local SQLite)
+ * Route patterns the Electron app can handle offline (local SQLite).
+ * Only exact patterns — list/search endpoints must go to the real API.
  */
-const OFFLINE_ROUTES = ['/api/certificates', '/api/instruments']
+const OFFLINE_ROUTE_PATTERNS = [
+  /^\/api\/certificates\/[^/?]+$/,   // GET/PUT /api/certificates/:id
+  /^\/api\/certificates\/?$/,         // POST /api/certificates
+]
 
 // Cache API reachability check result to avoid async in the hot path
 let _apiReachable = true
@@ -115,7 +119,9 @@ function isElectronOffline(): boolean {
 }
 
 function isDraftRoute(url: string): boolean {
-  return OFFLINE_ROUTES.some((r) => url.startsWith(r))
+  // Strip query string for pattern matching
+  const path = url.split('?')[0]
+  return OFFLINE_ROUTE_PATTERNS.some((r) => r.test(path))
 }
 
 export async function apiFetch(
@@ -124,10 +130,39 @@ export async function apiFetch(
 ): Promise<Response> {
   // Electron offline intercept: route draft-capable requests to local SQLite
   if (isElectronOffline() && typeof input === 'string' && isDraftRoute(input)) {
-    return window.electronAPI!.handleOfflineRequest(input, init)
+    const result = await window.electronAPI!.handleOfflineRequest(input, init)
+    // Preload returns plain { status, body } — wrap into a real Response
+    return new Response(JSON.stringify(result.body), {
+      status: result.status,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
-  const response = await doApiFetch(input, init)
+  let response: Response
+  try {
+    response = await doApiFetch(input, init)
+  } catch (err) {
+    // Network error in Electron — try offline bridge for draft routes
+    if (typeof input === 'string' && isDraftRoute(input) && window.electronAPI?.handleOfflineRequest) {
+      _apiReachable = false
+      const result = await window.electronAPI.handleOfflineRequest(input, init)
+      return new Response(JSON.stringify(result.body), {
+        status: result.status,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    throw err
+  }
+
+  // Electron: API returned 500+ for a draft route — likely proxy timeout, retry via offline bridge
+  if (response.status >= 500 && typeof input === 'string' && isDraftRoute(input) && window.electronAPI?.handleOfflineRequest) {
+    _apiReachable = false
+    const result = await window.electronAPI.handleOfflineRequest(input, init)
+    return new Response(JSON.stringify(result.body), {
+      status: result.status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 
   // Electron 401 retry: refresh token via IPC and retry once
   const electronApi = typeof window !== 'undefined'

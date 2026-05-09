@@ -69,6 +69,19 @@ export async function syncPeersToGcs(): Promise<void> {
     resumable: false,
   })
 
+  // Verify the write by reading back
+  try {
+    const [readBack] = await file.download()
+    const readContent = readBack.toString('utf8')
+    for (const p of peers) {
+      if (!readContent.includes(p.publicKey)) {
+        logger.error(`[vpn] GCS verification FAILED: peer ${p.user.email} key not found after write`)
+      }
+    }
+  } catch (err) {
+    logger.error('[vpn] GCS read-back verification failed: %s', String(err))
+  }
+
   logger.info(`[vpn] Synced ${peers.length} peer(s) to GCS peers.conf`)
 }
 

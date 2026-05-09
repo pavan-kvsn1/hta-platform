@@ -93,8 +93,65 @@ export function useCertificateImages({
       }
       const data = await response.json()
       setImages(data.images || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch images')
+    } catch {
+      // Offline fallback: try local draft images then cached images
+      const electronAPI = typeof window !== 'undefined'
+        ? (window as unknown as { electronAPI?: {
+            listImages?: (draftId: string) => Promise<{ id: string; image_type: string; master_instrument_index: number | null; parameter_index: number | null; point_number: number | null; original_name: string | null; mime_type: string | null; size_bytes: number; caption: string | null; created_at: string }[]>
+            listCachedImages?: (certId: string) => Promise<{ id: string; imageType: string; masterInstrumentIndex: number | null; parameterIndex: number | null; pointNumber: number | null; fileName: string; mimeType: string; caption: string | null }[]>
+          } }).electronAPI
+        : undefined
+      if (electronAPI) {
+        try {
+          // Try local draft images first (for offline-created certs)
+          if (electronAPI.listImages) {
+            const localImgs = await electronAPI.listImages(certificateId)
+            if (localImgs?.length) {
+              setImages(localImgs.map(img => ({
+                id: img.id,
+                imageType: (img.image_type || 'UUC') as CertificateImageType,
+                masterInstrumentIndex: img.master_instrument_index,
+                parameterIndex: img.parameter_index,
+                pointNumber: img.point_number,
+                fileName: img.original_name || 'image',
+                fileSize: img.size_bytes || 0,
+                mimeType: img.mime_type || 'image/jpeg',
+                caption: img.caption,
+                version: 1,
+                uploadedAt: img.created_at || new Date().toISOString(),
+                thumbnailUrl: null,
+                optimizedUrl: null,
+                originalUrl: null,
+              })))
+              return
+            }
+          }
+          // Try cached images (for server-synced certs)
+          if (electronAPI.listCachedImages) {
+            const cached = await electronAPI.listCachedImages(certificateId)
+            if (cached?.length) {
+              setImages(cached.map(img => ({
+                id: img.id,
+                imageType: (img.imageType || 'UUC') as CertificateImageType,
+                masterInstrumentIndex: img.masterInstrumentIndex,
+                parameterIndex: img.parameterIndex,
+                pointNumber: img.pointNumber,
+                fileName: img.fileName || 'image',
+                fileSize: 0,
+                mimeType: img.mimeType || 'image/jpeg',
+                caption: img.caption,
+                version: 1,
+                uploadedAt: new Date().toISOString(),
+                thumbnailUrl: null,
+                optimizedUrl: null,
+                originalUrl: null,
+              })))
+              return
+            }
+          }
+        } catch { /* fall through */ }
+      }
+      setError('Images unavailable offline')
     } finally {
       setIsLoading(false)
     }
@@ -168,6 +225,59 @@ export function useCertificateImages({
       file: File,
       metadata: ImageUploadMetadata
     ): Promise<CertificateImage | null> => {
+      // Offline: route to Electron IPC image:save
+      const electronAPI = typeof window !== 'undefined'
+        ? (window as unknown as { electronAPI?: {
+            saveImage?: (draftId: string, meta: unknown, buffer: ArrayBuffer) => Promise<{ success: boolean; id?: string; sizeBytes?: number; error?: string }>
+            isOffline?: () => boolean
+            isApiReachable?: () => Promise<boolean>
+          } }).electronAPI
+        : undefined
+
+      if (electronAPI?.saveImage) {
+        // Check if offline
+        const isOffline = electronAPI.isOffline?.() || false
+        let apiReachable = true
+        if (!isOffline && electronAPI.isApiReachable) {
+          try { apiReachable = await electronAPI.isApiReachable() } catch { apiReachable = false }
+        }
+
+        if (isOffline || !apiReachable) {
+          const arrayBuffer = await file.arrayBuffer()
+          const result = await electronAPI.saveImage(certId, {
+            imageType: metadata.imageType,
+            masterInstrumentIndex: metadata.masterInstrumentIndex,
+            parameterIndex: metadata.parameterIndex,
+            pointNumber: metadata.pointNumber,
+            originalName: file.name,
+            mimeType: file.type,
+            caption: metadata.caption,
+          }, arrayBuffer)
+
+          if (!result.success) throw new Error(result.error || 'Failed to save image offline')
+
+          const newImage: CertificateImage = {
+            id: result.id!,
+            imageType: metadata.imageType,
+            masterInstrumentIndex: metadata.masterInstrumentIndex ?? null,
+            parameterIndex: metadata.parameterIndex ?? null,
+            pointNumber: metadata.pointNumber ?? null,
+            fileName: file.name,
+            fileSize: result.sizeBytes || file.size,
+            mimeType: file.type,
+            caption: metadata.caption || null,
+            version: 1,
+            uploadedAt: new Date().toISOString(),
+            thumbnailUrl: null,
+            optimizedUrl: null,
+            originalUrl: null,
+          }
+          setImages((prev) => [...prev, newImage])
+          return newImage
+        }
+      }
+
+      // Online: normal API upload
       const formData = new FormData()
       formData.append('file', file)
       formData.append('metadata', JSON.stringify(metadata))
@@ -188,10 +298,9 @@ export function useCertificateImages({
       const data = await response.json()
       const newImage: CertificateImage = {
         ...data.image,
-        isProcessing: true, // Mark as processing until thumbnails are ready
+        isProcessing: true,
       }
 
-      // Add to local state immediately
       setImages((prev) => [...prev, newImage])
 
       return newImage

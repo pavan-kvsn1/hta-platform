@@ -23,7 +23,7 @@ interface ElectronAPI {
 
   // Offline request bridge (used by api-client.ts)
   isOffline: () => boolean
-  handleOfflineRequest: (url: string, init?: RequestInit) => Promise<Response>
+  handleOfflineRequest: (url: string, init?: RequestInit) => Promise<{ status: number; body: unknown }>
 
   // Draft CRUD
   createDraft: (data: unknown) => Promise<unknown>

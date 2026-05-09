@@ -124,10 +124,11 @@ Items that must be completed before shipping to engineers.
 |------|--------|-------|
 | EV Code Signing Certificate | Deferred | DigiCert/Sectigo/GlobalSign (~$300-500/yr). Eliminates SmartScreen "Unknown Publisher" warning. Required for SOC 2 CC8.1. Not needed for internal rollout |
 | Custom signing script (`sign.js`) for electron-builder | Deferred | Needed for EV cert integration with `signingHashAlgorithms: ['sha256']`. Blocked on EV cert |
-| S3 bucket (`hta-desktop-releases`, ap-south-1) | Pending | For auto-update hosting. Upload `latest.yml` + `.exe` + `.blockmap` |
-| Production API URL | Pending | Replace `http://localhost:4000` default in `API_BASE` with production endpoint |
-| TLS certificate pinning fingerprints | Pending | Add production API cert SHA-256 fingerprint to `PINNED_HOSTS` in `security.ts` |
-| Branded app icon | Pending | Replace placeholder `resources/icon.ico` with HTA Calibr8s branding (256x256 minimum) |
+| GCS bucket `hta-platform-prod-desktop-releases` | Done | Already defined in `terraform/environments/production/main.tf`. Public read, versioned, keep last 5. `electron-builder.yml` already points to it |
+| Production API URL | Done | Already env-var driven: `process.env.HTA_API_URL \|\| 'http://localhost:4000'` in `index.ts:16`. Set via CI/CD secret at build time |
+| TLS certificate pinning fingerprints | Blocked | API has no public endpoint yet. Unblocked after WireGuard gateway is provisioned — pin the gateway VM's cert instead |
+| Branded app icon | Done | Converted `packages/assets/logos/hta-logo.jpg` → `resources/icon.ico` (multi-resolution: 16–256px) |
+| WireGuard VPN gateway — full scope | Pending | See `docs/todos/wireguard-vpn-integration.md`. Engineers reach private API via WireGuard tunnel. Replaces need for public API endpoint |
 | End-to-end testing — offline draft flow | Pending | Create draft offline, attach images, reconnect, verify sync to server |
 | End-to-end testing — auth flow | Pending | Password setup, password + challenge code unlock, password-only re-entry, lockout wipe after 5 attempts |
 
@@ -140,15 +141,39 @@ Items that must be completed before shipping to engineers.
 | Device status API — `POST /api/devices/:id/wipe` | Done | In device API routes |
 | Admin wipe confirmation UI | Done | Confirmation dialog with warning text for both revoke and wipe actions |
 | Sync conflict resolution strategy | Done | Server returns 409 with serverVersion on conflict; sync engine stores conflict data in SQLite; per-field ConflictResolver UI with L/S toggles for every value across all sections |
+| CI/CD pipeline for desktop builds | Pending | Elevated from P2 — WireGuard MSI bundling makes manual builds unreliable. See expanded scope below |
 | Error reporting/telemetry | Pending | Collect crash reports and sync failures for debugging |
+
+#### CI/CD Pipeline — Expanded Scope (elevated from P2)
+
+Previously: "build + sign + upload on tag push."  
+Now additionally required by WireGuard integration:
+
+| Step | Details |
+|------|---------|
+| **Trigger** | Git tag push matching `desktop-v*` (e.g. `desktop-v0.2.0`) |
+| **Runner** | `windows-latest` — NSIS packaging requires Windows |
+| **Build web-hta** | `pnpm --filter @hta/web-hta build` → produces `.next/standalone/` |
+| **Download WireGuard MSI** | Fetch pinned version from `https://download.wireguard.com/windows-client/` → `apps/desktop/resources/wireguard-amd64.msi` |
+| **Compile desktop TS** | `pnpm --filter @hta/desktop build` → `dist/` |
+| **Package with electron-builder** | `electron-builder --win` — bundles WireGuard MSI + Next.js standalone into NSIS installer |
+| **Upload release artifacts** | Upload `*.exe`, `*.blockmap`, `latest.yml` to `gs://hta-platform-prod-desktop-releases/` |
+| **GCP auth** | Use existing `github_actions` service account from terraform. Needs `storage.objects.create` on desktop-releases bucket AND `storage.objects.create` on wireguard bucket |
+| **Secrets required** | `GCP_SA_KEY`, `HTA_API_URL` (injected as env var at build time) |
+| **Code signing** | Deferred — add `WINDOWS_CERTIFICATE` + `WINDOWS_CERTIFICATE_PASSWORD` secrets when EV cert procured |
+
+**New files needed:**
+- `.github/workflows/desktop-release.yml` — the pipeline
+- `apps/desktop/scripts/download-wireguard.js` — downloads + verifies WireGuard MSI checksum
+- Update `electron-builder.yml` — include `resources/wireguard-amd64.msi` in files list
+- Update NSIS config — silent WireGuard install before app
 
 ### Nice to Have (P2)
 
 | Item | Status | Notes |
 |------|--------|-------|
-| CI/CD pipeline for desktop builds | Pending | GitHub Actions or similar to build + sign + upload to S3 on tag push |
 | Delta updates (blockmap) | Done | `electron-builder` generates `.blockmap` automatically |
-| macOS build support | Pending | Add `mac` target to `electron-builder config (in package.json)` if needed in future |
+| macOS build support | Pending | Add `mac` target to `electron-builder.yml` if needed in future |
 | Offline draft PDF preview | Pending | Generate certificate PDF preview locally without server |
 | Bandwidth-aware sync | Pending | Throttle image uploads on metered/slow connections |
 

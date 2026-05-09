@@ -40,9 +40,11 @@ export class SyncEngine {
 
     try {
       const token = await this.getAuthToken()
+      console.log(`[sync-engine] Token: ${token ? token.slice(0, 20) + '...' : 'EMPTY'}`)
 
       // 1. Check device status (may trigger wipe if REVOKED)
       const status = await checkDeviceStatus(this.apiBase, token)
+      console.log(`[sync-engine] Device status: ${status.status}`)
       if (status.status !== 'ACTIVE') return result
 
       await auditLog(this.db, {
@@ -51,10 +53,13 @@ export class SyncEngine {
       })
 
       // 2. Process draft sync queue
+      console.log('[sync-engine] Syncing drafts...')
       result.drafts = await this.syncDrafts(token)
+      console.log(`[sync-engine] Drafts: ${result.drafts.synced} synced, ${result.drafts.failed} failed`)
 
       // 3. Upload unsynced images
       result.images = await this.syncImages(token)
+      console.log(`[sync-engine] Images: ${result.images.synced} synced, ${result.images.failed} failed`)
 
       // 4. Push audit logs to server
       result.auditLogs = await this.syncAuditLogs(token)
@@ -70,7 +75,9 @@ export class SyncEngine {
         action: 'SYNC_COMPLETED', entityType: 'sync',
         metadata: { ...result },
       })
+      console.log('[sync-engine] Sync complete')
     } catch (err) {
+      console.error('[sync-engine] Sync failed:', err)
       await auditLog(this.db, {
         userId: this.userId, deviceId: this.deviceId,
         action: 'SYNC_FAILED', entityType: 'sync',
@@ -95,15 +102,35 @@ export class SyncEngine {
        AND retries < max_retries ORDER BY created_at ASC`
     )
 
+    console.log(`[sync-engine] ${pending.length} items in sync queue`)
+
     for (const item of pending) {
+      console.log(`[sync-engine] Processing: ${item.action} draft=${item.draft_id} retries=${item.retries}`)
       await this.db.run(`UPDATE sync_queue SET status = 'IN_PROGRESS' WHERE id = ?`, item.id)
 
       try {
         const headers: Record<string, string> = {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'X-Tenant-ID': 'hta-calibration',
         }
         const payload = JSON.parse(item.payload)
+        // Fix JSON string fields that may have been double-serialized
+        // (Prisma Json? fields need actual arrays/objects, not JSON strings)
+        const jsonFields = ['calibrationStatus', 'selectedConclusionStatements'] as const
+        for (const field of jsonFields) {
+          if (typeof payload[field] === 'string') {
+            try { payload[field] = JSON.parse(payload[field]) } catch { /* leave as-is */ }
+          }
+        }
+        // Also fix nested parameter bins
+        if (Array.isArray(payload.parameters)) {
+          for (const param of payload.parameters) {
+            if (typeof param.bins === 'string') {
+              try { param.bins = JSON.parse(param.bins) } catch { /* leave as-is */ }
+            }
+          }
+        }
         let serverId: string | undefined
 
         switch (item.action) {
@@ -178,8 +205,10 @@ export class SyncEngine {
           )
         }
 
+        console.log(`[sync-engine] ✓ ${item.action} ${item.draft_id} synced`)
         synced++
       } catch (err) {
+        console.error(`[sync-engine] ✗ ${item.action} ${item.draft_id} failed:`, err)
         await this.db.run(
           `UPDATE sync_queue SET status = 'FAILED', retries = retries + 1, last_error = ? WHERE id = ?`,
           String(err), item.id
@@ -225,7 +254,7 @@ export class SyncEngine {
 
         const res = await fetch(`${this.apiBase}/api/certificates/${img.server_id}/images`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: { 'Authorization': `Bearer ${token}`, 'X-Tenant-ID': 'hta-calibration' },
           body: formData,
         })
 
@@ -250,10 +279,18 @@ export class SyncEngine {
     if (unsynced.length === 0) return { synced: 0 }
 
     try {
+      // Map SQLite snake_case rows to API camelCase shape
+      const mapped = unsynced.map((row: Record<string, unknown>) => ({
+        action: row.action,
+        entityType: row.entity_type || undefined,
+        entityId: row.entity_id || undefined,
+        metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata as string) : row.metadata) : undefined,
+        occurredAt: row.timestamp || new Date().toISOString(),
+      }))
       const res = await fetch(`${this.apiBase}/api/devices/${this.deviceId}/audit-logs`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ logs: unsynced }),
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-Tenant-ID': 'hta-calibration' },
+        body: JSON.stringify({ logs: mapped }),
       })
 
       if (res.ok) {

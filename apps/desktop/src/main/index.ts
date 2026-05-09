@@ -6,8 +6,8 @@ import { closeDb, dbExists, getDb } from './sqlite-db'
 import { registerDevice, checkDeviceStatus, sendHeartbeat } from './device'
 import { registerDraftHandlers, registerImageHandlers, registerConflictHandlers } from './ipc-handlers'
 import { SyncEngine } from './sync-engine'
-import { preCacheReferenceData, getCachedMasterInstruments, getCachedCustomers } from './ref-cache'
-import { vpnProvision, vpnStatus } from './vpn'
+import { preCacheReferenceData, getCachedMasterInstruments, getCachedCustomers, getCachedReviewers } from './ref-cache'
+import { vpnProvision, vpnStatus, loadReprovisionToken } from './vpn'
 import { autoUpdater } from 'electron-updater'
 
 // In packaged builds, app.isPackaged is true and resourcesPath points to bundled Next.js.
@@ -24,6 +24,20 @@ const PRODUCTION_APP_URL = process.env.HTA_PRODUCTION_URL || 'http://10.0.0.17:3
 
 // Hide default menu bar (File, Edit, View, Window, Help)
 Menu.setApplicationMenu(null)
+
+/** Quick API reachability check — resolves false if VPN/server is down */
+async function isApiReachable(timeoutMs = 3000): Promise<boolean> {
+  if (!net.isOnline()) return false
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    await fetch(`${API_BASE}/`, { signal: controller.signal, method: 'HEAD' })
+    clearTimeout(timer)
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** Find a free TCP port starting from the given port */
 function findFreePort(startPort: number): Promise<number> {
@@ -67,21 +81,28 @@ function loadPersistedAccessToken(): string | null {
 
 /** Fetch a fresh access token from the Fastify API using a refresh token */
 async function refreshAccessToken(refreshToken: string): Promise<void> {
+  // Skip if no network at all
+  if (!net.isOnline()) {
+    console.log('[auth] Offline — skipping token refresh')
+    return
+  }
   try {
-    // Use VPN gateway (10.100.0.1) when VPN is up, fall back to public gateway
-    const apiUrl = net.isOnline() ? 'http://10.100.0.1' : PROVISION_URL
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 5000)
+    const apiUrl = 'http://10.100.0.1'
     const res = await fetch(`${apiUrl}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': 'hta-calibration' },
       body: JSON.stringify({ refreshToken }),
+      signal: controller.signal,
     })
+    clearTimeout(timer)
     const body = await res.text()
     console.log('[auth] Refresh response:', res.status, body.slice(0, 200))
     if (res.ok) {
       const data = JSON.parse(body) as { accessToken: string; refreshToken?: string }
       cachedAccessToken = data.accessToken
       persistAccessToken(data.accessToken)
-      // Persist rotated refresh token so it survives app restarts
       if (data.refreshToken) {
         cachedRefreshToken = data.refreshToken
         const { updateStoredRefreshToken } = require('./auth')
@@ -90,11 +111,12 @@ async function refreshAccessToken(refreshToken: string): Promise<void> {
       }
       console.log('[auth] Access token set successfully')
     }
-  } catch (err) {
-    console.warn('[auth] Failed to refresh access token:', err)
+  } catch {
+    console.log('[auth] API unreachable — using cached token')
   }
 }
 let syncInterval: ReturnType<typeof setInterval> | null = null
+let slowSyncInterval: ReturnType<typeof setInterval> | null = null
 let refCacheInterval: ReturnType<typeof setInterval> | null = null
 let cachedAuthToken: string | null = null
 
@@ -158,6 +180,29 @@ async function startNextServer(): Promise<void> {
   // Prisma needs DATABASE_URL to instantiate without crashing.
   // Desktop doesn't use Prisma directly — auth goes through the remote API.
   process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://localhost:5432/placeholder'
+
+  // Suppress verbose proxy timeout errors (Next.js rewrite proxy).
+  // Next.js emits these as multiple console.error calls with full stack traces.
+  const origConsoleError = console.error
+  const _proxyLoggedPaths = new Set<string>()
+  console.error = (...args: unknown[]) => {
+    const msg = String(args[0] || '')
+    // Catch both "Failed to proxy http://..." and standalone "Error: connect ETIMEDOUT ..."
+    if (msg.startsWith('Failed to proxy') || msg.startsWith('Error: connect ETIMEDOUT') || msg.includes('ConnectTimeoutError') || msg.startsWith('Error: connect ECONNREFUSED')) {
+      const urlMatch = msg.match(/Failed to proxy (\S+)/)
+      if (urlMatch) {
+        const path = urlMatch[1].replace('http://10.100.0.1', '')
+        // Deduplicate: only log each path once per 60s
+        if (!_proxyLoggedPaths.has(path)) {
+          _proxyLoggedPaths.add(path)
+          console.log(`[offline] ${path}`)
+          setTimeout(() => _proxyLoggedPaths.delete(path), 60_000)
+        }
+      }
+      return
+    }
+    origConsoleError.apply(console, args)
+  }
 
   try {
     require(serverPath)
@@ -410,7 +455,15 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
   syncEngine = new SyncEngine(
     db,
     API_BASE,
-    async () => refreshToken, // TODO: refresh token rotation when server supports it
+    async () => {
+      // Return cached access token, refreshing if needed
+      if (cachedAccessToken) return cachedAccessToken
+      const persisted = loadPersistedAccessToken()
+      if (persisted) return persisted
+      // Last resort: try refreshing
+      await refreshAccessToken(cachedRefreshToken || refreshToken)
+      return cachedAccessToken || ''
+    },
     deviceId,
     userId,
   )
@@ -420,7 +473,7 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
 
   // ── Fast loop: push local drafts every 2 min ──
   syncInterval = setInterval(async () => {
-    if (!net.isOnline() || !syncEngine) return
+    if (!syncEngine || !await isApiReachable()) return
 
     try {
       const result = await syncEngine.run()
@@ -429,6 +482,15 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
         images: result.images,
         auditLogs: result.auditLogs,
       })
+      // Push updated conflict count + pending counts to renderer
+      const conflictRow = await db.get<{ cnt: number }>("SELECT COUNT(*) as cnt FROM drafts WHERE status = 'CONFLICT'")
+      const pendingRow = await db.get<{ cnt: number }>("SELECT COUNT(*) as cnt FROM sync_queue WHERE status IN ('PENDING', 'FAILED') AND retries < max_retries")
+      mainWindow?.webContents.send('sync:status', {
+        online: true,
+        lastSyncedAt: new Date().toISOString(),
+        conflicts: conflictRow?.cnt || 0,
+        pending: { drafts: pendingRow?.cnt || 0, images: 0, auditLogs: 0 },
+      })
     } catch (err) {
       console.error('[sync] Draft sync failed:', err)
     }
@@ -436,7 +498,7 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
 
   // ── Slow loop: cache certs, counts, codes every 10 min ──
   const runSlowSync = async () => {
-    if (!net.isOnline()) return
+    if (!await isApiReachable()) return
     const token = cachedAccessToken || loadPersistedAccessToken()
     if (!token) return
 
@@ -444,16 +506,24 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
     const apiUrl = 'http://10.100.0.1'
 
     // 1. Offline code fetch (retry until success, or when codes table is empty)
-    const codesCount = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM offline_codes WHERE used = 0')
-    if (getCredential('needs-code-sync') === 'true' || (codesCount?.cnt ?? 0) === 0) {
-      try {
-        const codesRes = await fetch(`${apiUrl}/api/offline-codes`, { headers })
-        if (codesRes.ok) {
-          const codesData = await codesRes.json() as {
-            hasBatch: boolean
-            pairs?: Array<{ sequence: number; key: string; value: string; used: boolean }>
-          }
-          if (codesData.hasBatch && codesData.pairs?.length) {
+    // Always check for new/updated offline codes batch
+    try {
+      const codesRes = await fetch(`${apiUrl}/api/offline-codes`, { headers })
+      if (codesRes.ok) {
+        const codesData = await codesRes.json() as {
+          hasBatch: boolean
+          batchId?: string
+          pairs?: Array<{ sequence: number; key: string; value: string; used: boolean }>
+        }
+        if (codesData.hasBatch && codesData.pairs?.length) {
+          // Check if this is a different batch than what we have locally
+          const localBatch = await db.get<{ batch_id: string }>('SELECT batch_id FROM offline_codes LIMIT 1')
+          const serverBatchId = codesData.batchId || 'unknown'
+          const needsRefresh = !localBatch || localBatch.batch_id !== serverBatchId
+
+          if (needsRefresh) {
+            // Clear old codes and store new batch
+            await db.run('DELETE FROM offline_codes WHERE used = 0')
             const crypto = require('crypto') as typeof import('crypto')
             for (const c of codesData.pairs) {
               if (c.used) continue
@@ -462,18 +532,18 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
                 .digest('hex')
               await db.run(
                 'INSERT OR IGNORE INTO offline_codes (id, code_hash, key, sequence, batch_id) VALUES (?, ?, ?, ?, ?)',
-                crypto.randomUUID(), hash, c.key, c.sequence, 'sync'
+                crypto.randomUUID(), hash, c.key, c.sequence, serverBatchId
               )
             }
             const { prepareNextChallenge } = await import('./auth')
             await prepareNextChallenge()
             setCredential('needs-code-sync', 'false')
-            console.log(`[sync] Stored ${codesData.pairs.filter(c => !c.used).length} offline codes`)
+            console.log(`[sync] Refreshed offline codes — ${codesData.pairs.filter(c => !c.used).length} codes from batch ${serverBatchId}`)
           }
         }
-      } catch (err) {
-        console.warn('[sync] Code sync retry failed:', err)
       }
+    } catch (err) {
+      console.warn('[sync] Code sync failed:', err)
     }
 
     // 1b. Sync used offline codes back to server
@@ -655,25 +725,29 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
 
   // Run slow sync immediately, then every 10 min
   runSlowSync().catch(err => console.warn('[sync] Initial slow sync failed:', err))
-  const slowSyncInterval = setInterval(() => {
+  slowSyncInterval = setInterval(() => {
     runSlowSync().catch(err => console.warn('[sync] Slow sync failed:', err))
   }, SLOW_SYNC_MS)
 
-  // Also run draft sync immediately
-  if (syncEngine && net.isOnline()) {
-    syncEngine.run().catch(() => {})
-  }
+  // Also run draft sync immediately (only if API reachable)
+  isApiReachable().then(reachable => {
+    if (reachable && syncEngine) syncEngine.run().catch(() => {})
+  })
 
-  // Initial reference data cache (best-effort, uses access token)
+  // Initial reference data cache (best-effort, only if API reachable)
   if (cachedAccessToken) {
-    preCacheReferenceData(db, API_BASE, cachedAccessToken, userId, deviceId).catch((err) => {
-      console.error('[ref-cache] Initial cache failed:', err)
+    isApiReachable().then(reachable => {
+      if (reachable && cachedAccessToken) {
+        preCacheReferenceData(db, API_BASE, cachedAccessToken, userId, deviceId).catch((err) => {
+          console.error('[ref-cache] Initial cache failed:', err)
+        })
+      }
     })
   }
 
   // Refresh reference data every 4 hours
-  refCacheInterval = setInterval(() => {
-    if (!net.isOnline() || !cachedAccessToken) return
+  refCacheInterval = setInterval(async () => {
+    if (!cachedAccessToken || !await isApiReachable()) return
     preCacheReferenceData(db, API_BASE, cachedAccessToken, userId, deviceId).catch((err) => {
       console.error('[ref-cache] Periodic refresh failed:', err)
     })
@@ -686,6 +760,10 @@ function stopSyncLoop(): void {
   if (syncInterval) {
     clearInterval(syncInterval)
     syncInterval = null
+  }
+  if (slowSyncInterval) {
+    clearInterval(slowSyncInterval)
+    slowSyncInterval = null
   }
   if (refCacheInterval) {
     clearInterval(refCacheInterval)
@@ -762,6 +840,15 @@ ipcMain.handle('ref:customers', async () => {
   }
 })
 
+ipcMain.handle('ref:reviewers', async () => {
+  try {
+    const db = getDb()
+    return await getCachedReviewers(db)
+  } catch {
+    return []
+  }
+})
+
 // ─── VPN ───────────────────────────────────────────────────────────────────
 
 ipcMain.handle('vpn:provision', async (_event, token: string) => {
@@ -791,15 +878,67 @@ app.whenReady().then(async () => {
   createWindow()
   pollConnectivity()
 
-  // After window is created, check VPN status and redirect to provisioning if needed
+  // After window is created, check VPN and auto-heal if needed
   mainWindow?.webContents.once('did-finish-load', async () => {
     try {
       const vpnState = await vpnStatus()
+
       if (!vpnState.configured) {
+        // First time — show provisioning screen
         mainWindow?.loadURL(`${APP_URL}/desktop/vpn-setup`)
+        return
       }
-    } catch {
-      // Non-fatal — proceed without VPN check
+
+      if (vpnState.connected) {
+        // All good — proceed to login
+        return
+      }
+
+      // Tunnel not connected — auto-heal
+      console.log('[vpn] Tunnel not connected, attempting recovery...')
+
+      // Step 1: Retry connection (service might just be starting)
+      for (let i = 0; i < 3; i++) {
+        console.log(`[vpn] Retry ${i + 1}/3...`)
+        await new Promise(r => setTimeout(r, 10000))
+        const check = await vpnStatus()
+        if (check.connected) {
+          console.log('[vpn] Connected after retry', i + 1)
+          return
+        }
+      }
+
+      // Step 2: Auto-re-provision with stored re-provision token
+      const rpToken = loadReprovisionToken()
+      if (rpToken) {
+        console.log('[vpn] Retries exhausted, attempting re-provision with stored token...')
+        try {
+          const result = await vpnProvision(rpToken, PROVISION_URL)
+          if (result.success) {
+            // Wait for gateway sync (5s) + handshake, with retries
+            console.log('[vpn] Re-provisioned, waiting for tunnel to connect...')
+            for (let i = 0; i < 3; i++) {
+              await new Promise(r => setTimeout(r, 10000))
+              const final = await vpnStatus()
+              if (final.connected) {
+                console.log('[vpn] Re-provisioned and connected')
+                return
+              }
+              console.log(`[vpn] Post-provision check ${i + 1}/3 — not connected yet`)
+            }
+          }
+        } catch {
+          console.warn('[vpn] Re-provision failed')
+        }
+      } else {
+        console.log('[vpn] No re-provision token stored — cannot auto-heal')
+      }
+
+      // Step 3: Show error page with manual options
+      console.log('[vpn] Auto-heal failed, showing error page')
+      mainWindow?.loadURL(`${APP_URL}/desktop/vpn-setup?error=connection_failed`)
+    } catch (err) {
+      console.error('[vpn] Startup VPN check error:', err)
     }
   })
 

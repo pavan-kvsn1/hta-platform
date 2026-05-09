@@ -2,7 +2,9 @@
 
 import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Loader2, Plus } from 'lucide-react'
+import Link from 'next/link'
 import { CertificateTable } from '@/components/dashboard/CertificateTable'
 import { OfflineBanner } from '@/components/desktop/OfflineBanner'
 import { PendingSyncSummary } from '@/components/desktop/PendingSyncSummary'
@@ -36,6 +38,7 @@ interface CachedCertificate {
 }
 
 export function EngineerDashboardClient() {
+  const router = useRouter()
   const [stats, setStats] = useState<Stats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isOffline, setIsOffline] = useState(false)
@@ -60,22 +63,25 @@ export function EngineerDashboardClient() {
         }
 
         // Load cached stat counts
+        let gotCounts = false
         if (electronAPI.getSyncStatus) {
           const syncStatus = await electronAPI.getSyncStatus()
           setLastSyncedAt(syncStatus.lastSyncedAt)
           if (syncStatus.engineerCounts) {
             setStats(syncStatus.engineerCounts)
+            gotCounts = true
           }
         }
 
-        // Fallback: get draft counts from local DB
-        if (!stats && electronAPI.listDrafts) {
-          const drafts = await electronAPI.listDrafts()
+        // Fallback: compute counts from cached certs + local drafts
+        if (!gotCounts) {
+          const allCached = await electronAPI.listCachedCertificates?.('creator') || []
+          const drafts = electronAPI.listDrafts ? await electronAPI.listDrafts() : []
           setStats({
-            draft: drafts.filter(d => d.status !== 'CONFLICT').length,
-            pending: 0,
-            approved: 0,
-            revision: 0,
+            draft: allCached.filter(c => c.status === 'DRAFT').length + drafts.filter(d => d.status === 'DRAFT').length,
+            pending: allCached.filter(c => c.status === 'PENDING_REVIEW').length,
+            approved: allCached.filter(c => c.status === 'APPROVED' || c.status === 'AUTHORIZED').length,
+            revision: allCached.filter(c => c.status === 'REVISION_REQUIRED').length,
             conflict: drafts.filter(d => d.status === 'CONFLICT').length,
           })
         }
@@ -106,12 +112,11 @@ export function EngineerDashboardClient() {
         // Gateway error — VPN down or server unreachable
         await loadOfflineData()
       } else {
-        // Any other error — likely offline too
-        console.warn('[dashboard] API returned:', response.status)
+        // Any other error — likely offline
         await loadOfflineData()
       }
     } catch {
-      // Network error — likely offline or VPN down
+      // Network error — offline or VPN down
       await loadOfflineData()
     } finally {
       setIsLoading(false)
@@ -121,6 +126,24 @@ export function EngineerDashboardClient() {
   useEffect(() => {
     fetchCounts()
   }, [fetchCounts])
+
+  // Listen for sync status changes to update conflict count reactively
+  useEffect(() => {
+    const electronAPI = (window as unknown as { electronAPI?: {
+      onSyncStatus?: (cb: (s: { conflicts?: number }) => void) => (() => void)
+      listDrafts?: () => Promise<{ status: string }[]>
+    } }).electronAPI
+    if (!electronAPI) return
+
+    const cleanup = electronAPI.onSyncStatus?.((syncStatus) => {
+      // Update conflict count when sync reports conflicts
+      if (syncStatus.conflicts !== undefined) {
+        setStats(prev => prev ? { ...prev, conflict: syncStatus.conflicts } : prev)
+      }
+    })
+
+    return () => { cleanup?.() }
+  }, [])
 
   if (isLoading && !stats) {
     return (
@@ -211,52 +234,80 @@ export function EngineerDashboardClient() {
         </div>
 
         {/* Certificate Table — online from API, offline from SQLCipher */}
-        {isOffline && offlineCerts.length > 0 ? (
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
-            <div className="px-5 py-[14px] border-b border-[#f1f5f9]">
-              <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
-                Cached Certificates
-              </span>
+        {isOffline ? (
+          <div>
+            {/* Toolbar — matches online CertificateTable design */}
+            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center mb-[18px]">
+              <div className="relative flex-1">
+                <input
+                  placeholder="Cached certificates (search available online)"
+                  disabled
+                  className="w-full h-10 rounded-[9px] border border-[#e2e8f0] pl-3.5 pr-3.5 text-sm bg-[#f8fafc] text-[#94a3b8]"
+                />
+              </div>
+              <Link href="/dashboard/certificates/new">
+                <button className="h-10 px-[18px] rounded-[9px] bg-primary text-white text-sm font-bold tracking-[-0.01em] inline-flex items-center gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  New Certificate
+                </button>
+              </Link>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[13px]">
-                <thead>
-                  <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
-                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Certificate #</th>
-                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Customer</th>
-                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Status</th>
-                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Last Modified</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {offlineCerts.map((cert) => (
-                    <tr key={cert.id} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc]">
-                      <td className="py-2.5 px-4 font-medium text-[#0f172a]">{cert.certificateNumber}</td>
-                      <td className="py-2.5 px-4 text-[#64748b]">{cert.customerName || '—'}</td>
-                      <td className="py-2.5 px-4">
-                        <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#f1f5f9] text-[#64748b]">
-                          {cert.status}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-4 text-[#94a3b8]">{cert.updatedAt ? new Date(cert.updatedAt).toLocaleDateString() : '—'}</td>
+
+            {offlineCerts.length > 0 ? (
+              <div className="bg-white rounded-xl border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-[#f8fafc]">
+                      <th className="text-left py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#94a3b8]">Certificate No.</th>
+                      <th className="text-left py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#94a3b8]">Customer</th>
+                      <th className="text-left py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#94a3b8]">Status</th>
+                      <th className="text-left py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#94a3b8]">Modified</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : isOffline ? (
-          <>
-            {offlineCerts.length === 0 && (
-              <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-8 text-center">
-                <p className="text-[13px] font-medium text-[#64748b]">No cached certificates</p>
-                <p className="text-[12px] text-[#94a3b8] mt-1">
+                  </thead>
+                  <tbody>
+                    {offlineCerts.map((cert) => (
+                      <tr
+                        key={cert.id}
+                        className="border-b border-border hover:bg-[#f8fafc] cursor-pointer transition-colors"
+                        onClick={() => router.push(`/dashboard/certificates/${cert.id}/edit`)}
+                      >
+                        <td className="py-3 px-4">
+                          <span className="font-semibold text-primary">{cert.certificateNumber}</span>
+                        </td>
+                        <td className="py-3 px-4 text-[#64748b]">{cert.customerName || '—'}</td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            cert.status === 'DRAFT' ? 'bg-slate-100 text-slate-700' :
+                            cert.status === 'PENDING_REVIEW' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                            cert.status === 'REVISION_REQUIRED' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
+                            cert.status === 'APPROVED' || cert.status === 'AUTHORIZED' ? 'bg-green-50 text-green-700 border border-green-200' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>
+                            {cert.status === 'PENDING_REVIEW' ? 'Pending' :
+                             cert.status === 'REVISION_REQUIRED' ? 'Revision' :
+                             cert.status === 'AUTHORIZED' ? 'Authorized' :
+                             cert.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-[#94a3b8] text-sm">{cert.updatedAt ? new Date(cert.updatedAt).toLocaleDateString() : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="px-4 py-3 border-t border-border text-xs text-[#94a3b8]">
+                  Showing {offlineCerts.length} cached certificate{offlineCerts.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-border p-8 text-center">
+                <p className="text-sm font-medium text-[#64748b]">No cached certificates</p>
+                <p className="text-xs text-[#94a3b8] mt-1">
                   Certificates will be cached locally after your first online session.
                 </p>
               </div>
             )}
             <OfflineHistoryFooter />
-          </>
+          </div>
         ) : (
           <CertificateTable userRole="ENGINEER" />
         )}

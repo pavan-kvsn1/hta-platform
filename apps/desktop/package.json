@@ -47,7 +47,7 @@
       "target": [
         "nsis"
       ],
-      "icon": "build/icon.ico"
+      "icon": "resources/icon.ico"
     },
     "nsis": {
       "oneClick": true,

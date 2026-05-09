@@ -188,6 +188,96 @@ interface FieldChangeRequest {
   createdAt: string
 }
 
+// Transform a local SQLite draft (snake_case) into ApiCertificate shape (camelCase)
+// so it can be fed into transformApiToFormData unchanged.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function transformDraftToApiShape(draft: any): ApiCertificate {
+  return {
+    id: draft.id,
+    certificateNumber: draft.certificate_number || '',
+    status: draft.status || 'DRAFT',
+    calibratedAt: draft.calibrated_at || 'LAB',
+    srfNumber: draft.srf_number || null,
+    srfDate: draft.srf_date || null,
+    dateOfCalibration: draft.date_of_calibration || null,
+    calibrationTenure: draft.calibration_tenure ?? 12,
+    dueDateAdjustment: draft.due_date_adjustment ?? 0,
+    calibrationDueDate: draft.calibration_due_date || null,
+    dueDateNotApplicable: !!draft.due_date_not_applicable,
+    customerName: draft.customer_name || null,
+    customerAddress: draft.customer_address || null,
+    customerContactName: draft.customer_contact_name || null,
+    uucDescription: draft.uuc_description || null,
+    uucMake: draft.uuc_make || null,
+    uucModel: draft.uuc_model || null,
+    uucSerialNumber: draft.uuc_serial_number || null,
+    uucInstrumentId: draft.uuc_instrument_id || null,
+    uucLocationName: draft.uuc_location_name || null,
+    uucMachineName: draft.uuc_machine_name || null,
+    ambientTemperature: draft.ambient_temperature || null,
+    relativeHumidity: draft.relative_humidity || null,
+    calibrationStatus: draft.calibration_status || null,
+    stickerOldRemoved: draft.sticker_old_removed || null,
+    stickerNewAffixed: draft.sticker_new_affixed || null,
+    statusNotes: draft.status_notes || null,
+    selectedConclusionStatements: draft.selected_conclusion_statements || null,
+    additionalConclusionStatement: draft.additional_conclusion_statement || null,
+    updatedAt: draft.updated_at || new Date().toISOString(),
+    currentRevision: draft.revision || 1,
+    reviewer: null,
+    feedbacks: [],
+    events: [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    parameters: (draft.parameters || []).map((p: any) => ({
+      id: p.id,
+      parameterName: p.parameter_name || '',
+      parameterUnit: p.parameter_unit || '',
+      rangeMin: p.range_min || null,
+      rangeMax: p.range_max || null,
+      rangeUnit: p.range_unit || null,
+      operatingMin: p.operating_min || null,
+      operatingMax: p.operating_max || null,
+      operatingUnit: p.operating_unit || null,
+      leastCountValue: p.least_count_value || null,
+      leastCountUnit: p.least_count_unit || null,
+      accuracyValue: p.accuracy_value || null,
+      accuracyUnit: p.accuracy_unit || null,
+      accuracyType: p.accuracy_type || null,
+      errorFormula: p.error_formula || null,
+      showAfterAdjustment: !!p.show_after_adjustment,
+      requiresBinning: !!p.requires_binning,
+      bins: p.bins || null,
+      sopReference: p.sop_reference || null,
+      masterInstrumentId: p.master_instrument_id || null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      results: (p.results || []).map((r: any) => ({
+        id: r.id,
+        pointNumber: r.point_number,
+        standardReading: r.standard_reading || null,
+        beforeAdjustment: r.before_adjustment || null,
+        afterAdjustment: r.after_adjustment || null,
+        errorObserved: r.error_observed ?? null,
+        isOutOfLimit: !!r.is_out_of_limit,
+      })),
+    })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    masterInstruments: (draft.masterInstruments || []).map((mi: any) => ({
+      id: mi.id,
+      masterInstrumentId: String(mi.master_instrument_id || mi.masterInstrumentId || ''),
+      sopReference: mi.sop_reference || mi.sopReference || '',
+      category: mi.category || null,
+      description: mi.description || null,
+      make: mi.make || null,
+      model: mi.model || null,
+      assetNo: mi.asset_no || mi.assetNo || null,
+      serialNumber: mi.serial_number || mi.serialNumber || null,
+      calibratedAt: mi.calibrated_at || mi.calibratedAt || null,
+      reportNo: mi.report_no || mi.reportNo || null,
+      calibrationDueDate: mi.calibration_due_date || mi.calibrationDueDate || null,
+    })),
+  }
+}
+
 const FIELD_LABELS: Record<string, string> = {
   certificateNumber: 'Certificate Number',
   srfNumber: 'SRF Number',
@@ -289,16 +379,17 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
   let calibrationStatus: string[] = []
   let selectedConclusionStatements: string[] = []
 
-  try {
-    calibrationStatus = apiData.calibrationStatus ? JSON.parse(apiData.calibrationStatus) : []
-  } catch {
-    calibrationStatus = []
+  // Handle both string (from API) and array (from cached JSON / Prisma Json field)
+  if (Array.isArray(apiData.calibrationStatus)) {
+    calibrationStatus = apiData.calibrationStatus
+  } else if (apiData.calibrationStatus) {
+    try { calibrationStatus = JSON.parse(apiData.calibrationStatus) } catch { calibrationStatus = [] }
   }
 
-  try {
-    selectedConclusionStatements = apiData.selectedConclusionStatements ? JSON.parse(apiData.selectedConclusionStatements) : []
-  } catch {
-    selectedConclusionStatements = []
+  if (Array.isArray(apiData.selectedConclusionStatements)) {
+    selectedConclusionStatements = apiData.selectedConclusionStatements
+  } else if (apiData.selectedConclusionStatements) {
+    try { selectedConclusionStatements = JSON.parse(apiData.selectedConclusionStatements) } catch { selectedConclusionStatements = [] }
   }
 
   const masterInstruments = apiData.masterInstruments && apiData.masterInstruments.length > 0
@@ -908,6 +999,7 @@ export default function EditCertificatePage() {
   const [_isScrolled, setIsScrolled] = useState(false)
   const [_saveError, setSaveError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isOfflineEdit, setIsOfflineEdit] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [feedbacks, setFeedbacks] = useState<ApiFeedback[]>([])
   const [isTopFeedbackExpanded, setIsTopFeedbackExpanded] = useState(true)
@@ -1083,17 +1175,25 @@ export default function EditCertificatePage() {
         const response = await apiFetch(`/api/certificates/${certificateId}`)
 
         if (!response.ok) {
-          if (response.status === 404) {
-            setLoadError('Certificate not found')
-          } else if (response.status === 403) {
-            setLoadError('You do not have permission to edit this certificate')
-          } else {
-            setLoadError('Failed to load certificate')
+          if (response.status === 404 || response.status === 403) {
+            setLoadError(response.status === 404 ? 'Certificate not found' : 'You do not have permission to edit this certificate')
+            return
           }
-          return
+          // Server error (500/502/503/504) — likely offline, try local fallback
+          throw new Error(`API ${response.status}`)
         }
 
-        const data: ApiCertificate = await response.json()
+        const data = await response.json() as ApiCertificate & { _isLocalDraft?: boolean }
+
+        // Local draft loaded via offline bridge
+        if (data._isLocalDraft) {
+          const formData = transformApiToFormData(data)
+          loadForm(formData)
+          setCertificateId(certificateId)
+          setIsOfflineEdit(true)
+          setCurrentRevision(data.currentRevision ?? 1)
+          return
+        }
 
         const editableStatuses = ['DRAFT', 'REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED']
         if (!editableStatuses.includes(data.status)) {
@@ -1169,7 +1269,58 @@ export default function EditCertificatePage() {
         setReviewerName(data.reviewer?.name || null)
       } catch (error) {
         console.error('Error fetching certificate:', error)
-        setLoadError('Failed to load certificate')
+
+        // Offline fallback: try local draft first, then cached certificate
+        const electronAPI = typeof window !== 'undefined'
+          ? (window as unknown as { electronAPI?: {
+              getDraft?: (id: string) => Promise<unknown>
+              getCachedCertificateFull?: (id: string) => Promise<unknown>
+            } }).electronAPI
+          : undefined
+
+        if (electronAPI) {
+          try {
+            // 1. Try local draft (for offline-created certificates)
+            if (electronAPI.getDraft) {
+              const draft = await electronAPI.getDraft(certificateId)
+              if (draft) {
+                console.log('[edit] Loaded certificate from local draft')
+                const apiShape = transformDraftToApiShape(draft)
+                const formData = transformApiToFormData(apiShape)
+                loadForm(formData)
+                setCertificateId(certificateId)
+                setIsOfflineEdit(true)
+                setCurrentRevision(apiShape.currentRevision ?? 1)
+                return
+              }
+            }
+
+            // 2. Try cached certificate (for server-synced certs)
+            if (electronAPI.getCachedCertificateFull) {
+              const cached = await electronAPI.getCachedCertificateFull(certificateId) as ApiCertificate | null
+              if (cached) {
+                console.log('[edit] Loaded certificate from offline cache')
+                const formData = transformApiToFormData(cached)
+                loadForm(formData)
+                setCertificateId(certificateId)
+                setIsOfflineEdit(true)
+                if (cached.feedbacks) {
+                  const mergedFeedbacks = mergeDateAdjustmentsWithFeedbacks(cached.feedbacks, cached.events || [])
+                  setFeedbacks(mergedFeedbacks)
+                }
+                setCurrentRevision(cached.currentRevision ?? 1)
+                setReviewerName(cached.reviewer?.name || null)
+                return
+              }
+            }
+
+            setLoadError('Certificate not available offline. Go online to load it.')
+          } catch {
+            setLoadError('Failed to load certificate offline')
+          }
+        } else {
+          setLoadError('Failed to load certificate')
+        }
       } finally {
         setIsLoading(false)
       }
@@ -1305,6 +1456,14 @@ export default function EditCertificatePage() {
 
       {/* Form Card */}
       <div className="flex-1 min-w-0 p-2.5 flex flex-col">
+        {isOfflineEdit && (
+          <div className="flex-shrink-0 mb-2 flex items-center gap-2 p-3 bg-[#fffbeb] border border-[#fde68a] rounded-[14px]">
+            <AlertTriangle className="size-4 text-[#d97706] shrink-0" />
+            <p className="text-[12.5px] text-[#92400e]">
+              Editing offline. Certificate number is locked. Submit requires online connection. Changes save locally and sync when reconnected.
+            </p>
+          </div>
+        )}
         {tatStartedAt && (
           <div className="flex-shrink-0 mb-2">
             <TATBanner sentAt={tatStartedAt} certificateCreatedAt={certificateCreatedAt} />
@@ -1349,10 +1508,12 @@ export default function EditCertificatePage() {
                 <Button
                   onClick={() => scrollToSection('submit')}
                   size="sm"
-                  className="h-8 rounded-[9px] bg-primary text-white text-[12.5px] font-semibold"
+                  disabled={isOfflineEdit}
+                  title={isOfflineEdit ? 'Requires online connection' : undefined}
+                  className="h-8 rounded-[9px] bg-primary text-white text-[12.5px] font-semibold disabled:opacity-50"
                 >
                   <Send className="size-3.5 mr-1.5" />
-                  {formData.status === 'REVISION_REQUIRED' ? 'Resubmit' : 'Submit'}
+                  {isOfflineEdit ? 'Online required' : formData.status === 'REVISION_REQUIRED' ? 'Resubmit' : 'Submit'}
                 </Button>
               </div>
             </div>

@@ -16,6 +16,21 @@ function ids() {
 
 // ─── Draft CRUD ────────────────────────────────────────────────────────────
 
+interface MasterInstrumentInput {
+  id?: string
+  masterInstrumentId: number | string
+  category?: string
+  description?: string
+  make?: string
+  model?: string
+  assetNo?: string
+  serialNumber?: string
+  calibratedAt?: string
+  reportNo?: string
+  calibrationDueDate?: string
+  sopReference?: string
+}
+
 interface CreateDraftInput {
   tenantId: string
   certificateNumber?: string
@@ -31,6 +46,7 @@ interface CreateDraftInput {
   uucInstrumentId?: string
   uucLocationName?: string
   uucMachineName?: string
+  calibratedAt?: string
   dateOfCalibration?: string
   calibrationDueDate?: string
   calibrationTenure?: number
@@ -40,7 +56,16 @@ interface CreateDraftInput {
   relativeHumidity?: string
   srfNumber?: string
   srfDate?: string
+  calibrationStatus?: unknown
+  statusNotes?: string
+  stickerOldRemoved?: string
+  stickerNewAffixed?: string
+  selectedConclusionStatements?: unknown
+  additionalConclusionStatement?: string
+  engineerNotes?: string
+  reviewerId?: string
   parameters?: ParameterInput[]
+  masterInstruments?: MasterInstrumentInput[]
 }
 
 interface ParameterInput {
@@ -78,14 +103,8 @@ interface ResultInput {
   isOutOfLimit?: boolean
 }
 
-interface SaveDraftInput extends Omit<CreateDraftInput, 'tenantId'> {
-  statusNotes?: string
-  calibrationStatus?: unknown
-  stickerOldRemoved?: string
-  stickerNewAffixed?: string
-  selectedConclusionStatements?: unknown
-  additionalConclusionStatement?: string
-}
+// All fields now in CreateDraftInput — SaveDraftInput just drops tenantId
+type SaveDraftInput = Omit<CreateDraftInput, 'tenantId'>
 
 interface ImageMeta {
   imageType: string
@@ -111,26 +130,49 @@ export function registerDraftHandlers(): void {
         customer_contact_name, customer_contact_email, customer_account_id,
         uuc_description, uuc_make, uuc_model, uuc_serial_number,
         uuc_instrument_id, uuc_location_name, uuc_machine_name,
+        calibrated_at,
         date_of_calibration, calibration_due_date, calibration_tenure,
         due_date_adjustment, due_date_not_applicable,
         ambient_temperature, relative_humidity,
-        srf_number, srf_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        srf_number, srf_date,
+        calibration_status, status_notes,
+        sticker_old_removed, sticker_new_affixed,
+        selected_conclusion_statements, additional_conclusion_statement,
+        engineer_notes, reviewer_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id, data.tenantId, userId,
       data.certificateNumber || null, data.customerName || null, data.customerAddress || null,
       data.customerContactName || null, data.customerContactEmail || null, data.customerAccountId || null,
       data.uucDescription || null, data.uucMake || null, data.uucModel || null, data.uucSerialNumber || null,
       data.uucInstrumentId || null, data.uucLocationName || null, data.uucMachineName || null,
+      data.calibratedAt || 'LAB',
       data.dateOfCalibration || null, data.calibrationDueDate || null, data.calibrationTenure ?? 12,
       data.dueDateAdjustment ?? 0, data.dueDateNotApplicable ? 1 : 0,
       data.ambientTemperature || null, data.relativeHumidity || null,
-      data.srfNumber || null, data.srfDate || null
+      data.srfNumber || null, data.srfDate || null,
+      data.calibrationStatus ? JSON.stringify(data.calibrationStatus) : null,
+      data.statusNotes || null,
+      data.stickerOldRemoved || null, data.stickerNewAffixed || null,
+      data.selectedConclusionStatements ? JSON.stringify(data.selectedConclusionStatements) : null,
+      data.additionalConclusionStatement || null,
+      data.engineerNotes || null, data.reviewerId || null
     )
 
     // Insert parameters if provided
     if (data.parameters?.length) {
       await insertParameters(db, id, data.parameters)
     }
+
+    // Insert master instruments if provided
+    if (data.masterInstruments?.length) {
+      await insertMasterInstruments(db, id, data.masterInstruments)
+    }
+
+    // Queue for sync when back online
+    await db.run(
+      `INSERT INTO sync_queue (id, draft_id, action, payload) VALUES (?, ?, 'CREATE', ?)`,
+      crypto.randomUUID(), id, JSON.stringify(data)
+    )
 
     await auditLog(db, {
       userId, deviceId,
@@ -149,10 +191,72 @@ export function registerDraftHandlers(): void {
     const db = getDb()
 
     // Verify draft exists and belongs to this engineer
-    const draft = await db.get<{ id: string; engineer_id: string }>(
+    let draft = await db.get<{ id: string; engineer_id: string }>(
       'SELECT id, engineer_id FROM drafts WHERE id = ?', id
     )
-    if (!draft) return { success: false, error: 'Draft not found' }
+
+    // If not found, this is a server cert being edited offline for the first time.
+    // Create a local draft linked to the server cert with ALL form fields.
+    if (!draft) {
+      await db.run(
+        `INSERT INTO drafts (
+          id, server_id, tenant_id, engineer_id, status,
+          certificate_number, customer_name, customer_address,
+          customer_contact_name, customer_contact_email, customer_account_id,
+          uuc_description, uuc_make, uuc_model, uuc_serial_number,
+          uuc_instrument_id, uuc_location_name, uuc_machine_name,
+          calibrated_at,
+          date_of_calibration, calibration_due_date, calibration_tenure,
+          due_date_adjustment, due_date_not_applicable,
+          ambient_temperature, relative_humidity,
+          srf_number, srf_date,
+          calibration_status, status_notes,
+          sticker_old_removed, sticker_new_affixed,
+          selected_conclusion_statements, additional_conclusion_statement,
+          engineer_notes, reviewer_id
+        ) VALUES (?, ?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, id, 'hta-calibration', userId,
+        data.certificateNumber || null, data.customerName || null, data.customerAddress || null,
+        data.customerContactName || null, data.customerContactEmail || null, data.customerAccountId || null,
+        data.uucDescription || null, data.uucMake || null, data.uucModel || null, data.uucSerialNumber || null,
+        data.uucInstrumentId || null, data.uucLocationName || null, data.uucMachineName || null,
+        data.calibratedAt || 'LAB',
+        data.dateOfCalibration || null, data.calibrationDueDate || null, data.calibrationTenure ?? 12,
+        data.dueDateAdjustment ?? 0, data.dueDateNotApplicable ? 1 : 0,
+        data.ambientTemperature || null, data.relativeHumidity || null,
+        data.srfNumber || null, data.srfDate || null,
+        data.calibrationStatus ? JSON.stringify(data.calibrationStatus) : null,
+        data.statusNotes || null,
+        data.stickerOldRemoved || null, data.stickerNewAffixed || null,
+        data.selectedConclusionStatements ? JSON.stringify(data.selectedConclusionStatements) : null,
+        data.additionalConclusionStatement || null,
+        data.engineerNotes || null, data.reviewerId || null
+      )
+
+      if (data.parameters?.length) {
+        await insertParameters(db, id, data.parameters)
+      }
+      if (data.masterInstruments?.length) {
+        await insertMasterInstruments(db, id, data.masterInstruments)
+      }
+
+      // Queue for sync — server_id = id means this is an UPDATE to an existing server cert
+      await db.run(
+        `INSERT INTO sync_queue (id, draft_id, action, payload) VALUES (?, ?, 'UPDATE', ?)`,
+        crypto.randomUUID(), id, JSON.stringify(data)
+      )
+
+      await auditLog(db, {
+        userId, deviceId,
+        action: 'OFFLINE_EDIT_CREATED',
+        entityType: 'draft',
+        entityId: id,
+        metadata: { serverId: id },
+      })
+
+      return { success: true }
+    }
+
     if (draft.engineer_id !== userId) return { success: false, error: 'Access denied' }
 
     await db.run(
@@ -161,6 +265,7 @@ export function registerDraftHandlers(): void {
         customer_contact_name = ?, customer_contact_email = ?, customer_account_id = ?,
         uuc_description = ?, uuc_make = ?, uuc_model = ?, uuc_serial_number = ?,
         uuc_instrument_id = ?, uuc_location_name = ?, uuc_machine_name = ?,
+        calibrated_at = ?,
         date_of_calibration = ?, calibration_due_date = ?, calibration_tenure = ?,
         due_date_adjustment = ?, due_date_not_applicable = ?,
         ambient_temperature = ?, relative_humidity = ?,
@@ -168,6 +273,7 @@ export function registerDraftHandlers(): void {
         calibration_status = ?, status_notes = ?,
         sticker_old_removed = ?, sticker_new_affixed = ?,
         selected_conclusion_statements = ?, additional_conclusion_statement = ?,
+        engineer_notes = ?, reviewer_id = ?,
         revision = revision + 1,
         updated_at = datetime('now')
       WHERE id = ?`,
@@ -175,6 +281,7 @@ export function registerDraftHandlers(): void {
       data.customerContactName || null, data.customerContactEmail || null, data.customerAccountId || null,
       data.uucDescription || null, data.uucMake || null, data.uucModel || null, data.uucSerialNumber || null,
       data.uucInstrumentId || null, data.uucLocationName || null, data.uucMachineName || null,
+      data.calibratedAt || 'LAB',
       data.dateOfCalibration || null, data.calibrationDueDate || null, data.calibrationTenure ?? 12,
       data.dueDateAdjustment ?? 0, data.dueDateNotApplicable ? 1 : 0,
       data.ambientTemperature || null, data.relativeHumidity || null,
@@ -184,6 +291,7 @@ export function registerDraftHandlers(): void {
       data.stickerOldRemoved || null, data.stickerNewAffixed || null,
       data.selectedConclusionStatements ? JSON.stringify(data.selectedConclusionStatements) : null,
       data.additionalConclusionStatement || null,
+      data.engineerNotes || null, data.reviewerId || null,
       id
     )
 
@@ -194,6 +302,24 @@ export function registerDraftHandlers(): void {
         await insertParameters(db, id, data.parameters)
       }
     }
+
+    // Replace master instruments: delete existing, insert new
+    if (data.masterInstruments) {
+      await db.run('DELETE FROM draft_master_instruments WHERE draft_id = ?', id)
+      if (data.masterInstruments.length) {
+        await insertMasterInstruments(db, id, data.masterInstruments)
+      }
+    }
+
+    // Queue for sync — use UPDATE if server_id exists, else CREATE
+    const draftMeta = await db.get<{ server_id: string | null }>('SELECT server_id FROM drafts WHERE id = ?', id)
+    const action = draftMeta?.server_id ? 'UPDATE' : 'CREATE'
+    // Replace any existing PENDING queue entry for this draft (avoid duplicates)
+    await db.run("DELETE FROM sync_queue WHERE draft_id = ? AND status IN ('PENDING', 'FAILED')", id)
+    await db.run(
+      `INSERT INTO sync_queue (id, draft_id, action, payload) VALUES (?, ?, ?, ?)`,
+      crypto.randomUUID(), id, action, JSON.stringify(data)
+    )
 
     await auditLog(db, {
       userId, deviceId,
@@ -340,7 +466,23 @@ export function registerDraftHandlers(): void {
   })
 
   // ─── sync:get-status ──────────────────────────────────────────────
+  // Cached reachability state (updated by background check, never blocks)
+  let _lastApiReachable = false
+  let _lastApiCheckAt = 0
+  function updateApiReachable() {
+    if (Date.now() - _lastApiCheckAt < 15000) return // Don't check more than every 15s
+    _lastApiCheckAt = Date.now()
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3000)
+    fetch('http://10.100.0.1/', { signal: controller.signal })
+      .then(() => { clearTimeout(timeout); _lastApiReachable = true })
+      .catch(() => { clearTimeout(timeout); _lastApiReachable = false })
+  }
+
   ipcMain.handle('sync:get-status', async () => {
+    // Fire non-blocking reachability check for NEXT call
+    updateApiReachable()
+
     try {
       const db = getDb()
       const lastSync = await db.get<{ value: string }>('SELECT value FROM session_meta WHERE key = ?', 'last_synced_at')
@@ -348,35 +490,40 @@ export function registerDraftHandlers(): void {
       const revCounts = await db.get<{ value: string }>('SELECT value FROM session_meta WHERE key = ?', 'reviewer_counts')
 
       // Pending sync counts
-      const pendingDrafts = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM drafts WHERE synced_at IS NULL OR updated_at > synced_at')
+      const pendingDrafts = await db.get<{ cnt: number }>("SELECT COUNT(*) as cnt FROM sync_queue WHERE status IN ('PENDING', 'FAILED') AND retries < max_retries")
       const pendingImages = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM draft_images WHERE synced = 0')
       const pendingAudit = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM audit_log WHERE synced = 0')
+      const conflicts = await db.get<{ cnt: number }>("SELECT COUNT(*) as cnt FROM drafts WHERE status = 'CONFLICT'")
 
-      // Check API reachability (not just internet)
-      let apiReachable = false
-      if (require('electron').net.isOnline()) {
-        try {
-          const controller = new AbortController()
-          const timeout = setTimeout(() => controller.abort(), 3000)
-          await fetch('http://10.100.0.1/', { signal: controller.signal })
-          clearTimeout(timeout)
-          apiReachable = true
-        } catch { /* unreachable */ }
+      // If no cached counts, compute from cached_certificates
+      let engineerCounts = engCounts?.value ? JSON.parse(engCounts.value) : null
+      if (!engineerCounts) {
+        const draft = await db.get<{ cnt: number }>("SELECT COUNT(*) as cnt FROM cached_certificates WHERE status = 'DRAFT' AND role = 'creator'")
+        const pending = await db.get<{ cnt: number }>("SELECT COUNT(*) as cnt FROM cached_certificates WHERE status = 'PENDING_REVIEW' AND role = 'creator'")
+        const approved = await db.get<{ cnt: number }>("SELECT COUNT(*) as cnt FROM cached_certificates WHERE status IN ('APPROVED','AUTHORIZED') AND role = 'creator'")
+        const revision = await db.get<{ cnt: number }>("SELECT COUNT(*) as cnt FROM cached_certificates WHERE status = 'REVISION_REQUIRED' AND role = 'creator'")
+        engineerCounts = {
+          draft: draft?.cnt || 0,
+          pending: pending?.cnt || 0,
+          approved: approved?.cnt || 0,
+          revision: revision?.cnt || 0,
+        }
       }
 
       return {
-        online: apiReachable,
+        online: _lastApiReachable,
         lastSyncedAt: lastSync?.value || null,
-        engineerCounts: engCounts?.value ? JSON.parse(engCounts.value) : null,
+        engineerCounts,
         reviewerCounts: revCounts?.value ? JSON.parse(revCounts.value) : null,
         pending: {
           drafts: pendingDrafts?.cnt || 0,
           images: pendingImages?.cnt || 0,
           auditLogs: pendingAudit?.cnt || 0,
         },
+        conflicts: conflicts?.cnt || 0,
       }
     } catch {
-      return { online: false, lastSyncedAt: null, engineerCounts: null, reviewerCounts: null, pending: { drafts: 0, images: 0, auditLogs: 0 } }
+      return { online: false, lastSyncedAt: null, engineerCounts: null, reviewerCounts: null, pending: { drafts: 0, images: 0, auditLogs: 0 }, conflicts: 0 }
     }
   })
 
@@ -534,12 +681,20 @@ export function registerImageHandlers(): void {
     const { userId, deviceId } = ids()
     const db = getDb()
 
-    // Verify draft ownership
-    const draft = await db.get<{ engineer_id: string }>(
+    // Verify draft ownership — or create a stub for server certs being edited offline
+    let draft = await db.get<{ engineer_id: string }>(
       'SELECT engineer_id FROM drafts WHERE id = ?', draftId
     )
-    if (!draft || draft.engineer_id !== userId) {
-      return { success: false, error: 'Draft not found or access denied' }
+    if (!draft) {
+      // Server cert edited offline — create a stub draft so images can be attached
+      await db.run(
+        `INSERT INTO drafts (id, server_id, tenant_id, engineer_id, status) VALUES (?, ?, ?, ?, 'DRAFT')`,
+        draftId, draftId, 'hta-calibration', userId
+      )
+      draft = { engineer_id: userId }
+    }
+    if (draft.engineer_id !== userId) {
+      return { success: false, error: 'Access denied' }
     }
 
     const buffer = Buffer.from(arrayBuffer)
@@ -619,7 +774,8 @@ async function insertParameters(
   draftId: string,
   parameters: ParameterInput[]
 ): Promise<void> {
-  for (const param of parameters) {
+  for (let idx = 0; idx < parameters.length; idx++) {
+    const param = parameters[idx]
     const paramId = param.id || crypto.randomUUID()
 
     await db.run(
@@ -632,7 +788,7 @@ async function insertParameters(
         error_formula, show_after_adjustment, requires_binning, bins,
         sop_reference, master_instrument_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      paramId, draftId, param.sortOrder, param.parameterName, param.parameterUnit,
+      paramId, draftId, param.sortOrder ?? idx, param.parameterName, param.parameterUnit,
       param.rangeMin || null, param.rangeMax || null, param.rangeUnit || null,
       param.operatingMin || null, param.operatingMax || null, param.operatingUnit || null,
       param.leastCountValue || null, param.leastCountUnit || null,
@@ -657,5 +813,26 @@ async function insertParameters(
         )
       }
     }
+  }
+}
+
+async function insertMasterInstruments(
+  db: ReturnType<typeof getDb>,
+  draftId: string,
+  instruments: MasterInstrumentInput[]
+): Promise<void> {
+  for (const mi of instruments) {
+    await db.run(
+      `INSERT INTO draft_master_instruments (
+        id, draft_id, master_instrument_id, category, description,
+        make, model, asset_no, serial_number,
+        calibrated_at, report_no, calibration_due_date, sop_reference
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      mi.id || crypto.randomUUID(), draftId,
+      String(mi.masterInstrumentId || ''), mi.category || null, mi.description || null,
+      mi.make || null, mi.model || null, mi.assetNo || null, mi.serialNumber || null,
+      mi.calibratedAt || null, mi.reportNo || null, mi.calibrationDueDate || null,
+      mi.sopReference || ''
+    )
   }
 }
