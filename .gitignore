@@ -55,14 +55,22 @@ terraform.tfvars
 # Desktop build artifacts
 apps/desktop/release/
 apps/desktop/.next-standalone/
+apps/desktop/resources/*
+!apps/desktop/resources/.gitkeep
 
 # Generated assets (run "pnpm --filter @hta/assets gen" to regenerate)
 apps/web-hta/public/hta-logo.jpg
 apps/web-hta/public/logo.png
 apps/web-hta/src/components/pdf/logo-base64.ts
-apps/desktop/resources/icon.ico
 
 # Temporary files
 temp.yaml
 ns-patch.json
 .env.cloud
+.graphifyignore
+patch.json
+apps/web-hta/.env.local.bak
+check-field-change.cjs
+check-user-token.cjs
+fix-user-active.cjs
+scripts/backfill-field-change-revision.cjs
