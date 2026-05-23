@@ -25,6 +25,15 @@ function safeJsonParse<T>(value: unknown, defaultValue: T): T {
   return defaultValue
 }
 
+function sanitizeStorageFileName(fileName: string): string {
+  return fileName
+    .replace(/[\\/]/g, ' ')
+    .replace(/[^a-zA-Z0-9._ -]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120) || 'training-certificate.pdf'
+}
+
 /**
  * Alert all admins (except the actor) when master instruments are modified.
  * This is a security control to detect unauthorized changes.
@@ -1586,11 +1595,19 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Params: { id: string } }>('/instruments/:id/certificates/latest', {
     preHandler: [requireAdmin],
   }, async (request, reply) => {
+    const tenantId = request.tenantId
     const { id } = request.params
     const query = request.query as { metadata?: string }
     const metadataOnly = query.metadata === 'true'
 
-    const { getStorageProvider } = await import('../../lib/storage/index.js')
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: { id, tenantId },
+      select: { id: true, assetNumber: true, description: true },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
 
     // Fetch latest certificate record
     const certificate = await prisma.masterInstrumentCertificate.findFirst({
@@ -1614,27 +1631,31 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         return { certificate }
       }
 
-      const storage = getStorageProvider()
-      const exists = await storage.exists(certificate.storagePath)
+      try {
+        const { getStorageProvider } = await import('../../lib/storage/index.js')
+        const storage = getStorageProvider()
+        const exists = await storage.exists(certificate.storagePath)
 
-      if (exists) {
-        const signedUrl = await storage.getSignedUrl(certificate.storagePath, {
-          expiresInMinutes: 15,
-        })
-        return { certificate, url: signedUrl }
+        if (exists) {
+          const signedUrl = await storage.getSignedUrl(certificate.storagePath, {
+            expiresInMinutes: 15,
+          })
+          return { certificate, url: signedUrl }
+        }
+
+        return {
+          certificate,
+          url: null,
+          urlError: 'Certificate PDF is not available in storage.',
+        }
+      } catch (error) {
+        request.log.error({ err: error, certificateId: certificate.id }, 'Failed to create master instrument certificate URL')
+        return {
+          certificate,
+          url: null,
+          urlError: error instanceof Error ? error.message : 'Failed to create certificate URL',
+        }
       }
-
-      return { certificate, url: null }
-    }
-
-    // No certificate or file not found in storage
-    const instrument = await prisma.masterInstrument.findUnique({
-      where: { id },
-      select: { assetNumber: true, description: true },
-    })
-
-    if (!instrument) {
-      return reply.status(404).send({ error: 'Instrument not found' })
     }
 
     return reply.status(404).send({
@@ -1677,6 +1698,51 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       instrument: { id: instrument.id, assetNumber: instrument.assetNumber, description: instrument.description },
       certificates,
       total: certificates.length,
+    }
+  })
+
+  // GET /api/admin/instruments/:id/certificates/latest/pdf - Stream latest certificate PDF
+  fastify.get<{ Params: { id: string } }>('/instruments/:id/certificates/latest/pdf', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id } = request.params
+
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: { id, tenantId },
+      select: { id: true },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
+
+    const certificate = await prisma.masterInstrumentCertificate.findFirst({
+      where: {
+        masterInstrumentId: id,
+        isLatest: true,
+        isActive: true,
+      },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'No certificate found for this instrument' })
+    }
+
+    try {
+      const { getStorageProvider } = await import('../../lib/storage/index.js')
+      const storage = getStorageProvider()
+      const pdfBuffer = await storage.download(certificate.storagePath)
+
+      return reply
+        .header('Content-Type', certificate.mimeType || 'application/pdf')
+        .header('Content-Disposition', `inline; filename="${certificate.fileName || 'calibration-certificate.pdf'}"`)
+        .header('Content-Length', pdfBuffer.length)
+        .header('Cache-Control', 'private, max-age=300')
+        .send(pdfBuffer)
+    } catch (error) {
+      request.log.error({ err: error, certificateId: certificate.id }, 'Failed to stream master instrument certificate PDF')
+      return reply.status(404).send({ error: 'Certificate PDF is not available in storage.' })
     }
   })
 
@@ -1766,6 +1832,315 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     return { success: true, certificate }
+  })
+
+  // GET /api/admin/instruments/:id/trainings - List engineer training evidence
+  fastify.get<{ Params: { id: string } }>('/instruments/:id/trainings', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id } = request.params
+
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: { id, tenantId },
+      select: { id: true, instrumentId: true, assetNumber: true, description: true },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
+
+    const trainings = await prisma.masterInstrumentTraining.findMany({
+      where: {
+        tenantId,
+        instrumentId: instrument.instrumentId,
+        isActive: true,
+      },
+      include: {
+        engineer: {
+          select: { id: true, name: true, email: true, role: true, isActive: true },
+        },
+        uploadedBy: {
+          select: { id: true, name: true, email: true },
+        },
+        masterInstrument: {
+          select: { id: true, version: true },
+        },
+      },
+      orderBy: [{ expiresAt: 'asc' }, { uploadedAt: 'desc' }],
+    })
+
+    return {
+      instrument,
+      trainings: trainings.map((training) => ({
+        id: training.id,
+        instrumentId: training.instrumentId,
+        masterInstrumentId: training.masterInstrumentId,
+        masterInstrumentVersion: training.masterInstrument?.version || null,
+        engineer: training.engineer,
+        certificateFileName: training.certificateFileName,
+        certificateFileSize: training.certificateFileSize,
+        certificateMimeType: training.certificateMimeType,
+        trainedAt: training.trainedAt?.toISOString() || null,
+        expiresAt: training.expiresAt?.toISOString() || null,
+        notes: training.notes,
+        uploadedBy: training.uploadedBy,
+        uploadedAt: training.uploadedAt.toISOString(),
+        isActive: training.isActive,
+      })),
+      total: trainings.length,
+    }
+  })
+
+  // POST /api/admin/instruments/:id/trainings - Upload engineer training evidence
+  fastify.post<{ Params: { id: string } }>('/instruments/:id/trainings', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const { id } = request.params
+
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: { id, tenantId },
+      select: { id: true, instrumentId: true, assetNumber: true, description: true },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
+
+    const data = await request.file()
+    if (!data) {
+      return reply.status(400).send({ error: 'No file provided' })
+    }
+
+    if (data.mimetype !== 'application/pdf') {
+      return reply.status(400).send({ error: 'Only PDF files are allowed' })
+    }
+
+    const fields = data.fields as Record<string, { value?: string } | undefined>
+    const engineerId = fields.engineerId?.value
+    const trainedAtValue = fields.trainedAt?.value
+    const expiresAtValue = fields.expiresAt?.value
+    const notes = fields.notes?.value?.trim() || null
+
+    if (!engineerId) {
+      return reply.status(400).send({ error: 'Engineer is required' })
+    }
+
+    const engineer = await prisma.user.findFirst({
+      where: {
+        tenantId,
+        id: engineerId,
+        role: 'ENGINEER',
+        isActive: true,
+      },
+      select: { id: true },
+    })
+
+    if (!engineer) {
+      return reply.status(400).send({ error: 'Active engineer not found' })
+    }
+
+    const existing = await prisma.masterInstrumentTraining.findFirst({
+      where: {
+        tenantId,
+        instrumentId: instrument.instrumentId,
+        engineerId,
+        isActive: true,
+      },
+      select: { id: true },
+    })
+
+    if (existing) {
+      return reply.status(409).send({ error: 'This engineer already has active training evidence for this instrument' })
+    }
+
+    const chunks: Buffer[] = []
+    for await (const chunk of data.file) {
+      chunks.push(chunk)
+    }
+    const buffer = Buffer.concat(chunks)
+
+    const maxSize = 10 * 1024 * 1024
+    if (buffer.length > maxSize) {
+      return reply.status(400).send({ error: 'File size exceeds 10MB limit' })
+    }
+
+    const safeFileName = sanitizeStorageFileName(data.filename)
+    const storagePath = `master-instrument-training/${instrument.instrumentId}/${engineerId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeFileName}`
+
+    const { getStorageProvider } = await import('../../lib/storage/index.js')
+    const storage = getStorageProvider()
+    await storage.upload(storagePath, buffer, {
+      contentType: 'application/pdf',
+      metadata: {
+        tenantId,
+        instrumentId: instrument.instrumentId,
+        masterInstrumentId: instrument.id,
+        engineerId,
+        uploadedBy: userId,
+      },
+    })
+
+    const training = await prisma.masterInstrumentTraining.create({
+      data: {
+        tenantId,
+        instrumentId: instrument.instrumentId,
+        masterInstrumentId: instrument.id,
+        engineerId,
+        certificateFileName: data.filename,
+        certificateFileSize: buffer.length,
+        certificateMimeType: 'application/pdf',
+        certificatePath: storagePath,
+        trainedAt: trainedAtValue ? new Date(trainedAtValue) : null,
+        expiresAt: expiresAtValue ? new Date(expiresAtValue) : null,
+        notes,
+        uploadedById: userId,
+        isActive: true,
+      },
+      include: {
+        engineer: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+        uploadedBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+
+    return { success: true, training }
+  })
+
+  // GET /api/admin/instruments/:id/trainings/:trainingId/pdf - Stream training certificate PDF
+  fastify.get<{ Params: { id: string; trainingId: string } }>('/instruments/:id/trainings/:trainingId/pdf', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id, trainingId } = request.params
+
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: { id, tenantId },
+      select: { id: true, instrumentId: true },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
+
+    const training = await prisma.masterInstrumentTraining.findFirst({
+      where: {
+        id: trainingId,
+        tenantId,
+        instrumentId: instrument.instrumentId,
+        isActive: true,
+      },
+    })
+
+    if (!training) {
+      return reply.status(404).send({ error: 'Training evidence not found' })
+    }
+
+    try {
+      const { getStorageProvider } = await import('../../lib/storage/index.js')
+      const storage = getStorageProvider()
+      const pdfBuffer = await storage.download(training.certificatePath)
+
+      return reply
+        .header('Content-Type', training.certificateMimeType || 'application/pdf')
+        .header('Content-Disposition', `inline; filename="${training.certificateFileName || 'training-certificate.pdf'}"`)
+        .header('Content-Length', pdfBuffer.length)
+        .header('Cache-Control', 'private, max-age=300')
+        .send(pdfBuffer)
+    } catch (error) {
+      request.log.error({ err: error, trainingId: training.id }, 'Failed to stream training certificate PDF')
+      return reply.status(404).send({ error: 'Training certificate PDF is not available in storage.' })
+    }
+  })
+
+  // PATCH /api/admin/instruments/:id/trainings/:trainingId - Update training metadata
+  fastify.patch<{ Params: { id: string; trainingId: string } }>('/instruments/:id/trainings/:trainingId', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id, trainingId } = request.params
+    const body = request.body as {
+      trainedAt?: string | null
+      expiresAt?: string | null
+      notes?: string | null
+    }
+
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: { id, tenantId },
+      select: { id: true, instrumentId: true },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
+
+    const training = await prisma.masterInstrumentTraining.findFirst({
+      where: {
+        id: trainingId,
+        tenantId,
+        instrumentId: instrument.instrumentId,
+        isActive: true,
+      },
+      select: { id: true },
+    })
+
+    if (!training) {
+      return reply.status(404).send({ error: 'Training evidence not found' })
+    }
+
+    const updated = await prisma.masterInstrumentTraining.update({
+      where: { id: trainingId },
+      data: {
+        trainedAt: body.trainedAt ? new Date(body.trainedAt) : body.trainedAt === null ? null : undefined,
+        expiresAt: body.expiresAt ? new Date(body.expiresAt) : body.expiresAt === null ? null : undefined,
+        notes: body.notes !== undefined ? body.notes?.trim() || null : undefined,
+      },
+      include: {
+        engineer: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+        uploadedBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+
+    return { success: true, training: updated }
+  })
+
+  // DELETE /api/admin/instruments/:id/trainings/:trainingId - Soft delete training evidence
+  fastify.delete<{ Params: { id: string; trainingId: string } }>('/instruments/:id/trainings/:trainingId', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id, trainingId } = request.params
+
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: { id, tenantId },
+      select: { id: true, instrumentId: true },
+    })
+
+    if (!instrument) {
+      return reply.status(404).send({ error: 'Instrument not found' })
+    }
+
+    const training = await prisma.masterInstrumentTraining.findFirst({
+      where: {
+        id: trainingId,
+        tenantId,
+        instrumentId: instrument.instrumentId,
+        isActive: true,
+      },
+      select: { id: true },
+    })
+
+    if (!training) {
+      return reply.status(404).send({ error: 'Training evidence not found' })
+    }
+
+    await prisma.masterInstrumentTraining.update({
+      where: { id: trainingId },
+      data: { isActive: false },
+    })
+
+    return { success: true }
   })
 
   // ============================================================================
@@ -1987,11 +2362,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const query = request.query as {
       status?: string
       type?: string
+      source?: string
       page?: string
       limit?: string
     }
     const status = query.status || 'PENDING'
     const type = query.type || 'ALL'
+    const source = query.source || 'ALL'
     const page = Math.max(1, parseInt(query.page || '1'))
     const limit = Math.max(1, Math.min(parseInt(query.limit || '15'), 25))
 
@@ -2005,8 +2382,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Type filtering
-    const fetchInternal = type === 'ALL' || type === 'SECTION_UNLOCK' || type === 'FIELD_CHANGE' || type === 'OFFLINE_CODE_REQUEST' || type === 'DESKTOP_VPN_REQUEST'
-    const fetchCustomer = type === 'ALL' || type === 'USER_ADDITION' || type === 'POC_CHANGE' || type === 'ACCOUNT_DELETION' || type === 'DATA_EXPORT'
+    const fetchInternal = source !== 'customer' && (type === 'ALL' || type === 'SECTION_UNLOCK' || type === 'FIELD_CHANGE' || type === 'OFFLINE_CODE_REQUEST' || type === 'DESKTOP_VPN_REQUEST')
+    const fetchCustomer = source !== 'internal' && (type === 'ALL' || type === 'USER_ADDITION' || type === 'POC_CHANGE' || type === 'ACCOUNT_DELETION' || type === 'DATA_EXPORT')
 
     if (type === 'SECTION_UNLOCK' || type === 'OFFLINE_CODE_REQUEST' || type === 'DESKTOP_VPN_REQUEST') {
       internalWhere.type = type
@@ -2970,6 +3347,246 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  // GET /api/admin/users/:id/trainings - List training evidence for a user
+  fastify.get<{ Params: { id: string } }>('/users/:id/trainings', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id } = request.params
+
+    const user = await prisma.user.findFirst({
+      where: { id, tenantId },
+      select: { id: true, name: true, email: true, role: true },
+    })
+
+    if (!user) {
+      return reply.status(404).send({ error: 'User not found' })
+    }
+
+    const trainings = await prisma.masterInstrumentTraining.findMany({
+      where: { tenantId, engineerId: id, isActive: true },
+      include: {
+        engineer: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+        uploadedBy: { select: { id: true, name: true, email: true } },
+        masterInstrument: { select: { id: true, instrumentId: true, assetNumber: true, description: true, version: true } },
+      },
+      orderBy: [{ expiresAt: 'asc' }, { uploadedAt: 'desc' }],
+    })
+
+    return {
+      user,
+      trainings: trainings.map((training) => ({
+        id: training.id,
+        instrumentId: training.instrumentId,
+        masterInstrumentId: training.masterInstrumentId,
+        masterInstrumentVersion: training.masterInstrument?.version || null,
+        masterInstrument: training.masterInstrument,
+        engineer: training.engineer,
+        certificateFileName: training.certificateFileName,
+        certificateFileSize: training.certificateFileSize,
+        certificateMimeType: training.certificateMimeType,
+        trainedAt: training.trainedAt?.toISOString() || null,
+        expiresAt: training.expiresAt?.toISOString() || null,
+        notes: training.notes,
+        uploadedBy: training.uploadedBy,
+        uploadedAt: training.uploadedAt.toISOString(),
+        isActive: training.isActive,
+      })),
+      total: trainings.length,
+    }
+  })
+
+  // POST /api/admin/users/:id/trainings - Upload training evidence for a user
+  fastify.post<{ Params: { id: string } }>('/users/:id/trainings', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const uploadedById = request.user!.sub
+    const { id } = request.params
+
+    const engineer = await prisma.user.findFirst({
+      where: { id, tenantId, role: 'ENGINEER', isActive: true },
+      select: { id: true },
+    })
+
+    if (!engineer) {
+      return reply.status(400).send({ error: 'Active engineer not found' })
+    }
+
+    const data = await request.file()
+    if (!data) {
+      return reply.status(400).send({ error: 'No file provided' })
+    }
+
+    if (data.mimetype !== 'application/pdf') {
+      return reply.status(400).send({ error: 'Only PDF files are allowed' })
+    }
+
+    const fields = data.fields as Record<string, { value?: string } | undefined>
+    const masterInstrumentId = fields.masterInstrumentId?.value
+    const trainedAtValue = fields.trainedAt?.value
+    const expiresAtValue = fields.expiresAt?.value
+    const notes = fields.notes?.value?.trim() || null
+
+    if (!masterInstrumentId) {
+      return reply.status(400).send({ error: 'Master instrument is required' })
+    }
+
+    const instrument = await prisma.masterInstrument.findFirst({
+      where: { id: masterInstrumentId, tenantId, isActive: true, isLatest: true },
+      select: { id: true, instrumentId: true, assetNumber: true, description: true },
+    })
+
+    if (!instrument) {
+      return reply.status(400).send({ error: 'Active master instrument not found' })
+    }
+
+    const existing = await prisma.masterInstrumentTraining.findFirst({
+      where: { tenantId, instrumentId: instrument.instrumentId, engineerId: id, isActive: true },
+      select: { id: true },
+    })
+
+    if (existing) {
+      return reply.status(409).send({ error: 'This user already has active training evidence for this instrument' })
+    }
+
+    const chunks: Buffer[] = []
+    for await (const chunk of data.file) {
+      chunks.push(chunk)
+    }
+    const buffer = Buffer.concat(chunks)
+
+    const maxSize = 10 * 1024 * 1024
+    if (buffer.length > maxSize) {
+      return reply.status(400).send({ error: 'File size exceeds 10MB limit' })
+    }
+
+    const safeFileName = sanitizeStorageFileName(data.filename)
+    const storagePath = `master-instrument-training/${instrument.instrumentId}/${id}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeFileName}`
+
+    const { getStorageProvider } = await import('../../lib/storage/index.js')
+    const storage = getStorageProvider()
+    await storage.upload(storagePath, buffer, {
+      contentType: 'application/pdf',
+      metadata: { tenantId, instrumentId: instrument.instrumentId, masterInstrumentId: instrument.id, engineerId: id, uploadedBy: uploadedById },
+    })
+
+    const training = await prisma.masterInstrumentTraining.create({
+      data: {
+        tenantId,
+        instrumentId: instrument.instrumentId,
+        masterInstrumentId: instrument.id,
+        engineerId: id,
+        certificateFileName: data.filename,
+        certificateFileSize: buffer.length,
+        certificateMimeType: 'application/pdf',
+        certificatePath: storagePath,
+        trainedAt: trainedAtValue ? new Date(trainedAtValue) : null,
+        expiresAt: expiresAtValue ? new Date(expiresAtValue) : null,
+        notes,
+        uploadedById,
+        isActive: true,
+      },
+      include: {
+        engineer: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+        uploadedBy: { select: { id: true, name: true, email: true } },
+        masterInstrument: { select: { id: true, instrumentId: true, assetNumber: true, description: true, version: true } },
+      },
+    })
+
+    return { success: true, training }
+  })
+
+  // GET /api/admin/users/:id/trainings/:trainingId/pdf - Stream user training certificate PDF
+  fastify.get<{ Params: { id: string; trainingId: string } }>('/users/:id/trainings/:trainingId/pdf', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id, trainingId } = request.params
+
+    const training = await prisma.masterInstrumentTraining.findFirst({
+      where: { id: trainingId, tenantId, engineerId: id, isActive: true },
+    })
+
+    if (!training) {
+      return reply.status(404).send({ error: 'Training evidence not found' })
+    }
+
+    try {
+      const { getStorageProvider } = await import('../../lib/storage/index.js')
+      const storage = getStorageProvider()
+      const pdfBuffer = await storage.download(training.certificatePath)
+
+      return reply
+        .header('Content-Type', training.certificateMimeType || 'application/pdf')
+        .header('Content-Disposition', `inline; filename="${training.certificateFileName || 'training-certificate.pdf'}"`)
+        .header('Content-Length', pdfBuffer.length)
+        .header('Cache-Control', 'private, max-age=300')
+        .send(pdfBuffer)
+    } catch (error) {
+      request.log.error({ err: error, trainingId: training.id }, 'Failed to stream user training certificate PDF')
+      return reply.status(404).send({ error: 'Training certificate PDF is not available in storage.' })
+    }
+  })
+
+  // PATCH /api/admin/users/:id/trainings/:trainingId - Update user training metadata
+  fastify.patch<{ Params: { id: string; trainingId: string } }>('/users/:id/trainings/:trainingId', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id, trainingId } = request.params
+    const body = request.body as { trainedAt?: string | null; expiresAt?: string | null; notes?: string | null }
+
+    const training = await prisma.masterInstrumentTraining.findFirst({
+      where: { id: trainingId, tenantId, engineerId: id, isActive: true },
+      select: { id: true },
+    })
+
+    if (!training) {
+      return reply.status(404).send({ error: 'Training evidence not found' })
+    }
+
+    const updated = await prisma.masterInstrumentTraining.update({
+      where: { id: trainingId },
+      data: {
+        trainedAt: body.trainedAt ? new Date(body.trainedAt) : body.trainedAt === null ? null : undefined,
+        expiresAt: body.expiresAt ? new Date(body.expiresAt) : body.expiresAt === null ? null : undefined,
+        notes: body.notes !== undefined ? body.notes?.trim() || null : undefined,
+      },
+      include: {
+        engineer: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+        uploadedBy: { select: { id: true, name: true, email: true } },
+        masterInstrument: { select: { id: true, instrumentId: true, assetNumber: true, description: true, version: true } },
+      },
+    })
+
+    return { success: true, training: updated }
+  })
+
+  // DELETE /api/admin/users/:id/trainings/:trainingId - Soft delete user training evidence
+  fastify.delete<{ Params: { id: string; trainingId: string } }>('/users/:id/trainings/:trainingId', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const { id, trainingId } = request.params
+
+    const training = await prisma.masterInstrumentTraining.findFirst({
+      where: { id: trainingId, tenantId, engineerId: id, isActive: true },
+      select: { id: true },
+    })
+
+    if (!training) {
+      return reply.status(404).send({ error: 'Training evidence not found' })
+    }
+
+    await prisma.masterInstrumentTraining.update({
+      where: { id: trainingId },
+      data: { isActive: false },
+    })
+
+    return { success: true }
+  })
+
   // GET /api/admin/users/:id - Get user details
   fastify.get<{ Params: { id: string } }>('/users/:id', {
     preHandler: [requireAdmin],
@@ -3084,7 +3701,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     if (existingUser) {
-      return reply.status(400).send({ error: 'A user with this email already exists' })
+      return reply.status(400).send({
+        error: existingUser.isActive
+          ? 'A user with this email already exists'
+          : 'A user with this email exists but is inactive',
+        isActive: existingUser.isActive,
+        userId: existingUser.isActive ? undefined : existingUser.id,
+      })
     }
 
     // Validate Admin assignment for engineers
@@ -3343,6 +3966,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // PUT /api/admin/users/:id/reactivate - Reactivate a deactivated user
+  // Sends a fresh activation email — user must set a new password before logging in.
   fastify.put<{ Params: { id: string } }>('/users/:id/reactivate', {
     preHandler: [requireAdmin],
   }, async (request, reply) => {
@@ -3361,12 +3985,28 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: 'User is already active' })
     }
 
+    // Generate new activation token and invalidate old password
+    const activationToken = crypto.randomUUID()
+    const activationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
     await prisma.user.update({
       where: { id },
-      data: { isActive: true },
+      data: {
+        isActive: false, // Stays inactive until user completes activation (sets password)
+        passwordHash: null,
+        activationToken,
+        activationExpiry,
+      },
     })
 
-    return { success: true, message: 'User reactivated successfully' }
+    // Send activation email (same flow as initial account creation)
+    queueStaffActivationEmail({
+      to: user.email,
+      userName: user.name,
+      token: activationToken,
+    }).catch(() => {})
+
+    return { success: true, message: `Activation email sent to ${user.email}` }
   })
 
   // GET /api/admin/users/:id/tat-metrics - Per-user TAT performance metrics

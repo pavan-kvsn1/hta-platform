@@ -28,6 +28,7 @@ model Tenant {
   customerAccounts  CustomerAccount[]
   certificates      Certificate[]
   masterInstruments MasterInstrument[]
+  instrumentTrainings MasterInstrumentTraining[]
 
   // Billing relations
   subscription      TenantSubscription?
@@ -187,6 +188,8 @@ model User {
   reviewedInternalRequests       InternalRequest[]             @relation("InternalRequestReviewer")
   modifiedInstruments            MasterInstrument[]            @relation("InstrumentModifier")
   uploadedInstrumentCertificates MasterInstrumentCertificate[] @relation("InstrumentCertificateUploader")
+  engineerInstrumentTrainings    MasterInstrumentTraining[]    @relation("EngineerInstrumentTrainings")
+  uploadedTrainingCertificates   MasterInstrumentTraining[]    @relation("TrainingCertificateUploader")
   notifications                  Notification[]
   passwordResetTokens            PasswordResetToken[]
   resolvedFeedback               ReviewFeedback[]              @relation("FeedbackResolver")
@@ -377,6 +380,7 @@ model MasterInstrument {
   // Other relations
   createdBy               User?                         @relation("InstrumentModifier", fields: [createdById], references: [id])
   calibrationCertificates MasterInstrumentCertificate[]
+  trainingRecords         MasterInstrumentTraining[]
 
   @@unique([tenantId, instrumentId, version])
   @@index([tenantId])
@@ -408,6 +412,33 @@ model MasterInstrumentCertificate {
   @@index([masterInstrumentId])
   @@index([masterInstrumentId, isLatest])
   @@index([reportNo])
+}
+
+model MasterInstrumentTraining {
+  id                  String           @id @default(uuid())
+  tenantId            String
+  instrumentId         String
+  masterInstrumentId   String?
+  engineerId           String
+  certificateFileName  String
+  certificateFileSize  Int
+  certificateMimeType  String           @default("application/pdf")
+  certificatePath      String
+  trainedAt            DateTime?
+  expiresAt            DateTime?
+  notes                String?
+  uploadedById         String
+  uploadedAt           DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  isActive             Boolean          @default(true)
+  tenant               Tenant           @relation(fields: [tenantId], references: [id])
+  engineer             User             @relation("EngineerInstrumentTrainings", fields: [engineerId], references: [id])
+  uploadedBy           User             @relation("TrainingCertificateUploader", fields: [uploadedById], references: [id])
+  masterInstrument     MasterInstrument? @relation(fields: [masterInstrumentId], references: [id])
+
+  @@index([tenantId, instrumentId])
+  @@index([engineerId])
+  @@index([expiresAt])
 }
 
 // ============================================================================

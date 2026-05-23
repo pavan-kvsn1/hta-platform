@@ -208,7 +208,9 @@ export function UserTATMetrics({ userId, userRole, adminType, periodDays = 30 }:
             <Clock className="h-5 w-5 text-slate-500" />
             Performance Metrics
           </CardTitle>
-          <span className="text-sm text-slate-500 bg-slate-100 px-2 py-1 rounded">Last {periodDays} days</span>
+          <span className="rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 text-sm font-bold text-slate-800 shadow-sm">
+            Last {periodDays} days
+          </span>
         </div>
       </CardHeader>
 

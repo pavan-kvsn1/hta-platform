@@ -268,7 +268,7 @@ async function main() {
   const adminPassword = await bcrypt.hash('admin123', 12)
 
   const masterAdmin = await prisma.user.upsert({
-    where: { tenantId_email: { tenantId, email: 'admin@htaipl.com' } },
+    where: { tenantId_email: { tenantId, email: 'hemanth@htaipl.com' } },
     update: {},
     create: {
       tenantId,
@@ -601,7 +601,7 @@ async function main() {
   console.log('========================================')
   console.log('\nTest Credentials:')
   console.log('----------------------------------------')
-  console.log('MASTER Admin: admin@htaipl.com / admin123')
+  console.log('MASTER Admin: hemanth@htaipl.com / admin123')
   console.log('Engineer 1:   kiran@htaipl.com / engineer123')
   console.log('Engineer 2:   rajesh@htaipl.com / engineer123')
   console.log('Engineer 3:   thiyagarajan@htaipl.com / engineer123')

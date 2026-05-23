@@ -126,6 +126,9 @@ const TYPE_CONFIG = {
   },
 }
 
+const INTERNAL_TYPES = ['SECTION_UNLOCK', 'FIELD_CHANGE', 'OFFLINE_CODE_REQUEST', 'DESKTOP_VPN_REQUEST']
+const CUSTOMER_TYPES = ['USER_ADDITION', 'POC_CHANGE', 'ACCOUNT_DELETION', 'DATA_EXPORT']
+
 // --- Nested Components ---
 
 function RequestsTable({
@@ -140,14 +143,16 @@ function RequestsTable({
   }
 
   return (
-    <table className="w-full text-[13px]">
+    <table className="w-full min-w-[980px] text-[13px]">
       <thead>
         <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
-          <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[120px]">Type</th>
+          <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[110px]">Source</th>
+          <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[150px]">Type</th>
           <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Request</th>
-          <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[90px]">Status</th>
-          <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[110px]">Requested</th>
-          <th className="text-center py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[60px]">View</th>
+          <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[190px]">Requested By</th>
+          <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[110px]">Status</th>
+          <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[140px]">Requested</th>
+          <th className="text-center py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[64px]">View</th>
         </tr>
       </thead>
       <tbody>
@@ -166,6 +171,16 @@ function RequestsTable({
             >
               <td className="py-2.5 px-4">
                 <span className={cn(
+                  'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold capitalize',
+                  request.category === 'internal'
+                    ? 'bg-[#eef2ff] text-[#3730a3]'
+                    : 'bg-[#f0fdfa] text-[#0f766e]'
+                )}>
+                  {request.category}
+                </span>
+              </td>
+              <td className="py-2.5 px-4">
+                <span className={cn(
                   'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold',
                   typeConfig.badgeBg,
                   typeConfig.badgeText
@@ -174,10 +189,15 @@ function RequestsTable({
                   {typeConfig.shortLabel}
                 </span>
               </td>
-              <td className="py-2.5 px-4">
+              <td className="py-2.5 px-4 min-w-0">
                 <p className="font-medium text-[#0f172a] truncate">{request.title}</p>
                 <p className="text-[12px] text-[#64748b] truncate">{request.details}</p>
-                <p className="text-[11px] text-[#94a3b8] mt-0.5">{request.subtitle}</p>
+              </td>
+              <td className="py-2.5 px-4">
+                <p className="font-medium text-[#0f172a] truncate">{request.requestedBy}</p>
+                {request.requestedByEmail && (
+                  <p className="text-[11px] text-[#94a3b8] truncate">{request.requestedByEmail}</p>
+                )}
               </td>
               <td className="py-2.5 px-4">
                 <span className={cn(
@@ -214,6 +234,7 @@ export default function AdminRequestsPage() {
   const [counts, setCounts] = useState<Counts | null>(null)
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('PENDING')
+  const [sourceFilter, setSourceFilter] = useState('ALL')
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
@@ -224,6 +245,7 @@ export default function AdminRequestsPage() {
     try {
       const params = new URLSearchParams()
       params.set('status', statusFilter)
+      if (sourceFilter !== 'ALL') params.set('source', sourceFilter)
       if (typeFilter !== 'ALL') params.set('type', typeFilter)
       params.set('page', page.toString())
       params.set('limit', rowsPerPage.toString())
@@ -240,11 +262,11 @@ export default function AdminRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, typeFilter, page, rowsPerPage])
+  }, [statusFilter, sourceFilter, typeFilter, page, rowsPerPage])
 
   useEffect(() => {
     fetchRequests()
-  }, [statusFilter, typeFilter, page, fetchRequests])
+  }, [statusFilter, sourceFilter, typeFilter, page, fetchRequests])
 
   // Client-side search filtering
   const filteredRequests = useMemo(() => {
@@ -263,6 +285,18 @@ export default function AdminRequestsPage() {
     const queryType = request.category === 'internal' ? 'internal' : 'customer'
     router.push(`/admin/requests/${request.id}?type=${queryType}`)
   }
+
+  const pendingInternalCount = counts
+    ? counts.pending.sectionUnlock + counts.pending.fieldChange + counts.pending.offlineCodeRequest + counts.pending.desktopVpnRequest
+    : 0
+  const pendingCustomerCount = counts
+    ? counts.pending.userAddition + counts.pending.pocChange + counts.pending.accountDeletion + counts.pending.dataExport
+    : 0
+  const typeOptions = sourceFilter === 'internal'
+    ? INTERNAL_TYPES
+    : sourceFilter === 'customer'
+    ? CUSTOMER_TYPES
+    : [...INTERNAL_TYPES, ...CUSTOMER_TYPES]
 
   return (
     <div className="h-full overflow-auto bg-[#f1f5f9]">
@@ -291,7 +325,7 @@ export default function AdminRequestsPage() {
           {/* Pending / Resolved Toggle */}
           <div className="flex items-center gap-1 bg-white border border-[#e2e8f0] rounded-[9px] p-1">
             <button
-              onClick={() => { setStatusFilter('PENDING'); setTypeFilter('ALL'); setPage(1) }}
+              onClick={() => { setStatusFilter('PENDING'); setSourceFilter('ALL'); setTypeFilter('ALL'); setPage(1) }}
               className={cn(
                 'px-4 py-1.5 text-[12.5px] font-semibold rounded-[7px] transition-colors',
                 statusFilter === 'PENDING'
@@ -312,7 +346,7 @@ export default function AdminRequestsPage() {
               )}
             </button>
             <button
-              onClick={() => { setStatusFilter('APPROVED'); setTypeFilter('ALL'); setPage(1) }}
+              onClick={() => { setStatusFilter('APPROVED'); setSourceFilter('ALL'); setTypeFilter('ALL'); setPage(1) }}
               className={cn(
                 'px-4 py-1.5 text-[12.5px] font-semibold rounded-[7px] transition-colors',
                 statusFilter !== 'PENDING'
@@ -337,30 +371,45 @@ export default function AdminRequestsPage() {
 
         {/* Summary Cards - Only for Pending */}
         {statusFilter === 'PENDING' && counts && (
-          <div className="grid grid-cols-8 gap-3 mb-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
             {([
-              { key: 'SECTION_UNLOCK', count: counts.pending.sectionUnlock, label: 'Section Unlock', borderColor: 'border-l-[#3b82f6]', countColor: 'text-[#1d4ed8]', activeBg: 'bg-[#eff6ff]' },
-              { key: 'FIELD_CHANGE', count: counts.pending.fieldChange, label: 'Field Change', borderColor: 'border-l-[#eab308]', countColor: 'text-[#a16207]', activeBg: 'bg-[#fefce8]' },
-              { key: 'OFFLINE_CODE_REQUEST', count: counts.pending.offlineCodeRequest, label: 'Offline Code', borderColor: 'border-l-[#a78bfa]', countColor: 'text-[#6d28d9]', activeBg: 'bg-[#ede9fe]' },
-              { key: 'DESKTOP_VPN_REQUEST', count: counts.pending.desktopVpnRequest, label: 'Desktop VPN', borderColor: 'border-l-[#10b981]', countColor: 'text-[#065f46]', activeBg: 'bg-[#ecfdf5]' },
-              { key: 'USER_ADDITION', count: counts.pending.userAddition, label: 'User Addition', borderColor: 'border-l-[#22c55e]', countColor: 'text-[#15803d]', activeBg: 'bg-[#f0fdf4]' },
-              { key: 'POC_CHANGE', count: counts.pending.pocChange, label: 'POC Change', borderColor: 'border-l-[#8b5cf6]', countColor: 'text-[#7c3aed]', activeBg: 'bg-[#faf5ff]' },
-              { key: 'ACCOUNT_DELETION', count: counts.pending.accountDeletion, label: 'Account Deletion', borderColor: 'border-l-[#ef4444]', countColor: 'text-[#dc2626]', activeBg: 'bg-[#fef2f2]' },
-              { key: 'DATA_EXPORT', count: counts.pending.dataExport, label: 'Data Export', borderColor: 'border-l-[#f97316]', countColor: 'text-[#c2410c]', activeBg: 'bg-[#fff7ed]' },
+              {
+                key: 'internal',
+                count: pendingInternalCount,
+                label: 'Internal',
+                detail: `Unlock ${counts.pending.sectionUnlock} | Field ${counts.pending.fieldChange} | Offline ${counts.pending.offlineCodeRequest} | VPN ${counts.pending.desktopVpnRequest}`,
+                borderColor: 'border-l-[#4f46e5]',
+                countColor: 'text-[#3730a3]',
+                activeBg: 'bg-[#eef2ff]',
+              },
+              {
+                key: 'customer',
+                count: pendingCustomerCount,
+                label: 'Customer',
+                detail: `User ${counts.pending.userAddition} | POC ${counts.pending.pocChange} | Delete ${counts.pending.accountDeletion} | Export ${counts.pending.dataExport}`,
+                borderColor: 'border-l-[#0f766e]',
+                countColor: 'text-[#0f766e]',
+                activeBg: 'bg-[#f0fdfa]',
+              },
             ] as const).map((card) => {
-              const isActive = typeFilter === card.key
+              const isActive = sourceFilter === card.key
               return (
                 <button
                   key={card.key}
-                  onClick={() => { setTypeFilter(isActive ? 'ALL' : card.key); setPage(1) }}
+                  onClick={() => { setSourceFilter(isActive ? 'ALL' : card.key); setTypeFilter('ALL'); setPage(1) }}
                   className={cn(
-                    'border border-[#e2e8f0] rounded-xl px-5 py-5 border-l-[3px] text-left transition-all',
+                    'border border-[#e2e8f0] rounded-xl px-5 py-4 border-l-[3px] text-left transition-all',
                     card.borderColor,
                     isActive ? card.activeBg : 'bg-white hover:bg-[#f8fafc]'
                   )}
                 >
-                  <div className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2.5">{card.label}</div>
-                  <div className={cn('text-[38px] font-extrabold leading-none tracking-tight', card.countColor)}>{card.count}</div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] mb-2">{card.label}</div>
+                      <div className="text-[12px] font-medium text-[#64748b]">{card.detail}</div>
+                    </div>
+                    <div className={cn('text-[34px] font-extrabold leading-none tracking-tight', card.countColor)}>{card.count}</div>
+                  </div>
                 </button>
               )
             })}
@@ -370,20 +419,28 @@ export default function AdminRequestsPage() {
         {/* Filters */}
         <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-4 mb-5">
           <div className="flex flex-wrap items-end gap-4">
+            <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setTypeFilter('ALL'); setPage(1) }}>
+              <SelectTrigger className="w-[150px] px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed]">
+                <SelectValue placeholder="All Sources" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Sources</SelectItem>
+                <SelectItem value="internal">Internal</SelectItem>
+                <SelectItem value="customer">Customer</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1) }}>
               <SelectTrigger className="w-[180px] px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed]">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Types</SelectItem>
-                <SelectItem value="SECTION_UNLOCK">Section Unlock</SelectItem>
-                <SelectItem value="FIELD_CHANGE">Field Change</SelectItem>
-                <SelectItem value="OFFLINE_CODE_REQUEST">Offline Code</SelectItem>
-                <SelectItem value="DESKTOP_VPN_REQUEST">Desktop VPN</SelectItem>
-                <SelectItem value="USER_ADDITION">User Addition</SelectItem>
-                <SelectItem value="POC_CHANGE">POC Change</SelectItem>
-                <SelectItem value="ACCOUNT_DELETION">Account Deletion</SelectItem>
-                <SelectItem value="DATA_EXPORT">Data Export</SelectItem>
+                {typeOptions.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {TYPE_CONFIG[type as keyof typeof TYPE_CONFIG].shortLabel}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -478,29 +535,6 @@ export default function AdminRequestsPage() {
               </div>
             </div>
           )}
-        </div>
-
-        {/* Legend */}
-        <div className="mt-3 flex flex-wrap gap-4 text-[11px] text-[#94a3b8]">
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-[#3b82f6]" /> = Unlock
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-[#a78bfa]" /> = Offline Code
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-[#22c55e]" /> = User Add
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-[#8b5cf6]" /> = POC
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-[#ef4444]" /> = Delete
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-[#f97316]" /> = Export
-          </span>
-          <span className="ml-auto">Click row to review</span>
         </div>
       </div>
     </div>

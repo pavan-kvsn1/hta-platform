@@ -15,6 +15,9 @@ import {
   User,
   Tag,
   Hash,
+  GraduationCap,
+  Eye,
+  X,
 } from 'lucide-react'
 import { MetaInfoItem } from '@/components/certificate/MetaInfoItem'
 
@@ -53,6 +56,28 @@ interface Instrument {
   parameterCapabilities: string[]
   parameterRoles: string[]
   sopReferences: string[]
+}
+
+interface TrainingRecord {
+  id: string
+  engineer: {
+    id: string
+    name: string
+    email: string
+    role: string
+    isActive: boolean
+  }
+  certificateFileName: string
+  certificateFileSize: number
+  trainedAt: string | null
+  expiresAt: string | null
+  notes: string | null
+  uploadedBy: {
+    id: string
+    name: string
+    email: string
+  }
+  uploadedAt: string
 }
 
 const PARAMETER_ROLES: Record<string, string> = {
@@ -139,6 +164,16 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [pdfReady, setPdfReady] = useState(false)
+  const [pdfStatus, setPdfStatus] = useState<string>('Loading certificate...')
+  const [trainings, setTrainings] = useState<TrainingRecord[]>([])
+  const [trainingLoading, setTrainingLoading] = useState(false)
+  const [trainingError, setTrainingError] = useState<string | null>(null)
+  const [trainingPdfUrl, setTrainingPdfUrl] = useState<string | null>(null)
+  const [trainingPdfTitle, setTrainingPdfTitle] = useState<string>('Training certificate')
+  const [trainingPdfViewMode, setTrainingPdfViewMode] = useState<'iframe' | 'card'>('iframe')
+  const [editingTrainingId, setEditingTrainingId] = useState<string | null>(null)
+  const [editTrainingForm, setEditTrainingForm] = useState({ trainedAt: '', expiresAt: '', notes: '' })
 
   // Section expansion state
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -147,6 +182,7 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
     parameters: true,
     calibration: true,
     ranges: true,
+    training: true,
     record: true,
   })
 
@@ -172,19 +208,79 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
     fetchInstrument()
   }, [id, fetchInstrument])
 
+  useEffect(() => {
+    return () => {
+      if (trainingPdfUrl) URL.revokeObjectURL(trainingPdfUrl)
+    }
+  }, [trainingPdfUrl])
+
+  const fetchTrainings = useCallback(async () => {
+    try {
+      setTrainingLoading(true)
+      setTrainingError(null)
+      const res = await apiFetch(`/api/admin/instruments/${id}/trainings`)
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Failed to load training records')
+      }
+      const data = await res.json()
+      setTrainings(data.trainings || [])
+    } catch (err) {
+      setTrainingError(err instanceof Error ? err.message : 'Failed to load training records')
+    } finally {
+      setTrainingLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => {
+    if (!instrument) return
+    fetchTrainings()
+  }, [instrument, fetchTrainings])
+
   // Fetch signed URL for certificate PDF
   useEffect(() => {
     if (!instrument) return
+    let objectUrl: string | null = null
+
     async function fetchPdfUrl() {
+      setPdfStatus('Loading certificate...')
       try {
-        const res = await apiFetch(`/api/admin/instruments/${id}/certificates/latest`)
+        const res = await apiFetch(`/api/admin/instruments/${id}/certificates/latest?metadata=true`)
         if (res.ok) {
-          const data = await res.json()
-          if (data.url) setPdfUrl(data.url)
+          await res.json()
+          const pdfRes = await apiFetch(`/api/admin/instruments/${id}/certificates/latest/pdf`)
+
+          if (!pdfRes.ok) {
+            const data = await pdfRes.json().catch(() => null)
+            throw new Error(data?.error || 'Failed to load certificate PDF')
+          }
+
+          const blob = await pdfRes.blob()
+          objectUrl = URL.createObjectURL(blob)
+          setPdfUrl(objectUrl)
+          setPdfReady(true)
+          setPdfStatus('')
+        } else if (res.status === 404) {
+          setPdfUrl(null)
+          setPdfReady(false)
+          setPdfStatus('No certificate available')
+        } else {
+          const data = await res.json().catch(() => null)
+          setPdfUrl(null)
+          setPdfReady(false)
+          setPdfStatus(data?.error || 'Failed to load certificate')
         }
-      } catch { /* no cert available */ }
+      } catch (err) {
+        setPdfUrl(null)
+        setPdfReady(false)
+        setPdfStatus(err instanceof Error ? err.message : 'Failed to load certificate')
+      }
     }
     fetchPdfUrl()
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
   }, [id, instrument])
 
   const toggleSection = (section: string) => {
@@ -213,6 +309,82 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
     } finally {
       setDeleting(false)
     }
+  }
+
+  const openTrainingPdf = async (training: TrainingRecord) => {
+    try {
+      setTrainingError(null)
+      const res = await apiFetch(`/api/admin/instruments/${id}/trainings/${training.id}/pdf`)
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Failed to load training certificate')
+      }
+      const blob = await res.blob()
+      if (trainingPdfUrl) URL.revokeObjectURL(trainingPdfUrl)
+      setTrainingPdfUrl(URL.createObjectURL(blob))
+      setTrainingPdfTitle(`${training.engineer.name} - ${training.certificateFileName}`)
+      setTrainingPdfViewMode('iframe')
+    } catch (err) {
+      setTrainingError(err instanceof Error ? err.message : 'Failed to load training certificate')
+    }
+  }
+
+  const closeTrainingPdf = () => {
+    if (trainingPdfUrl) URL.revokeObjectURL(trainingPdfUrl)
+    setTrainingPdfUrl(null)
+  }
+
+  const startEditTraining = (training: TrainingRecord) => {
+    setEditingTrainingId(training.id)
+    setEditTrainingForm({
+      trainedAt: training.trainedAt ? training.trainedAt.slice(0, 10) : '',
+      expiresAt: training.expiresAt ? training.expiresAt.slice(0, 10) : '',
+      notes: training.notes || '',
+    })
+  }
+
+  const saveTrainingEdit = async (trainingId: string) => {
+    try {
+      setTrainingError(null)
+      const res = await apiFetch(`/api/admin/instruments/${id}/trainings/${trainingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trainedAt: editTrainingForm.trainedAt || null,
+          expiresAt: editTrainingForm.expiresAt || null,
+          notes: editTrainingForm.notes,
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'Failed to update training evidence')
+      setEditingTrainingId(null)
+      await fetchTrainings()
+    } catch (err) {
+      setTrainingError(err instanceof Error ? err.message : 'Failed to update training evidence')
+    }
+  }
+
+  const removeTraining = async (trainingId: string) => {
+    if (!window.confirm('Remove this training evidence?')) return
+    try {
+      setTrainingError(null)
+      const res = await apiFetch(`/api/admin/instruments/${id}/trainings/${trainingId}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'Failed to remove training evidence')
+      await fetchTrainings()
+    } catch (err) {
+      setTrainingError(err instanceof Error ? err.message : 'Failed to remove training evidence')
+    }
+  }
+
+  const formatOptionalDate = (value: string | null) =>
+    value ? new Date(value).toLocaleDateString() : '-'
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   if (loading) {
@@ -272,6 +444,77 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
                 {deleting ? 'Deactivating...' : 'Deactivate'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {trainingPdfUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#e2e8f0]">
+              <div className="min-w-0">
+                <p className="text-[12px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Training Certificate</p>
+                <p className="text-[13px] font-semibold text-[#0f172a] truncate">{trainingPdfTitle}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setTrainingPdfViewMode('iframe')}
+                    className={`px-3 text-[12px] font-semibold rounded-md transition-colors ${
+                      trainingPdfViewMode === 'iframe'
+                        ? 'bg-white text-[#0f172a] shadow-sm'
+                        : 'text-[#64748b] hover:text-[#0f172a]'
+                    }`}
+                  >
+                    Iframe
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTrainingPdfViewMode('card')}
+                    className={`px-3 text-[12px] font-semibold rounded-md transition-colors ${
+                      trainingPdfViewMode === 'card'
+                        ? 'bg-white text-[#0f172a] shadow-sm'
+                        : 'text-[#64748b] hover:text-[#0f172a]'
+                    }`}
+                  >
+                    Card
+                  </button>
+                </div>
+                <button
+                  onClick={closeTrainingPdf}
+                  className="size-8 rounded-lg border border-[#e2e8f0] flex items-center justify-center hover:bg-[#f8fafc]"
+                  aria-label="Close training certificate preview"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+            {trainingPdfViewMode === 'iframe' ? (
+              <iframe src={trainingPdfUrl} title={trainingPdfTitle} className="flex-1 w-full" />
+            ) : (
+              <div className="flex-1 overflow-auto bg-[#f1f5f9] p-6">
+                <div className="mx-auto flex min-h-full max-w-4xl flex-col overflow-hidden rounded-[12px] border border-[#cbd5e1] bg-white shadow-sm">
+                  <div className="flex items-center justify-between gap-3 border-b border-[#e2e8f0] px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-semibold text-[#0f172a]">{trainingPdfTitle}</p>
+                      <p className="text-[12px] text-[#94a3b8]">PDF card view</p>
+                    </div>
+                    <a
+                      href={trainingPdfUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 rounded-[8px] border border-[#e2e8f0] px-3 py-1.5 text-[12px] font-semibold text-[#0f172a] hover:bg-[#f8fafc]"
+                    >
+                      Open
+                    </a>
+                  </div>
+                  <object data={trainingPdfUrl} type="application/pdf" className="h-[70vh] w-full">
+                    <iframe src={trainingPdfUrl} title={trainingPdfTitle} className="h-[70vh] w-full" />
+                  </object>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -509,6 +752,157 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
               )}
             </div>
           </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Training Records"
+            isExpanded={expandedSections.training}
+            onToggle={() => toggleSection('training')}
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-[13px] text-[#64748b]">
+                  <GraduationCap className="size-4 text-[#94a3b8]" />
+                  <span>{trainings.length} active training record{trainings.length !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+
+              {trainingError && (
+                <div className="rounded-[9px] border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-[12px] font-medium text-[#dc2626]">
+                  {trainingError}
+                </div>
+              )}
+
+              {trainingLoading ? (
+                <div className="flex items-center justify-center py-8 text-[#94a3b8]">
+                  <Loader2 className="size-5 animate-spin" />
+                </div>
+              ) : trainings.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-6 text-center">
+                  <GraduationCap className="size-8 mx-auto mb-2 text-[#cbd5e1]" />
+                  <p className="text-[13px] font-semibold text-[#475569]">No training evidence recorded</p>
+                  <p className="text-[12px] text-[#94a3b8] mt-1">Training records will appear here after they are assigned.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-[#e2e8f0]">
+                  <table className="w-full text-[13px]">
+                    <thead>
+                      <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
+                        <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">User</th>
+                        <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Trained</th>
+                        <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Expires</th>
+                        <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Certificate</th>
+                        <th className="px-4 py-2 text-left text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Uploaded</th>
+                        <th className="px-4 py-2 text-right text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.07em]">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#f1f5f9]">
+                      {trainings.map((training) => {
+                        const isEditing = editingTrainingId === training.id
+                        return (
+                          <tr key={training.id} className="align-top">
+                            <td className="px-4 py-3">
+                              <p className="font-semibold text-[#0f172a]">{training.engineer.name}</p>
+                              <p className="text-[12px] text-[#64748b]">{training.engineer.email}</p>
+                              {isEditing && (
+                                <textarea
+                                  value={editTrainingForm.notes}
+                                  onChange={(event) => setEditTrainingForm(prev => ({ ...prev, notes: event.target.value }))}
+                                  rows={2}
+                                  className="mt-2 w-full min-w-[220px] rounded-[8px] border border-[#e2e8f0] px-2 py-1 text-[12px]"
+                                  placeholder="Notes"
+                                />
+                              )}
+                              {!isEditing && training.notes && (
+                                <p className="text-[12px] text-[#64748b] mt-1 italic">{training.notes}</p>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-[#64748b]">
+                              {isEditing ? (
+                                <input
+                                  type="date"
+                                  value={editTrainingForm.trainedAt}
+                                  onChange={(event) => setEditTrainingForm(prev => ({ ...prev, trainedAt: event.target.value }))}
+                                  className="h-8 rounded-[8px] border border-[#e2e8f0] px-2 text-[12px]"
+                                />
+                              ) : formatOptionalDate(training.trainedAt)}
+                            </td>
+                            <td className="px-4 py-3 text-[#64748b]">
+                              {isEditing ? (
+                                <input
+                                  type="date"
+                                  value={editTrainingForm.expiresAt}
+                                  onChange={(event) => setEditTrainingForm(prev => ({ ...prev, expiresAt: event.target.value }))}
+                                  className="h-8 rounded-[8px] border border-[#e2e8f0] px-2 text-[12px]"
+                                />
+                              ) : formatOptionalDate(training.expiresAt)}
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="text-[#0f172a] truncate max-w-[190px]" title={training.certificateFileName}>{training.certificateFileName}</p>
+                              <p className="text-[12px] text-[#94a3b8]">{formatFileSize(training.certificateFileSize)}</p>
+                            </td>
+                            <td className="px-4 py-3 text-[#64748b]">
+                              <p>{formatOptionalDate(training.uploadedAt)}</p>
+                              <p className="text-[12px] text-[#94a3b8]">{training.uploadedBy.name}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex justify-end gap-1.5">
+                                {isEditing ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => saveTrainingEdit(training.id)}
+                                      className="px-2.5 py-1.5 text-[12px] font-semibold text-white bg-[#0f172a] rounded-[8px]"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingTrainingId(null)}
+                                      className="px-2.5 py-1.5 text-[12px] font-semibold text-[#475569] border border-[#e2e8f0] rounded-[8px]"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => openTrainingPdf(training)}
+                                      className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-[#e2e8f0] px-2.5 text-[12px] font-semibold text-[#0f172a] hover:bg-[#f8fafc]"
+                                      title="View certificate"
+                                    >
+                                      <Eye className="size-3.5" />
+                                      PDF
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditTraining(training)}
+                                      className="size-8 rounded-[8px] border border-[#e2e8f0] flex items-center justify-center hover:bg-[#f8fafc]"
+                                      title="Edit training"
+                                    >
+                                      <Pencil className="size-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeTraining(training.id)}
+                                      className="size-8 rounded-[8px] border border-[#fecaca] text-[#dc2626] flex items-center justify-center hover:bg-[#fef2f2]"
+                                      title="Remove training"
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
         </div>
       </div>
 
@@ -521,15 +915,22 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
           </div>
           {/* PDF Viewer */}
           <div className="flex-1 bg-[#f1f5f9]">
-            {pdfUrl ? (
+            {pdfReady && pdfUrl ? (
               <iframe
                 src={pdfUrl}
                 className="w-full h-full"
                 title="Calibration Certificate"
               />
             ) : (
-              <div className="flex items-center justify-center h-full text-[#94a3b8] text-[13px]">
-                No certificate available
+              <div className="flex items-center justify-center h-full p-6 text-center">
+                <div>
+                  <p className="text-[13px] font-semibold text-[#475569]">
+                    Calibration certificate unavailable
+                  </p>
+                  <p className="mt-1 text-[12px] text-[#94a3b8]">
+                    {pdfStatus}
+                  </p>
+                </div>
               </div>
             )}
           </div>
