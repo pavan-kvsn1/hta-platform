@@ -1,6 +1,10 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 import { prisma } from '@hta/database'
 
+function isIpAddress(host: string): boolean {
+  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(host) || host.includes(':')
+}
+
 /**
  * Tenant identification middleware
  *
@@ -28,9 +32,9 @@ export async function tenantMiddleware(
     const parts = host.split('.')
 
     // Format: app.{tenant}.com -> extract tenant from parts[1]
-    if (parts.length >= 3) {
+    if (!isIpAddress(host) && parts.length >= 3) {
       tenantSlug = parts[1]
-    } else if (parts.length === 2) {
+    } else if (!isIpAddress(host) && parts.length === 2) {
       // Direct domain: {tenant}.com
       tenantSlug = parts[0]
     }

@@ -737,7 +737,7 @@ describe('Image Operations', () => {
         mimeType: 'image/jpeg',
       }, new ArrayBuffer(4))
 
-      expect(result).toEqual({ success: false, error: 'Draft not found or access denied' })
+      expect(result).toEqual({ success: false, error: 'Access denied' })
       expect(mockSaveImageEncrypted).not.toHaveBeenCalled()
     })
 

@@ -216,7 +216,7 @@ export default function MyRequestsPage() {
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
-                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[130px]">Type</th>
+                    <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[325px]">Type</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">Request</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[100px]">Status</th>
                     <th className="text-left py-2.5 px-4 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8] w-[110px]">Submitted</th>

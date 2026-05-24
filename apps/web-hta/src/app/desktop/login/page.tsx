@@ -18,6 +18,7 @@ export default function DesktopLoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
+  const [setupStatus, setSetupStatus] = useState<string | null>(null)
 
   // Login form state
   const [email, setEmail] = useState('')
@@ -88,6 +89,18 @@ export default function DesktopLoginPage() {
     checkAuthStatus()
   }, [checkAuthStatus])
 
+  useEffect(() => {
+    if (!setupStatus) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = 'Local cache setup is still running. Closing now can leave the device partially configured.'
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [setupStatus])
+
   async function restoreSession(userProfile: Record<string, unknown>) {
     try {
       await fetch('/api/auth/desktop-session', {
@@ -106,6 +119,7 @@ export default function DesktopLoginPage() {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
+    setSetupStatus('Signing in to the API...')
 
     try {
       // 1. Authenticate against API
@@ -122,6 +136,7 @@ export default function DesktopLoginPage() {
       }
 
       // 2. Set up offline auth (encrypt credentials with password-derived key + register device)
+      setSetupStatus('Creating encrypted local cache. Please do not close the app.')
       const api = window.electronAPI!
       const result = await api.setup(password, data.user.id, data.refreshToken, data.accessToken, {
         id: data.user.id,
@@ -138,12 +153,15 @@ export default function DesktopLoginPage() {
         return
       }
 
+      setSetupStatus('Finalizing local cache and opening dashboard...')
+
       // 3. Go to dashboard — full reload so SessionProvider picks up the new cookie
       window.location.href = '/dashboard'
     } catch (err) {
-      setError('Cannot connect to server. Please check your network.')
+      setError(`Desktop setup failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setIsLoading(false)
+      setSetupStatus(null)
     }
   }
 
@@ -164,6 +182,11 @@ export default function DesktopLoginPage() {
       const result = await api.unlock(unlockPassword, challengeKey, responseValue)
 
       if (!result.success) {
+        if ((result as Record<string, unknown>).needsLocalCacheRepair) {
+          setView('login')
+          setError(result.error || 'Local cache needs repair. Sign in online to rebuild it.')
+          return
+        }
         if (result.attemptsRemaining === 0) {
           setError('Device wiped due to too many failed attempts. Please reinstall.')
           return
@@ -246,7 +269,7 @@ export default function DesktopLoginPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">
             <Monitor className="size-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">HTA Calibr8s</h1>
+          <h1 className="text-2xl font-bold text-slate-900">HTA Calibration</h1>
           <p className="text-sm text-slate-500 mt-1">Desktop Application</p>
         </div>
 
@@ -263,6 +286,20 @@ export default function DesktopLoginPage() {
             <div className="flex items-start gap-2 text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm">
               <AlertTriangle className="size-4 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {setupStatus && (
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-start gap-3">
+                <Loader2 className="mt-0.5 size-5 flex-shrink-0 animate-spin text-blue-700" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">{setupStatus}</p>
+                  <p className="mt-1 text-xs leading-5 text-blue-700">
+                    Keep this window open until the dashboard loads. Closing during this step can leave the offline database partially configured.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -307,7 +344,7 @@ export default function DesktopLoginPage() {
 
                 <Button type="submit" className="w-full h-11" disabled={isLoading || !isOnline}>
                   {isLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
-                  {isLoading ? 'Setting up...' : 'Sign In & Set Up Device'}
+                  {isLoading ? 'Setting up local cache...' : 'Sign In & Set Up Device'}
                 </Button>
               </form>
             </>

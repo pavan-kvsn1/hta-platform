@@ -8,6 +8,7 @@ import { registerDraftHandlers, registerImageHandlers, registerConflictHandlers 
 import { SyncEngine } from './sync-engine'
 import { preCacheReferenceData, getCachedMasterInstruments, getCachedCustomers, getCachedReviewers } from './ref-cache'
 import { vpnProvision, vpnStatus, loadReprovisionToken } from './vpn'
+import { getPrivateApiBase, getProvisionApiBase } from './api-config'
 import { autoUpdater } from 'electron-updater'
 
 // In packaged builds, app.isPackaged is true and resourcesPath points to bundled Next.js.
@@ -15,10 +16,8 @@ import { autoUpdater } from 'electron-updater'
 const IS_DEV = !app.isPackaged
 let APP_URL = 'http://localhost:3000'
 // Lazy getter — HTA_API_URL is set later in startNextServer
-function getApiBase(): string { return process.env.HTA_API_URL || 'http://10.100.0.1' }
-const API_BASE = 'http://10.100.0.1' // Default for early references
+function getApiBase(): string { return getPrivateApiBase() }
 // Public provisioning endpoint — reachable before VPN is up
-const PROVISION_URL = process.env.HTA_PROVISION_URL || 'http://35.200.149.46'
 // Production web app — accessed through VPN after provisioning
 const PRODUCTION_APP_URL = process.env.HTA_PRODUCTION_URL || 'http://10.0.0.17:30081'
 
@@ -31,7 +30,7 @@ async function isApiReachable(timeoutMs = 3000): Promise<boolean> {
   try {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
-    await fetch(`${API_BASE}/`, { signal: controller.signal, method: 'HEAD' })
+    await fetch(`${getApiBase()}/`, { signal: controller.signal, method: 'HEAD' })
     clearTimeout(timer)
     return true
   } catch {
@@ -89,7 +88,7 @@ async function refreshAccessToken(refreshToken: string): Promise<void> {
   try {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 5000)
-    const apiUrl = 'http://10.100.0.1'
+    const apiUrl = getApiBase()
     const res = await fetch(`${apiUrl}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': 'hta-calibration' },
@@ -126,7 +125,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 700,
-    title: 'HTA Calibr8s',
+    title: 'HTA Calibration',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -176,7 +175,9 @@ async function startNextServer(): Promise<void> {
   process.env.AUTH_SECRET = 'RCjgdLq8K5ZYHIG5Fkz3ld3MEKmkgI/u9d+Hl8YnMog='
   process.env.NEXTAUTH_URL = `http://localhost:${port}`
   process.env.HTA_DESKTOP = '1'
-  process.env.HTA_API_URL = process.env.HTA_API_URL || 'http://10.100.0.1'
+  process.env.HTA_API_URL = process.env.HTA_API_URL || getApiBase()
+  process.env.API_URL = process.env.API_URL || getApiBase()
+  process.env.HTA_PROVISION_URL = process.env.HTA_PROVISION_URL || getProvisionApiBase()
   // Prisma needs DATABASE_URL to instantiate without crashing.
   // Desktop doesn't use Prisma directly — auth goes through the remote API.
   process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://localhost:5432/placeholder'
@@ -191,7 +192,7 @@ async function startNextServer(): Promise<void> {
     if (msg.startsWith('Failed to proxy') || msg.startsWith('Error: connect ETIMEDOUT') || msg.includes('ConnectTimeoutError') || msg.startsWith('Error: connect ECONNREFUSED')) {
       const urlMatch = msg.match(/Failed to proxy (\S+)/)
       if (urlMatch) {
-        const path = urlMatch[1].replace('http://10.100.0.1', '')
+        const path = urlMatch[1].replace(getApiBase(), '')
         // Deduplicate: only log each path once per 60s
         if (!_proxyLoggedPaths.has(path)) {
           _proxyLoggedPaths.add(path)
@@ -261,7 +262,7 @@ ipcMain.handle('app:is-api-reachable', async () => {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3000)
     // Any HTTP response (even 404) means VPN + nginx gateway is reachable
-    await fetch('http://10.100.0.1/', { signal: controller.signal })
+    await fetch(`${getApiBase()}/`, { signal: controller.signal })
     clearTimeout(timeout)
     apiReachableCache = { value: true, timestamp: Date.now() }
     return true
@@ -334,7 +335,7 @@ ipcMain.handle('auth:setup', async (_event, password: string, userId: string, re
     // Register device with server if online
     if (net.isOnline()) {
       try {
-        const regResult = await registerDevice(API_BASE, accessToken, deviceId)
+        const regResult = await registerDevice(getApiBase(), accessToken, deviceId)
 
         // Store initial offline codes from registration
         if (regResult.codes?.length) {
@@ -376,20 +377,24 @@ ipcMain.handle('auth:setup', async (_event, password: string, userId: string, re
 ipcMain.handle('auth:unlock', async (_event, password: string, challengeKey: string, responseValue: string) => {
   const result = await unlockWithPasswordAndCode(password, challengeKey, responseValue)
 
-  // Start sync loop and refresh access token on successful full auth
+  // Local auth is sufficient for offline entry. Refresh/sync only when the private API is reachable.
   if (result.success) {
-    // Prefer DPAPI-stored rotated token, fall back to password-decrypted one
     const refreshToken = getLatestRefreshToken() || result.refreshToken
     if (refreshToken) {
       cachedRefreshToken = refreshToken
-      await refreshAccessToken(refreshToken)
-      if (!cachedAccessToken) {
-        return { ...result, needsReauth: true }
-      }
-      const deviceId = getDeviceId()
-      const userId = getUserId()
-      if (deviceId && userId) {
-        startSyncLoop(refreshToken, deviceId, userId)
+
+      if (await isApiReachable()) {
+        await refreshAccessToken(refreshToken)
+        if (!cachedAccessToken) {
+          return { ...result, needsReauth: true }
+        }
+        const deviceId = getDeviceId()
+        const userId = getUserId()
+        if (deviceId && userId) {
+          startSyncLoop(refreshToken, deviceId, userId)
+        }
+      } else {
+        console.log('[auth] API unreachable — allowing offline unlock without token refresh')
       }
     }
   }
@@ -404,14 +409,19 @@ ipcMain.handle('auth:unlock-password-only', async (_event, password: string) => 
     const refreshToken = getLatestRefreshToken() || result.refreshToken
     if (refreshToken) {
       cachedRefreshToken = refreshToken
-      await refreshAccessToken(refreshToken)
-      if (!cachedAccessToken) {
-        return { ...result, needsReauth: true }
-      }
-      const deviceId = getDeviceId()
-      const userId = getUserId()
-      if (deviceId && userId) {
-        startSyncLoop(refreshToken, deviceId, userId)
+
+      if (await isApiReachable()) {
+        await refreshAccessToken(refreshToken)
+        if (!cachedAccessToken) {
+          return { ...result, needsReauth: true }
+        }
+        const deviceId = getDeviceId()
+        const userId = getUserId()
+        if (deviceId && userId) {
+          startSyncLoop(refreshToken, deviceId, userId)
+        }
+      } else {
+        console.log('[auth] API unreachable — allowing offline password unlock without token refresh')
       }
     }
   }
@@ -454,7 +464,7 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
   const db = getDb()
   syncEngine = new SyncEngine(
     db,
-    API_BASE,
+    getApiBase(),
     async () => {
       // Return cached access token, refreshing if needed
       if (cachedAccessToken) return cachedAccessToken
@@ -503,7 +513,7 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
     if (!token) return
 
     const headers = { 'Authorization': `Bearer ${token}`, 'X-Tenant-ID': 'hta-calibration' }
-    const apiUrl = 'http://10.100.0.1'
+    const apiUrl = getApiBase()
 
     // 1. Offline code fetch (retry until success, or when codes table is empty)
     // Always check for new/updated offline codes batch
@@ -738,7 +748,7 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
   if (cachedAccessToken) {
     isApiReachable().then(reachable => {
       if (reachable && cachedAccessToken) {
-        preCacheReferenceData(db, API_BASE, cachedAccessToken, userId, deviceId).catch((err) => {
+        preCacheReferenceData(db, getApiBase(), cachedAccessToken, userId, deviceId).catch((err) => {
           console.error('[ref-cache] Initial cache failed:', err)
         })
       }
@@ -748,7 +758,7 @@ function startSyncLoop(refreshToken: string, deviceId: string, userId: string): 
   // Refresh reference data every 4 hours
   refCacheInterval = setInterval(async () => {
     if (!cachedAccessToken || !await isApiReachable()) return
-    preCacheReferenceData(db, API_BASE, cachedAccessToken, userId, deviceId).catch((err) => {
+    preCacheReferenceData(db, getApiBase(), cachedAccessToken, userId, deviceId).catch((err) => {
       console.error('[ref-cache] Periodic refresh failed:', err)
     })
   }, 4 * 60 * 60 * 1000)
@@ -811,7 +821,7 @@ ipcMain.handle('sync:trigger', async () => {
     const userId = getUserId()
     if (deviceId && userId && cachedAccessToken) {
       const db = getDb()
-      preCacheReferenceData(db, API_BASE, cachedAccessToken, userId, deviceId).catch(() => {})
+      preCacheReferenceData(db, getApiBase(), cachedAccessToken, userId, deviceId).catch(() => {})
     }
 
     return { success: true, result }
@@ -852,7 +862,7 @@ ipcMain.handle('ref:reviewers', async () => {
 // ─── VPN ───────────────────────────────────────────────────────────────────
 
 ipcMain.handle('vpn:provision', async (_event, token: string) => {
-  return vpnProvision(token, PROVISION_URL)
+  return vpnProvision(token, getProvisionApiBase())
 })
 
 ipcMain.handle('vpn:status', async () => {
@@ -882,10 +892,17 @@ app.whenReady().then(async () => {
   mainWindow?.webContents.once('did-finish-load', async () => {
     try {
       const vpnState = await vpnStatus()
+      const authState = await getAuthStatus().catch(() => ({ isSetUp: false, isUnlocked: false }))
+      const hasOfflineAuth = authState.isSetUp
 
       if (!vpnState.configured) {
         // First time — show provisioning screen
-        mainWindow?.loadURL(`${APP_URL}/desktop/vpn-setup`)
+        if (hasOfflineAuth) {
+          console.log('[vpn] VPN not configured, but offline auth exists; loading local login')
+          mainWindow?.loadURL(`${APP_URL}/desktop/login`)
+        } else {
+          mainWindow?.loadURL(`${APP_URL}/desktop/vpn-setup`)
+        }
         return
       }
 
@@ -895,6 +912,12 @@ app.whenReady().then(async () => {
       }
 
       // Tunnel not connected — auto-heal
+      if (hasOfflineAuth && !net.isOnline()) {
+        console.log('[vpn] Network offline; offline auth exists, loading local login')
+        mainWindow?.loadURL(`${APP_URL}/desktop/login`)
+        return
+      }
+
       console.log('[vpn] Tunnel not connected, attempting recovery...')
 
       // Step 1: Retry connection (service might just be starting)
@@ -908,12 +931,18 @@ app.whenReady().then(async () => {
         }
       }
 
+      if (hasOfflineAuth) {
+        console.log('[vpn] VPN unavailable; offline auth exists, loading local login')
+        mainWindow?.loadURL(`${APP_URL}/desktop/login`)
+        return
+      }
+
       // Step 2: Auto-re-provision with stored re-provision token
       const rpToken = loadReprovisionToken()
       if (rpToken) {
         console.log('[vpn] Retries exhausted, attempting re-provision with stored token...')
         try {
-          const result = await vpnProvision(rpToken, PROVISION_URL)
+          const result = await vpnProvision(rpToken, getProvisionApiBase())
           if (result.success) {
             // Wait for gateway sync (5s) + handshake, with retries
             console.log('[vpn] Re-provisioned, waiting for tunnel to connect...')

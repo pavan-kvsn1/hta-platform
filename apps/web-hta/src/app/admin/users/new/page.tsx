@@ -35,6 +35,7 @@ export default function CreateUserPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState<{ email: string } | null>(null)
+  const [inactiveUser, setInactiveUser] = useState<{ id: string; email: string } | null>(null)
   const [admins, setAdmins] = useState<Admin[]>([])
 
   const [formData, setFormData] = useState({
@@ -80,12 +81,34 @@ export default function CreateUserPage() {
       const data = await res.json()
 
       if (!res.ok) {
+        // If user exists but is inactive, offer reactivation
+        if (data.isActive === false && data.userId) {
+          setInactiveUser({ id: data.userId, email: formData.email })
+          return
+        }
         throw new Error(data.error || 'Failed to create user')
       }
 
       setSuccess({ email: formData.email })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create user')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleReactivate = async () => {
+    if (!inactiveUser) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await apiFetch(`/api/admin/users/${inactiveUser.id}/reactivate`, { method: 'PUT' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to reactivate user')
+      setInactiveUser(null)
+      setSuccess({ email: inactiveUser.email })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reactivate user')
     } finally {
       setLoading(false)
     }
@@ -158,6 +181,35 @@ export default function CreateUserPage() {
         {/* Form Card */}
         <div className="bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
           <form onSubmit={handleSubmit} className="p-5 space-y-5">
+            {inactiveUser && (
+              <div className="p-4 bg-[#fffbeb] border border-[#fde68a] rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="size-4 text-[#d97706] shrink-0" />
+                  <p className="text-[13px] font-semibold text-[#92400e]">User exists but is inactive</p>
+                </div>
+                <p className="text-[12px] text-[#92400e] mb-3">
+                  A user with the email <span className="font-semibold">{inactiveUser.email}</span> already exists but is currently deactivated. Would you like to reactivate them and send a new activation email?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleReactivate}
+                    disabled={loading}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-[9px] transition-colors disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 className="size-3 animate-spin" /> : <Mail className="size-3" />}
+                    Reactivate & Send Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInactiveUser(null)}
+                    className="px-3.5 py-1.5 text-[12px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
             {error && (
               <div className="flex items-center gap-2 p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-lg">
                 <AlertCircle className="size-3.5 text-[#dc2626] shrink-0" />

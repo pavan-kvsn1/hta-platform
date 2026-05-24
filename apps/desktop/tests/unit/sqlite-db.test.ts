@@ -172,6 +172,33 @@ describe('openDb', () => {
     expect(keyIdx).toBeLessThan(walIdx)
     expect(walIdx).toBeLessThan(fkIdx)
   })
+
+  it('closes the raw handle and leaves DB locked when PRAGMA journal_mode fails', async () => {
+    mockRawDb.run.mockImplementation((...args: unknown[]) => {
+      const sql = args[0] as string
+      const cb = args[args.length - 1] as Function
+      if (sql === 'PRAGMA journal_mode = WAL') {
+        queueMicrotask(() => cb(new Error('SQLITE_NOTADB: file is not a database')))
+        return
+      }
+      queueMicrotask(() => cb.call({ lastID: 1, changes: 0 }, null))
+    })
+
+    await expect(openDb('testkey')).rejects.toThrow('SQLITE_NOTADB')
+    expect(mockRawDb.close).toHaveBeenCalledTimes(1)
+    expect(() => getDb()).toThrow('Database not unlocked. Call openDb() first.')
+  })
+
+  it('closes the raw handle and leaves DB locked when migrations fail', async () => {
+    mockRawDb.exec.mockImplementation((_sql: string, cb: Function) => {
+      queueMicrotask(() => cb(new Error('SQLITE_NOTADB: file is not a database')))
+    })
+    fsMockFns.existsSync.mockReturnValue(true)
+
+    await expect(openDb('testkey')).rejects.toThrow('SQLITE_NOTADB')
+    expect(mockRawDb.close).toHaveBeenCalledTimes(1)
+    expect(() => getDb()).toThrow('Database not unlocked. Call openDb() first.')
+  })
 })
 
 // ─── openDb (already open) ─────────────────────────────────────────────────

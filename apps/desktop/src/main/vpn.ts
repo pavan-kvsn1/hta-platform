@@ -13,6 +13,7 @@ import fs from 'fs'
 import path from 'path'
 import https from 'https'
 import http from 'http'
+import { getPrivateApiBase } from './api-config'
 
 const execFileAsync = promisify(execFile)
 
@@ -22,6 +23,8 @@ const WG_TOOL = 'C:\\Program Files\\WireGuard\\wg.exe'
 
 const VPN_FLAG_FILE = path.join(app.getPath('userData'), '.vpn-provisioned')
 const REPROVISION_TOKEN_FILE = path.join(app.getPath('userData'), '.reprovision-token')
+const WG_CONF_DIR = path.join(app.getPath('userData'), 'wireguard')
+const WG_CONF_PATH = path.join(WG_CONF_DIR, 'hta-vpn.conf')
 
 /** Load the stored re-provision token (for auto-heal) */
 export function loadReprovisionToken(): string | null {
@@ -36,11 +39,20 @@ export function loadReprovisionToken(): string | null {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-async function generateKeyPair(): Promise<{ privateKey: string; publicKey: string }> {
+function readExistingPrivateKey(): string | null {
+  try {
+    if (!fs.existsSync(WG_CONF_PATH)) return null
+    const match = fs.readFileSync(WG_CONF_PATH, 'utf8').match(/^PrivateKey\s*=\s*(.+)$/m)
+    return match?.[1]?.trim() || null
+  } catch {
+    return null
+  }
+}
+
+async function generateKeyPair(existingPrivateKey?: string | null): Promise<{ privateKey: string; publicKey: string }> {
   const { execSync } = require('child_process')
 
-  // wg genkey outputs the private key on stdout
-  const privateKey = execSync(`"${WG_TOOL}" genkey`, { encoding: 'utf8' }).trim()
+  const privateKey = existingPrivateKey || execSync(`"${WG_TOOL}" genkey`, { encoding: 'utf8' }).trim()
 
   // wg pubkey takes privkey on stdin and outputs pubkey
   const publicKey = execSync(`echo ${privateKey} | "${WG_TOOL}" pubkey`, {
@@ -119,9 +131,11 @@ export async function vpnProvision(
   apiBase: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Generate key pair
-    console.log('[vpn] Generating key pair...')
-    const { privateKey, publicKey } = await generateKeyPair()
+    // 1. Generate or reuse key pair. Reusing prevents server/client drift when
+    // re-provision succeeds but elevated tunnel replacement fails or is cancelled.
+    const existingPrivateKey = readExistingPrivateKey()
+    console.log(existingPrivateKey ? '[vpn] Reusing existing key pair...' : '[vpn] Generating key pair...')
+    const { privateKey, publicKey } = await generateKeyPair(existingPrivateKey)
     console.log('[vpn] Key pair generated. Public key:', publicKey.slice(0, 10) + '...')
 
     // 2. Call provisioning API
@@ -153,11 +167,6 @@ export async function vpnProvision(
       console.log('[vpn] Re-provision token stored')
     }
 
-    // 3. Write hta-vpn.conf to a temp directory
-    const confDir = path.join(app.getPath('temp'), 'hta-vpn')
-    fs.mkdirSync(confDir, { recursive: true })
-    const confPath = path.join(confDir, 'hta-vpn.conf')
-
     const wgConf = buildWgConf({
       privateKey,
       assignedIp: config.assignedIp,
@@ -166,10 +175,13 @@ export async function vpnProvision(
       serverIp: config.serverIp,
     })
 
-    fs.writeFileSync(confPath, wgConf, { mode: 0o600 })
+    // 3. Persist hta-vpn.conf in app data before the elevated install. If UAC
+    // fails, the next repair attempt will reuse the same key the API now trusts.
+    fs.mkdirSync(WG_CONF_DIR, { recursive: true })
+    fs.writeFileSync(WG_CONF_PATH, wgConf, { mode: 0o600 })
 
     // 4. Uninstall existing tunnel (if any) then install fresh via batch script
-    console.log('[vpn] Installing tunnel service from:', confPath)
+    console.log('[vpn] Installing tunnel service from:', WG_CONF_PATH)
     const { execSync: runSync } = require('child_process')
 
     // Write a batch script that does uninstall + install in one elevated session
@@ -178,7 +190,7 @@ export async function vpnProvision(
       '@echo off',
       `"${WG_EXE}" /uninstalltunnelservice hta-vpn 2>nul`,
       'timeout /t 2 /nobreak >nul',
-      `"${WG_EXE}" /installtunnelservice "${confPath}"`,
+      `"${WG_EXE}" /installtunnelservice "${WG_CONF_PATH}"`,
     ].join('\r\n')
     fs.writeFileSync(batPath, batContent)
 
@@ -230,7 +242,7 @@ export async function vpnStatus(): Promise<{ configured: boolean; serviceRunning
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 3000)
-      await fetch('http://10.100.0.1/', { signal: controller.signal })
+      await fetch(`${getPrivateApiBase()}/`, { signal: controller.signal })
       clearTimeout(timeout)
       connected = true
     } catch {

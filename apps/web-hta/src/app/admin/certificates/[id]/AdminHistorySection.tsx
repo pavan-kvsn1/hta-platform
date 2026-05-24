@@ -455,8 +455,16 @@ export function AdminHistorySection({
       })
     }
 
-    // Add feedbacks
+    // Add feedbacks (skip CUSTOMER_REVISION_FORWARDED if we already have the event with structured metadata)
     for (const feedback of feedbacks) {
+      if (feedback.feedbackType === 'CUSTOMER_REVISION_FORWARDED') {
+        const hasEvent = events.some(
+          e => (e.eventType === 'CUSTOMER_REVISION_REQUESTED' || e.eventType === 'CUSTOMER_REVISION_FORWARDED') &&
+               Math.abs(new Date(e.createdAt).getTime() - new Date(feedback.createdAt).getTime()) < 60000
+        )
+        if (hasEvent) continue
+      }
+
       items.push({
         id: `feedback-${feedback.id}`,
         type: 'feedback',

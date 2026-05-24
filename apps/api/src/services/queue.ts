@@ -225,7 +225,7 @@ export async function queuePasswordResetEmail(opts: {
     to: opts.to,
     tenantName: TENANT_NAME(),
     userName: opts.userName,
-    resetUrl: `${APP_URL()}${resetPath}?token=${opts.token}`,
+    resetUrl: `${APP_URL()}${resetPath}/${opts.token}`,
     expiryMinutes: 60,
   })
 }
@@ -240,7 +240,7 @@ export async function queueStaffActivationEmail(opts: {
     to: opts.to,
     tenantName: TENANT_NAME(),
     userName: opts.userName,
-    activationUrl: `${APP_URL()}/activate?token=${opts.token}`,
+    activationUrl: `${APP_URL()}/activate/${opts.token}`,
   })
 }
 

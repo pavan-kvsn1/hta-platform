@@ -13,7 +13,7 @@ data:
   GCS_BUCKET: "hta-certificates-prod"
 
   # Email configuration
-  EMAIL_FROM: "HTA Calibration <noreply@htacalibration.com>"
+  EMAIL_FROM: "HTA Calibration <noreply@hta-calibration.com>"
 
   # Logging level
   LOG_LEVEL: "info"

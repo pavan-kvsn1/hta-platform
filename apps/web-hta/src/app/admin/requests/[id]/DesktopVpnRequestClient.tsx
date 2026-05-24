@@ -135,7 +135,7 @@ export function DesktopVpnRequestClient({ request }: DesktopVpnRequestClientProp
             <div className="bg-[#ecfdf5] rounded-[9px] border border-[#a7f3d0] p-4">
               <p className="text-[12px] text-[#065f46]">
                 Approving this request will generate a one-time provisioning token for the engineer.
-                They will enter this token in the HTA Calibr8s desktop app to configure their encrypted
+                They will enter this token in the HTA Calibration desktop app to configure their encrypted
                 VPN connection to the platform network.
               </p>
             </div>

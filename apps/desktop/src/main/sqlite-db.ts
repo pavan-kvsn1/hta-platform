@@ -91,9 +91,35 @@ export function openDb(encryptionKey: string): Promise<WrappedDb> {
       return
     }
 
+    let settled = false
+    const failOpen = (raw: sqlcipher.Database | null, err: unknown) => {
+      if (settled) return
+      settled = true
+      db = null
+      wrappedDb = null
+
+      if (!raw) {
+        reject(err)
+        return
+      }
+
+      raw.close((closeErr: Error | null) => {
+        if (closeErr) {
+          console.error('[sqlite] Failed to close DB after open error:', closeErr)
+        }
+        reject(err)
+      })
+    }
+
+    const succeedOpen = (opened: WrappedDb) => {
+      if (settled) return
+      settled = true
+      resolve(opened)
+    }
+
     const raw = new sqlcipher.Database(DB_PATH, (err) => {
       if (err) {
-        reject(err)
+        failOpen(null, err)
         return
       }
 
@@ -102,19 +128,29 @@ export function openDb(encryptionKey: string): Promise<WrappedDb> {
       // Set encryption key (PRAGMA key must be the first statement)
       raw.run(`PRAGMA key = "x'${encryptionKey}'"`, (keyErr) => {
         if (keyErr) {
-          reject(keyErr)
+          failOpen(raw, keyErr)
           return
         }
 
         // Enable WAL mode and foreign keys
-        raw.run('PRAGMA journal_mode = WAL', () => {
-          raw.run('PRAGMA foreign_keys = ON', async () => {
+        raw.run('PRAGMA journal_mode = WAL', (journalErr) => {
+          if (journalErr) {
+            failOpen(raw, journalErr)
+            return
+          }
+
+          raw.run('PRAGMA foreign_keys = ON', async (fkErr) => {
+            if (fkErr) {
+              failOpen(raw, fkErr)
+              return
+            }
+
             wrappedDb = wrap(raw)
             try {
               await runMigrations(wrappedDb)
-              resolve(wrappedDb)
+              succeedOpen(wrappedDb)
             } catch (migErr) {
-              reject(migErr)
+              failOpen(raw, migErr)
             }
           })
         })
@@ -139,6 +175,9 @@ export async function closeDb(): Promise<void> {
     await wrappedDb.close()
     db = null
     wrappedDb = null
+  } else if (db) {
+    await wrapClose(db)
+    db = null
   }
 }
 

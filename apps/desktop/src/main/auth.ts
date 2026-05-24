@@ -2,7 +2,7 @@ import crypto from 'crypto'
 import { app, safeStorage } from 'electron'
 import fs from 'fs'
 import path from 'path'
-import { openDb, closeDb, getDb, type WrappedDb } from './sqlite-db'
+import { openDb, closeDb, getDb, dbExists, type WrappedDb } from './sqlite-db'
 import { auditLog } from './audit'
 import { wipeAllLocalData } from './security'
 
@@ -11,6 +11,60 @@ const MAX_ATTEMPTS = 5
 
 // Credentials are stored as DPAPI-encrypted files in userData
 const CRED_DIR = () => path.join(app.getPath('userData'), '.credentials')
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function moveFileWithRetry(source: string, dest: string, required: boolean): Promise<void> {
+  if (!fs.existsSync(source)) return
+
+  let lastErr: unknown
+  for (let attempt = 1; attempt <= 8; attempt += 1) {
+    try {
+      await fs.promises.rename(source, dest)
+      return
+    } catch (err) {
+      lastErr = err
+      await wait(250)
+    }
+  }
+
+  if (required) {
+    throw new Error(`Unable to archive corrupted local database file ${path.basename(source)}. Close all HTA Calibration windows and try signing in again. Cause: ${String(lastErr)}`)
+  }
+
+  console.warn(`[auth] Could not archive optional database sidecar ${source}:`, lastErr)
+}
+
+async function archiveUnreadableOfflineState(reason: string): Promise<void> {
+  const userData = app.getPath('userData')
+  const safeStamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const archiveDir = path.join(userData, 'offline-recovery', safeStamp)
+  fs.mkdirSync(archiveDir, { recursive: true })
+
+  const dbPath = path.join(userData, 'hta-offline.db')
+  for (const suffix of ['', '-wal', '-shm']) {
+    const source = dbPath + suffix
+    await moveFileWithRetry(source, path.join(archiveDir, path.basename(source)), suffix === '')
+  }
+
+  const credDir = CRED_DIR()
+  if (fs.existsSync(credDir)) {
+    try {
+      fs.cpSync(credDir, path.join(archiveDir, '.credentials'), { recursive: true })
+    } catch (err) {
+      console.warn('[auth] Could not copy credentials into offline recovery archive:', err)
+    }
+  }
+
+  fs.writeFileSync(path.join(archiveDir, 'README.txt'), [
+    'HTA Calibration archived this local offline state because the SQLCipher database could not be opened.',
+    `Reason: ${reason}`,
+    'These files were preserved for support/recovery. A fresh local cache can be created by signing in online.',
+    '',
+  ].join('\n'))
+}
 
 // ─── Credential Store (safeStorage / DPAPI) ─────────────────────────────────
 
@@ -95,6 +149,65 @@ export async function setupOfflineAuth(
   refreshToken: string,
   userProfile?: Record<string, unknown>
 ): Promise<{ deviceId: string }> {
+  const existingDeviceId = getCredential('device-id')
+  const existingUserId = getCredential('user-id')
+  const existingSaltB64 = getCredential('salt')
+
+  if (dbExists() && (!existingDeviceId || !existingUserId || !existingSaltB64)) {
+    throw new Error('Offline database exists but local credentials are missing. Reset local offline data before signing in again.')
+  }
+
+  if (dbExists() && existingDeviceId && existingUserId && existingSaltB64) {
+    if (existingUserId !== userId) {
+      throw new Error('This device is already set up for another user. Reset local offline data before signing in as a different user.')
+    }
+
+    const existingSalt = Buffer.from(existingSaltB64, 'base64')
+    const existingKey = deriveKey(password, existingDeviceId, existingUserId, existingSalt)
+
+    let db: WrappedDb
+    try {
+      db = await openDb(existingKey.toString('hex'))
+    } catch (err) {
+      console.error('[auth] Existing offline database could not be opened during online re-auth:', err)
+      await closeDb().catch((closeErr) => {
+        console.error('[auth] Failed to close unreadable offline database before repair:', closeErr)
+      })
+      await archiveUnreadableOfflineState(String(err))
+      return setupOfflineAuth(password, userId, refreshToken, userProfile)
+    }
+
+    const iv = crypto.randomBytes(16)
+    const cipher = crypto.createCipheriv('aes-256-gcm', existingKey, iv)
+    const encrypted = Buffer.concat([cipher.update(refreshToken, 'utf8'), cipher.final()])
+    const authTag = cipher.getAuthTag()
+
+    setCredential('encrypted-token', JSON.stringify({
+      iv: iv.toString('base64'),
+      data: encrypted.toString('base64'),
+      tag: authTag.toString('base64'),
+    }))
+    setCredential('encrypted-token-dpapi', refreshToken)
+    setCredential('auth-attempts', '0')
+
+    if (userProfile) {
+      setCredential('user-profile', JSON.stringify(userProfile))
+    }
+
+    await db.run('INSERT OR REPLACE INTO device_meta (key, value) VALUES (?, ?)', 'device_id', existingDeviceId)
+    await db.run('INSERT OR REPLACE INTO device_meta (key, value) VALUES (?, ?)', 'user_id', existingUserId)
+
+    await auditLog(db, {
+      userId,
+      deviceId: existingDeviceId,
+      action: 'AUTH_SETUP',
+      entityType: 'auth',
+      metadata: { deviceId: existingDeviceId, mode: 'reauth' },
+    })
+
+    return { deviceId: existingDeviceId }
+  }
+
   const deviceId = crypto.randomUUID()
   const salt = crypto.randomBytes(32)
   const key = deriveKey(password, deviceId, userId, salt)
@@ -147,6 +260,7 @@ export interface UnlockResult {
   attemptsRemaining?: number
   codesRemaining?: number
   error?: string
+  needsLocalCacheRepair?: boolean
 }
 
 export async function unlockWithPasswordAndCode(
@@ -201,8 +315,13 @@ export async function unlockWithPasswordAndCode(
   let db: WrappedDb
   try {
     db = await openDb(key.toString('hex'))
-  } catch {
-    return { success: false, error: 'Failed to open database' }
+  } catch (err) {
+    console.error('[auth] unlockWithPasswordAndCode DB open failed:', err)
+    return {
+      success: false,
+      error: 'Local offline database could not be opened. Sign in online to rebuild the local cache.',
+      needsLocalCacheRepair: true,
+    }
   }
 
   // Validate challenge-response: find the specific code by key, then verify hash
@@ -212,18 +331,20 @@ export async function unlockWithPasswordAndCode(
   )
 
   if (!codeRow) {
-    // Challenge key not found — likely stale DPAPI key after DB reset.
-    // Fall through as password-only success (don't block the user).
-    console.warn('[auth] Challenge key not found in DB (stale key?), treating as password-only unlock')
+    // Challenge key not found: fail closed, then prepare a fresh challenge.
+    console.warn('[auth] Challenge key not found in DB')
     await auditLog(db, {
       userId, deviceId,
-      action: 'AUTH_CODE_SKIPPED',
+      action: 'AUTH_CODE_FAILED',
       entityType: 'auth',
       metadata: { reason: 'Challenge key not in DB', challengeKey },
     })
-    setCredential('auth-attempts', '0')
     await prepareNextChallenge()
-    return { success: true, refreshToken, codesRemaining: 0 }
+    return {
+      success: false,
+      error: 'Invalid challenge key',
+      attemptsRemaining: MAX_ATTEMPTS - attempts,
+    }
   }
 
   const responseHash = crypto.createHash('sha256')

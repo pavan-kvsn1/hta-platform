@@ -371,14 +371,17 @@ export function internalRequestsToFeedbacks(
           : 'FIELD_CHANGE_REQUESTED'
 
     let comment = ''
+    const requesterName = req.requestedByName || (
+      req.type === 'SECTION_UNLOCK' ? 'Engineer' : 'Reviewer'
+    )
     if (req.type === 'SECTION_UNLOCK') {
       const sectionLabels = (req.sections || []).map(s => SECTION_LABEL_MAP[s] || s).join(', ')
       comment = `Sections: ${sectionLabels}`
-      if (req.reason) comment += `\nReason: ${req.reason}`
+      if (req.reason) comment += `\n${requesterName}: ${req.reason}`
     } else {
       const fieldLabels = (req.fields || []).map(f => FIELD_LABEL_MAP[f] || f).join(', ')
       comment = `Fields: ${fieldLabels}`
-      if (req.description) comment += `\n${req.description}`
+      if (req.description) comment += `\n${requesterName}: ${req.description}`
     }
 
     if (req.adminNote && req.status !== 'PENDING') {
@@ -393,8 +396,12 @@ export function internalRequestsToFeedbacks(
       revisionNumber: req.revisionNumber ?? currentRevision,
       targetSection: 'requests',
       user: {
-        name: req.requestedByName || 'System',
-        role: req.type === 'SECTION_UNLOCK' ? 'ENGINEER' : 'REVIEWER',
+        name: req.status === 'PENDING'
+          ? req.requestedByName || 'System'
+          : req.reviewedByName || req.requestedByName || 'System',
+        role: req.status === 'PENDING'
+          ? req.type === 'SECTION_UNLOCK' ? 'ENGINEER' : 'REVIEWER'
+          : 'ADMIN',
       },
     }
   })

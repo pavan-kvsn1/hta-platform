@@ -1699,7 +1699,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
   const { to, subject, html, text } = payload
   
   const result = await resend.emails.send({
-    from: process.env.EMAIL_FROM || 'noreply@htacalibration.com',
+    from: process.env.EMAIL_FROM || 'noreply@hta-calibration.com',
     to,
     subject,
     html,
@@ -3064,7 +3064,7 @@ k6 run tests/load/scenarios/spike-test.ts
 k6 run tests/load/scenarios/soak-test.ts
 
 # With custom options
-API_URL=https://api-staging.htacalibration.com \
+API_URL=https://api-staging.hta-calibration.com \
 AUTH_TOKEN=xxx \
 k6 run tests/load/scenarios/api-baseline.ts
 ```
@@ -5525,7 +5525,7 @@ on:
           - soak_test
 
 env:
-  API_URL: https://api-staging.htacalibration.com
+  API_URL: https://api-staging.hta-calibration.com
 
 jobs:
   load-test:
@@ -5593,7 +5593,7 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.RESEND_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "from": "HTA Platform <alerts@htacalibration.com>",
+              "from": "HTA Platform <alerts@hta-calibration.com>",
               "to": ["${{ secrets.ALERT_EMAIL }}"],
               "subject": "⚠️ Load Test Failed - Performance Regression",
               "html": "<h2>Load Test Failed</h2><p>Performance regression detected.</p>"

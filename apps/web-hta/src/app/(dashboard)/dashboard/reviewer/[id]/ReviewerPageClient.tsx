@@ -69,9 +69,11 @@ interface FieldChangeRequest {
   fields: string[]
   description: string
   adminNote: string | null
+  requestedByName: string | null
   reviewedBy: string | null
   reviewedAt: string | null
   createdAt: string
+  revisionNumber?: number
 }
 
 const FIELD_OPTIONS = [
@@ -232,10 +234,55 @@ export function ReviewerPageClient({
   lastSentCustomerInfo,
   tatStartedAt,
   certificateCreatedAt,
-  fieldChangeRequests,
+  fieldChangeRequests: initialFieldChangeRequests,
   sectionUnlockRequests,
 }: ReviewerPageClientProps) {
   const router = useRouter()
+
+  // Track field change requests with live updates
+  const [fieldChangeRequests, setFieldChangeRequests] = useState(initialFieldChangeRequests)
+
+  // Poll for field change request status updates when any are pending
+  useEffect(() => {
+    const hasPending = fieldChangeRequests.some(r => r.status === 'PENDING')
+    if (!hasPending) return
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await apiFetch(`/api/internal-requests?certificateId=${certificate.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          const updated = (data.requests || [])
+            .filter((r: Record<string, unknown>) => r.type === 'FIELD_CHANGE')
+            .map((r: Record<string, unknown>) => {
+              const d = typeof r.data === 'string' ? JSON.parse(r.data as string) : (r.data || {})
+              const reqBy = r.requestedBy as { name?: string } | null
+              const revBy = r.reviewedBy as { name?: string } | null
+              return {
+                id: r.id as string,
+                status: r.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+                fields: d.fields || [],
+                description: d.description || '',
+                adminNote: (r.adminNote as string) || null,
+                requestedByName: reqBy?.name || null,
+                reviewedBy: revBy?.name || null,
+                reviewedAt: (r.reviewedAt as string) || null,
+                createdAt: r.createdAt as string,
+                revisionNumber: d.revisionNumber,
+              }
+            })
+          setFieldChangeRequests(updated)
+
+          // If no more pending, refresh the page to get updated cert data
+          if (!updated.some((r: FieldChangeRequest) => r.status === 'PENDING')) {
+            router.refresh()
+          }
+        }
+      } catch { /* ignore polling errors */ }
+    }, 15_000) // Poll every 15s while pending
+
+    return () => clearInterval(interval)
+  }, [fieldChangeRequests, certificate.id, router])
 
   // Determine back link based on user role
   const backLink = userRole === 'ADMIN' ? '/admin/certificates' : '/dashboard/reviewer'
@@ -764,8 +811,10 @@ export function ReviewerPageClient({
                     fields: r.fields,
                     description: r.description,
                     adminNote: r.adminNote,
+                    requestedByName: r.requestedByName || undefined,
                     reviewedByName: r.reviewedBy,
                     createdAt: r.createdAt,
+                    revisionNumber: r.revisionNumber,
                   })),
                 ]}
               />
@@ -938,7 +987,19 @@ export function ReviewerPageClient({
                 </div>
               )}
 
-              {canReview && !isElectronOffline && (
+              {canReview && !isElectronOffline && hasPendingFieldChange && (
+                <div className="p-2.5 bg-[#fffbeb] border border-[#fde68a] rounded-lg">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Clock className="size-3.5 text-[#d97706]" />
+                    <span className="text-[12px] font-semibold text-[#92400e]">Actions Paused</span>
+                  </div>
+                  <p className="text-[11px] text-[#92400e]">
+                    Waiting for admin response on {fieldChangeRequests.filter(r => r.status === 'PENDING').length} field change request(s). Review actions will be enabled once resolved.
+                  </p>
+                </div>
+              )}
+
+              {canReview && !isElectronOffline && !hasPendingFieldChange && (
                 <div className="space-y-2">
                   <Button
                     onClick={() => setShowApproveModal(true)}
@@ -1184,14 +1245,30 @@ export function ReviewerPageClient({
                         {req.status === 'PENDING' ? 'Pending' : req.status === 'APPROVED' ? 'Applied' : 'Rejected'}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#64748b] line-clamp-2">{req.description}</p>
-                    {req.adminNote && (
-                      <p className="text-[11px] text-[#94a3b8] italic">&ldquo;{req.adminNote}&rdquo;</p>
+                    {req.description && (
+                      <p className="text-[11px] text-[#64748b]">{req.description}</p>
                     )}
-                    <p className="text-[10px] text-[#94a3b8]">
-                      {new Date(req.createdAt).toLocaleDateString()}
-                      {req.reviewedBy && ` · ${req.reviewedBy}`}
-                    </p>
+                    {req.adminNote && (
+                      <div className="flex gap-1.5 items-start">
+                        <span className="text-[10px] font-semibold text-[#94a3b8] flex-shrink-0">Admin:</span>
+                        <p className="text-[11px] text-[#64748b] italic">{req.adminNote}</p>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5 text-[10px] text-[#94a3b8]">
+                      <span>Requested {new Date(req.createdAt).toLocaleDateString()}</span>
+                      {req.reviewedBy && (
+                        <>
+                          <span>&middot;</span>
+                          <span>{req.status === 'APPROVED' ? 'Applied' : 'Reviewed'} by {req.reviewedBy}</span>
+                        </>
+                      )}
+                      {req.reviewedAt && (
+                        <>
+                          <span>&middot;</span>
+                          <span>{new Date(req.reviewedAt).toLocaleDateString()}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 )
               })}

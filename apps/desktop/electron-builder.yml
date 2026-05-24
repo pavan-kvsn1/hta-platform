@@ -1,6 +1,6 @@
 appId: com.htacalibr8s.desktop
-productName: HTA Calibr8s
-copyright: Copyright (c) 2026 HTA Calibr8s
+productName: HTA Calibration
+copyright: Copyright (c) 2026 HTA Calibration
 
 win:
   target: nsis

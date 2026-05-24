@@ -10,7 +10,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { encode } from 'next-auth/jwt'
 import { cookies } from 'next/headers'
 
-const API_BASE = process.env.HTA_API_URL || 'http://localhost:4000'
+function getApiBase(): string {
+  return (process.env.HTA_API_URL || process.env.API_URL || 'http://localhost:4000').replace(/\/+$/, '')
+}
 const SESSION_COOKIE = '__Secure-authjs.session-token'
 const SESSION_MAX_AGE = 4 * 60 * 60 // 4 hours (matches auth config)
 
@@ -28,9 +30,9 @@ export async function POST(request: NextRequest) {
   // Authenticate against the Fastify API
   let apiRes: Response
   try {
-    apiRes = await fetch(`${API_BASE}/api/auth/login`, {
+    apiRes = await fetch(`${getApiBase()}/api/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': 'hta-calibration' },
       body: JSON.stringify({ email, password, userType: 'STAFF' }),
     })
   } catch (err) {

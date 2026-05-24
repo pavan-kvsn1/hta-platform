@@ -273,7 +273,7 @@ module "uploads_bucket" {
     {
       action_type        = "Delete"
       age                = 365
-      num_newer_versions = 3
+      num_newer_versions = 12
     }
   ]
 

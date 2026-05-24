@@ -218,7 +218,7 @@ If rollback fails or issues persist:
 
 Contact channels:
 - Slack: #hta-platform-alerts
-- Email: platform-oncall@htacalibration.com
+- Email: platform-oncall@hta-calibration.com
 
 ## Post-Incident
 

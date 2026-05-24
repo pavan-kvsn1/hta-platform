@@ -15,7 +15,7 @@ process.env.NODE_ENV = 'test'
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 process.env.REDIS_URL = 'redis://localhost:6379'
 process.env.RESEND_API_KEY = 'test-resend-key'
-process.env.EMAIL_FROM = 'HTA Test <test@htacalibration.com>'
+process.env.EMAIL_FROM = 'HTA Test <test@hta-calibration.com>'
 
 // Mock BullMQ
 vi.mock('bullmq', () => ({

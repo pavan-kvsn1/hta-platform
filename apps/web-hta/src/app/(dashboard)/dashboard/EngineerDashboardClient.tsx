@@ -37,6 +37,18 @@ interface CachedCertificate {
   updatedAt: string
 }
 
+interface DesktopDashboardAPI {
+  isOffline?: () => boolean
+  getAccessToken?: () => Promise<string | null>
+  listDrafts?: () => Promise<{ id: string; certificateNumber?: string; customerName?: string; status: string; updatedAt?: string }[]>
+  listCachedCertificates?: (role?: string) => Promise<CachedCertificate[]>
+  getSyncStatus?: () => Promise<{ lastSyncedAt: string | null; engineerCounts: Stats | null }>
+}
+
+function getDesktopDashboardAPI(): DesktopDashboardAPI | undefined {
+  return (window as unknown as { electronAPI?: DesktopDashboardAPI }).electronAPI
+}
+
 export function EngineerDashboardClient() {
   const router = useRouter()
   const [stats, setStats] = useState<Stats | null>(null)
@@ -48,11 +60,7 @@ export function EngineerDashboardClient() {
 
   const loadOfflineData = useCallback(async () => {
     setIsOffline(true)
-    const electronAPI = (window as unknown as { electronAPI?: {
-      listDrafts?: () => Promise<{ id: string; certificateNumber?: string; customerName?: string; status: string; updatedAt?: string }[]>
-      listCachedCertificates?: (role?: string) => Promise<CachedCertificate[]>
-      getSyncStatus?: () => Promise<{ lastSyncedAt: string | null; engineerCounts: Stats | null }>
-    } }).electronAPI
+    const electronAPI = getDesktopDashboardAPI()
 
     if (electronAPI) {
       try {
@@ -87,12 +95,25 @@ export function EngineerDashboardClient() {
         }
       } catch { /* ignore */ }
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const fetchCounts = useCallback(async () => {
+    const electronAPI = getDesktopDashboardAPI()
+
     try {
       setIsLoading(true)
       setFetchError(null)
+
+      if (electronAPI) {
+        await loadOfflineData()
+        setIsLoading(false)
+
+        const hasAccessToken = await electronAPI.getAccessToken?.().catch(() => null)
+        if (electronAPI.isOffline?.() || !hasAccessToken) {
+          return
+        }
+      }
+
       const response = await apiFetch('/api/certificates/engineer/counts')
       if (response.ok) {
         const data = await response.json()
@@ -121,7 +142,7 @@ export function EngineerDashboardClient() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [loadOfflineData])
 
   useEffect(() => {
     fetchCounts()

@@ -57,15 +57,19 @@ export default function ReviewerReviewPage() {
           .filter((r: Record<string, unknown>) => r.type === 'FIELD_CHANGE')
           .map((r: Record<string, unknown>) => {
             const data = typeof r.data === 'string' ? JSON.parse(r.data as string) : (r.data || {})
+            const requestedBy = r.requestedBy as { name?: string } | null
+            const reviewedBy = r.reviewedBy as { name?: string } | null
             return {
               id: r.id,
               status: r.status,
               fields: data.fields || [],
               description: data.description || '',
               adminNote: r.adminNote,
-              reviewedBy: r.reviewedByName || null,
+              requestedByName: requestedBy?.name || null,
+              reviewedBy: reviewedBy?.name || null,
               reviewedAt: r.reviewedAt || null,
               createdAt: r.createdAt,
+              revisionNumber: data.revisionNumber,
             }
           })
 
@@ -73,6 +77,8 @@ export default function ReviewerReviewPage() {
           .filter((r: Record<string, unknown>) => r.type === 'SECTION_UNLOCK')
           .map((r: Record<string, unknown>) => {
             const data = typeof r.data === 'string' ? JSON.parse(r.data as string) : (r.data || {})
+            const requestedBy = r.requestedBy as { name?: string } | null
+            const reviewedBy = r.reviewedBy as { name?: string } | null
             return {
               id: r.id,
               type: 'SECTION_UNLOCK' as const,
@@ -80,8 +86,8 @@ export default function ReviewerReviewPage() {
               sections: data.sections || [],
               reason: data.reason || '',
               adminNote: r.adminNote,
-              requestedByName: r.requestedByName || undefined,
-              reviewedByName: r.reviewedByName || null,
+              requestedByName: requestedBy?.name || undefined,
+              reviewedByName: reviewedBy?.name || null,
               createdAt: r.createdAt,
               revisionNumber: data.revisionNumber,
             }

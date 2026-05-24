@@ -175,6 +175,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/engineer/counts', {
     preHandler: [requireStaff],
   }, async (request) => {
+    const tenantId = request.tenantId
     const userId = request.user!.sub
 
     const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000)
@@ -202,45 +203,47 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       draftOverdue, draftApproaching,
       pendingOverdue, pendingApproaching,
       revisionOverdue, revisionApproaching,
-    ] = await Promise.all([
+    ] = await prisma.$transaction([
       prisma.certificate.count({
-        where: { createdById: userId, status: 'DRAFT' },
+        where: { tenantId, createdById: userId, status: 'DRAFT' },
       }),
       prisma.certificate.count({
         where: {
+          tenantId,
           createdById: userId,
           status: { in: ['PENDING_REVIEW', 'PENDING_CUSTOMER_APPROVAL'] },
         },
       }),
       prisma.certificate.count({
-        where: { createdById: userId, status: 'APPROVED' },
+        where: { tenantId, createdById: userId, status: 'APPROVED' },
       }),
       prisma.certificate.count({
         where: {
+          tenantId,
           createdById: userId,
           status: { in: ['REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED'] },
         },
       }),
       // TAT: Draft
       prisma.certificate.count({
-        where: { createdById: userId, status: 'DRAFT', ...overdueWhere },
+        where: { tenantId, createdById: userId, status: 'DRAFT', ...overdueWhere },
       }),
       prisma.certificate.count({
-        where: { createdById: userId, status: 'DRAFT', ...approachingWhere },
+        where: { tenantId, createdById: userId, status: 'DRAFT', ...approachingWhere },
       }),
       // TAT: Pending (PENDING_REVIEW + PENDING_CUSTOMER_APPROVAL)
       prisma.certificate.count({
-        where: { createdById: userId, status: { in: ['PENDING_REVIEW', 'PENDING_CUSTOMER_APPROVAL'] }, ...overdueWhere },
+        where: { tenantId, createdById: userId, status: { in: ['PENDING_REVIEW', 'PENDING_CUSTOMER_APPROVAL'] }, ...overdueWhere },
       }),
       prisma.certificate.count({
-        where: { createdById: userId, status: { in: ['PENDING_REVIEW', 'PENDING_CUSTOMER_APPROVAL'] }, ...approachingWhere },
+        where: { tenantId, createdById: userId, status: { in: ['PENDING_REVIEW', 'PENDING_CUSTOMER_APPROVAL'] }, ...approachingWhere },
       }),
       // TAT: Revision (REVISION_REQUIRED + CUSTOMER_REVISION_REQUIRED)
       prisma.certificate.count({
-        where: { createdById: userId, status: { in: ['REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED'] }, ...overdueWhere },
+        where: { tenantId, createdById: userId, status: { in: ['REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED'] }, ...overdueWhere },
       }),
       prisma.certificate.count({
-        where: { createdById: userId, status: { in: ['REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED'] }, ...approachingWhere },
+        where: { tenantId, createdById: userId, status: { in: ['REVISION_REQUIRED', 'CUSTOMER_REVISION_REQUIRED'] }, ...approachingWhere },
       }),
     ])
 
@@ -258,6 +261,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/reviewer/counts', {
     preHandler: [requireStaff],
   }, async (request) => {
+    const tenantId = request.tenantId
     const userId = request.user!.sub
 
     const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000)
@@ -284,35 +288,36 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       pendingReview, revisionRequested, approved, total,
       pendingOverdue, pendingApproaching,
       revisionOverdue, revisionApproaching,
-    ] = await Promise.all([
+    ] = await prisma.$transaction([
       prisma.certificate.count({
-        where: { reviewerId: userId, status: 'PENDING_REVIEW' },
+        where: { tenantId, reviewerId: userId, status: 'PENDING_REVIEW' },
       }),
       prisma.certificate.count({
-        where: { reviewerId: userId, status: 'REVISION_REQUIRED' },
+        where: { tenantId, reviewerId: userId, status: 'REVISION_REQUIRED' },
       }),
       prisma.certificate.count({
         where: {
+          tenantId,
           reviewerId: userId,
           status: { in: ['PENDING_CUSTOMER_APPROVAL', 'APPROVED'] },
         },
       }),
       prisma.certificate.count({
-        where: { reviewerId: userId },
+        where: { tenantId, reviewerId: userId },
       }),
       // TAT: Pending Review
       prisma.certificate.count({
-        where: { reviewerId: userId, status: 'PENDING_REVIEW', ...overdueWhere },
+        where: { tenantId, reviewerId: userId, status: 'PENDING_REVIEW', ...overdueWhere },
       }),
       prisma.certificate.count({
-        where: { reviewerId: userId, status: 'PENDING_REVIEW', ...approachingWhere },
+        where: { tenantId, reviewerId: userId, status: 'PENDING_REVIEW', ...approachingWhere },
       }),
       // TAT: Revision Requested
       prisma.certificate.count({
-        where: { reviewerId: userId, status: 'REVISION_REQUIRED', ...overdueWhere },
+        where: { tenantId, reviewerId: userId, status: 'REVISION_REQUIRED', ...overdueWhere },
       }),
       prisma.certificate.count({
-        where: { reviewerId: userId, status: 'REVISION_REQUIRED', ...approachingWhere },
+        where: { tenantId, reviewerId: userId, status: 'REVISION_REQUIRED', ...approachingWhere },
       }),
     ])
 
@@ -2706,13 +2711,14 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     const fieldChangeRequests = allRequests
       .filter(r => (r.type as string) === 'FIELD_CHANGE')
       .map(r => {
-        let data: { fields?: string[]; description?: string } = { fields: [], description: '' }
+        let data: { fields?: string[]; description?: string; revisionNumber?: number } = { fields: [], description: '' }
         try { data = JSON.parse(r.data) } catch { /* ignore */ }
         return {
           id: r.id,
           status: r.status,
           fields: data.fields || [],
           description: data.description || '',
+          revisionNumber: data.revisionNumber || null,
           adminNote: r.adminNote,
           reviewedBy: r.reviewedBy,
           reviewedAt: r.reviewedAt?.toISOString() || null,

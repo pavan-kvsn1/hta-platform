@@ -34,6 +34,17 @@ interface CachedCertificate {
   reviewerName?: string
 }
 
+interface DesktopReviewerDashboardAPI {
+  isOffline?: () => boolean
+  getAccessToken?: () => Promise<string | null>
+  listCachedCertificates?: (role?: string) => Promise<CachedCertificate[]>
+  getSyncStatus?: () => Promise<{ lastSyncedAt: string | null; reviewerCounts: Stats | null }>
+}
+
+function getDesktopReviewerDashboardAPI(): DesktopReviewerDashboardAPI | undefined {
+  return (window as unknown as { electronAPI?: DesktopReviewerDashboardAPI }).electronAPI
+}
+
 export function ReviewerDashboardClient() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -44,10 +55,7 @@ export function ReviewerDashboardClient() {
 
   const loadOfflineData = useCallback(async () => {
     setIsOffline(true)
-    const electronAPI = (window as unknown as { electronAPI?: {
-      listCachedCertificates?: (role?: string) => Promise<CachedCertificate[]>
-      getSyncStatus?: () => Promise<{ lastSyncedAt: string | null; reviewerCounts: Stats | null }>
-    } }).electronAPI
+    const electronAPI = getDesktopReviewerDashboardAPI()
 
     if (electronAPI) {
       try {
@@ -67,9 +75,22 @@ export function ReviewerDashboardClient() {
   }, [])
 
   const fetchCounts = useCallback(async () => {
+    const electronAPI = getDesktopReviewerDashboardAPI()
+
     try {
       setIsLoading(true)
       setFetchError(null)
+
+      if (electronAPI) {
+        await loadOfflineData()
+        setIsLoading(false)
+
+        const hasAccessToken = await electronAPI.getAccessToken?.().catch(() => null)
+        if (electronAPI.isOffline?.() || !hasAccessToken) {
+          return
+        }
+      }
+
       const response = await apiFetch('/api/certificates/reviewer/counts')
       if (response.ok) {
         setStats(await response.json())

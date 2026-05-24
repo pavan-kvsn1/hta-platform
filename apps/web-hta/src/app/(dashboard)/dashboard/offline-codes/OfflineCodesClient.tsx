@@ -295,7 +295,7 @@ export function OfflineCodesClient() {
               </p>
 
               <div className="hidden print:block text-center text-[12px] text-[#64748b] mb-3">
-                HTA Calibr8s — Challenge-Response Card — Valid until:{' '}
+                HTA Calibration — Challenge-Response Card — Valid until:{' '}
                 {status?.expiresAt ? new Date(status.expiresAt).toLocaleDateString() : ''}
               </div>
 

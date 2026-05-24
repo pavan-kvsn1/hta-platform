@@ -11,6 +11,19 @@ const { fsStore, fsMockFns, safeStorageMock } = vi.hoisted(() => {
     writeFileSync: vi.fn((p: string, data: Buffer | string) => {
       fsStore.set(p, data instanceof Buffer ? data : Buffer.from(data))
     }),
+    renameSync: vi.fn((from: string, to: string) => {
+      if (!fsStore.has(from)) throw new Error(`ENOENT: ${from}`)
+      fsStore.set(to, fsStore.get(from)!)
+      fsStore.delete(from)
+    }),
+    promises: {
+      rename: vi.fn(async (from: string, to: string) => {
+        if (!fsStore.has(from)) throw new Error(`ENOENT: ${from}`)
+        fsStore.set(to, fsStore.get(from)!)
+        fsStore.delete(from)
+      }),
+    },
+    cpSync: vi.fn(),
     readFileSync: vi.fn((p: string) => {
       if (!fsStore.has(p)) throw new Error(`ENOENT: ${p}`)
       return fsStore.get(p)!
@@ -62,6 +75,7 @@ vi.mock('../../src/main/sqlite-db', () => ({
   openDb: vi.fn().mockImplementation(async () => mockDb),
   getDb: vi.fn().mockImplementation(() => mockDb),
   closeDb: vi.fn().mockResolvedValue(undefined),
+  dbExists: vi.fn().mockReturnValue(false),
 }))
 
 // ─── Mock audit ────────────────────────────────────���────────────────────────
@@ -83,7 +97,7 @@ import {
   prepareNextChallenge,
   getUserProfile,
 } from '../../src/main/auth'
-import { openDb, getDb } from '../../src/main/sqlite-db'
+import { openDb, getDb, dbExists } from '../../src/main/sqlite-db'
 import { auditLog } from '../../src/main/audit'
 import { wipeAllLocalData } from '../../src/main/security'
 
@@ -96,6 +110,17 @@ beforeEach(() => {
   fsMockFns.writeFileSync.mockImplementation((p: string, data: Buffer | string) => {
     fsStore.set(p, data instanceof Buffer ? data : Buffer.from(data))
   })
+  fsMockFns.renameSync.mockImplementation((from: string, to: string) => {
+    if (!fsStore.has(from)) throw new Error(`ENOENT: ${from}`)
+    fsStore.set(to, fsStore.get(from)!)
+    fsStore.delete(from)
+  })
+  fsMockFns.promises.rename.mockImplementation(async (from: string, to: string) => {
+    if (!fsStore.has(from)) throw new Error(`ENOENT: ${from}`)
+    fsStore.set(to, fsStore.get(from)!)
+    fsStore.delete(from)
+  })
+  fsMockFns.cpSync.mockImplementation(() => undefined)
   fsMockFns.readFileSync.mockImplementation((p: string) => {
     if (!fsStore.has(p)) throw new Error(`ENOENT: ${p}`)
     return fsStore.get(p)!
@@ -114,6 +139,7 @@ beforeEach(() => {
   })
 
   // Restore sqlite-db mocks
+  vi.mocked(dbExists).mockReturnValue(false)
   vi.mocked(openDb).mockImplementation(async () => mockDb as any)
   vi.mocked(getDb).mockImplementation(() => mockDb as any)
   mockDb.run.mockResolvedValue({ lastID: 1, changes: 1 })
@@ -168,6 +194,94 @@ describe('setupOfflineAuth', () => {
       'INSERT OR REPLACE INTO device_meta (key, value) VALUES (?, ?)',
       'user_id',
       'user-42',
+    )
+  })
+
+  it('reuses existing key material when the same user signs in again', async () => {
+    const first = await setupOfflineAuth(
+      'myPassword123',
+      'user-42',
+      'refresh-token-old',
+      { name: 'Old Name' },
+    )
+    const firstDbKey = vi.mocked(openDb).mock.calls[0]?.[0]
+    const getCredentialBuffer = (name: string) => {
+      const key = Array.from(fsStore.keys()).find(k => k.endsWith(`.credentials\\${name}`) || k.endsWith(`.credentials/${name}`))
+      return key ? fsStore.get(key) : undefined
+    }
+    const originalDeviceCredential = getCredentialBuffer('device-id')
+    const originalSaltCredential = getCredentialBuffer('salt')
+
+    vi.mocked(dbExists).mockReturnValue(true)
+    vi.mocked(openDb).mockClear()
+    vi.mocked(auditLog).mockClear()
+    mockDb.run.mockClear()
+
+    const second = await setupOfflineAuth(
+      'myPassword123',
+      'user-42',
+      'refresh-token-new',
+      { name: 'New Name' },
+    )
+
+    expect(second.deviceId).toBe(first.deviceId)
+    expect(openDb).toHaveBeenCalledWith(firstDbKey)
+    expect(getCredentialBuffer('device-id')).toBe(originalDeviceCredential)
+    expect(getCredentialBuffer('salt')).toBe(originalSaltCredential)
+    expect(safeStorageMock.decryptString(getCredentialBuffer('encrypted-token-dpapi') as Buffer))
+      .toBe('refresh-token-new')
+    expect(auditLog).toHaveBeenCalledWith(
+      mockDb,
+      expect.objectContaining({
+        userId: 'user-42',
+        action: 'AUTH_SETUP',
+        metadata: expect.objectContaining({ mode: 'reauth' }),
+      }),
+    )
+  })
+
+  it('blocks online setup for a different user when an offline DB already exists', async () => {
+    await setupOfflineAuth('myPassword123', 'user-42', 'refresh-token-old')
+
+    vi.mocked(dbExists).mockReturnValue(true)
+    vi.mocked(openDb).mockClear()
+
+    await expect(setupOfflineAuth('myPassword123', 'user-99', 'refresh-token-new'))
+      .rejects.toThrow('already set up for another user')
+    expect(openDb).not.toHaveBeenCalled()
+  })
+
+  it('archives unreadable existing DB and rebuilds cache during online sign-in', async () => {
+    await setupOfflineAuth('myPassword123', 'user-42', 'refresh-token-old')
+    const dbPath = '\\mock\\userData\\hta-offline.db'
+    fsStore.set(dbPath, Buffer.from('encrypted-db'))
+
+    vi.mocked(openDb).mockClear()
+    vi.mocked(dbExists)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
+      .mockReturnValue(false)
+    vi.mocked(openDb)
+      .mockRejectedValueOnce(new Error('SQLITE_NOTADB'))
+      .mockResolvedValue(mockDb as any)
+    vi.mocked(auditLog).mockClear()
+
+    const result = await setupOfflineAuth('myPassword123', 'user-42', 'refresh-token-new')
+
+    expect(result.deviceId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    )
+    expect(fsMockFns.promises.rename).toHaveBeenCalledWith(
+      dbPath,
+      expect.stringContaining('offline-recovery'),
+    )
+    expect(openDb).toHaveBeenCalledTimes(2)
+    expect(auditLog).toHaveBeenCalledWith(
+      mockDb,
+      expect.objectContaining({
+        userId: 'user-42',
+        action: 'AUTH_SETUP',
+      }),
     )
   })
 })
@@ -442,7 +556,8 @@ describe('unlockWithPasswordAndCode — DB open failure', () => {
     const result = await unlockWithPasswordAndCode('correct-password', 'B4', 'ABC123')
 
     expect(result.success).toBe(false)
-    expect(result.error).toContain('Failed')
+    expect(result.error).toContain('could not be opened')
+    expect(result.needsLocalCacheRepair).toBe(true)
   })
 })
 

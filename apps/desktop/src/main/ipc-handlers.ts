@@ -4,6 +4,7 @@ import { getDb } from './sqlite-db'
 import { auditLog } from './audit'
 import { saveImageEncrypted, readImageDecrypted, deleteImagesForDraft } from './file-store'
 import { getDeviceId, getUserId } from './auth'
+import { getPrivateApiBase } from './api-config'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -106,6 +107,63 @@ interface ResultInput {
 // All fields now in CreateDraftInput — SaveDraftInput just drops tenantId
 type SaveDraftInput = Omit<CreateDraftInput, 'tenantId'>
 
+async function createOfflineEditDraftFromCache(
+  db: ReturnType<typeof getDb>,
+  draftId: string,
+  userId: string,
+  data: SaveDraftInput,
+): Promise<boolean> {
+  const cached = await db.get<{ id: string }>(
+    'SELECT id FROM cached_certificates WHERE id = ? LIMIT 1',
+    draftId,
+  )
+  if (!cached) return false
+
+  await db.run(
+    `INSERT INTO drafts (
+      id, server_id, tenant_id, engineer_id, status,
+      certificate_number, customer_name, customer_address,
+      customer_contact_name, customer_contact_email, customer_account_id,
+      uuc_description, uuc_make, uuc_model, uuc_serial_number,
+      uuc_instrument_id, uuc_location_name, uuc_machine_name,
+      calibrated_at,
+      date_of_calibration, calibration_due_date, calibration_tenure,
+      due_date_adjustment, due_date_not_applicable,
+      ambient_temperature, relative_humidity,
+      srf_number, srf_date,
+      calibration_status, status_notes,
+      sticker_old_removed, sticker_new_affixed,
+      selected_conclusion_statements, additional_conclusion_statement,
+      engineer_notes, reviewer_id
+    ) VALUES (?, ?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    draftId, draftId, 'hta-calibration', userId,
+    data.certificateNumber || null, data.customerName || null, data.customerAddress || null,
+    data.customerContactName || null, data.customerContactEmail || null, data.customerAccountId || null,
+    data.uucDescription || null, data.uucMake || null, data.uucModel || null, data.uucSerialNumber || null,
+    data.uucInstrumentId || null, data.uucLocationName || null, data.uucMachineName || null,
+    data.calibratedAt || 'LAB',
+    data.dateOfCalibration || null, data.calibrationDueDate || null, data.calibrationTenure ?? 12,
+    data.dueDateAdjustment ?? 0, data.dueDateNotApplicable ? 1 : 0,
+    data.ambientTemperature || null, data.relativeHumidity || null,
+    data.srfNumber || null, data.srfDate || null,
+    data.calibrationStatus ? JSON.stringify(data.calibrationStatus) : null,
+    data.statusNotes || null,
+    data.stickerOldRemoved || null, data.stickerNewAffixed || null,
+    data.selectedConclusionStatements ? JSON.stringify(data.selectedConclusionStatements) : null,
+    data.additionalConclusionStatement || null,
+    data.engineerNotes || null, data.reviewerId || null
+  )
+
+  if (data.parameters?.length) {
+    await insertParameters(db, draftId, data.parameters)
+  }
+  if (data.masterInstruments?.length) {
+    await insertMasterInstruments(db, draftId, data.masterInstruments)
+  }
+
+  return true
+}
+
 interface ImageMeta {
   imageType: string
   originalName?: string
@@ -195,50 +253,10 @@ export function registerDraftHandlers(): void {
       'SELECT id, engineer_id FROM drafts WHERE id = ?', id
     )
 
-    // If not found, this is a server cert being edited offline for the first time.
-    // Create a local draft linked to the server cert with ALL form fields.
+    // Allow first offline edit only when the server cert was cached for this user.
     if (!draft) {
-      await db.run(
-        `INSERT INTO drafts (
-          id, server_id, tenant_id, engineer_id, status,
-          certificate_number, customer_name, customer_address,
-          customer_contact_name, customer_contact_email, customer_account_id,
-          uuc_description, uuc_make, uuc_model, uuc_serial_number,
-          uuc_instrument_id, uuc_location_name, uuc_machine_name,
-          calibrated_at,
-          date_of_calibration, calibration_due_date, calibration_tenure,
-          due_date_adjustment, due_date_not_applicable,
-          ambient_temperature, relative_humidity,
-          srf_number, srf_date,
-          calibration_status, status_notes,
-          sticker_old_removed, sticker_new_affixed,
-          selected_conclusion_statements, additional_conclusion_statement,
-          engineer_notes, reviewer_id
-        ) VALUES (?, ?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        id, id, 'hta-calibration', userId,
-        data.certificateNumber || null, data.customerName || null, data.customerAddress || null,
-        data.customerContactName || null, data.customerContactEmail || null, data.customerAccountId || null,
-        data.uucDescription || null, data.uucMake || null, data.uucModel || null, data.uucSerialNumber || null,
-        data.uucInstrumentId || null, data.uucLocationName || null, data.uucMachineName || null,
-        data.calibratedAt || 'LAB',
-        data.dateOfCalibration || null, data.calibrationDueDate || null, data.calibrationTenure ?? 12,
-        data.dueDateAdjustment ?? 0, data.dueDateNotApplicable ? 1 : 0,
-        data.ambientTemperature || null, data.relativeHumidity || null,
-        data.srfNumber || null, data.srfDate || null,
-        data.calibrationStatus ? JSON.stringify(data.calibrationStatus) : null,
-        data.statusNotes || null,
-        data.stickerOldRemoved || null, data.stickerNewAffixed || null,
-        data.selectedConclusionStatements ? JSON.stringify(data.selectedConclusionStatements) : null,
-        data.additionalConclusionStatement || null,
-        data.engineerNotes || null, data.reviewerId || null
-      )
-
-      if (data.parameters?.length) {
-        await insertParameters(db, id, data.parameters)
-      }
-      if (data.masterInstruments?.length) {
-        await insertMasterInstruments(db, id, data.masterInstruments)
-      }
+      const createdFromCache = await createOfflineEditDraftFromCache(db, id, userId, data)
+      if (!createdFromCache) return { success: false, error: 'Draft not found' }
 
       // Queue for sync — server_id = id means this is an UPDATE to an existing server cert
       await db.run(
@@ -474,7 +492,7 @@ export function registerDraftHandlers(): void {
     _lastApiCheckAt = Date.now()
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3000)
-    fetch('http://10.100.0.1/', { signal: controller.signal })
+    fetch(`${getPrivateApiBase()}/`, { signal: controller.signal })
       .then(() => { clearTimeout(timeout); _lastApiReachable = true })
       .catch(() => { clearTimeout(timeout); _lastApiReachable = false })
   }
@@ -687,10 +705,10 @@ export function registerImageHandlers(): void {
     )
     if (!draft) {
       // Server cert edited offline — create a stub draft so images can be attached
-      await db.run(
-        `INSERT INTO drafts (id, server_id, tenant_id, engineer_id, status) VALUES (?, ?, ?, ?, 'DRAFT')`,
-        draftId, draftId, 'hta-calibration', userId
-      )
+      const createdFromCache = await createOfflineEditDraftFromCache(db, draftId, userId, {})
+      if (!createdFromCache) {
+        return { success: false, error: 'Draft not found or access denied' }
+      }
       draft = { engineer_id: userId }
     }
     if (draft.engineer_id !== userId) {

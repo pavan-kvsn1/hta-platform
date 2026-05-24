@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils'
 import { safeJsonParse } from '@/lib/utils/safe-json'
 import { getConclusionText } from '@/components/pdf/pdf-utils'
 import { CALIBRATION_STATUS_OPTIONS } from '@/components/forms/RemarksSection'
-import { FeedbackTimeline } from '@/components/feedback/shared'
+import { FeedbackTimeline, type InternalRequestItem } from '@/components/feedback/shared'
 import {
   ImageGalleryModal,
   ReadingImagesViewModal,
@@ -144,6 +144,8 @@ export default function CertificateViewPage() {
     section7: true,
     feedback: true,
   })
+
+  const [internalRequests, setInternalRequests] = useState<InternalRequestItem[]>([])
 
   const [customerFeedback, setCustomerFeedback] = useState<{
     notes: string
@@ -302,6 +304,42 @@ export default function CertificateViewPage() {
       fetchCertificate()
     }
   }, [certificateId])
+
+  // Fetch internal requests (field changes + section unlocks)
+  useEffect(() => {
+    if (!certificateId || isLoading) return
+    async function fetchInternalRequests() {
+      try {
+        const res = await apiFetch(`/api/internal-requests?certificateId=${certificateId}`)
+        if (res.ok) {
+          const data = await res.json()
+          const items: InternalRequestItem[] = (data.requests || [])
+            .filter((r: Record<string, unknown>) =>
+              r.type === 'SECTION_UNLOCK' || r.type === 'FIELD_CHANGE'
+            )
+            .map((r: Record<string, unknown>) => {
+              const d = typeof r.data === 'string' ? JSON.parse(r.data as string) : (r.data || {})
+              return {
+                id: r.id as string,
+                type: (r.type as string) === 'SECTION_UNLOCK' ? 'SECTION_UNLOCK' as const : 'FIELD_CHANGE' as const,
+                status: r.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+                sections: d.sections || undefined,
+                reason: d.reason || undefined,
+                fields: d.fields || undefined,
+                description: d.description || undefined,
+                adminNote: (r.adminNote as string) || null,
+                requestedByName: (r.requestedByName as string) || undefined,
+                reviewedByName: (r.reviewedByName as string) || null,
+                createdAt: r.createdAt as string,
+                revisionNumber: d.revisionNumber,
+              }
+            })
+          setInternalRequests(items)
+        }
+      } catch { /* ignore */ }
+    }
+    fetchInternalRequests()
+  }, [certificateId, isLoading])
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }))
@@ -740,7 +778,7 @@ export default function CertificateViewPage() {
               </CollapsibleSection>
 
               {/* Feedback History */}
-              {(feedbacks.length > 0 || customerFeedback) && (
+              {(feedbacks.length > 0 || customerFeedback || internalRequests.length > 0) && (
                 <FeedbackTimeline
                   feedbacks={feedbacks}
                   currentRevision={certificate.currentRevision}
@@ -748,6 +786,7 @@ export default function CertificateViewPage() {
                   groupBySection={true}
                   showRevisionTransition={true}
                   customerFeedback={customerFeedback}
+                  internalRequests={internalRequests}
                 />
               )}
             </div>
@@ -907,4 +946,3 @@ function InfoField({
     </div>
   )
 }
-

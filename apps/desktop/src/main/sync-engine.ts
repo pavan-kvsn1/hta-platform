@@ -284,7 +284,10 @@ export class SyncEngine {
         action: row.action,
         entityType: row.entity_type || undefined,
         entityId: row.entity_id || undefined,
-        metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata as string) : row.metadata) : undefined,
+        metadata: {
+          ...(row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata as string) : row.metadata as Record<string, unknown>) : {}),
+          clientLogId: row.id,
+        },
         occurredAt: row.timestamp || new Date().toISOString(),
       }))
       const res = await fetch(`${this.apiBase}/api/devices/${this.deviceId}/audit-logs`, {

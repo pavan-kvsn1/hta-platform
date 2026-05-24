@@ -314,7 +314,7 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.RESEND_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "from": "HTA Platform <alerts@htacalibration.com>",
+              "from": "HTA Platform <alerts@hta-calibration.com>",
               "to": ["${{ secrets.ALERT_EMAIL }}"],
               "subject": "Rollback Failed - HTA Platform",
               "html": "<h2>Rollback Failed</h2><p>Rollback type: <strong>${{ inputs.rollback_type }}</strong></p><p>Service: <strong>${{ inputs.service }}</strong></p><p><a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">View Run Details</a></p>"

@@ -33,6 +33,12 @@ resource "google_storage_bucket_iam_member" "vm_bucket_admin" {
   member = "serviceAccount:${google_service_account.wireguard_vm.email}"
 }
 
+resource "google_project_iam_member" "vm_compute_viewer" {
+  project = var.project_id
+  role    = "roles/compute.viewer"
+  member  = "serviceAccount:${google_service_account.wireguard_vm.email}"
+}
+
 # API SA needs to read server-public.key and write peers.conf
 resource "google_storage_bucket_iam_member" "api_bucket_admin" {
   bucket = google_storage_bucket.wireguard.name
@@ -112,10 +118,13 @@ resource "google_compute_instance" "wireguard" {
 
   metadata = {
     startup-script = templatefile("${path.module}/startup.sh.tpl", {
-      project_id  = var.project_id
-      bucket_name = local.bucket_name
-      wg_subnet   = var.wg_subnet
-      server_ip   = var.server_ip
+      project_id         = var.project_id
+      bucket_name        = local.bucket_name
+      wg_subnet          = var.wg_subnet
+      server_ip          = var.server_ip
+      gke_nodes_sa_email = var.gke_nodes_sa_email
+      api_node_port      = var.api_node_port
+      web_node_port      = var.web_node_port
     })
   }
 
@@ -133,10 +142,13 @@ resource "google_compute_instance" "wireguard" {
 resource "null_resource" "startup_script_hash" {
   triggers = {
     script_hash = md5(templatefile("${path.module}/startup.sh.tpl", {
-      project_id  = var.project_id
-      bucket_name = local.bucket_name
-      wg_subnet   = var.wg_subnet
-      server_ip   = var.server_ip
+      project_id         = var.project_id
+      bucket_name        = local.bucket_name
+      wg_subnet          = var.wg_subnet
+      server_ip          = var.server_ip
+      gke_nodes_sa_email = var.gke_nodes_sa_email
+      api_node_port      = var.api_node_port
+      web_node_port      = var.web_node_port
     }))
   }
 }
@@ -163,7 +175,7 @@ resource "google_compute_firewall" "wireguard_ingress" {
   description = "Allow WireGuard VPN handshakes from engineer laptops"
 }
 
-# Allow VPN clients (10.100.0.0/24) to reach the API (10.8.3.226:4000)
+# Allow the WireGuard gateway proxy to reach private GKE NodePorts.
 # Traffic arrives masqueraded as the WireGuard VM's internal IP (NAT PostUp rule).
 # GKE nodes have no custom network tags, so we target by GKE node service account.
 resource "google_compute_firewall" "wireguard_to_api" {
@@ -176,13 +188,13 @@ resource "google_compute_firewall" "wireguard_to_api" {
 
   allow {
     protocol = "tcp"
-    ports    = ["4000"]
+    ports    = [tostring(var.api_node_port), tostring(var.web_node_port), "4000"]
   }
 
   source_service_accounts = [google_service_account.wireguard_vm.email]
   target_service_accounts = [var.gke_nodes_sa_email]
 
-  description = "Allow WireGuard gateway to forward traffic to GKE nodes on API port"
+  description = "Allow WireGuard gateway to proxy traffic to private GKE NodePorts"
 }
 
 # Allow SSH to WireGuard VM from internal network only (for debugging)

@@ -30,12 +30,96 @@ const internalRequestRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', {
     preHandler: [requireStaff],
   }, async (request) => {
+    const tenantId = request.tenantId
     const userId = request.user!.sub
+    const userRole = request.user!.role
     const query = request.query as {
       status?: string
+      certificateId?: string
       page?: string
       limit?: string
     }
+
+    if (query.certificateId) {
+      const certificate = await prisma.certificate.findFirst({
+        where: { tenantId, id: query.certificateId },
+        select: { id: true, createdById: true, reviewerId: true },
+      })
+
+      if (!certificate) {
+        return {
+          requests: [],
+          pagination: { page: 1, limit: 0, total: 0, totalPages: 0 },
+          counts: { pending: 0, approved: 0, rejected: 0 },
+        }
+      }
+
+      const isAdmin = userRole === 'ADMIN' || request.user!.isAdmin
+      const canView =
+        isAdmin ||
+        certificate.createdById === userId ||
+        certificate.reviewerId === userId
+
+      if (!canView) {
+        return {
+          requests: [],
+          pagination: { page: 1, limit: 0, total: 0, totalPages: 0 },
+          counts: { pending: 0, approved: 0, rejected: 0 },
+        }
+      }
+
+      const requests = await prisma.internalRequest.findMany({
+        where: { certificateId: query.certificateId },
+        include: {
+          requestedBy: { select: { id: true, name: true } },
+          reviewedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      const filteredRequests = requests.filter((r) =>
+        ['SECTION_UNLOCK', 'FIELD_CHANGE'].includes(r.type as string)
+      )
+
+      const normalized = filteredRequests.map((r) => {
+        let data: Record<string, unknown> = {}
+        try {
+          data = typeof r.data === 'string'
+            ? JSON.parse(r.data as string)
+            : (r.data as Record<string, unknown> || {})
+        } catch {
+          data = {}
+        }
+
+        return {
+          id: r.id,
+          type: r.type,
+          status: r.status,
+          data,
+          adminNote: r.adminNote,
+          requestedByName: r.requestedBy?.name || null,
+          reviewedByName: r.reviewedBy?.name || null,
+          reviewedAt: r.reviewedAt?.toISOString() || null,
+          createdAt: r.createdAt.toISOString(),
+        }
+      })
+
+      return {
+        requests: normalized,
+        pagination: {
+          page: 1,
+          limit: normalized.length,
+          total: normalized.length,
+          totalPages: normalized.length > 0 ? 1 : 0,
+        },
+        counts: {
+          pending: normalized.filter((r) => r.status === 'PENDING').length,
+          approved: normalized.filter((r) => r.status === 'APPROVED').length,
+          rejected: normalized.filter((r) => r.status === 'REJECTED').length,
+        },
+      }
+    }
+
     const status = query.status || 'ALL'
     const page = Math.max(1, parseInt(query.page || '1'))
     const limit = Math.max(1, Math.min(parseInt(query.limit || '15'), 25))
@@ -318,7 +402,7 @@ const internalRequestRoutes: FastifyPluginAsync = async (fastify) => {
     // Build data payload based on type
     const requestData = body.type === 'SECTION_UNLOCK'
       ? JSON.stringify({ sections: body.sections, reason: body.reason, revisionNumber: certificate.currentRevision })
-      : JSON.stringify({ fields: body.fields, description: body.description })
+      : JSON.stringify({ fields: body.fields, description: body.description, revisionNumber: certificate.currentRevision })
 
     // Create the internal request
     // Use raw SQL for FIELD_CHANGE since generated Prisma client doesn't have the enum yet

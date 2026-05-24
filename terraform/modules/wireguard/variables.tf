@@ -61,6 +61,18 @@ variable "gke_nodes_sa_email" {
   type        = string
 }
 
+variable "api_node_port" {
+  description = "NodePort for the private API service"
+  type        = number
+  default     = 30080
+}
+
+variable "web_node_port" {
+  description = "NodePort for the private web service"
+  type        = number
+  default     = 30081
+}
+
 variable "github_actions_sa_email" {
   description = "GitHub Actions service account email — granted write access to desktop-releases bucket (no VPN access needed here)"
   type        = string

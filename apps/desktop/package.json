@@ -2,7 +2,7 @@
   "name": "hta-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "HTA Calibr8s Desktop — Offline calibration certificate drafting",
+  "description": "HTA Calibration Desktop — Offline calibration certificate drafting",
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "tsc && node -e \"const fs=require('fs'),p=require('path');const s='src/migrations',d='dist/migrations';fs.mkdirSync(d,{recursive:true});fs.readdirSync(s).filter(f=>f.endsWith('.sql')).forEach(f=>fs.copyFileSync(p.join(s,f),p.join(d,f)))\" && concurrently -n electron,tsc \"electron .\" \"tsc -w --preserveWatchOutput\"",
@@ -21,7 +21,7 @@
   },
   "build": {
     "appId": "com.htaipl.calibr8s",
-    "productName": "HTA Calibr8s",
+    "productName": "HTA Calibration",
     "directories": {
       "output": "release"
     },

@@ -16,7 +16,24 @@
  */
 
 import pino from 'pino'
-import * as Sentry from '@sentry/node'
+
+// Lazy-load Sentry to avoid pulling @opentelemetry/instrumentation into Next.js bundles
+// (require-in-the-middle breaks Next.js worker threads)
+// Uses eval('require') to prevent webpack from statically resolving the dependency
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _Sentry: any = undefined
+function getSentry(): any {
+  if (_Sentry === undefined) {
+    try {
+      const mod = '@sentry' + '/node'
+      // eslint-disable-next-line @typescript-eslint/no-require-imports, no-eval
+      _Sentry = eval('require')(mod)
+    } catch {
+      _Sentry = null
+    }
+  }
+  return _Sentry
+}
 
 // GCP Cloud Logging severity levels
 const GCP_SEVERITY = {
@@ -46,12 +63,15 @@ export const logger = pino({
   // Include Sentry trace context for log correlation
   mixin() {
     try {
-      const span = Sentry.getActiveSpan()
-      if (span) {
-        const { traceId, spanId } = span.spanContext()
-        return {
-          trace_id: traceId,
-          span_id: spanId,
+      const sentry = getSentry()
+      if (sentry && typeof sentry.getActiveSpan === 'function') {
+        const span = sentry.getActiveSpan() as { spanContext?: () => { traceId: string; spanId: string } } | null
+        if (span?.spanContext) {
+          const { traceId, spanId } = span.spanContext()
+          return {
+            trace_id: traceId,
+            span_id: spanId,
+          }
         }
       }
     } catch {
@@ -103,7 +123,7 @@ export function logError(
 ): void {
   log.error({ err: error, ...context }, error.message)
   try {
-    Sentry.captureException(error, { extra: context })
+    getSentry()?.captureException(error, { extra: context })
   } catch {
     // Sentry not initialized, skip
   }

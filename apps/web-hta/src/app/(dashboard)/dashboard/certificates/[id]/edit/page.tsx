@@ -182,6 +182,7 @@ interface FieldChangeRequest {
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   fields: string[]
   description: string
+  revisionNumber?: number
   adminNote: string | null
   reviewedBy: string | null
   reviewedAt: string | null
@@ -1082,11 +1083,12 @@ export default function EditCertificatePage() {
         const response = await apiFetch(`/api/certificates/${certificateId}/field-change-requests`)
         if (response.ok) {
           const data = await response.json()
-          setFieldChangeRequests((data.requests || []).map((r: { id: string; status: string; fields: string[]; description: string; adminNote: string | null; reviewedBy: { name: string } | null; reviewedAt: string | null; createdAt: string }) => ({
+          setFieldChangeRequests((data.requests || []).map((r: { id: string; status: string; fields: string[]; description: string; revisionNumber?: number; adminNote: string | null; reviewedBy: { name: string } | null; reviewedAt: string | null; createdAt: string }) => ({
             id: r.id,
             status: r.status as 'PENDING' | 'APPROVED' | 'REJECTED',
             fields: r.fields || [],
             description: r.description || '',
+            revisionNumber: r.revisionNumber,
             adminNote: r.adminNote,
             reviewedBy: r.reviewedBy?.name || null,
             reviewedAt: r.reviewedAt,
@@ -1697,6 +1699,7 @@ export default function EditCertificatePage() {
                         adminNote: r.adminNote,
                         reviewedByName: r.reviewedBy,
                         createdAt: r.createdAt,
+                        revisionNumber: r.revisionNumber,
                       })),
                     ]}
                   />

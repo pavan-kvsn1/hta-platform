@@ -11,7 +11,7 @@ import type { EmailJobData } from '../types.js'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM_EMAIL = process.env.EMAIL_FROM || 'HTA Calibration <noreply@htacalibration.com>'
+const FROM_EMAIL = process.env.EMAIL_FROM || 'HTA Calibration <noreply@hta-calibration.com>'
 
 /**
  * Process an email job

@@ -48,8 +48,7 @@ export function useTokenRefresh(options: UseTokenRefreshOptions = {}) {
         if (onRefreshFailure) {
           onRefreshFailure()
         } else {
-          await signOut({ redirect: false })
-          window.location.href = 'https://hta-calibration.com'
+          await signOut({ callbackUrl: '/login' })
         }
         return false
       }
