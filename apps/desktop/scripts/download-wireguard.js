@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Download the WireGuard Windows MSI installer at build time.
+ * Download the WireGuard Windows installer at build time.
  *
  * Fetches from the official WireGuard download server and verifies the
- * SHA-256 checksum before saving to resources/wireguard-amd64.msi.
+ * SHA-256 checksum before saving to resources/wireguard-installer.exe.
  *
  * Usage: node scripts/download-wireguard.js
  *
@@ -25,8 +25,8 @@ const crypto = require('crypto')
 // Pinned version — update this when you want to bump WireGuard
 const PINNED_VERSION = process.env.WG_VERSION || '0.5.3'
 
-// Official download URL (amd64 Windows MSI)
-const MSI_URL = `https://download.wireguard.com/windows-client/wireguard-installer.exe`
+// Official download URL (amd64 Windows installer)
+const INSTALLER_URL = `https://download.wireguard.com/windows-client/wireguard-installer.exe`
 
 // Known-good SHA-256 hashes keyed by version string.
 // Add entries as new versions are pinned.
@@ -35,7 +35,7 @@ const KNOWN_HASHES = {
   '0.5.3': "309ddac63863e9bff362dc93576a1e981af87d2aa1b68ef3b0dbd3b10d965407", // Set to null = skip checksum verification (fetch live hash)
 }
 
-const DEST = path.join(__dirname, '..', 'resources', 'wireguard-amd64.msi')
+const DEST = path.join(__dirname, '..', 'resources', 'wireguard-installer.exe')
 
 // ---------------------------------------------------------------------------
 
@@ -70,7 +70,7 @@ async function fetchToFile(url, dest) {
 
 async function main() {
   console.log(`[download-wireguard] Fetching WireGuard installer (version pin: ${PINNED_VERSION})`)
-  console.log(`[download-wireguard] URL: ${MSI_URL}`)
+  console.log(`[download-wireguard] URL: ${INSTALLER_URL}`)
   console.log(`[download-wireguard] Dest: ${DEST}`)
 
   // Ensure resources dir exists
@@ -82,7 +82,7 @@ async function main() {
     return
   }
 
-  const downloadedHash = await fetchToFile(MSI_URL, DEST)
+  const downloadedHash = await fetchToFile(INSTALLER_URL, DEST)
   console.log(`[download-wireguard] SHA-256: ${downloadedHash}`)
 
   const expectedHash = KNOWN_HASHES[PINNED_VERSION]

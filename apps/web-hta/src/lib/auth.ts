@@ -14,7 +14,8 @@ import { verifyTOTP } from '@hta/shared/auth'
 // CI runs on HTTP, so we need non-secure cookies even in production mode
 const isProduction = process.env.NODE_ENV === 'production'
 const isCI = process.env.CI === 'true'
-const useSecureCookies = isProduction && !isCI
+const isDesktop = process.env.HTA_DESKTOP === '1'
+const useSecureCookies = isProduction && !isCI && !isDesktop
 
 // Cookie configuration based on environment
 const cookieOptions = {

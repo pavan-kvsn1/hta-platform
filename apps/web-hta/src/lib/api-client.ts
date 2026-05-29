@@ -107,11 +107,8 @@ function checkApiReachability(): void {
 
 function isElectronOffline(): boolean {
   if (typeof window === 'undefined') return false
-  const api = (window as unknown as { electronAPI?: { isOffline?: () => boolean } }).electronAPI
+  const api = (window as unknown as { electronAPI?: { isApiReachable?: () => Promise<boolean> } }).electronAPI
   if (!api) return false
-
-  // Check both: no internet OR API unreachable (VPN down)
-  if (api.isOffline?.()) return true
 
   // Trigger async reachability check for next call
   checkApiReachability()

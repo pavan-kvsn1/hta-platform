@@ -17,9 +17,11 @@ vi.mock('next-auth/jwt', () => ({
 }))
 
 const mockCookieSet = vi.fn()
+const mockCookieDelete = vi.fn()
 vi.mock('next/headers', () => ({
   cookies: vi.fn().mockResolvedValue({
     set: mockCookieSet,
+    delete: mockCookieDelete,
   }),
 }))
 
@@ -46,7 +48,7 @@ describe('POST /api/auth/desktop-login', () => {
       encode: vi.fn().mockResolvedValue('mock-jwt-token'),
     }))
     vi.mock('next/headers', () => ({
-      cookies: vi.fn().mockResolvedValue({ set: mockCookieSet }),
+      cookies: vi.fn().mockResolvedValue({ set: mockCookieSet, delete: mockCookieDelete }),
     }))
     // Re-stub fetch after resetModules since it may have been restored
     vi.stubGlobal('fetch', mockFetch)
@@ -54,7 +56,7 @@ describe('POST /api/auth/desktop-login', () => {
     return mod.POST
   }
 
-  it('returns session cookie on valid credentials', async () => {
+  it('returns setup tokens without creating a browser session on valid credentials', async () => {
     const apiUser = {
       sub: 'user-123',
       email: 'engineer@htaipl.com',
@@ -90,18 +92,14 @@ describe('POST /api/auth/desktop-login', () => {
     expect(body.user.id).toBe('user-123')
     expect(body.refreshToken).toBe('refresh-abc')
     expect(body.accessToken).toBe('access-xyz')
-    expect(mockCookieSet).toHaveBeenCalledWith(
-      'authjs.session-token',
-      'mock-jwt-token',
-      expect.objectContaining({ httpOnly: true, path: '/' })
-    )
+    expect(mockCookieSet).not.toHaveBeenCalled()
   })
 
   it('returns 401 on invalid credentials', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 401,
-      json: () => Promise.resolve({ error: 'Invalid credentials' }),
+      text: () => Promise.resolve(JSON.stringify({ error: 'Invalid credentials' })),
     })
 
     const POST = await importRoute()
@@ -145,7 +143,7 @@ describe('POST /api/auth/desktop-session', () => {
       encode: vi.fn().mockResolvedValue('mock-jwt-token'),
     }))
     vi.mock('next/headers', () => ({
-      cookies: vi.fn().mockResolvedValue({ set: mockCookieSet }),
+      cookies: vi.fn().mockResolvedValue({ set: mockCookieSet, delete: mockCookieDelete }),
     }))
     const mod = await import('@/app/api/auth/desktop-session/route')
     return mod.POST

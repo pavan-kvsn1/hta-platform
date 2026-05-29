@@ -105,17 +105,22 @@ try {
       run('cmd /c "rmdir /s /q release\\win-unpacked"', DESKTOP_DIR)
     }
   }
-  // --dir for unpacked, remove --dir for NSIS installer
+  // --dir for unpacked, --installer for NSIS, --msi for MSI-wrapped NSIS.
   const installerMode = process.argv.includes('--installer')
-  if (installerMode) {
-    run('npx electron-builder --win', DESKTOP_DIR)
+  const msiMode = process.argv.includes('--msi')
+  if (msiMode) {
+    run('npx electron-builder --config electron-builder.yml --win nsis msiWrapped', DESKTOP_DIR)
+  } else if (installerMode) {
+    run('npx electron-builder --config electron-builder.yml --win nsis', DESKTOP_DIR)
   } else {
-    run('npx electron-builder --win --dir', DESKTOP_DIR)
+    run('npx electron-builder --config electron-builder.yml --win --dir', DESKTOP_DIR)
   }
 
   console.log('\n=== Build complete! ===')
-  if (installerMode) {
-    console.log(`Installer: ${path.join(DESKTOP_DIR, 'release')}`)
+  if (msiMode) {
+    console.log(`MSI installer: ${path.join(DESKTOP_DIR, 'release')}`)
+  } else if (installerMode) {
+    console.log(`NSIS installer: ${path.join(DESKTOP_DIR, 'release')}`)
   } else {
     console.log(`Output: ${unpackedDir}`)
   }

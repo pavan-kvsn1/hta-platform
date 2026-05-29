@@ -484,22 +484,27 @@ export function registerDraftHandlers(): void {
   })
 
   // ─── sync:get-status ──────────────────────────────────────────────
-  // Cached reachability state (updated by background check, never blocks)
+  // Cached reachability state (updated by the status endpoint itself).
   let _lastApiReachable = false
   let _lastApiCheckAt = 0
-  function updateApiReachable() {
-    if (Date.now() - _lastApiCheckAt < 15000) return // Don't check more than every 15s
+  async function updateApiReachable(): Promise<boolean> {
+    if (Date.now() - _lastApiCheckAt < 15000) return _lastApiReachable // Don't check more than every 15s
     _lastApiCheckAt = Date.now()
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3000)
-    fetch(`${getPrivateApiBase()}/`, { signal: controller.signal })
-      .then(() => { clearTimeout(timeout); _lastApiReachable = true })
-      .catch(() => { clearTimeout(timeout); _lastApiReachable = false })
+    try {
+      await fetch(`${getPrivateApiBase()}/`, { signal: controller.signal })
+      _lastApiReachable = true
+    } catch {
+      _lastApiReachable = false
+    } finally {
+      clearTimeout(timeout)
+    }
+    return _lastApiReachable
   }
 
   ipcMain.handle('sync:get-status', async () => {
-    // Fire non-blocking reachability check for NEXT call
-    updateApiReachable()
+    const online = await updateApiReachable()
 
     try {
       const db = getDb()
@@ -529,7 +534,7 @@ export function registerDraftHandlers(): void {
       }
 
       return {
-        online: _lastApiReachable,
+        online,
         lastSyncedAt: lastSync?.value || null,
         engineerCounts,
         reviewerCounts: revCounts?.value ? JSON.parse(revCounts.value) : null,

@@ -10,12 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { SignJWT } from 'jose'
 import { cookies } from 'next/headers'
 import { prisma, getDefaultTenantId } from '@/lib/prisma'
-import { validateRefreshToken, rotateRefreshToken } from '@/lib/refresh-token'
-
-const REFRESH_TOKEN_CONFIG = {
-  expiresInMs: 7 * 24 * 60 * 60 * 1000, // 7 days
-  accessTokenExpiresInMs: 4 * 60 * 60 * 1000, // 4 hours
-}
+import { REFRESH_TOKEN_CONFIG, validateRefreshToken, rotateRefreshToken } from '@/lib/refresh-token'
 
 const COOKIE_NAME = 'hta-refresh-token'
 

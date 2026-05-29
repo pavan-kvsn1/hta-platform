@@ -12,13 +12,7 @@ import { SignJWT } from 'jose'
 import { prisma, getDefaultTenantId } from '@/lib/prisma'
 import { randomBytes, createHash } from 'crypto'
 import { cookies } from 'next/headers'
-
-// Token configuration (must match Fastify API)
-const REFRESH_TOKEN_CONFIG = {
-  expiresInMs: 7 * 24 * 60 * 60 * 1000, // 7 days
-  accessTokenExpiresInMs: 4 * 60 * 60 * 1000, // 4 hours (matches NextAuth session)
-  tokenBytes: 32,
-}
+import { REFRESH_TOKEN_CONFIG } from '@/lib/refresh-token'
 
 const COOKIE_NAME = 'hta-refresh-token'
 

@@ -9,51 +9,17 @@
     "build": "tsc && node -e \"const fs=require('fs'),p=require('path');const s='src/migrations',d='dist/migrations';fs.mkdirSync(d,{recursive:true});fs.readdirSync(s).filter(f=>f.endsWith('.sql')).forEach(f=>fs.copyFileSync(p.join(s,f),p.join(d,f)))\"",
     "start": "electron .",
     "prepackage": "node scripts/download-wireguard.js && node scripts/copy-standalone.js",
-    "package": "electron-builder --win",
-    "package:dir": "electron-builder --win --dir",
+    "package": "electron-builder --config electron-builder.yml --win",
+    "package:dir": "electron-builder --config electron-builder.yml --win --dir",
+    "package:msi": "electron-builder --config electron-builder.yml --win nsis msiWrapped",
     "build:full": "node scripts/build-full.js",
+    "build:msi": "node scripts/build-full.js --msi",
     "test": "vitest run tests/unit",
     "test:unit": "vitest run tests/unit"
   },
   "dependencies": {
     "@journeyapps/sqlcipher": "^5.3.1",
     "electron-updater": "^6.8.0"
-  },
-  "build": {
-    "appId": "com.htaipl.calibr8s",
-    "productName": "HTA Calibration",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "!dist/migrations/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "dist/migrations",
-        "to": "migrations",
-        "filter": [
-          "**/*.sql"
-        ]
-      }
-    ],
-    "asarUnpack": [
-      "dist/migrations/**/*",
-      "node_modules/@journeyapps/sqlcipher/**/*"
-    ],
-    "afterPack": "./scripts/after-pack.js",
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "resources/icon.ico"
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "deleteAppDataOnUninstall": true
-    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

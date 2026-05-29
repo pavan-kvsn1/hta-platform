@@ -4,6 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 const ALLOWED_INVOKE_CHANNELS = [
   'app:online-status',
   'auth:setup', 'auth:unlock', 'auth:unlock-password-only', 'auth:status', 'auth:get-user-profile', 'auth:logout',
+  'auth:get-reprovision-impact', 'auth:reset-local-setup',
   'draft:create', 'draft:save', 'draft:get', 'draft:list', 'draft:delete',
   'draft:get-conflict', 'draft:resolve-conflict',
   'image:save', 'image:get-path', 'image:list',
@@ -170,12 +171,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('auth:get-user-profile' satisfies InvokeChannel),
   logout: () =>
     ipcRenderer.invoke('auth:logout' satisfies InvokeChannel),
+  getReprovisionImpact: () =>
+    ipcRenderer.invoke('auth:get-reprovision-impact' satisfies InvokeChannel),
+  resetLocalSetup: () =>
+    ipcRenderer.invoke('auth:reset-local-setup' satisfies InvokeChannel),
 
   // ─── Offline Request Bridge ──────────────────────────────────────────
   handleOfflineRequest,
 
   // ─── Connectivity ────────────────────────────────────────────────────
-  isOffline: () => !(globalThis as unknown as { navigator: { onLine: boolean } }).navigator.onLine,
+  // Windows/managed-network NCSI can report navigator.onLine=false while the
+  // VPN/private API is reachable. Offline routing is therefore decided by
+  // async API reachability checks and fetch failures, not this weak OS signal.
+  isOffline: () => false,
   getOnlineStatus: () =>
     ipcRenderer.invoke('app:online-status' satisfies InvokeChannel),
   onConnectivityChange: (cb: (online: boolean) => void) => {

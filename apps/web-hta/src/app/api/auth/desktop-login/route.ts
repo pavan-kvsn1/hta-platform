@@ -2,26 +2,31 @@
  * Desktop Login API Route
  *
  * Only available when HTA_DESKTOP=1 (Electron context).
- * Proxies email/password to the Fastify API, then creates a NextAuth-compatible
- * session cookie so the rest of the app works without a local PostgreSQL database.
+ * Proxies email/password to the Fastify API for first-time desktop setup.
+ * It intentionally does not create a browser session; after the encrypted
+ * local cache is created, the app must pass offline challenge unlock first.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { encode } from 'next-auth/jwt'
-import { cookies } from 'next/headers'
 
 function getApiBase(): string {
   return (process.env.HTA_API_URL || process.env.API_URL || 'http://localhost:4000').replace(/\/+$/, '')
 }
-const SESSION_COOKIE = '__Secure-authjs.session-token'
-const SESSION_MAX_AGE = 4 * 60 * 60 // 4 hours (matches auth config)
+const DESKTOP_LOGIN_TIMEOUT_MS = 10000
 
 export async function POST(request: NextRequest) {
   if (process.env.HTA_DESKTOP !== '1') {
     return NextResponse.json({ error: 'Not available' }, { status: 404 })
   }
 
-  const { email, password } = await request.json()
+  let payload: { email?: string; password?: string }
+  try {
+    payload = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 })
+  }
+
+  const { email, password } = payload
 
   if (!email || !password) {
     return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
@@ -29,62 +34,58 @@ export async function POST(request: NextRequest) {
 
   // Authenticate against the Fastify API
   let apiRes: Response
+  const apiBase = getApiBase()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), DESKTOP_LOGIN_TIMEOUT_MS)
   try {
-    apiRes = await fetch(`${getApiBase()}/api/auth/login`, {
+    apiRes = await fetch(`${apiBase}/api/auth/login`, {
       method: 'POST',
+      signal: controller.signal,
       headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': 'hta-calibration' },
       body: JSON.stringify({ email, password, userType: 'STAFF' }),
     })
   } catch (err) {
+    const message = err instanceof Error && err.name === 'AbortError'
+      ? `API login timed out after ${DESKTOP_LOGIN_TIMEOUT_MS / 1000}s`
+      : 'Cannot reach API server. Please check your connection.'
+
     return NextResponse.json(
-      { error: 'Cannot reach API server. Please check your connection.' },
+      {
+        error: message,
+        diagnostic: {
+          apiBase,
+          cause: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+        },
+      },
       { status: 503 }
     )
+  } finally {
+    clearTimeout(timeout)
   }
 
   if (!apiRes.ok) {
-    const body = await apiRes.json().catch(() => ({}))
+    const rawBody = await apiRes.text().catch(() => '')
+    let body: { error?: string; message?: string } = {}
+    try {
+      body = rawBody ? JSON.parse(rawBody) : {}
+    } catch {
+      body = {}
+    }
     return NextResponse.json(
-      { error: body.error || 'Invalid credentials' },
+      {
+        error: body.error || body.message || 'Invalid credentials',
+        diagnostic: {
+          apiBase,
+          apiStatus: apiRes.status,
+          apiBody: rawBody.slice(0, 300),
+        },
+      },
       { status: apiRes.status }
     )
   }
 
   const data = await apiRes.json()
   const { user, refreshToken, accessToken } = data
-
-  // Create NextAuth-compatible session token
-  const secret = process.env.AUTH_SECRET
-  if (!secret) {
-    return NextResponse.json({ error: 'AUTH_SECRET not configured' }, { status: 500 })
-  }
-
-  const sessionToken = await encode({
-    token: {
-      sub: user.sub,
-      id: user.sub,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      isAdmin: user.isAdmin ?? false,
-      adminType: user.adminType ?? null,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE,
-    },
-    secret,
-    salt: SESSION_COOKIE,
-  })
-
-  // Set the session cookie and clear any stale non-secure cookie
-  const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, sessionToken, {
-    httpOnly: true,
-    secure: true, // Chromium treats localhost as secure context
-    sameSite: 'lax',
-    path: '/',
-    maxAge: SESSION_MAX_AGE,
-  })
-  cookieStore.delete('authjs.session-token')
 
   // Return user data and tokens for Electron PIN setup
   return NextResponse.json({

@@ -1,18 +1,25 @@
-appId: com.htacalibr8s.desktop
+appId: com.htaipl.calibr8s
 productName: HTA Calibration
 copyright: Copyright (c) 2026 HTA Calibration
 
 win:
-  target: nsis
+  target:
+    - nsis
+    - msiWrapped
   icon: ./resources/icon.ico
 
 nsis:
   oneClick: false
   perMachine: true
   allowToChangeInstallationDirectory: false
-  # Install WireGuard MSI silently before the app files are laid down.
+  # Install WireGuard silently before the app files are laid down.
   # WireGuard must be per-machine so the tunnel service can run as SYSTEM.
   include: resources/installer-extras.nsh
+
+msiWrapped:
+  perMachine: true
+  wrappedInstallerArgs: /S
+  warningsAsErrors: false
 
 directories:
   output: release
@@ -21,14 +28,18 @@ afterPack: scripts/after-pack.js
 
 files:
   - dist/**/*
-  - resources/**/*
+  - "!dist/migrations/**/*"
   - "!src"
-  - "!resources/installer-extras.nsh"
-  - "!resources/wireguard-amd64.msi"
+
+extraResources:
+  - from: dist/migrations
+    to: migrations
+    filter:
+      - "**/*.sql"
 
 asarUnpack:
   - dist/migrations/**/*
-  - node_modules/@journeyapps/sqlcipher/lib/binding/**/*.node
+  - node_modules/@journeyapps/sqlcipher/**/*
 
 publish:
   provider: generic

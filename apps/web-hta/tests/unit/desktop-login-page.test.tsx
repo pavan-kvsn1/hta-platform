@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 // ─── Mock electronAPI on window ─────────────────────────────────────────────
 
@@ -42,8 +43,16 @@ const mockElectronAPI = {
   }),
   getUserProfile: vi.fn().mockResolvedValue(null),
   setup: vi.fn().mockResolvedValue({ success: true }),
+  logout: vi.fn().mockResolvedValue({ success: true }),
   unlock: vi.fn().mockResolvedValue({ success: true }),
   unlockPasswordOnly: vi.fn().mockResolvedValue({ success: true }),
+  getReprovisionImpact: vi.fn().mockResolvedValue({
+    unsyncedAuditEntries: 0,
+    affectedCertificates: 0,
+    pendingDrafts: 0,
+    unsyncedImages: 0,
+  }),
+  resetLocalSetup: vi.fn().mockResolvedValue({ success: true }),
 }
 
 beforeEach(() => {
@@ -155,5 +164,131 @@ describe('DesktopLoginPage', () => {
     const submitButton = screen.getByRole('button', { name: /sign in & set up device/i })
     expect(submitButton).toBeEnabled()
     expect(submitButton).toHaveAttribute('type', 'submit')
+  })
+
+  it('first-time setup prepares challenge screen after local cache is created', async () => {
+    const user = userEvent.setup()
+    const getAuthStatus = vi.fn()
+      .mockResolvedValueOnce({ isSetUp: false, isUnlocked: false })
+      .mockResolvedValueOnce({
+        isSetUp: true,
+        isUnlocked: false,
+        needsFullAuth: true,
+        codesRemaining: 20,
+        challengeKey: 'B4',
+      })
+    const setup = vi.fn().mockResolvedValue({ success: true })
+    const logout = vi.fn().mockResolvedValue({ success: true })
+
+    ;(window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = {
+      ...mockElectronAPI,
+      getAuthStatus,
+      setup,
+      logout,
+      getUserProfile: vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 'user-123',
+          email: 'engineer@htaipl.com',
+          name: 'Test Engineer',
+        }),
+    }
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        user: {
+          id: 'user-123',
+          email: 'engineer@htaipl.com',
+          name: 'Test Engineer',
+          role: 'ENGINEER',
+          isAdmin: false,
+          adminType: null,
+          tenantId: 'tenant-1',
+        },
+        refreshToken: 'refresh-token',
+        accessToken: 'access-token',
+      }),
+    }))
+
+    await renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Sign In')).toBeInTheDocument()
+    })
+
+    await user.type(screen.getByLabelText(/email address/i), 'engineer@htaipl.com')
+    await user.type(screen.getByLabelText(/password/i), 'correct-password')
+    await user.click(screen.getByRole('button', { name: /sign in & set up device/i }))
+
+    await waitFor(() => {
+      expect(setup).toHaveBeenCalledWith(
+        'correct-password',
+        'user-123',
+        'refresh-token',
+        'access-token',
+        expect.objectContaining({ email: 'engineer@htaipl.com' })
+      )
+      expect(logout).toHaveBeenCalled()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Unlock Device')).toBeInTheDocument()
+      expect(screen.getAllByText('B4').length).toBeGreaterThan(0)
+      expect(screen.getByLabelText(/code for b4/i)).toBeInTheDocument()
+    })
+    expect(mockReplace).not.toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('warns before reprovisioning an existing desktop setup', async () => {
+    const user = userEvent.setup()
+    const getReprovisionImpact = vi.fn().mockResolvedValue({
+      unsyncedAuditEntries: 7,
+      affectedCertificates: 3,
+      pendingDrafts: 2,
+      unsyncedImages: 4,
+    })
+    const resetLocalSetup = vi.fn().mockResolvedValue({ success: true })
+
+    ;(window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = {
+      ...mockElectronAPI,
+      getAuthStatus: vi.fn()
+        .mockResolvedValueOnce({
+          isSetUp: true,
+          isUnlocked: false,
+          needsFullAuth: false,
+          codesRemaining: 20,
+          challengeKey: undefined,
+        }),
+      getUserProfile: vi.fn().mockResolvedValue({
+        id: 'user-123',
+        email: 'engineer@htaipl.com',
+        name: 'Test Engineer',
+      }),
+      getReprovisionImpact,
+      resetLocalSetup,
+    }
+
+    await renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Welcome Back')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText(/Not Test Engineer/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /reprovision device/i }))
+
+    await waitFor(() => {
+      expect(getReprovisionImpact).toHaveBeenCalled()
+      expect(screen.getByText(/There are 7 audit entries not yet synced, including 3 certificates/i)).toBeInTheDocument()
+      expect(screen.getByText(/2 pending local drafts and 4 unsynced images/i)).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /yes, reprovision/i }))
+
+    await waitFor(() => {
+      expect(resetLocalSetup).toHaveBeenCalled()
+      expect(screen.getByText('Sign In')).toBeInTheDocument()
+    })
   })
 })

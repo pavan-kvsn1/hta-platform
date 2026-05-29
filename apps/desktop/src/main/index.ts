@@ -58,6 +58,13 @@ let cachedAccessToken: string | null = null
 let cachedRefreshToken: string | null = null
 const ACCESS_TOKEN_FILE = path.join(app.getPath('userData'), '.access-token')
 
+type ReprovisionImpact = {
+  unsyncedAuditEntries: number
+  affectedCertificates: number
+  pendingDrafts: number
+  unsyncedImages: number
+}
+
 /** Persist access token to disk via safeStorage (survives restarts) */
 function persistAccessToken(token: string): void {
   try {
@@ -134,9 +141,10 @@ function createWindow() {
     },
   })
 
-  // Prevent navigation to external URLs (only allow localhost Next.js server)
+  // Prevent navigation to external URLs while allowing the packaged Next.js
+  // server's dynamically selected localhost port.
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith('http://localhost:3000')) {
+    if (!url.startsWith(APP_URL)) {
       event.preventDefault()
     }
   })
@@ -146,7 +154,9 @@ function createWindow() {
 
   mainWindow.loadURL(`${APP_URL}/desktop/login`)
 
-  mainWindow.webContents.openDevTools({ mode: 'detach' })
+  if (!app.isPackaged && process.env.HTA_DESKTOP_DEVTOOLS === '1') {
+    mainWindow.webContents.openDevTools({ mode: 'detach' })
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -234,8 +244,8 @@ async function startNextServer(): Promise<void> {
 let lastOnlineState = true
 
 function pollConnectivity() {
-  setInterval(() => {
-    const online = net.isOnline()
+  setInterval(async () => {
+    const online = net.isOnline() || await isApiReachable(1500)
     if (online !== lastOnlineState) {
       lastOnlineState = online
       mainWindow?.webContents.send('app:connectivity-changed', online)
@@ -246,7 +256,7 @@ function pollConnectivity() {
 // ─── IPC Handlers ───────────────────────────────────────────────────────────
 
 // Connectivity
-ipcMain.handle('app:online-status', () => net.isOnline())
+ipcMain.handle('app:online-status', async () => net.isOnline() || await isApiReachable(1500))
 
 // API reachability check (VPN might be down even if internet is up)
 let apiReachableCache: { value: boolean; timestamp: number } = { value: false, timestamp: 0 }
@@ -327,15 +337,20 @@ ipcMain.handle('app:load-production', () => {
 // Auth: first-time setup (called after online login — password used as encryption key)
 ipcMain.handle('auth:setup', async (_event, password: string, userId: string, refreshToken: string, accessToken: string, userProfile?: Record<string, unknown>) => {
   try {
+    console.log('[auth:setup] Starting local setup')
     cachedAccessToken = accessToken
     cachedRefreshToken = refreshToken
     persistAccessToken(accessToken)
+    console.log('[auth:setup] Access token persisted')
     const { deviceId } = await setupOfflineAuth(password, userId, refreshToken, userProfile)
+    console.log('[auth:setup] Offline auth ready:', deviceId)
 
-    // Register device with server if online
-    if (net.isOnline()) {
+    // Register device with server only when the private API is actually reachable.
+    if (await isApiReachable(3000)) {
       try {
+        console.log('[auth:setup] Registering desktop device')
         const regResult = await registerDevice(getApiBase(), accessToken, deviceId)
+        console.log('[auth:setup] Device registration completed')
 
         // Store initial offline codes from registration
         if (regResult.codes?.length) {
@@ -361,11 +376,13 @@ ipcMain.handle('auth:setup', async (_event, password: string, userId: string, re
         setCredential('needs-code-sync', 'true')
       }
     } else {
+      console.log('[auth:setup] Private API not reachable for device registration; will retry later')
       setCredential('needs-code-sync', 'true')
     }
 
     // Start sync loop after initial setup
     startSyncLoop(refreshToken, deviceId, userId)
+    console.log('[auth:setup] Sync loop started')
 
     return { success: true, deviceId }
   } catch (err) {
@@ -443,6 +460,81 @@ ipcMain.handle('auth:logout', async () => {
   stopSyncLoop()
   await closeDb()
   return { success: true }
+})
+
+ipcMain.handle('auth:get-reprovision-impact', async (): Promise<ReprovisionImpact> => {
+  const empty: ReprovisionImpact = {
+    unsyncedAuditEntries: 0,
+    affectedCertificates: 0,
+    pendingDrafts: 0,
+    unsyncedImages: 0,
+  }
+
+  try {
+    const db = getDb()
+    const pendingDrafts = await db.get<{ cnt: number }>(
+      "SELECT COUNT(DISTINCT draft_id) as cnt FROM sync_queue WHERE status IN ('PENDING', 'FAILED') AND retries < max_retries"
+    )
+    const unsyncedImages = await db.get<{ cnt: number }>(
+      'SELECT COUNT(*) as cnt FROM draft_images WHERE synced = 0'
+    )
+    const unsyncedAuditEntries = await db.get<{ cnt: number }>(
+      'SELECT COUNT(*) as cnt FROM audit_log WHERE synced = 0'
+    )
+    const affectedCertificates = await db.get<{ cnt: number }>(
+      `SELECT COUNT(DISTINCT certificate_id) as cnt
+       FROM (
+         SELECT draft_id as certificate_id
+         FROM sync_queue
+         WHERE status IN ('PENDING', 'FAILED') AND retries < max_retries
+         UNION
+         SELECT entity_id as certificate_id
+         FROM audit_log
+         WHERE synced = 0
+           AND entity_id IS NOT NULL
+           AND entity_type IN ('certificate', 'draft')
+         UNION
+         SELECT draft_id as certificate_id
+         FROM draft_images
+         WHERE synced = 0
+         UNION
+         SELECT id as certificate_id
+         FROM drafts
+         WHERE status != 'SYNCED'
+       )
+       WHERE certificate_id IS NOT NULL`
+    )
+
+    return {
+      unsyncedAuditEntries: unsyncedAuditEntries?.cnt ?? 0,
+      affectedCertificates: affectedCertificates?.cnt ?? 0,
+      pendingDrafts: pendingDrafts?.cnt ?? 0,
+      unsyncedImages: unsyncedImages?.cnt ?? 0,
+    }
+  } catch {
+    return empty
+  }
+})
+
+ipcMain.handle('auth:reset-local-setup', async () => {
+  try {
+    stopSyncLoop()
+    cachedAccessToken = null
+    cachedRefreshToken = null
+    cachedAuthToken = null
+    await closeDb().catch(() => undefined)
+    await wipeAllLocalData('User requested desktop reprovision')
+    clearCredentials()
+
+    try {
+      const fs = require('fs') as typeof import('fs')
+      if (fs.existsSync(ACCESS_TOKEN_FILE)) fs.unlinkSync(ACCESS_TOKEN_FILE)
+    } catch { /* ignore */ }
+
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: String(err) }
+  }
 })
 
 // Auth: get stored user profile (for session restoration after PIN unlock)
@@ -932,6 +1024,11 @@ app.whenReady().then(async () => {
       }
 
       if (hasOfflineAuth) {
+        const latestAuthState = await getAuthStatus().catch(() => ({ isSetUp: false, isUnlocked: false }))
+        if (latestAuthState.isUnlocked) {
+          console.log('[vpn] VPN unavailable; offline auth is unlocked, staying in current desktop session')
+          return
+        }
         console.log('[vpn] VPN unavailable; offline auth exists, loading local login')
         mainWindow?.loadURL(`${APP_URL}/desktop/login`)
         return
@@ -971,9 +1068,10 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Auto-updates (production only — skipped in dev and unpacked builds)
+  // Auto-updates are disabled for the demo installer until release publishing
+  // uploads latest.yml and signed artifacts to the configured bucket.
   const updateConfigPath = path.join(process.resourcesPath || '', 'app-update.yml')
-  if (!IS_DEV && require('fs').existsSync(updateConfigPath)) {
+  if (!IS_DEV && process.env.HTA_ENABLE_AUTO_UPDATE === '1' && require('fs').existsSync(updateConfigPath)) {
     autoUpdater.autoDownload = true
     autoUpdater.autoInstallOnAppQuit = true
     autoUpdater.checkForUpdatesAndNotify().catch((err) => {

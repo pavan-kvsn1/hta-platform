@@ -16,9 +16,12 @@ interface ElectronAPI {
   getAuthStatus: () => Promise<{ isSetUp: boolean; isUnlocked: boolean; codesRemaining?: number; needsFullAuth?: boolean; challengeKey?: string }>
   getUserProfile: () => Promise<Record<string, unknown> | null>
   logout: () => Promise<{ success: boolean }>
+  getReprovisionImpact: () => Promise<{ unsyncedAuditEntries: number; affectedCertificates: number; pendingDrafts: number; unsyncedImages: number }>
+  resetLocalSetup: () => Promise<{ success: boolean; error?: string }>
 
   // Connectivity
   getOnlineStatus: () => Promise<boolean>
+  isApiReachable: () => Promise<boolean>
   onConnectivityChange: (cb: (online: boolean) => void) => () => void
 
   // Offline request bridge (used by api-client.ts)

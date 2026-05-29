@@ -26,6 +26,97 @@ const REPROVISION_TOKEN_FILE = path.join(app.getPath('userData'), '.reprovision-
 const WG_CONF_DIR = path.join(app.getPath('userData'), 'wireguard')
 const WG_CONF_PATH = path.join(WG_CONF_DIR, 'hta-vpn.conf')
 
+function psQuote(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`
+}
+
+async function installTunnelServiceElevated(): Promise<void> {
+  const scriptPath = path.join(app.getPath('temp'), 'hta-vpn-install.ps1')
+  const resultPath = path.join(app.getPath('temp'), 'hta-vpn-install-result.json')
+
+  try {
+    if (fs.existsSync(resultPath)) fs.unlinkSync(resultPath)
+  } catch { /* ignore stale result cleanup */ }
+
+  const script = [
+    '$ErrorActionPreference = "Continue"',
+    `$wireguard = ${psQuote(WG_EXE)}`,
+    `$conf = ${psQuote(WG_CONF_PATH)}`,
+    `$result = ${psQuote(resultPath)}`,
+    'function Write-HtaResult([bool]$Success, [string]$Message, [string]$Details) {',
+    '  $json = @{ success = $Success; message = $Message; details = $Details } | ConvertTo-Json -Compress',
+    '  $utf8NoBom = New-Object System.Text.UTF8Encoding($false)',
+    '  [System.IO.File]::WriteAllText($result, $json, $utf8NoBom)',
+    '}',
+    'try {',
+    '  if (-not (Test-Path -LiteralPath $wireguard)) {',
+    '    Write-HtaResult $false "WireGuard executable not found." $wireguard',
+    '    exit 1',
+    '  }',
+    '  if (-not (Test-Path -LiteralPath $conf)) {',
+    '    Write-HtaResult $false "WireGuard configuration file not found." $conf',
+    '    exit 1',
+    '  }',
+    '  & $wireguard /uninstalltunnelservice hta-vpn 2>$null',
+    '  Start-Sleep -Seconds 2',
+    '  $installOutput = (& $wireguard /installtunnelservice $conf 2>&1 | Out-String)',
+    '  $installExit = $LASTEXITCODE',
+    '  $serviceOutput = ""',
+    '  $deadline = (Get-Date).AddSeconds(60)',
+    '  do {',
+    "    $serviceOutput = (sc.exe query 'WireGuardTunnel$hta-vpn' 2>&1 | Out-String)",
+    '    if ($serviceOutput -match "RUNNING") {',
+    '      Write-HtaResult $true "WireGuard tunnel service is running." $serviceOutput',
+    '      exit 0',
+    '    }',
+    '    Start-Sleep -Seconds 2',
+    '  } while ((Get-Date) -lt $deadline)',
+    '  if ($serviceOutput -notmatch "RUNNING") {',
+    '    Write-HtaResult $false "WireGuard tunnel service did not reach RUNNING before timeout." ("installExit=" + $installExit + "`n" + $installOutput + "`n" + $serviceOutput)',
+    '    exit 1',
+    '  }',
+    '} catch {',
+    '  Write-HtaResult $false "WireGuard tunnel installation failed." ($_.Exception.Message)',
+    '  exit 1',
+    '}',
+    '',
+  ].join('\r\n')
+
+  fs.writeFileSync(scriptPath, script)
+
+  const command = [
+    '$argList = @(',
+    "'-NoProfile',",
+    "'-ExecutionPolicy', 'Bypass',",
+    "'-WindowStyle', 'Hidden',",
+    "'-File',",
+    psQuote(scriptPath),
+    ');',
+    "Start-Process -FilePath 'powershell.exe' -ArgumentList $argList -Verb RunAs -WindowStyle Hidden -Wait",
+  ].join(' ')
+
+  await execFileAsync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command], {
+    timeout: 120000,
+  })
+
+  if (!fs.existsSync(resultPath)) {
+    throw new Error('Windows admin approval is required to install the HTA VPN tunnel service.')
+  }
+
+  let result: { success?: boolean; message?: string; details?: string }
+  try {
+    const resultText = fs.readFileSync(resultPath, 'utf8').replace(/^\uFEFF/, '').trim()
+    result = JSON.parse(resultText)
+  } catch (error) {
+    const details = error instanceof Error ? error.message : String(error)
+    throw new Error(`Unable to read WireGuard tunnel installation result. ${details}`)
+  }
+
+  if (!result.success) {
+    throw new Error(`${result.message || 'WireGuard tunnel installation failed'}${result.details ? ` ${result.details}` : ''}`)
+  }
+}
+
 /** Load the stored re-provision token (for auto-heal) */
 export function loadReprovisionToken(): string | null {
   try {
@@ -120,6 +211,25 @@ function makeRequest(
   })
 }
 
+async function confirmProvisioningToken(apiBase: string, token: string, publicKey: string): Promise<void> {
+  if (!/^HTA-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/.test(token)) return
+
+  try {
+    const res = await makeRequest(`${apiBase}/api/vpn/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, publicKey }),
+    })
+
+    if (!res.ok) {
+      const errorMsg = (res.data as { error?: string })?.error || `HTTP ${res.status}`
+      console.warn('[vpn] Token confirmation failed:', errorMsg)
+    }
+  } catch (err) {
+    console.warn('[vpn] Token confirmation request failed:', err)
+  }
+}
+
 // ─── Exported IPC handlers ───────────────────────────────────────────────────
 
 /**
@@ -180,40 +290,33 @@ export async function vpnProvision(
     fs.mkdirSync(WG_CONF_DIR, { recursive: true })
     fs.writeFileSync(WG_CONF_PATH, wgConf, { mode: 0o600 })
 
-    // 4. Uninstall existing tunnel (if any) then install fresh via batch script
+    // 4. Uninstall existing tunnel (if any) then install fresh in an elevated
+    // PowerShell process that writes a result file we can verify.
     console.log('[vpn] Installing tunnel service from:', WG_CONF_PATH)
-    const { execSync: runSync } = require('child_process')
-
-    // Write a batch script that does uninstall + install in one elevated session
-    const batPath = path.join(app.getPath('temp'), 'hta-vpn-install.bat')
-    const batContent = [
-      '@echo off',
-      `"${WG_EXE}" /uninstalltunnelservice hta-vpn 2>nul`,
-      'timeout /t 2 /nobreak >nul',
-      `"${WG_EXE}" /installtunnelservice "${WG_CONF_PATH}"`,
-    ].join('\r\n')
-    fs.writeFileSync(batPath, batContent)
-
-    // Run the batch script elevated (single UAC prompt for both operations)
-    runSync(
-      `powershell -Command "Start-Process -FilePath '${batPath}' -Verb RunAs -Wait"`,
-      { encoding: 'utf8', timeout: 60000 }
-    )
+    await installTunnelServiceElevated()
     console.log('[vpn] Tunnel service install completed')
 
-    // Verify service exists
+    // Verify service exists and is running before marking the device provisioned.
     try {
       const { stdout } = await execFileAsync('sc', ['query', 'WireGuardTunnel$hta-vpn'])
       if (stdout.includes('RUNNING')) {
         console.log('[vpn] Tunnel service verified RUNNING')
       } else {
         console.warn('[vpn] Tunnel service not running after install')
+        throw new Error('WireGuard tunnel service was installed but is not running. Approve the Windows admin prompt and try provisioning again.')
       }
-    } catch {
+    } catch (err) {
       console.error('[vpn] Tunnel service NOT FOUND after install')
+      throw new Error(
+        err instanceof Error && err.message.includes('WireGuard tunnel service')
+          ? err.message
+          : 'WireGuard is installed, but the HTA VPN tunnel service was not created. Approve the Windows admin prompt and try provisioning again.'
+      )
     }
 
     // 6. Persist provisioned flag via Electron safeStorage (DPAPI-backed on Windows)
+    await confirmProvisioningToken(apiBase, token, publicKey)
+
     const flagValue = safeStorage.encryptString('true')
     fs.writeFileSync(VPN_FLAG_FILE, flagValue)
 

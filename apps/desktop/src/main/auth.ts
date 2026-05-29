@@ -196,6 +196,10 @@ export async function setupOfflineAuth(
 
     await db.run('INSERT OR REPLACE INTO device_meta (key, value) VALUES (?, ?)', 'device_id', existingDeviceId)
     await db.run('INSERT OR REPLACE INTO device_meta (key, value) VALUES (?, ?)', 'user_id', existingUserId)
+    await db.run(
+      'INSERT OR REPLACE INTO session_meta (key, value) VALUES (?, ?)',
+      'last_full_auth', new Date().toISOString()
+    )
 
     await auditLog(db, {
       userId,
@@ -240,6 +244,10 @@ export async function setupOfflineAuth(
   // Store device identity in DB
   await db.run('INSERT OR REPLACE INTO device_meta (key, value) VALUES (?, ?)', 'device_id', deviceId)
   await db.run('INSERT OR REPLACE INTO device_meta (key, value) VALUES (?, ?)', 'user_id', userId)
+  await db.run(
+    'INSERT OR REPLACE INTO session_meta (key, value) VALUES (?, ?)',
+    'last_full_auth', new Date().toISOString()
+  )
 
   await auditLog(db, {
     userId,
@@ -532,7 +540,7 @@ export async function prepareNextChallenge(): Promise<void> {
 // ─── Credential Cleanup ────────────────────────────────────────────────────
 
 export function clearCredentials(): void {
-  for (const key of ['device-id', 'user-id', 'salt', 'encrypted-token', 'auth-attempts', 'user-profile', 'next-challenge-key']) {
+  for (const key of ['device-id', 'user-id', 'salt', 'encrypted-token', 'encrypted-token-dpapi', 'auth-attempts', 'user-profile', 'next-challenge-key', 'needs-code-sync']) {
     deleteCredential(key)
   }
   // Remove the credentials directory

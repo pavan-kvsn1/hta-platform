@@ -21,21 +21,34 @@ export async function registerDevice(
   deviceId: string
 ): Promise<RegistrationResult> {
   const appVersion = '0.1.0' // TODO: read from package.json at build time
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 10000)
 
-  const res = await fetch(`${apiBase}/api/devices/register`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'X-Tenant-ID': 'hta-calibration',
-    },
-    body: JSON.stringify({
-      deviceId,
-      deviceName: os.hostname(),
-      platform: process.platform,
-      appVersion,
-    }),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${apiBase}/api/devices/register`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-Tenant-ID': 'hta-calibration',
+      },
+      body: JSON.stringify({
+        deviceId,
+        deviceName: os.hostname(),
+        platform: process.platform,
+        appVersion,
+      }),
+    })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Device registration timed out after 10 seconds')
+    }
+    throw err
+  } finally {
+    clearTimeout(timeout)
+  }
 
   if (!res.ok) {
     const body = await res.text()

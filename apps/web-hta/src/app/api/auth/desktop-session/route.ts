@@ -10,7 +10,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { encode } from 'next-auth/jwt'
 import { cookies } from 'next/headers'
 
-const SESSION_COOKIE = '__Secure-authjs.session-token'
+const USE_SECURE_COOKIE = process.env.NODE_ENV === 'production'
+  && process.env.CI !== 'true'
+  && process.env.HTA_DESKTOP !== '1'
+const SESSION_COOKIE = USE_SECURE_COOKIE ? '__Secure-authjs.session-token' : 'authjs.session-token'
+const STALE_SESSION_COOKIE = USE_SECURE_COOKIE ? 'authjs.session-token' : '__Secure-authjs.session-token'
 const SESSION_MAX_AGE = 4 * 60 * 60 // 4 hours
 
 export async function POST(request: NextRequest) {
@@ -18,7 +22,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not available' }, { status: 404 })
   }
 
-  const { userProfile } = await request.json()
+  let payload: { userProfile?: Record<string, unknown> }
+  try {
+    payload = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 })
+  }
+
+  const { userProfile } = payload
 
   if (!userProfile?.id || !userProfile?.email) {
     return NextResponse.json({ error: 'Valid user profile required' }, { status: 400 })
@@ -48,12 +59,12 @@ export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, sessionToken, {
     httpOnly: true,
-    secure: true,
+    secure: USE_SECURE_COOKIE,
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_MAX_AGE,
   })
-  cookieStore.delete('authjs.session-token')
+  cookieStore.delete(STALE_SESSION_COOKIE)
 
   return NextResponse.json({ success: true })
 }

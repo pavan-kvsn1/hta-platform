@@ -15,6 +15,10 @@ function parseToken(formatted: string): string {
   return formatted.replace(/^HTA-/, '').replace(/-/g, '')
 }
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export default function VpnSetupPage() {
   const [rawInput, setRawInput] = useState('')
   const [provisioning, setProvisioning] = useState(false)
@@ -57,7 +61,16 @@ export default function VpnSetupPage() {
       if (!result.success) {
         setError(result.error || 'Provisioning failed. Please check your token and try again.')
       } else {
-        setDone(true)
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+          if (await window.electronAPI.isApiReachable()) {
+            setDone(true)
+            return
+          }
+          await wait(5000)
+        }
+
+        setError('VPN was configured, but the HTA platform is not reachable yet. Please wait a minute and try again.')
+        return
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred')

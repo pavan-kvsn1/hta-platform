@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useEffect, useCallback, useRef } from 'react'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 
 // Refresh token 2 minutes before access token expires
 const REFRESH_BUFFER_MS = 2 * 60 * 1000 // 2 minutes
 
 // Access token lifetime (should match server config: 15 minutes)
 const ACCESS_TOKEN_LIFETIME_MS = 15 * 60 * 1000 // 15 minutes
+const MIN_VISIBILITY_REFRESH_INTERVAL_MS = 60 * 1000 // 1 minute
 
 interface UseTokenRefreshOptions {
   // Called when token refresh fails (user should be logged out)
@@ -25,6 +26,7 @@ export function useTokenRefresh(options: UseTokenRefreshOptions = {}) {
   const { data: session, status } = useSession()
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isRefreshingRef = useRef(false)
+  const lastRefreshAttemptRef = useRef(0)
 
   const refreshToken = useCallback(async () => {
     // Prevent concurrent refresh attempts
@@ -33,6 +35,7 @@ export function useTokenRefresh(options: UseTokenRefreshOptions = {}) {
     }
 
     isRefreshingRef.current = true
+    lastRefreshAttemptRef.current = Date.now()
 
     try {
       const response = await fetch('/api/auth/refresh', {
@@ -41,14 +44,13 @@ export function useTokenRefresh(options: UseTokenRefreshOptions = {}) {
       })
 
       if (!response.ok) {
-        // Refresh failed - token expired or revoked
+        // Refresh failed. Do not force a NextAuth logout here: the app may still
+        // have a valid Auth.js session cookie, and focus/visibility refreshes can
+        // fail transiently or race across tabs while refresh tokens rotate.
         console.warn('Token refresh failed:', response.status)
 
-        // Sign out the user
         if (onRefreshFailure) {
           onRefreshFailure()
-        } else {
-          await signOut({ callbackUrl: '/login' })
         }
         return false
       }
@@ -77,12 +79,8 @@ export function useTokenRefresh(options: UseTokenRefreshOptions = {}) {
     const refreshIn = ACCESS_TOKEN_LIFETIME_MS - REFRESH_BUFFER_MS
 
     refreshTimeoutRef.current = setTimeout(async () => {
-      const success = await refreshToken()
-
-      // If refresh succeeded, schedule the next refresh
-      if (success) {
-        scheduleRefresh()
-      }
+      await refreshToken()
+      scheduleRefresh()
     }, refreshIn)
 
     console.log(`Token refresh scheduled in ${Math.round(refreshIn / 1000 / 60)} minutes`)
@@ -113,6 +111,9 @@ export function useTokenRefresh(options: UseTokenRefreshOptions = {}) {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        if (Date.now() - lastRefreshAttemptRef.current < MIN_VISIBILITY_REFRESH_INTERVAL_MS) {
+          return
+        }
         // When user returns to the tab, check if we need to refresh
         // This handles cases where the user was away longer than expected
         refreshToken().then((success) => {

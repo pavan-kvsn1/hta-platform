@@ -62,21 +62,15 @@ const vpnRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (user.vpnPeer) {
         // Upsert: update existing peer
-        await prisma.$transaction([
-          prisma.vpnPeer.update({
-            where: { id: user.vpnPeer.id },
-            data: {
-              publicKey: body.publicKey,
-              provisionedAt: new Date(),
-              isActive: true,
-              reprovisionToken,
-            },
-          }),
-          prisma.user.update({
-            where: { id: user.id },
-            data: { vpnProvisioningToken: null, vpnTokenGeneratedAt: null },
-          }),
-        ])
+        await prisma.vpnPeer.update({
+          where: { id: user.vpnPeer.id },
+          data: {
+            publicKey: body.publicKey,
+            provisionedAt: new Date(),
+            isActive: true,
+            reprovisionToken,
+          },
+        })
 
         await syncPeersToGcs()
         const serverPublicKey = await getServerPublicKey()
@@ -93,21 +87,15 @@ const vpnRoutes: FastifyPluginAsync = async (fastify) => {
       // New peer
       const assignedIp = await assignNextVpnIp()
 
-      await prisma.$transaction([
-        prisma.vpnPeer.create({
-          data: {
-            userId: user.id,
-            tenantId: user.tenantId,
-            publicKey: body.publicKey,
-            ipAddress: assignedIp,
-            reprovisionToken,
-          },
-        }),
-        prisma.user.update({
-          where: { id: user.id },
-          data: { vpnProvisioningToken: null, vpnTokenGeneratedAt: null },
-        }),
-      ])
+      await prisma.vpnPeer.create({
+        data: {
+          userId: user.id,
+          tenantId: user.tenantId,
+          publicKey: body.publicKey,
+          ipAddress: assignedIp,
+          reprovisionToken,
+        },
+      })
 
       await syncPeersToGcs()
       const serverPublicKey = await getServerPublicKey()
@@ -158,6 +146,49 @@ const vpnRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     return reply.status(400).send({ error: 'Invalid token format' })
+  })
+
+  // ---------------------------------------------------------------------------
+  // POST /api/vpn/confirm
+  //
+  // Clears an admin-issued one-time provisioning token only after the desktop
+  // has successfully installed and started the local WireGuard tunnel service.
+  // ---------------------------------------------------------------------------
+  fastify.post('/confirm', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const body = request.body as { token?: string; publicKey?: string }
+
+    if (!body.token || !body.publicKey) {
+      return reply.status(400).send({ error: 'token and publicKey are required' })
+    }
+
+    if (!/^HTA-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/.test(body.token)) {
+      return reply.status(400).send({ error: 'Invalid token format' })
+    }
+
+    if (!/^[A-Za-z0-9+/]{43}=$/.test(body.publicKey)) {
+      return reply.status(400).send({ error: 'Invalid WireGuard public key format' })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { vpnProvisioningToken: body.token },
+      select: {
+        id: true,
+        vpnPeer: { select: { publicKey: true, isActive: true } },
+      },
+    })
+
+    if (!user || !user.vpnPeer || user.vpnPeer.publicKey !== body.publicKey || !user.vpnPeer.isActive) {
+      return reply.status(401).send({ error: 'Invalid or expired provisioning token' })
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { vpnProvisioningToken: null, vpnTokenGeneratedAt: null },
+    })
+
+    return { success: true }
   })
 }
 

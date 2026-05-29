@@ -1,24 +1,49 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Monitor, Lock, KeyRound, WifiOff, AlertTriangle } from 'lucide-react'
+import { Loader2, Monitor, Lock, KeyRound, WifiOff, AlertTriangle, Eye, EyeOff } from 'lucide-react'
 
 // ElectronAPI types are declared globally in src/types/electron.d.ts
 
 type AuthView = 'loading' | 'login' | 'unlock' | 'password-only'
 
+type ReprovisionImpact = {
+  unsyncedAuditEntries: number
+  affectedCertificates: number
+  pendingDrafts: number
+  unsyncedImages: number
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms)
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout)
+        resolve(value)
+      },
+      (error) => {
+        window.clearTimeout(timeout)
+        reject(error)
+      }
+    )
+  })
+}
+
 export default function DesktopLoginPage() {
-  const router = useRouter()
   const forceReauth = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('reauth') === 'true'
   const [view, setView] = useState<AuthView>('loading')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
   const [setupStatus, setSetupStatus] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showReprovisionConfirm, setShowReprovisionConfirm] = useState(false)
+  const [reprovisionImpact, setReprovisionImpact] = useState<ReprovisionImpact | null>(null)
+  const [isLoadingReprovisionImpact, setIsLoadingReprovisionImpact] = useState(false)
 
   // Login form state
   const [email, setEmail] = useState('')
@@ -55,7 +80,7 @@ export default function DesktopLoginPage() {
     if (status.isUnlocked) {
       const profile = await api.getUserProfile()
       if (profile) await restoreSession(profile)
-      window.location.href = '/dashboard'
+      window.location.replace('/dashboard')
       return
     }
 
@@ -83,7 +108,7 @@ export default function DesktopLoginPage() {
       }
       setView('login')
     }
-  }, [router])
+  }, [forceReauth])
 
   useEffect(() => {
     checkAuthStatus()
@@ -101,15 +126,71 @@ export default function DesktopLoginPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [setupStatus])
 
-  async function restoreSession(userProfile: Record<string, unknown>) {
+  async function restoreSession(userProfile: Record<string, unknown>, requireSuccess = false) {
     try {
-      await fetch('/api/auth/desktop-session', {
+      const res = await fetch('/api/auth/desktop-session', {
         method: 'POST',
+        credentials: 'same-origin',
+        cache: 'no-store',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userProfile }),
       })
-    } catch {
+      if (!res.ok && requireSuccess) {
+        const body = await res.text().catch(() => '')
+        throw new Error(`Desktop session restore failed (${res.status})${body ? `: ${body.slice(0, 200)}` : ''}`)
+      }
+    } catch (err) {
+      if (requireSuccess) throw err
       // Session restoration is best-effort
+    }
+  }
+
+  async function startReprovisionFlow() {
+    setError(null)
+    setShowReprovisionConfirm(true)
+    setIsLoadingReprovisionImpact(true)
+
+    try {
+      const impact = await window.electronAPI?.getReprovisionImpact()
+      setReprovisionImpact(impact || {
+        unsyncedAuditEntries: 0,
+        affectedCertificates: 0,
+        pendingDrafts: 0,
+        unsyncedImages: 0,
+      })
+    } catch (err) {
+      setError(`Unable to check unsynced local data: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setIsLoadingReprovisionImpact(false)
+    }
+  }
+
+  async function confirmReprovision() {
+    setError(null)
+    setIsLoading(true)
+
+    try {
+      const result = await window.electronAPI?.resetLocalSetup()
+      if (!result?.success) {
+        setError(result?.error || 'Could not reset local setup.')
+        return
+      }
+
+      setShowReprovisionConfirm(false)
+      setReprovisionImpact(null)
+      setUserDisplayName(null)
+      setUserEmail(null)
+      setUnlockPassword('')
+      setResponseValue('')
+      setChallengeKey(undefined)
+      setCodesRemaining(undefined)
+      setShowPassword(false)
+      setView('login')
+      setError('Local setup was reset. Sign in online to set up this device for another user.')
+    } catch (err) {
+      setError(`Could not reset local setup: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -123,22 +204,25 @@ export default function DesktopLoginPage() {
 
     try {
       // 1. Authenticate against API
-      const res = await fetch('/api/auth/desktop-login', {
+      const res = await withTimeout(fetch('/api/auth/desktop-login', {
         method: 'POST',
+        credentials: 'same-origin',
+        cache: 'no-store',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-      })
+      }), 15000, 'API sign-in')
 
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || 'Login failed')
+        const diagnostic = data.diagnostic
+        const diagnosticText = diagnostic
+          ? ` API: ${diagnostic.apiBase || 'unknown'}${diagnostic.apiStatus ? `, status ${diagnostic.apiStatus}` : ''}${diagnostic.apiBody ? `, body ${diagnostic.apiBody}` : ''}${diagnostic.cause ? `, cause ${diagnostic.cause}` : ''}`
+          : ''
+        setError(`${data.error || 'Login failed'}${diagnosticText}`)
         return
       }
 
-      // 2. Set up offline auth (encrypt credentials with password-derived key + register device)
-      setSetupStatus('Creating encrypted local cache. Please do not close the app.')
-      const api = window.electronAPI!
-      const result = await api.setup(password, data.user.id, data.refreshToken, data.accessToken, {
+      const userProfile = {
         id: data.user.id,
         email: data.user.email,
         name: data.user.name,
@@ -146,17 +230,22 @@ export default function DesktopLoginPage() {
         isAdmin: data.user.isAdmin,
         adminType: data.user.adminType,
         tenantId: data.user.tenantId,
-      })
+      }
+
+      // 2. Set up offline auth (encrypt credentials with password-derived key + register device)
+      setSetupStatus('Creating encrypted local cache. Please do not close the app.')
+      const api = window.electronAPI!
+      const result = await withTimeout(api.setup(password, data.user.id, data.refreshToken, data.accessToken, userProfile), 30000, 'Encrypted local cache setup')
 
       if (!result.success) {
         setError(result.error || 'Setup failed')
         return
       }
 
-      setSetupStatus('Finalizing local cache and opening dashboard...')
-
-      // 3. Go to dashboard — full reload so SessionProvider picks up the new cookie
-      window.location.href = '/dashboard'
+      setSetupStatus('Preparing offline challenge...')
+      await withTimeout(api.logout(), 10000, 'Offline challenge preparation')
+      await checkAuthStatus()
+      return
     } catch (err) {
       setError(`Desktop setup failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
@@ -206,7 +295,7 @@ export default function DesktopLoginPage() {
       const profile = await api.getUserProfile()
       if (profile) await restoreSession(profile)
 
-      window.location.href = '/dashboard'
+      window.location.replace('/dashboard')
     } catch (err) {
       setError('Unlock failed: ' + String(err))
     } finally {
@@ -243,7 +332,7 @@ export default function DesktopLoginPage() {
       const profile = await api.getUserProfile()
       if (profile) await restoreSession(profile)
 
-      window.location.href = '/dashboard'
+      window.location.replace('/dashboard')
     } catch (err) {
       setError('Unlock failed: ' + String(err))
     } finally {
@@ -330,16 +419,27 @@ export default function DesktopLoginPage() {
                   <Label htmlFor="password" className="text-xs font-semibold text-slate-600 mb-1.5 block">
                     Password
                   </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    className="h-11"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="h-11 pr-11"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((value) => !value)}
+                      disabled={isLoading}
+                      aria-label={showPassword ? 'Hide typed text' : 'Show typed text'}
+                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-slate-500 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <Button type="submit" className="w-full h-11" disabled={isLoading || !isOnline}>
@@ -387,17 +487,28 @@ export default function DesktopLoginPage() {
                   <Label htmlFor="unlockPassword" className="text-xs font-semibold text-slate-600 mb-1.5 block">
                     Password
                   </Label>
-                  <Input
-                    id="unlockPassword"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={unlockPassword}
-                    onChange={(e) => setUnlockPassword(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    className="h-11"
-                    autoFocus
-                  />
+                  <div className="relative">
+                    <Input
+                      id="unlockPassword"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
+                      value={unlockPassword}
+                      onChange={(e) => setUnlockPassword(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="h-11 pr-11"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((value) => !value)}
+                      disabled={isLoading}
+                      aria-label={showPassword ? 'Hide typed text' : 'Show typed text'}
+                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-slate-500 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mb-6">
@@ -426,6 +537,20 @@ export default function DesktopLoginPage() {
                   {isLoading ? 'Unlocking...' : 'Unlock'}
                 </Button>
               </form>
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <p className="text-xs text-slate-500">
+                  Not {userDisplayName || userEmail || 'this user'}? You can reprovision this setup with a different user.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3 w-full"
+                  disabled={isLoading}
+                  onClick={startReprovisionFlow}
+                >
+                  Reprovision Device
+                </Button>
+              </div>
             </>
           )}
 
@@ -453,17 +578,28 @@ export default function DesktopLoginPage() {
                   <Label htmlFor="reentryPassword" className="text-xs font-semibold text-slate-600 mb-1.5 block">
                     Password
                   </Label>
-                  <Input
-                    id="reentryPassword"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={unlockPassword}
-                    onChange={(e) => setUnlockPassword(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    className="h-11"
-                    autoFocus
-                  />
+                  <div className="relative">
+                    <Input
+                      id="reentryPassword"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
+                      value={unlockPassword}
+                      onChange={(e) => setUnlockPassword(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="h-11 pr-11"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((value) => !value)}
+                      disabled={isLoading}
+                      aria-label={showPassword ? 'Hide typed text' : 'Show typed text'}
+                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-slate-500 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <Button type="submit" className="w-full h-11" disabled={isLoading || unlockPassword.length < 1}>
@@ -471,7 +607,63 @@ export default function DesktopLoginPage() {
                   {isLoading ? 'Unlocking...' : 'Unlock'}
                 </Button>
               </form>
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <p className="text-xs text-slate-500">
+                  Not {userDisplayName || userEmail || 'this user'}? You can reprovision this setup with a different user.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3 w-full"
+                  disabled={isLoading}
+                  onClick={startReprovisionFlow}
+                >
+                  Reprovision Device
+                </Button>
+              </div>
             </>
+          )}
+
+          {showReprovisionConfirm && (view === 'unlock' || view === 'password-only') && (
+            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 size-5 flex-shrink-0 text-red-700" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-red-900">Reprovision this device?</p>
+                  {isLoadingReprovisionImpact ? (
+                    <p className="mt-2 text-sm text-red-800">Checking unsynced local data...</p>
+                  ) : (
+                    <p className="mt-2 text-sm leading-5 text-red-800">
+                      There are {reprovisionImpact?.unsyncedAuditEntries ?? 0} audit entries not yet synced, including {reprovisionImpact?.affectedCertificates ?? 0} certificates. This will also remove {reprovisionImpact?.pendingDrafts ?? 0} pending local drafts and {reprovisionImpact?.unsyncedImages ?? 0} unsynced images from this device.
+                    </p>
+                  )}
+                  <p className="mt-2 text-sm font-medium text-red-900">
+                    Are you sure you want to reprovision this setup? Local offline data will be lost.
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="flex-1"
+                      disabled={isLoading || isLoadingReprovisionImpact}
+                      onClick={confirmReprovision}
+                    >
+                      {isLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+                      Yes, Reprovision
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      disabled={isLoading}
+                      onClick={() => setShowReprovisionConfirm(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 

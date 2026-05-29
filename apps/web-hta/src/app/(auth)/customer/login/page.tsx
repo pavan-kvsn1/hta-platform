@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { tenantConfig } from '@/config/tenant'
 
 function CustomerLoginForm() {
@@ -20,6 +20,7 @@ function CustomerLoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
   const [csrfToken, setCsrfToken] = useState<string | undefined>()
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     getCsrfToken().then(setCsrfToken)
@@ -103,16 +104,27 @@ function CustomerLoginForm() {
               Forgot password?
             </a>
           </div>
-          <Input
-            id="password"
-            type="password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            disabled={isLoading}
-            className="h-11 rounded-[10px] border-border px-3.5 text-sm"
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={isLoading}
+              className="h-11 rounded-[10px] border-border px-3.5 pr-11 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              disabled={isLoading}
+              aria-label={showPassword ? 'Hide typed text' : 'Show typed text'}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-[10px] text-slate-500 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
         </div>
 
         <Button

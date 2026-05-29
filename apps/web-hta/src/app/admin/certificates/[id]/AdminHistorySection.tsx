@@ -82,6 +82,50 @@ interface TimelineItem {
   }
 }
 
+type SectionFeedback = {
+  section: string
+  comment: string
+}
+
+function getSectionFeedbacks(metadata?: Record<string, unknown>): SectionFeedback[] {
+  const value = metadata?.sectionFeedbacks
+  if (!Array.isArray(value)) return []
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null
+      const section = (item as Record<string, unknown>).section
+      const comment = (item as Record<string, unknown>).comment
+      if (typeof section !== 'string' || typeof comment !== 'string' || !comment.trim()) return null
+      return { section, comment: comment.trim() }
+    })
+    .filter((item): item is SectionFeedback => item !== null)
+}
+
+function normalizeFeedbackText(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function isGeneratedSectionRollup(notes: string, sectionFeedbacks: SectionFeedback[]): boolean {
+  if (sectionFeedbacks.length === 0) return false
+
+  // Older customer revision events may store a generated rollup like:
+  // [Section 2: UUC Details] ... [Section 1: Summary] ...
+  if (/\[\s*section\s+\d+\s*:/i.test(notes)) return true
+
+  const normalizedNotes = normalizeFeedbackText(notes)
+  return sectionFeedbacks.every((feedback) => {
+    const normalizedComment = normalizeFeedbackText(feedback.comment)
+    return normalizedComment.length > 0 && normalizedNotes.includes(normalizedComment)
+  })
+}
+
+function shouldShowCustomerRevisionNotes(metadata: Record<string, unknown>): boolean {
+  if (typeof metadata.generalNotes === 'string' && metadata.generalNotes.trim()) return false
+  if (typeof metadata.notes !== 'string' || !metadata.notes.trim()) return false
+  return !isGeneratedSectionRollup(metadata.notes, getSectionFeedbacks(metadata))
+}
+
 // Event configuration
 const EVENT_CONFIG: Record<string, {
   label: string
@@ -716,9 +760,9 @@ export function AdminHistorySection({
                               )}
                             </p>
                           )}
-                          {Array.isArray(item.data.metadata.sectionFeedbacks) && item.data.metadata.sectionFeedbacks.length > 0 && (
+                          {getSectionFeedbacks(item.data.metadata).length > 0 && (
                             <div className="space-y-1.5 mb-1.5">
-                              {(item.data.metadata.sectionFeedbacks as { section: string; comment: string }[]).map((sf, i) => (
+                              {getSectionFeedbacks(item.data.metadata).map((sf, i) => (
                                 <div key={i} className="flex gap-2">
                                   <span className="px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded text-[10px] font-medium flex-shrink-0">
                                     {SECTION_LABELS[sf.section] || sf.section}
@@ -733,8 +777,8 @@ export function AdminHistorySection({
                               <span className="font-medium">General Notes:</span> {item.data.metadata.generalNotes}
                             </p>
                           )}
-                          {typeof item.data.metadata.notes === 'string' && item.data.metadata.notes && !item.data.metadata.generalNotes && (
-                            <p className="text-xs text-slate-700">{item.data.metadata.notes}</p>
+                          {shouldShowCustomerRevisionNotes(item.data.metadata) && (
+                            <p className="text-xs text-slate-700">{String(item.data.metadata.notes)}</p>
                           )}
                         </div>
                       )}
