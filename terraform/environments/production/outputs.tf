@@ -49,6 +49,31 @@ output "uploads_bucket" {
   value       = module.uploads_bucket.bucket_name
 }
 
+output "certificate_images_bucket" {
+  description = "Certificate image uploads bucket name"
+  value       = module.certificate_images_bucket.bucket_name
+}
+
+output "signed_certificates_bucket" {
+  description = "Authorized signed certificate PDFs bucket name"
+  value       = module.signed_certificates_bucket.bucket_name
+}
+
+output "master_instrument_certificates_bucket" {
+  description = "Master instrument certificate PDFs bucket name"
+  value       = module.master_instrument_certificates_bucket.bucket_name
+}
+
+output "training_evidence_bucket" {
+  description = "Training evidence PDFs bucket name"
+  value       = module.training_evidence_bucket.bucket_name
+}
+
+output "chat_attachments_bucket" {
+  description = "Chat attachments bucket name"
+  value       = module.chat_attachments_bucket.bucket_name
+}
+
 output "artifact_registry_url" {
   description = "Artifact Registry URL"
   value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.main.repository_id}"

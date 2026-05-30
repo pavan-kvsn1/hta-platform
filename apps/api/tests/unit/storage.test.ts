@@ -37,8 +37,14 @@ import {
   resetStorageProvider,
   resetImageStorageProvider,
   resetMasterInstrumentCertificateStorageProvider,
+  resetSignedCertificateStorageProvider,
+  resetTrainingEvidenceStorageProvider,
+  resetChatAttachmentStorageProvider,
   getImageStorageProvider,
   getMasterInstrumentCertificateStorage,
+  getSignedCertificateStorage,
+  getTrainingEvidenceStorage,
+  getChatAttachmentStorage,
   assetNumberToFileName,
   fileNameToAssetNumber,
   generateImageStorageKey,
@@ -124,6 +130,7 @@ describe('getImageStorageProvider', () => {
   afterEach(() => {
     resetImageStorageProvider()
     setEnv({
+      GCS_CERTIFICATE_IMAGES_BUCKET: undefined,
       GCS_IMAGES_BUCKET: undefined,
       GCS_BUCKET: undefined,
       GCS_CERTIFICATES_BUCKET: undefined,
@@ -131,8 +138,19 @@ describe('getImageStorageProvider', () => {
   })
 
   it('throws when no image bucket is configured', () => {
-    setEnv({ GCS_IMAGES_BUCKET: undefined, GCS_BUCKET: undefined, GCS_CERTIFICATES_BUCKET: undefined })
-    expect(() => getImageStorageProvider()).toThrow('GCS_IMAGES_BUCKET environment variable is required')
+    setEnv({
+      GCS_CERTIFICATE_IMAGES_BUCKET: undefined,
+      GCS_IMAGES_BUCKET: undefined,
+      GCS_BUCKET: undefined,
+      GCS_CERTIFICATES_BUCKET: undefined,
+    })
+    expect(() => getImageStorageProvider()).toThrow('GCS_CERTIFICATE_IMAGES_BUCKET environment variable is required')
+  })
+
+  it('uses GCS_CERTIFICATE_IMAGES_BUCKET when available', () => {
+    setEnv({ GCS_CERTIFICATE_IMAGES_BUCKET: 'certificate-images-bucket', GCS_IMAGES_BUCKET: 'images-bucket' })
+    getImageStorageProvider()
+    expect(MockGCSStorageProvider).toHaveBeenCalledWith('certificate-images-bucket', undefined)
   })
 
   it('uses GCS_IMAGES_BUCKET when available', () => {
@@ -189,6 +207,60 @@ describe('getMasterInstrumentCertificateStorage', () => {
     setEnv({ GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET: 'gs://uploads-bucket/' })
     getMasterInstrumentCertificateStorage()
     expect(MockGCSStorageProvider).toHaveBeenCalledWith('uploads-bucket', undefined)
+  })
+})
+
+describe('specialized artifact storage providers', () => {
+  beforeEach(() => {
+    resetSignedCertificateStorageProvider()
+    resetTrainingEvidenceStorageProvider()
+    resetChatAttachmentStorageProvider()
+    MockGCSStorageProvider.mockClear()
+  })
+
+  afterEach(() => {
+    resetSignedCertificateStorageProvider()
+    resetTrainingEvidenceStorageProvider()
+    resetChatAttachmentStorageProvider()
+    setEnv({
+      GCS_SIGNED_CERTIFICATES_BUCKET: undefined,
+      GCS_TRAINING_EVIDENCE_BUCKET: undefined,
+      GCS_CHAT_ATTACHMENTS_BUCKET: undefined,
+      GCS_BUCKET: undefined,
+      GCS_CERTIFICATES_BUCKET: undefined,
+      GCP_PROJECT_ID: undefined,
+    })
+  })
+
+  it('uses the signed certificate bucket when configured', () => {
+    setEnv({ GCS_SIGNED_CERTIFICATES_BUCKET: 'signed-certs-bucket' })
+    getSignedCertificateStorage()
+    expect(MockGCSStorageProvider).toHaveBeenCalledWith('signed-certs-bucket', undefined)
+  })
+
+  it('uses the training evidence bucket when configured', () => {
+    setEnv({ GCS_TRAINING_EVIDENCE_BUCKET: 'training-evidence-bucket' })
+    getTrainingEvidenceStorage()
+    expect(MockGCSStorageProvider).toHaveBeenCalledWith('training-evidence-bucket', undefined)
+  })
+
+  it('uses the chat attachments bucket when configured', () => {
+    setEnv({ GCS_CHAT_ATTACHMENTS_BUCKET: 'chat-attachments-bucket' })
+    getChatAttachmentStorage()
+    expect(MockGCSStorageProvider).toHaveBeenCalledWith('chat-attachments-bucket', undefined)
+  })
+
+  it('keeps the generic bucket fallback for specialized artifact providers during migration', () => {
+    setEnv({ GCS_BUCKET: 'generic-bucket' })
+    getSignedCertificateStorage()
+    resetSignedCertificateStorageProvider()
+    getTrainingEvidenceStorage()
+    resetTrainingEvidenceStorageProvider()
+    getChatAttachmentStorage()
+
+    expect(MockGCSStorageProvider).toHaveBeenNthCalledWith(1, 'generic-bucket', undefined)
+    expect(MockGCSStorageProvider).toHaveBeenNthCalledWith(2, 'generic-bucket', undefined)
+    expect(MockGCSStorageProvider).toHaveBeenNthCalledWith(3, 'generic-bucket', undefined)
   })
 })
 

@@ -2008,17 +2008,11 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ error: 'Certificate PDF not available' })
     }
 
-    // Read the PDF file
-    const fs = await import('fs/promises')
-    const path = await import('path')
-
     let pdfBuffer: Buffer
     try {
-      const pdfPath = certificate.signedPdfPath.startsWith('/')
-        ? certificate.signedPdfPath
-        : path.join(process.cwd(), certificate.signedPdfPath)
-
-      pdfBuffer = await fs.readFile(pdfPath)
+      const { getSignedCertificateStorage } = await import('../../lib/storage/index.js')
+      const storage = getSignedCertificateStorage()
+      pdfBuffer = await storage.download(certificate.signedPdfPath)
     } catch {
       return reply.status(404).send({ error: 'Certificate PDF not found' })
     }

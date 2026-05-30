@@ -16,6 +16,9 @@ export type CertificateImageType = 'UUC' | 'MASTER_INSTRUMENT' | 'READING_UUC' |
 let storageProviderInstance: StorageProvider | null = null
 let imageStorageProviderInstance: StorageProvider | null = null
 let masterInstrumentCertificateStorageProviderInstance: StorageProvider | null = null
+let signedCertificateStorageProviderInstance: StorageProvider | null = null
+let trainingEvidenceStorageProviderInstance: StorageProvider | null = null
+let chatAttachmentStorageProviderInstance: StorageProvider | null = null
 
 function normalizeBucketName(bucketName: string | undefined): string | undefined {
   if (!bucketName) return undefined
@@ -37,7 +40,12 @@ export function getStorageConfig(): StorageConfig {
  */
 export function getImageStorageConfig(): StorageConfig {
   return {
-    gcsBucket: normalizeBucketName(process.env.GCS_IMAGES_BUCKET || process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET),
+    gcsBucket: normalizeBucketName(
+      process.env.GCS_CERTIFICATE_IMAGES_BUCKET
+      || process.env.GCS_IMAGES_BUCKET
+      || process.env.GCS_BUCKET
+      || process.env.GCS_CERTIFICATES_BUCKET
+    ),
     gcsProjectId: process.env.GCP_PROJECT_ID,
   }
 }
@@ -49,6 +57,39 @@ export function getMasterInstrumentCertificateStorageConfig(): StorageConfig {
   return {
     gcsBucket: normalizeBucketName(
       process.env.GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET
+      || process.env.GCS_BUCKET
+      || process.env.GCS_CERTIFICATES_BUCKET
+    ),
+    gcsProjectId: process.env.GCP_PROJECT_ID,
+  }
+}
+
+export function getSignedCertificateStorageConfig(): StorageConfig {
+  return {
+    gcsBucket: normalizeBucketName(
+      process.env.GCS_SIGNED_CERTIFICATES_BUCKET
+      || process.env.GCS_BUCKET
+      || process.env.GCS_CERTIFICATES_BUCKET
+    ),
+    gcsProjectId: process.env.GCP_PROJECT_ID,
+  }
+}
+
+export function getTrainingEvidenceStorageConfig(): StorageConfig {
+  return {
+    gcsBucket: normalizeBucketName(
+      process.env.GCS_TRAINING_EVIDENCE_BUCKET
+      || process.env.GCS_BUCKET
+      || process.env.GCS_CERTIFICATES_BUCKET
+    ),
+    gcsProjectId: process.env.GCP_PROJECT_ID,
+  }
+}
+
+export function getChatAttachmentStorageConfig(): StorageConfig {
+  return {
+    gcsBucket: normalizeBucketName(
+      process.env.GCS_CHAT_ATTACHMENTS_BUCKET
       || process.env.GCS_BUCKET
       || process.env.GCS_CERTIFICATES_BUCKET
     ),
@@ -85,7 +126,7 @@ export function getImageStorageProvider(): StorageProvider {
   const config = getImageStorageConfig()
 
   if (!config.gcsBucket) {
-    throw new Error('GCS_IMAGES_BUCKET environment variable is required')
+    throw new Error('GCS_CERTIFICATE_IMAGES_BUCKET environment variable is required')
   }
 
   imageStorageProviderInstance = new GCSStorageProvider(config.gcsBucket, config.gcsProjectId)
@@ -124,11 +165,68 @@ export function getMasterInstrumentCertificateStorage(): StorageProvider {
   return masterInstrumentCertificateStorageProviderInstance
 }
 
+export function getSignedCertificateStorage(): StorageProvider {
+  if (signedCertificateStorageProviderInstance) {
+    return signedCertificateStorageProviderInstance
+  }
+
+  const config = getSignedCertificateStorageConfig()
+
+  if (!config.gcsBucket) {
+    throw new Error('GCS_SIGNED_CERTIFICATES_BUCKET environment variable is required')
+  }
+
+  signedCertificateStorageProviderInstance = new GCSStorageProvider(config.gcsBucket, config.gcsProjectId)
+  return signedCertificateStorageProviderInstance
+}
+
+export function getTrainingEvidenceStorage(): StorageProvider {
+  if (trainingEvidenceStorageProviderInstance) {
+    return trainingEvidenceStorageProviderInstance
+  }
+
+  const config = getTrainingEvidenceStorageConfig()
+
+  if (!config.gcsBucket) {
+    throw new Error('GCS_TRAINING_EVIDENCE_BUCKET environment variable is required')
+  }
+
+  trainingEvidenceStorageProviderInstance = new GCSStorageProvider(config.gcsBucket, config.gcsProjectId)
+  return trainingEvidenceStorageProviderInstance
+}
+
+export function getChatAttachmentStorage(): StorageProvider {
+  if (chatAttachmentStorageProviderInstance) {
+    return chatAttachmentStorageProviderInstance
+  }
+
+  const config = getChatAttachmentStorageConfig()
+
+  if (!config.gcsBucket) {
+    throw new Error('GCS_CHAT_ATTACHMENTS_BUCKET environment variable is required')
+  }
+
+  chatAttachmentStorageProviderInstance = new GCSStorageProvider(config.gcsBucket, config.gcsProjectId)
+  return chatAttachmentStorageProviderInstance
+}
+
 /**
  * Reset the master instrument certificate storage provider instance (useful for testing)
  */
 export function resetMasterInstrumentCertificateStorageProvider(): void {
   masterInstrumentCertificateStorageProviderInstance = null
+}
+
+export function resetSignedCertificateStorageProvider(): void {
+  signedCertificateStorageProviderInstance = null
+}
+
+export function resetTrainingEvidenceStorageProvider(): void {
+  trainingEvidenceStorageProviderInstance = null
+}
+
+export function resetChatAttachmentStorageProvider(): void {
+  chatAttachmentStorageProviderInstance = null
 }
 
 /**

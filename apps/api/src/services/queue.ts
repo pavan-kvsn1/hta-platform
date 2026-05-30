@@ -124,6 +124,11 @@ export interface NotificationJobData {
   data: Record<string, string>
 }
 
+export interface ImageProcessingJobData {
+  type: 'process-certificate-image'
+  imageId: string
+}
+
 // =============================================================================
 // CONNECTION
 // =============================================================================
@@ -133,6 +138,7 @@ const REDIS_URL = process.env.REDIS_URL || ''
 let connection: Redis | null = null
 let emailQueue: Queue<EmailJobData> | null = null
 let notificationQueue: Queue<NotificationJobData> | null = null
+let imageProcessingQueue: Queue<ImageProcessingJobData> | null = null
 
 function getConnection(): Redis | null {
   if (!REDIS_URL) return null
@@ -171,6 +177,14 @@ function getNotificationQueue(): Queue<NotificationJobData> | null {
   return notificationQueue
 }
 
+function getImageProcessingQueue(): Queue<ImageProcessingJobData> | null {
+  if (imageProcessingQueue) return imageProcessingQueue
+  const conn = getConnection()
+  if (!conn) return null
+  imageProcessingQueue = new Queue<ImageProcessingJobData>('image-processing', { connection: conn })
+  return imageProcessingQueue
+}
+
 // =============================================================================
 // PUBLIC API
 // =============================================================================
@@ -206,6 +220,20 @@ export async function enqueueNotification(data: NotificationJobData): Promise<vo
   await queue.add(data.type, data, {
     attempts: 3,
     backoff: { type: 'exponential', delay: 3000 },
+  })
+}
+
+export async function enqueueImageProcessing(data: ImageProcessingJobData): Promise<void> {
+  const queue = getImageProcessingQueue()
+  if (!queue) {
+    console.warn(`[Queue] Image processing not queued (no REDIS_URL): ${data.imageId}`)
+    return
+  }
+  await queue.add(data.type, data, {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 3000 },
+    removeOnComplete: 1000,
+    removeOnFail: 5000,
   })
 }
 
@@ -414,8 +442,10 @@ export async function queueOfflineCodesExpiryEmail(opts: {
 export async function closeQueues(): Promise<void> {
   await emailQueue?.close()
   await notificationQueue?.close()
+  await imageProcessingQueue?.close()
   connection?.disconnect()
   emailQueue = null
   notificationQueue = null
+  imageProcessingQueue = null
   connection = null
 }

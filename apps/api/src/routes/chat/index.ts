@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import crypto from 'crypto'
 import { prisma } from '@hta/database'
 import { requireAuth } from '../../middleware/auth.js'
 import {
@@ -14,6 +15,15 @@ import {
   type ThreadType,
 } from '../../services/chat.js'
 import { enqueueNotification } from '../../services/queue.js'
+
+function sanitizeAttachmentFileName(fileName: string): string {
+  return fileName
+    .replace(/[\\/]/g, ' ')
+    .replace(/[^a-zA-Z0-9._ -]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120) || 'attachment'
+}
 
 const chatRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/chat/threads - Get threads for current user
@@ -294,6 +304,100 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
     return { count }
   })
 
+  // POST /api/chat/threads/:threadId/attachments - Upload attachments before sending a message
+  fastify.post<{ Params: { threadId: string } }>('/threads/:threadId/attachments', {
+    preHandler: [requireAuth],
+  }, async (request, reply) => {
+    const userId = request.user!.sub
+    const userRole = request.user!.role
+    const tenantId = request.tenantId
+    const { threadId } = request.params
+
+    const threadData = await getThreadWithCertificate(threadId)
+
+    if (!threadData) {
+      return reply.status(404).send({ error: 'Thread not found' })
+    }
+
+    if (threadData.certificate.tenantId !== tenantId) {
+      return reply.status(403).send({ error: 'Access denied' })
+    }
+
+    let hasAccess = canAccessChatThread(
+      { id: userId, role: userRole },
+      { createdById: threadData.certificate.createdById, reviewerId: threadData.certificate.reviewerId },
+      threadData.threadType as ThreadType
+    )
+
+    if (hasAccess && userRole === 'CUSTOMER' && threadData.threadType === 'REVIEWER_CUSTOMER') {
+      const customer = await prisma.customerUser.findUnique({
+        where: { tenantId_email: { tenantId, email: request.user!.email } },
+        include: { customerAccount: true },
+      })
+      if (customer) {
+        const companyName = customer.customerAccount?.companyName || customer.companyName || ''
+        hasAccess = companyName.toLowerCase() === threadData.certificate.customerName?.toLowerCase()
+      } else {
+        hasAccess = false
+      }
+    }
+
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'Access denied' })
+    }
+
+    const { getChatAttachmentStorage } = await import('../../lib/storage/index.js')
+    const storage = getChatAttachmentStorage()
+    const uploadedFiles: {
+      fileName: string
+      mimeType: string
+      fileSize: number
+      storagePath: string
+    }[] = []
+
+    let fileCount = 0
+    const maxFiles = 5
+    const maxFileSize = 10 * 1024 * 1024
+
+    for await (const file of request.files()) {
+      fileCount += 1
+      if (fileCount > maxFiles) {
+        return reply.status(400).send({ error: `Maximum ${maxFiles} attachments allowed` })
+      }
+
+      const buffer = await file.toBuffer()
+      if (buffer.length > maxFileSize) {
+        return reply.status(400).send({ error: `File size exceeds 10MB limit: ${file.filename}` })
+      }
+
+      const safeFileName = sanitizeAttachmentFileName(file.filename)
+      const storagePath = `chat-attachments/${threadId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeFileName}`
+
+      await storage.upload(storagePath, buffer, {
+        contentType: file.mimetype,
+        metadata: {
+          tenantId,
+          threadId,
+          certificateId: threadData.certificate.id,
+          uploadedBy: userId,
+        },
+      })
+
+      uploadedFiles.push({
+        fileName: file.filename,
+        mimeType: file.mimetype,
+        fileSize: buffer.length,
+        storagePath,
+      })
+    }
+
+    if (uploadedFiles.length === 0) {
+      return reply.status(400).send({ error: 'No files provided' })
+    }
+
+    return { files: uploadedFiles }
+  })
+
   // GET /api/chat/attachments/:id - Get attachment (download)
   fastify.get<{ Params: { id: string } }>('/attachments/:id', {
     preHandler: [requireAuth],
@@ -362,16 +466,10 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(403).send({ error: 'Access denied' })
     }
 
-    // Read and serve the file
-    const fs = await import('fs/promises')
-    const path = await import('path')
-
     try {
-      const filePath = attachment.storagePath.startsWith('/')
-        ? attachment.storagePath
-        : path.join(process.cwd(), attachment.storagePath)
-
-      const fileBuffer = await fs.readFile(filePath)
+      const { getChatAttachmentStorage } = await import('../../lib/storage/index.js')
+      const storage = getChatAttachmentStorage()
+      const fileBuffer = await storage.download(attachment.storagePath)
 
       reply.header('Content-Type', attachment.mimeType)
       reply.header('Content-Disposition', `attachment; filename="${attachment.fileName}"`)

@@ -14,12 +14,14 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.0.0",
     "@hta/database": "workspace:*",
     "@hta/emails": "workspace:*",
     "@hta/shared": "workspace:*",
     "bullmq": "^5.0.0",
     "ioredis": "^5.4.0",
-    "resend": "^4.0.0"
+    "resend": "^4.0.0",
+    "sharp": "^0.33.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

@@ -218,3 +218,14 @@ export type CleanupJobData =
   | OrphanedFilesCleanupJob
   | ExpiredReviewsCleanupJob
   | OfflineCodesCleanupJob
+
+// =============================================================================
+// IMAGE PROCESSING JOB TYPES
+// =============================================================================
+
+export interface ProcessCertificateImageJob {
+  type: 'process-certificate-image'
+  imageId: string
+}
+
+export type ImageProcessingJobData = ProcessCertificateImageJob

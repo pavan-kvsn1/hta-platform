@@ -5,3 +5,4 @@
 export { processEmailJob } from './email.js'
 export { processNotificationJob } from './notifications.js'
 export { processCleanupJob, runScheduledCleanup, setEmailQueue } from './cleanup.js'
+export { processImageProcessingJob } from './image-processing.js'

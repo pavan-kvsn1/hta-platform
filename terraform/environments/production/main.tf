@@ -262,9 +262,9 @@ module "cloud_armor" {
 module "uploads_bucket" {
   source = "../../modules/storage"
 
-  project_id   = var.project_id
-  bucket_name  = "${var.project_id}-${var.environment}-uploads"
-  location     = var.region
+  project_id    = var.project_id
+  bucket_name   = "${var.project_id}-${var.environment}-uploads"
+  location      = var.region
   storage_class = "STANDARD"
 
   versioning_enabled = true
@@ -290,6 +290,182 @@ module "uploads_bucket" {
 
   labels = {
     environment = var.environment
+  }
+}
+
+module "certificate_images_bucket" {
+  source = "../../modules/storage"
+
+  project_id    = var.project_id
+  bucket_name   = "${var.project_id}-certificate-images"
+  location      = var.region
+  storage_class = "STANDARD"
+
+  versioning_enabled = true
+
+  lifecycle_rules = [
+    {
+      action_type        = "Delete"
+      age                = 2555
+      num_newer_versions = 12
+    }
+  ]
+
+  cors_config = {
+    origins          = var.cors_origins
+    methods          = ["GET", "PUT", "POST", "DELETE"]
+    response_headers = ["Content-Type", "Content-Length"]
+    max_age_seconds  = 3600
+  }
+
+  admin_members = [
+    "serviceAccount:${local.api_sa_email}",
+    "serviceAccount:${local.worker_sa_email}",
+  ]
+
+  labels = {
+    environment = var.environment
+    artifact    = "certificate-images"
+  }
+}
+
+module "signed_certificates_bucket" {
+  source = "../../modules/storage"
+
+  project_id    = var.project_id
+  bucket_name   = "${var.project_id}-signed-certificates"
+  location      = var.region
+  storage_class = "STANDARD"
+
+  versioning_enabled = true
+
+  lifecycle_rules = [
+    {
+      action_type        = "Delete"
+      age                = 2555
+      num_newer_versions = 12
+    }
+  ]
+
+  cors_config = {
+    origins          = var.cors_origins
+    methods          = ["GET", "PUT", "POST", "DELETE"]
+    response_headers = ["Content-Type", "Content-Length"]
+    max_age_seconds  = 3600
+  }
+
+  admin_members = [
+    "serviceAccount:${local.api_sa_email}",
+  ]
+
+  labels = {
+    environment = var.environment
+    artifact    = "signed-certificates"
+  }
+}
+
+module "master_instrument_certificates_bucket" {
+  source = "../../modules/storage"
+
+  project_id    = var.project_id
+  bucket_name   = "${var.project_id}-master-instruments"
+  location      = var.region
+  storage_class = "STANDARD"
+
+  versioning_enabled = true
+
+  lifecycle_rules = [
+    {
+      action_type        = "Delete"
+      age                = 2555
+      num_newer_versions = 12
+    }
+  ]
+
+  cors_config = {
+    origins          = var.cors_origins
+    methods          = ["GET", "PUT", "POST", "DELETE"]
+    response_headers = ["Content-Type", "Content-Length"]
+    max_age_seconds  = 3600
+  }
+
+  admin_members = [
+    "serviceAccount:${local.api_sa_email}",
+  ]
+
+  labels = {
+    environment = var.environment
+    artifact    = "master-instruments"
+  }
+}
+
+module "training_evidence_bucket" {
+  source = "../../modules/storage"
+
+  project_id    = var.project_id
+  bucket_name   = "${var.project_id}-training-evidence"
+  location      = var.region
+  storage_class = "STANDARD"
+
+  versioning_enabled = true
+
+  lifecycle_rules = [
+    {
+      action_type        = "Delete"
+      age                = 2555
+      num_newer_versions = 12
+    }
+  ]
+
+  cors_config = {
+    origins          = var.cors_origins
+    methods          = ["GET", "PUT", "POST", "DELETE"]
+    response_headers = ["Content-Type", "Content-Length"]
+    max_age_seconds  = 3600
+  }
+
+  admin_members = [
+    "serviceAccount:${local.api_sa_email}",
+  ]
+
+  labels = {
+    environment = var.environment
+    artifact    = "training-evidence"
+  }
+}
+
+module "chat_attachments_bucket" {
+  source = "../../modules/storage"
+
+  project_id    = var.project_id
+  bucket_name   = "${var.project_id}-chat-attachments"
+  location      = var.region
+  storage_class = "STANDARD"
+
+  versioning_enabled = true
+
+  lifecycle_rules = [
+    {
+      action_type        = "Delete"
+      age                = 1095
+      num_newer_versions = 12
+    }
+  ]
+
+  cors_config = {
+    origins          = var.cors_origins
+    methods          = ["GET", "PUT", "POST", "DELETE"]
+    response_headers = ["Content-Type", "Content-Length"]
+    max_age_seconds  = 3600
+  }
+
+  admin_members = [
+    "serviceAccount:${local.api_sa_email}",
+  ]
+
+  labels = {
+    environment = var.environment
+    artifact    = "chat-attachments"
   }
 }
 

@@ -10,10 +10,11 @@ import {
   processEmailJob,
   processNotificationJob,
   processCleanupJob,
+  processImageProcessingJob,
   runScheduledCleanup,
   setEmailQueue,
 } from './jobs/index.js'
-import type { EmailJobData, NotificationJobData, CleanupJobData } from './types.js'
+import type { EmailJobData, NotificationJobData, CleanupJobData, ImageProcessingJobData } from './types.js'
 
 // =============================================================================
 // CONFIGURATION
@@ -63,6 +64,7 @@ async function main() {
   const emailQueue = new Queue<EmailJobData>('email', { connection })
   const notificationQueue = new Queue<NotificationJobData>('notifications', { connection })
   const cleanupQueue = new Queue<CleanupJobData>('cleanup', { connection })
+  const imageProcessingQueue = new Queue<ImageProcessingJobData>('image-processing', { connection })
 
   // Allow cleanup jobs to enqueue emails (e.g., reviewer notification on expired review)
   setEmailQueue(emailQueue)
@@ -129,6 +131,24 @@ async function main() {
     console.error(`[Cleanup] Job ${job?.id} failed:`, err.message)
   })
 
+  // Image Processing Worker
+  const imageProcessingWorker = new Worker<ImageProcessingJobData>(
+    'image-processing',
+    processImageProcessingJob,
+    {
+      connection,
+      concurrency: 2,
+    }
+  )
+
+  imageProcessingWorker.on('completed', (job) => {
+    console.log(`[ImageProcessing] Job ${job.id} completed`)
+  })
+
+  imageProcessingWorker.on('failed', (job, err) => {
+    console.error(`[ImageProcessing] Job ${job?.id} failed:`, err.message)
+  })
+
   // ===========================================================================
   // SCHEDULED TASKS
   // ===========================================================================
@@ -164,6 +184,7 @@ async function main() {
       emailWorker.close(),
       notificationWorker.close(),
       cleanupWorker.close(),
+      imageProcessingWorker.close(),
     ])
 
     // Close queues
@@ -171,6 +192,7 @@ async function main() {
       emailQueue.close(),
       notificationQueue.close(),
       cleanupQueue.close(),
+      imageProcessingQueue.close(),
     ])
 
     // Close Redis connection

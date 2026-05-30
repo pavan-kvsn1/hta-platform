@@ -12,8 +12,20 @@ data:
   # GCS bucket for existing certificate artifacts
   GCS_BUCKET: "hta-certificates-prod"
 
+  # GCS bucket for certificate image uploads
+  GCS_CERTIFICATE_IMAGES_BUCKET: "hta-platform-prod-certificate-images"
+
+  # GCS bucket for authorized signed certificate PDFs
+  GCS_SIGNED_CERTIFICATES_BUCKET: "hta-platform-prod-signed-certificates"
+
   # GCS bucket for master instrument certificate PDFs
-  GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET: "hta-platform-prod-production-uploads"
+  GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET: "hta-platform-prod-master-instruments"
+
+  # GCS bucket for master instrument training evidence PDFs
+  GCS_TRAINING_EVIDENCE_BUCKET: "hta-platform-prod-training-evidence"
+
+  # GCS bucket for chat attachments
+  GCS_CHAT_ATTACHMENTS_BUCKET: "hta-platform-prod-chat-attachments"
 
   # Email configuration
   EMAIL_FROM: "HTA Calibration <noreply@hta-calibration.com>"

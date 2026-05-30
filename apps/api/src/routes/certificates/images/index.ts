@@ -9,8 +9,10 @@ import { FastifyPluginAsync } from 'fastify'
 import { MultipartFile } from '@fastify/multipart'
 import { prisma, Prisma } from '@hta/database'
 import { requireAuth } from '../../../middleware/auth.js'
+import { enqueueImageProcessing } from '../../../services/queue.js'
 import {
   getImageStorageProvider,
+  getImageStorageConfig,
   generateImageStorageKey,
   getImageVariantKeys,
   type CertificateImageType,
@@ -292,7 +294,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Upload to storage
     const storage = getImageStorageProvider()
-    const storageBucket = process.env.GCS_IMAGES_BUCKET || process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET || null
+    const storageBucket = getImageStorageConfig().gcsBucket || null
 
     const storageKey = generateImageStorageKey(
       {
@@ -322,7 +324,7 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
       throw uploadError
     }
 
-    // Cloud Function will process images asynchronously and create optimized/thumbnail variants
+    // Worker will process images asynchronously and create optimized/thumbnail variants.
 
     // Check if there's an existing image to supersede (for versioning)
     const existingImage = await prisma.certificateImage.findFirst({
@@ -365,8 +367,8 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
           storageProvider: 'GCP',
           storageBucket,
           storageKey,
-          optimizedKey: null, // Cloud Function will populate
-          thumbnailKey: null, // Cloud Function will populate
+          optimizedKey: null, // Worker will populate
+          thumbnailKey: null, // Worker will populate
           version: newVersion,
           isLatest: true,
           supersededById: null,
@@ -405,7 +407,14 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     // Generate signed URL for the uploaded image
-    // Optimized/thumbnail variants will be created by Cloud Function
+    enqueueImageProcessing({
+      type: 'process-certificate-image',
+      imageId: image.id,
+    }).catch((err) => {
+      fastify.log.error({ err, imageId: image.id }, 'Failed to enqueue certificate image processing')
+    })
+
+    // Optimized/thumbnail variants will be created by the worker.
     const originalUrl = await storage.getSignedUrl(storageKey, { expiresInMinutes: 60 })
 
     return reply.status(201).send({

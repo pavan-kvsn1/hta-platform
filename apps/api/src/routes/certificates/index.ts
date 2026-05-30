@@ -2775,8 +2775,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Try to read the stored PDF from storage
     try {
-      const { getStorageProvider } = await import('../../lib/storage/index.js')
-      const storage = getStorageProvider()
+      const { getSignedCertificateStorage } = await import('../../lib/storage/index.js')
+      const storage = getSignedCertificateStorage()
       const pdfBuffer = await storage.download(certificate.signedPdfPath)
       const filename = `HTA_${certificate.certificateNumber}_SIGNED.pdf`
 

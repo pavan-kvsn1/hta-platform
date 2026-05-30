@@ -2080,8 +2080,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const safeFileName = sanitizeStorageFileName(data.filename)
     const storagePath = `master-instrument-training/${instrument.instrumentId}/${engineerId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeFileName}`
 
-    const { getStorageProvider } = await import('../../lib/storage/index.js')
-    const storage = getStorageProvider()
+    const { getTrainingEvidenceStorage } = await import('../../lib/storage/index.js')
+    const storage = getTrainingEvidenceStorage()
     await storage.upload(storagePath, buffer, {
       contentType: 'application/pdf',
       metadata: {
@@ -2148,8 +2148,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const { getStorageProvider } = await import('../../lib/storage/index.js')
-      const storage = getStorageProvider()
+      const { getTrainingEvidenceStorage } = await import('../../lib/storage/index.js')
+      const storage = getTrainingEvidenceStorage()
       const pdfBuffer = await storage.download(training.certificatePath)
 
       return reply
@@ -3574,8 +3574,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const safeFileName = sanitizeStorageFileName(data.filename)
     const storagePath = `master-instrument-training/${instrument.instrumentId}/${id}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeFileName}`
 
-    const { getStorageProvider } = await import('../../lib/storage/index.js')
-    const storage = getStorageProvider()
+    const { getTrainingEvidenceStorage } = await import('../../lib/storage/index.js')
+    const storage = getTrainingEvidenceStorage()
     await storage.upload(storagePath, buffer, {
       contentType: 'application/pdf',
       metadata: { tenantId, instrumentId: instrument.instrumentId, masterInstrumentId: instrument.id, engineerId: id, uploadedBy: uploadedById },
@@ -3623,8 +3623,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const { getStorageProvider } = await import('../../lib/storage/index.js')
-      const storage = getStorageProvider()
+      const { getTrainingEvidenceStorage } = await import('../../lib/storage/index.js')
+      const storage = getTrainingEvidenceStorage()
       const pdfBuffer = await storage.download(training.certificatePath)
 
       return reply
