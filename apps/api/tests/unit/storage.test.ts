@@ -36,7 +36,9 @@ import {
   getStorageProvider,
   resetStorageProvider,
   resetImageStorageProvider,
+  resetMasterInstrumentCertificateStorageProvider,
   getImageStorageProvider,
+  getMasterInstrumentCertificateStorage,
   assetNumberToFileName,
   fileNameToAssetNumber,
   generateImageStorageKey,
@@ -154,6 +156,41 @@ describe('getImageStorageProvider', () => {
 })
 
 // ── assetNumberToFileName ─────────────────────────────────────────────────────
+
+describe('getMasterInstrumentCertificateStorage', () => {
+  beforeEach(() => {
+    resetMasterInstrumentCertificateStorageProvider()
+    MockGCSStorageProvider.mockClear()
+  })
+
+  afterEach(() => {
+    resetMasterInstrumentCertificateStorageProvider()
+    setEnv({
+      GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET: undefined,
+      GCS_BUCKET: undefined,
+      GCS_CERTIFICATES_BUCKET: undefined,
+      GCP_PROJECT_ID: undefined,
+    })
+  })
+
+  it('uses the dedicated master instrument certificate bucket when configured', () => {
+    setEnv({ GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET: 'master-certs-bucket' })
+    getMasterInstrumentCertificateStorage()
+    expect(MockGCSStorageProvider).toHaveBeenCalledWith('master-certs-bucket', undefined)
+  })
+
+  it('uses the generic bucket fallback when no dedicated bucket is configured', () => {
+    setEnv({ GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET: undefined, GCS_BUCKET: 'generic-bucket' })
+    getMasterInstrumentCertificateStorage()
+    expect(MockGCSStorageProvider).toHaveBeenCalledWith('generic-bucket', undefined)
+  })
+
+  it('strips gs:// from configured bucket names', () => {
+    setEnv({ GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET: 'gs://uploads-bucket/' })
+    getMasterInstrumentCertificateStorage()
+    expect(MockGCSStorageProvider).toHaveBeenCalledWith('uploads-bucket', undefined)
+  })
+})
 
 describe('assetNumberToFileName', () => {
   it('converts a simple asset number to filename', () => {

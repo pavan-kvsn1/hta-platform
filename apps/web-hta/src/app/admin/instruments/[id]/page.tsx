@@ -237,40 +237,55 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
     fetchTrainings()
   }, [instrument, fetchTrainings])
 
-  // Fetch signed URL for certificate PDF
+  // Fetch certificate PDF for the viewer. Prefer the signed GCS URL because it
+  // avoids API/gateway binary streaming issues; keep the API stream as fallback.
   useEffect(() => {
     if (!instrument) return
     let objectUrl: string | null = null
+    let cancelled = false
 
     async function fetchPdfUrl() {
       setPdfStatus('Loading certificate...')
       try {
-        const res = await apiFetch(`/api/admin/instruments/${id}/certificates/latest?metadata=true`)
-        if (res.ok) {
-          await res.json()
-          const pdfRes = await apiFetch(`/api/admin/instruments/${id}/certificates/latest/pdf`)
-
-          if (!pdfRes.ok) {
-            const data = await pdfRes.json().catch(() => null)
-            throw new Error(data?.error || 'Failed to load certificate PDF')
+        const res = await apiFetch(`/api/admin/instruments/${id}/certificates/latest`)
+        if (!res.ok) {
+          if (res.status === 404) {
+            if (cancelled) return
+            setPdfUrl(null)
+            setPdfReady(false)
+            setPdfStatus('No certificate available')
+            return
           }
 
+          const data = await res.json().catch(() => null)
+          throw new Error(data?.error || 'Failed to load certificate')
+        }
+
+        const data = await res.json()
+        if (typeof data?.url === 'string' && data.url) {
+          if (cancelled) return
+          setPdfUrl(data.url)
+          setPdfReady(true)
+          setPdfStatus('')
+          return
+        }
+
+        const pdfRes = await apiFetch(`/api/admin/instruments/${id}/certificates/latest/pdf`)
+
+        if (!pdfRes.ok) {
+          const fallbackData = await pdfRes.json().catch(() => null)
+          throw new Error(fallbackData?.error || data?.urlError || 'Failed to load certificate PDF')
+        }
+
+        if (!cancelled) {
           const blob = await pdfRes.blob()
           objectUrl = URL.createObjectURL(blob)
           setPdfUrl(objectUrl)
           setPdfReady(true)
           setPdfStatus('')
-        } else if (res.status === 404) {
-          setPdfUrl(null)
-          setPdfReady(false)
-          setPdfStatus('No certificate available')
-        } else {
-          const data = await res.json().catch(() => null)
-          setPdfUrl(null)
-          setPdfReady(false)
-          setPdfStatus(data?.error || 'Failed to load certificate')
         }
       } catch (err) {
+        if (cancelled) return
         setPdfUrl(null)
         setPdfReady(false)
         setPdfStatus(err instanceof Error ? err.message : 'Failed to load certificate')
@@ -279,6 +294,7 @@ export default function InstrumentViewPage({ params }: { params: Promise<{ id: s
     fetchPdfUrl()
 
     return () => {
+      cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [id, instrument])

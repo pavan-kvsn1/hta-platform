@@ -15,13 +15,19 @@ export type CertificateImageType = 'UUC' | 'MASTER_INSTRUMENT' | 'READING_UUC' |
 // Singleton instances for reuse
 let storageProviderInstance: StorageProvider | null = null
 let imageStorageProviderInstance: StorageProvider | null = null
+let masterInstrumentCertificateStorageProviderInstance: StorageProvider | null = null
+
+function normalizeBucketName(bucketName: string | undefined): string | undefined {
+  if (!bucketName) return undefined
+  return bucketName.replace(/^gs:\/\//, '').replace(/\/+$/, '')
+}
 
 /**
  * Get storage configuration from environment variables
  */
 export function getStorageConfig(): StorageConfig {
   return {
-    gcsBucket: process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET,
+    gcsBucket: normalizeBucketName(process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET),
     gcsProjectId: process.env.GCP_PROJECT_ID,
   }
 }
@@ -31,7 +37,21 @@ export function getStorageConfig(): StorageConfig {
  */
 export function getImageStorageConfig(): StorageConfig {
   return {
-    gcsBucket: process.env.GCS_IMAGES_BUCKET || process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET,
+    gcsBucket: normalizeBucketName(process.env.GCS_IMAGES_BUCKET || process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET),
+    gcsProjectId: process.env.GCP_PROJECT_ID,
+  }
+}
+
+/**
+ * Get storage configuration for master instrument certificates.
+ */
+export function getMasterInstrumentCertificateStorageConfig(): StorageConfig {
+  return {
+    gcsBucket: normalizeBucketName(
+      process.env.GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET
+      || process.env.GCS_BUCKET
+      || process.env.GCS_CERTIFICATES_BUCKET
+    ),
     gcsProjectId: process.env.GCP_PROJECT_ID,
   }
 }
@@ -90,7 +110,25 @@ export function resetImageStorageProvider(): void {
  * Get a storage provider for master instrument certificates
  */
 export function getMasterInstrumentCertificateStorage(): StorageProvider {
-  return getStorageProvider()
+  if (masterInstrumentCertificateStorageProviderInstance) {
+    return masterInstrumentCertificateStorageProviderInstance
+  }
+
+  const config = getMasterInstrumentCertificateStorageConfig()
+
+  if (!config.gcsBucket) {
+    throw new Error('GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET environment variable is required')
+  }
+
+  masterInstrumentCertificateStorageProviderInstance = new GCSStorageProvider(config.gcsBucket, config.gcsProjectId)
+  return masterInstrumentCertificateStorageProviderInstance
+}
+
+/**
+ * Reset the master instrument certificate storage provider instance (useful for testing)
+ */
+export function resetMasterInstrumentCertificateStorageProvider(): void {
+  masterInstrumentCertificateStorageProviderInstance = null
 }
 
 /**

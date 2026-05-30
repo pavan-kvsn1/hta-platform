@@ -8,6 +8,7 @@ import { queueStaffActivationEmail, enqueueNotification } from '../../services/q
 import { generateCodeBatch } from '../../services/offline-codes.js'
 import { generateVpnProvisioningToken } from '../../services/vpn.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
+import type { StorageProvider } from '../../lib/storage/index.js'
 
 const logger = createLogger('admin-routes')
 
@@ -32,6 +33,78 @@ function sanitizeStorageFileName(fileName: string): string {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 120) || 'training-certificate.pdf'
+}
+
+function getMasterInstrumentCertificatePathCandidates(
+  certificate: { storagePath: string; fileName?: string | null; reportNo?: string | null },
+  assetNumber?: string | null,
+): string[] {
+  const candidates = new Set<string>()
+
+  if (certificate.storagePath) candidates.add(certificate.storagePath)
+
+  if (certificate.fileName) {
+    candidates.add(`master-instruments/${certificate.fileName}`)
+    candidates.add(`master-instruments/${sanitizeStorageFileName(certificate.fileName)}`)
+  }
+
+  if (assetNumber) {
+    const safeAssetFileName = assetNumber.replace(/\//g, ' ')
+    candidates.add(`master-instruments/${safeAssetFileName}.pdf`)
+  }
+
+  if (certificate.reportNo) {
+    candidates.add(`master-instruments/${sanitizeStorageFileName(certificate.reportNo)}.pdf`)
+    candidates.add(`master-instruments/${sanitizeStorageFileName(certificate.reportNo)}`)
+  }
+
+  return Array.from(candidates).filter(Boolean)
+}
+
+function normalizeCertificateLookupValue(value: string): string {
+  return value.toLowerCase().replace(/\.pdf$/i, '').replace(/[^a-z0-9]+/g, '')
+}
+
+async function resolveMasterInstrumentCertificatePath(
+  storage: StorageProvider,
+  certificate: { storagePath: string; fileName?: string | null; reportNo?: string | null },
+  assetNumber?: string | null,
+): Promise<{ storagePath: string | null; attemptedPaths: string[] }> {
+  const attemptedPaths = getMasterInstrumentCertificatePathCandidates(certificate, assetNumber)
+
+  for (const candidate of attemptedPaths) {
+    if (await storage.exists(candidate)) {
+      return { storagePath: candidate, attemptedPaths }
+    }
+  }
+
+  const lookupValues = [assetNumber, certificate.fileName, certificate.reportNo]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map(normalizeCertificateLookupValue)
+    .filter(Boolean)
+
+  if (lookupValues.length > 0) {
+    try {
+      const files = await storage.list('master-instruments/')
+      for (const file of files) {
+        const fileName = file.path.split('/').pop() || file.path
+        const normalizedFileName = normalizeCertificateLookupValue(fileName)
+        const normalizedPath = normalizeCertificateLookupValue(file.path)
+
+        if (lookupValues.some((value) => normalizedFileName.includes(value) || normalizedPath.includes(value))) {
+          return {
+            storagePath: file.path,
+            attemptedPaths: [...attemptedPaths, `listed:${file.path}`],
+          }
+        }
+      }
+    } catch {
+      // Listing is best-effort. If the service account cannot list, return the
+      // explicit paths we already checked.
+    }
+  }
+
+  return { storagePath: null, attemptedPaths }
 }
 
 /**
@@ -1632,21 +1705,38 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
-        const { getStorageProvider } = await import('../../lib/storage/index.js')
-        const storage = getStorageProvider()
-        const exists = await storage.exists(certificate.storagePath)
+        const { getMasterInstrumentCertificateStorage } = await import('../../lib/storage/index.js')
+        const storage = getMasterInstrumentCertificateStorage()
+        const resolved = await resolveMasterInstrumentCertificatePath(
+          storage,
+          certificate,
+          certificate.masterInstrument.assetNumber,
+        )
 
-        if (exists) {
-          const signedUrl = await storage.getSignedUrl(certificate.storagePath, {
+        if (resolved.storagePath) {
+          if (resolved.storagePath !== certificate.storagePath) {
+            await prisma.masterInstrumentCertificate.update({
+              where: { id: certificate.id },
+              data: { storagePath: resolved.storagePath },
+            })
+            certificate.storagePath = resolved.storagePath
+          }
+
+          const signedUrl = await storage.getSignedUrl(resolved.storagePath, {
             expiresInMinutes: 15,
           })
           return { certificate, url: signedUrl }
         }
 
+        request.log.warn(
+          { certificateId: certificate.id, attemptedPaths: resolved.attemptedPaths },
+          'Master instrument certificate PDF not found in storage'
+        )
         return {
           certificate,
           url: null,
           urlError: 'Certificate PDF is not available in storage.',
+          attemptedPaths: resolved.attemptedPaths,
         }
       } catch (error) {
         request.log.error({ err: error, certificateId: certificate.id }, 'Failed to create master instrument certificate URL')
@@ -1710,7 +1800,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
     const instrument = await prisma.masterInstrument.findFirst({
       where: { id, tenantId },
-      select: { id: true },
+      select: { id: true, assetNumber: true },
     })
 
     if (!instrument) {
@@ -1730,9 +1820,29 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const { getStorageProvider } = await import('../../lib/storage/index.js')
-      const storage = getStorageProvider()
-      const pdfBuffer = await storage.download(certificate.storagePath)
+      const { getMasterInstrumentCertificateStorage } = await import('../../lib/storage/index.js')
+      const storage = getMasterInstrumentCertificateStorage()
+      const resolved = await resolveMasterInstrumentCertificatePath(storage, certificate, instrument.assetNumber)
+
+      if (!resolved.storagePath) {
+        request.log.warn(
+          { certificateId: certificate.id, attemptedPaths: resolved.attemptedPaths },
+          'Master instrument certificate PDF not found in storage'
+        )
+        return reply.status(404).send({
+          error: 'Certificate PDF is not available in storage.',
+          attemptedPaths: resolved.attemptedPaths,
+        })
+      }
+
+      if (resolved.storagePath !== certificate.storagePath) {
+        await prisma.masterInstrumentCertificate.update({
+          where: { id: certificate.id },
+          data: { storagePath: resolved.storagePath },
+        })
+      }
+
+      const pdfBuffer = await storage.download(resolved.storagePath)
 
       return reply
         .header('Content-Type', certificate.mimeType || 'application/pdf')
@@ -1754,7 +1864,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const tenantId = request.tenantId
     const userId = request.user!.sub
 
-    const { getStorageProvider, assetNumberToFileName } = await import('../../lib/storage/index.js')
+    const { getMasterInstrumentCertificateStorage, assetNumberToFileName } = await import('../../lib/storage/index.js')
 
     const instrument = await prisma.masterInstrument.findFirst({
       where: { id, tenantId },
@@ -1794,7 +1904,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const fileName = assetNumberToFileName(instrument.assetNumber)
     const storagePath = `master-instruments/${fileName}`
 
-    const storage = getStorageProvider()
+    const storage = getMasterInstrumentCertificateStorage()
     await storage.upload(storagePath, buffer, {
       contentType: 'application/pdf',
       metadata: {

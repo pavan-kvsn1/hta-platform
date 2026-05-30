@@ -9,8 +9,11 @@ data:
   # CORS configuration
   CORS_ORIGINS: "https://app.hta.example.com"
 
-  # GCS bucket for certificate images
+  # GCS bucket for existing certificate artifacts
   GCS_BUCKET: "hta-certificates-prod"
+
+  # GCS bucket for master instrument certificate PDFs
+  GCS_MASTER_INSTRUMENT_CERTIFICATES_BUCKET: "hta-platform-prod-production-uploads"
 
   # Email configuration
   EMAIL_FROM: "HTA Calibration <noreply@hta-calibration.com>"
