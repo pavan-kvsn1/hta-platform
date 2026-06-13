@@ -6,6 +6,16 @@ interface DeviceStatus {
   status: 'ACTIVE' | 'REVOKED' | 'WIPE_PENDING'
 }
 
+type DeviceStatusResponse =
+  | DeviceStatus
+  | { device?: Partial<DeviceStatus> }
+
+function normalizeDeviceStatus(data: DeviceStatusResponse): DeviceStatus {
+  const status = 'status' in data ? data.status : data.device?.status
+  if (status === 'REVOKED' || status === 'WIPE_PENDING') return { status }
+  return { status: 'ACTIVE' }
+}
+
 /**
  * Register this device with the HTA API server.
  * Called once during first-time setup (after online login + PIN creation).
@@ -88,13 +98,14 @@ export async function checkDeviceStatus(
       return { status: 'ACTIVE' }
     }
 
-    const data = await res.json() as DeviceStatus
+    const data = await res.json() as DeviceStatusResponse
+    const deviceStatus = normalizeDeviceStatus(data)
 
-    if (data.status === 'REVOKED' || data.status === 'WIPE_PENDING') {
-      await wipeAllLocalData(`Device ${data.status}`)
+    if (deviceStatus.status === 'REVOKED' || deviceStatus.status === 'WIPE_PENDING') {
+      await wipeAllLocalData(`Device ${deviceStatus.status}`)
 
       // Confirm wipe to server
-      if (data.status === 'WIPE_PENDING') {
+      if (deviceStatus.status === 'WIPE_PENDING') {
         await fetch(`${apiBase}/api/devices/${deviceId}/confirm-wipe`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
@@ -102,7 +113,7 @@ export async function checkDeviceStatus(
       }
     }
 
-    return data
+    return deviceStatus
   } catch {
     // Offline — assume active, check again next time
     return { status: 'ACTIVE' }

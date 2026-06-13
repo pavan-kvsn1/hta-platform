@@ -34,6 +34,7 @@ interface MasterInstrumentInput {
 
 interface CreateDraftInput {
   tenantId: string
+  skipInitialSync?: boolean
   certificateNumber?: string
   customerName?: string
   customerAddress?: string
@@ -176,10 +177,16 @@ interface ImageMeta {
 
 export function registerDraftHandlers(): void {
   // ─── draft:create ──────────────────────────────────────────────────
-  ipcMain.handle('draft:create', async (_event, data: CreateDraftInput) => {
+  ipcMain.handle('draft:create', async (_event, data: CreateDraftInput | undefined) => {
     const { userId, deviceId } = ids()
     const db = getDb()
     const id = crypto.randomUUID()
+    const draftData: CreateDraftInput = {
+      tenantId: 'hta-calibration',
+      calibratedAt: 'LAB',
+      calibrationTenure: 12,
+      ...(data || {}),
+    }
 
     await db.run(
       `INSERT INTO drafts (
@@ -198,46 +205,49 @@ export function registerDraftHandlers(): void {
         selected_conclusion_statements, additional_conclusion_statement,
         engineer_notes, reviewer_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      id, data.tenantId, userId,
-      data.certificateNumber || null, data.customerName || null, data.customerAddress || null,
-      data.customerContactName || null, data.customerContactEmail || null, data.customerAccountId || null,
-      data.uucDescription || null, data.uucMake || null, data.uucModel || null, data.uucSerialNumber || null,
-      data.uucInstrumentId || null, data.uucLocationName || null, data.uucMachineName || null,
-      data.calibratedAt || 'LAB',
-      data.dateOfCalibration || null, data.calibrationDueDate || null, data.calibrationTenure ?? 12,
-      data.dueDateAdjustment ?? 0, data.dueDateNotApplicable ? 1 : 0,
-      data.ambientTemperature || null, data.relativeHumidity || null,
-      data.srfNumber || null, data.srfDate || null,
-      data.calibrationStatus ? JSON.stringify(data.calibrationStatus) : null,
-      data.statusNotes || null,
-      data.stickerOldRemoved || null, data.stickerNewAffixed || null,
-      data.selectedConclusionStatements ? JSON.stringify(data.selectedConclusionStatements) : null,
-      data.additionalConclusionStatement || null,
-      data.engineerNotes || null, data.reviewerId || null
+      id, draftData.tenantId, userId,
+      draftData.certificateNumber || null, draftData.customerName || null, draftData.customerAddress || null,
+      draftData.customerContactName || null, draftData.customerContactEmail || null, draftData.customerAccountId || null,
+      draftData.uucDescription || null, draftData.uucMake || null, draftData.uucModel || null, draftData.uucSerialNumber || null,
+      draftData.uucInstrumentId || null, draftData.uucLocationName || null, draftData.uucMachineName || null,
+      draftData.calibratedAt || 'LAB',
+      draftData.dateOfCalibration || null, draftData.calibrationDueDate || null, draftData.calibrationTenure ?? 12,
+      draftData.dueDateAdjustment ?? 0, draftData.dueDateNotApplicable ? 1 : 0,
+      draftData.ambientTemperature || null, draftData.relativeHumidity || null,
+      draftData.srfNumber || null, draftData.srfDate || null,
+      draftData.calibrationStatus ? JSON.stringify(draftData.calibrationStatus) : null,
+      draftData.statusNotes || null,
+      draftData.stickerOldRemoved || null, draftData.stickerNewAffixed || null,
+      draftData.selectedConclusionStatements ? JSON.stringify(draftData.selectedConclusionStatements) : null,
+      draftData.additionalConclusionStatement || null,
+      draftData.engineerNotes || null, draftData.reviewerId || null
     )
 
     // Insert parameters if provided
-    if (data.parameters?.length) {
-      await insertParameters(db, id, data.parameters)
+    if (draftData.parameters?.length) {
+      await insertParameters(db, id, draftData.parameters)
     }
 
     // Insert master instruments if provided
-    if (data.masterInstruments?.length) {
-      await insertMasterInstruments(db, id, data.masterInstruments)
+    if (draftData.masterInstruments?.length) {
+      await insertMasterInstruments(db, id, draftData.masterInstruments)
     }
 
-    // Queue for sync when back online
-    await db.run(
-      `INSERT INTO sync_queue (id, draft_id, action, payload) VALUES (?, ?, 'CREATE', ?)`,
-      crypto.randomUUID(), id, JSON.stringify(data)
-    )
+    // Placeholder drafts are queued after the first real save, when required API fields exist.
+    if (!draftData.skipInitialSync) {
+      const { skipInitialSync: _skipInitialSync, ...syncPayload } = draftData
+      await db.run(
+        `INSERT INTO sync_queue (id, draft_id, action, payload) VALUES (?, ?, 'CREATE', ?)`,
+        crypto.randomUUID(), id, JSON.stringify(syncPayload)
+      )
+    }
 
     await auditLog(db, {
       userId, deviceId,
       action: 'DRAFT_CREATED',
       entityType: 'draft',
       entityId: id,
-      metadata: { certificateNumber: data.certificateNumber },
+      metadata: { certificateNumber: draftData.certificateNumber },
     })
 
     return { success: true, id }

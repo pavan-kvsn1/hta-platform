@@ -67,7 +67,7 @@ beforeEach(() => {
 // ─── Offline behavior ───────────────────────────────────────────────────────
 
 describe('SyncEngine.run() — offline', () => {
-  it('returns empty result when offline', async () => {
+  it('attempts sync even when Electron reports offline', async () => {
     mockOnline = false
     const engine = new SyncEngine(db as any, API_BASE, getAuthToken, DEVICE_ID, USER_ID)
 
@@ -78,8 +78,8 @@ describe('SyncEngine.run() — offline', () => {
       images: { synced: 0, failed: 0 },
       auditLogs: { synced: 0 },
     })
-    // Should not have called getAuthToken
-    expect(getAuthToken).not.toHaveBeenCalled()
+    expect(getAuthToken).toHaveBeenCalledOnce()
+    expect(checkDeviceStatus).toHaveBeenCalledOnce()
   })
 })
 

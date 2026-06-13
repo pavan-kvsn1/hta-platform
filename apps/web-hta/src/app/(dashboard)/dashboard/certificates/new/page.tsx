@@ -20,7 +20,9 @@ export default function NewCertificatePage() {
         })
 
         if (res.ok) {
-          const { id } = await res.json()
+          const data = await res.json()
+          const id = data.id || data.certificate?.id
+          if (!id) throw new Error('Certificate create response did not include an id')
           router.replace(`/dashboard/certificates/${id}/edit`)
           return
         }
@@ -30,13 +32,19 @@ export default function NewCertificatePage() {
 
       // Offline: create local draft via Electron IPC
       const electronAPI = (window as unknown as { electronAPI?: {
-        createDraft?: () => Promise<{ id: string }>
+        createDraft?: (data?: unknown) => Promise<{ id: string }>
       } }).electronAPI
 
       if (electronAPI?.createDraft) {
         try {
           const tempNumber = `DRAFT-${Date.now()}`
-          const { id } = await electronAPI.createDraft()
+          const { id } = await electronAPI.createDraft({
+            tenantId: 'hta-calibration',
+            certificateNumber: tempNumber,
+            calibratedAt: 'LAB',
+            calibrationTenure: 12,
+            skipInitialSync: true,
+          })
           router.replace(`/dashboard/certificates/${id}/edit?offline=true&tempNumber=${encodeURIComponent(tempNumber)}`)
           return
         } catch {

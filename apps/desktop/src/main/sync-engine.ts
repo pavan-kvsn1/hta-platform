@@ -1,5 +1,4 @@
 import crypto from 'crypto'
-import { net } from 'electron'
 import { type WrappedDb } from './sqlite-db'
 import { readImageDecrypted } from './file-store'
 import { auditLog, getUnsyncedAuditLogs, markAuditLogsSynced } from './audit'
@@ -29,7 +28,7 @@ export class SyncEngine {
   ) {}
 
   async run(): Promise<SyncResult> {
-    if (this.syncing || !net.isOnline()) return { ...EMPTY_RESULT }
+    if (this.syncing) return { ...EMPTY_RESULT }
     this.syncing = true
 
     const result: SyncResult = {
@@ -139,8 +138,9 @@ export class SyncEngine {
               method: 'POST', headers, body: JSON.stringify(payload),
             })
             if (!res.ok) throw new Error(`Create failed: ${res.status} ${await res.text()}`)
-            const body = await res.json() as { id: string }
-            serverId = body.id
+            const body = await res.json() as { id?: string; certificate?: { id?: string } }
+            serverId = body.id || body.certificate?.id
+            if (!serverId) throw new Error('Create failed: response did not include certificate id')
             break
           }
           case 'UPDATE': {
