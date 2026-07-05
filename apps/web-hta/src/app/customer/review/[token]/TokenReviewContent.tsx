@@ -26,6 +26,7 @@ import {
   type ParameterReadingImages,
 } from '@/components/certificate'
 import type { CertificateData, Signature } from './TokenReviewClient'
+import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 
 interface TokenReviewContentProps {
   certificate: CertificateData
@@ -253,6 +254,14 @@ export function TokenReviewContent({
           <InfoField
             label="Date of Calibration"
             value={formatDate(certificate.dateOfCalibration)}
+          />
+          <InfoField
+            label="Calibration Time"
+            value={formatCalibrationTimeRange(certificate.calibrationStartTime, certificate.calibrationEndTime)}
+          />
+          <InfoField
+            label="Hours of Calibration"
+            value={formatCalibrationHours(certificate.calibrationStartTime, certificate.calibrationEndTime)}
           />
           <InfoField
             label="Calibration Due Date"
@@ -561,4 +570,3 @@ export function TokenReviewContent({
     </div>
   )
 }
-

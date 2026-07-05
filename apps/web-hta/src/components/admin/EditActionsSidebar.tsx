@@ -35,6 +35,8 @@ const EDITABLE_SECTIONS = {
     fields: [
       { key: 'certificateNumber', label: 'Certificate Number', type: 'text' },
       { key: 'dateOfCalibration', label: 'Date of Calibration', type: 'date' },
+      { key: 'calibrationStartTime', label: 'Calibration Start Time', type: 'time' },
+      { key: 'calibrationEndTime', label: 'Calibration End Time', type: 'time' },
       { key: 'calibrationDueDate', label: 'Calibration Due Date', type: 'date' },
     ],
   },
@@ -59,6 +61,8 @@ interface Certificate {
   id: string
   certificateNumber: string
   dateOfCalibration: string | null
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
   calibrationDueDate: string | null
   reviewerId: string | null
   createdById: string
@@ -107,6 +111,10 @@ export function EditActionsSidebar({
         return certificate.certificateNumber
       case 'dateOfCalibration':
         return certificate.dateOfCalibration?.split('T')[0] || ''
+      case 'calibrationStartTime':
+        return certificate.calibrationStartTime || ''
+      case 'calibrationEndTime':
+        return certificate.calibrationEndTime || ''
       case 'calibrationDueDate':
         return certificate.calibrationDueDate?.split('T')[0] || ''
       case 'reviewerId':
@@ -326,6 +334,16 @@ export function EditActionsSidebar({
               onChange={setNewValue}
             />
           </div>
+        )
+
+      case 'time':
+        return (
+          <input
+            type="time"
+            value={newValue}
+            onChange={(e) => setNewValue(e.target.value)}
+            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+          />
         )
 
       case 'reviewer-select':

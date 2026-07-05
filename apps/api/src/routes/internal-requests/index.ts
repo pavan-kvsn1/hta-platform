@@ -22,7 +22,46 @@ const FIELD_LABELS: Record<string, string> = {
   'customerContactEmail': 'Contact Email',
   'calibratedAt': 'Calibrated At',
   'dateOfCalibration': 'Date of Calibration',
+  'calibrationStartTime': 'Calibration Start Time',
+  'calibrationEndTime': 'Calibration End Time',
   'calibrationDueDate': 'Calibration Due Date',
+}
+
+async function notifyTenantAdminsOfInternalRequest(params: {
+  tenantId: string
+  requestId: string
+  requestType: 'SECTION_UNLOCK' | 'FIELD_CHANGE'
+  requesterName: string
+  certificateId: string
+  certificateNumber: string
+  data: Record<string, unknown>
+}) {
+  const admins = await prisma.user.findMany({
+    where: { tenantId: params.tenantId, role: 'ADMIN', isActive: true },
+    select: { id: true },
+  })
+
+  if (admins.length === 0) return
+
+  const isSectionUnlock = params.requestType === 'SECTION_UNLOCK'
+
+  await prisma.notification.createMany({
+    data: admins.map((admin) => ({
+      userId: admin.id,
+      type: isSectionUnlock ? 'SECTION_UNLOCK_REQUESTED' : 'FIELD_CHANGE_REQUESTED',
+      title: isSectionUnlock ? 'Section Unlock Requested' : 'Field Change Requested',
+      message: isSectionUnlock
+        ? `${params.requesterName} requested section unlock for ${params.certificateNumber}`
+        : `${params.requesterName} requested field changes for ${params.certificateNumber}`,
+      certificateId: params.certificateId,
+      data: JSON.stringify({
+        requestId: params.requestId,
+        certificateId: params.certificateId,
+        certificateNumber: params.certificateNumber,
+        ...params.data,
+      }),
+    })),
+  })
 }
 
 const internalRequestRoutes: FastifyPluginAsync = async (fastify) => {
@@ -464,6 +503,18 @@ const internalRequestRoutes: FastifyPluginAsync = async (fastify) => {
         sequenceNumber: nextSequence,
         revision: certificate.currentRevision,
       },
+    })
+
+    await notifyTenantAdminsOfInternalRequest({
+      tenantId,
+      requestId: internalRequest.id,
+      requestType: body.type as 'SECTION_UNLOCK' | 'FIELD_CHANGE',
+      requesterName: internalRequest.requestedBy.name,
+      certificateId: certificate.id,
+      certificateNumber: certificate.certificateNumber,
+      data: body.type === 'SECTION_UNLOCK'
+        ? { sections: body.sections, reason: body.reason }
+        : { fields: body.fields, description: body.description },
     })
 
     return {

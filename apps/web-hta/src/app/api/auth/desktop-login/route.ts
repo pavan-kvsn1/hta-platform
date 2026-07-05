@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     apiRes = await fetch(`${apiBase}/api/auth/login`, {
       method: 'POST',
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': 'hta-calibration' },
+      headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': 'hta-calibration', 'X-Auth-Surface': 'DESKTOP' },
       body: JSON.stringify({ email, password, userType: 'STAFF' }),
     })
   } catch (err) {

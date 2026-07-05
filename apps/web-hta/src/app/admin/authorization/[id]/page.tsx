@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { auth, canAccessAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { safeJsonParse } from '@/lib/utils/safe-json'
+import { resolveCertificateTat } from '@/lib/utils/certificate-tat'
 import { AdminAuthorizationClient } from './AdminAuthorizationClient'
 import type { ParameterBin } from '@/lib/stores/certificate-store'
 import type { SignatureInfo } from '@/components/certificates'
@@ -181,6 +182,8 @@ async function getCertificateData(id: string) {
     srfNumber: certificate.srfNumber || '',
     srfDate: certificate.srfDate?.toISOString().split('T')[0] || '',
     dateOfCalibration: certificate.dateOfCalibration?.toISOString().split('T')[0] || '',
+    calibrationStartTime: certificate.calibrationStartTime || '',
+    calibrationEndTime: certificate.calibrationEndTime || '',
     calibrationDueDate: certificate.calibrationDueDate?.toISOString().split('T')[0] || '',
     dueDateNotApplicable: certificate.dueDateNotApplicable || false,
     customerName: certificate.customerName || '',
@@ -243,6 +246,8 @@ async function getCertificateData(id: string) {
       currentRevision: certificate.currentRevision,
       customerName: certificate.customerName,
       dateOfCalibration: certificate.dateOfCalibration?.toISOString() || null,
+      calibrationStartTime: certificate.calibrationStartTime,
+      calibrationEndTime: certificate.calibrationEndTime,
       createdBy: certificate.createdBy,
     },
     formData,
@@ -288,16 +293,15 @@ export default async function AdminAuthorizationPage({ params }: Props) {
     calibratedAt: data.calibratedAt,
     currentRevision: data.certificate.currentRevision,
     dateOfCalibration: data.certificate.dateOfCalibration,
+    calibrationStartTime: data.certificate.calibrationStartTime,
+    calibrationEndTime: data.certificate.calibrationEndTime,
   }
 
-  // Compute TAT start for authorization phase (12h target)
-  const isTerminal = ['AUTHORIZED', 'REJECTED'].includes(data.certificate.status)
-  const tatStartedAt = !isTerminal
-    ? data.events
-        .filter(e => e.eventType === 'SUBMITTED_FOR_AUTHORIZATION')
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
-        ?.createdAt || null
-    : null
+  const tatState = resolveCertificateTat({
+    status: data.certificate.status,
+    events: data.events,
+    createdAt: data.certificateCreatedAt,
+  })
 
   return (
     <AdminAuthorizationClient
@@ -309,8 +313,8 @@ export default async function AdminAuthorizationPage({ params }: Props) {
       headerData={headerData}
       customerEmail={data.customerContactEmail}
       customerContactName={data.customerContactName}
-      tatStartedAt={tatStartedAt}
-      certificateCreatedAt={data.certificateCreatedAt}
+      tatStartedAt={tatState.phase.startedAt}
+      certificateCreatedAt={tatState.certificate.startedAt}
     />
   )
 }

@@ -86,6 +86,8 @@ export interface CertificateData {
   srfNumber: string | null
   srfDate: string | null
   dateOfCalibration: string | null
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
   calibrationDueDate: string | null
   dueDateNotApplicable: boolean
   uucDescription: string | null
@@ -224,6 +226,8 @@ export interface AdminHeaderData {
   customerName: string
   calibratedAt: string | null
   currentRevision: number
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
 }
 
 /**
@@ -237,6 +241,8 @@ export interface CustomerHeaderData {
   customerName: string
   currentRevision: number
   dateOfCalibration: string | null
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
 }
 
 /**
@@ -276,6 +282,8 @@ export interface AuthorizationCertificateData {
   currentRevision: number
   customerName: string | null
   dateOfCalibration: string | null
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
   createdBy: { id: string; name: string; email: string } | null
 }
 
@@ -292,4 +300,6 @@ export interface AuthorizationHeaderData {
   calibratedAt: string | null
   currentRevision: number
   dateOfCalibration: string | null
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
 }

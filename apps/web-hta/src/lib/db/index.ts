@@ -4,7 +4,7 @@
  * Provides tenant-scoped Prisma client for multi-tenant data isolation.
  */
 
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import { createTenantClient, TenantPrismaClient } from './tenant-client'
 export { withTenantContext, getCurrentTenantId } from './tenant-context'
 
@@ -13,7 +13,27 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-export const basePrisma = globalForPrisma.prisma ?? new PrismaClient()
+function getPrismaOptions(): Prisma.PrismaClientOptions {
+  const databaseUrl = process.env.DATABASE_URL
+  const connectionLimit = process.env.PRISMA_CONNECTION_LIMIT || (
+    process.env.NODE_ENV !== 'production' ? '1' : undefined
+  )
+
+  if (!databaseUrl || !connectionLimit || databaseUrl.includes('connection_limit=')) {
+    return {}
+  }
+
+  const separator = databaseUrl.includes('?') ? '&' : '?'
+  return {
+    datasources: {
+      db: {
+        url: `${databaseUrl}${separator}connection_limit=${connectionLimit}&pool_timeout=20`,
+      },
+    },
+  }
+}
+
+export const basePrisma = globalForPrisma.prisma ?? new PrismaClient(getPrismaOptions())
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = basePrisma

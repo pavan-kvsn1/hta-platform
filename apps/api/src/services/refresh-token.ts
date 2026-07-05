@@ -35,6 +35,7 @@ export interface RefreshTokenResult {
 export interface ValidatedToken {
   userId?: string
   customerId?: string
+  deviceId?: string
   userType: 'STAFF' | 'CUSTOMER'
   tenantId: string
   tokenId: string
@@ -114,6 +115,7 @@ export async function validateRefreshToken(
   return {
     userId: token.userId || undefined,
     customerId: token.customerId || undefined,
+    deviceId: token.deviceId || undefined,
     userType: token.userType as 'STAFF' | 'CUSTOMER',
     tenantId: token.tenantId,
     tokenId: token.id,

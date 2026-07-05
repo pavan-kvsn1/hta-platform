@@ -14,6 +14,7 @@ import {
   Bell,
   KeyRound,
   Monitor,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,11 +24,14 @@ const NOTIFICATION_ICONS: Record<string, { icon: typeof Bell; bg: string; color:
   CERTIFICATE_APPROVED: { icon: CheckCircle, bg: 'bg-[#dcfce7]', color: 'text-[#16a34a]' },
   CERTIFICATE_FINALIZED: { icon: CheckCircle, bg: 'bg-[#dcfce7]', color: 'text-[#16a34a]' },
   CUSTOMER_APPROVED: { icon: CheckCircle, bg: 'bg-[#dcfce7]', color: 'text-[#16a34a]' },
+  PENDING_ADMIN_AUTHORIZATION: { icon: ShieldCheck, bg: 'bg-[#ede9fe]', color: 'text-[#6d28d9]' },
   REGISTRATION_APPROVED: { icon: CheckCircle, bg: 'bg-[#dcfce7]', color: 'text-[#16a34a]' },
   // Amber — revisions
   REVISION_REQUESTED: { icon: RotateCcw, bg: 'bg-[#fef3c7]', color: 'text-[#d97706]' },
   CUSTOMER_REVISION_REQUEST: { icon: RotateCcw, bg: 'bg-[#fef3c7]', color: 'text-[#d97706]' },
   CUSTOMER_REVISION_FORWARDED: { icon: RotateCcw, bg: 'bg-[#fef3c7]', color: 'text-[#d97706]' },
+  SECTION_UNLOCK_REQUESTED: { icon: RotateCcw, bg: 'bg-[#fef3c7]', color: 'text-[#d97706]' },
+  FIELD_CHANGE_REQUESTED: { icon: RotateCcw, bg: 'bg-[#fef3c7]', color: 'text-[#d97706]' },
   // Blue — submissions / sends
   SUBMITTED_FOR_REVIEW: { icon: FileUp, bg: 'bg-[#dbeafe]', color: 'text-[#2563eb]' },
   SENT_TO_CUSTOMER: { icon: Send, bg: 'bg-[#dbeafe]', color: 'text-[#2563eb]' },
@@ -67,6 +71,8 @@ const NON_CERT_ROUTES: Record<string, string> = {
   OFFLINE_CODE_REJECTED: '/dashboard/offline-codes',
   OFFLINE_CODE_REQUESTED: '/admin/requests',
   DESKTOP_VPN_REQUESTED: '/admin/requests',
+  SECTION_UNLOCK_REQUESTED: '/admin/requests',
+  FIELD_CHANGE_REQUESTED: '/admin/requests',
   DESKTOP_VPN_APPROVED: '/dashboard/offline-codes',
   DESKTOP_VPN_REJECTED: '/dashboard/offline-codes',
 }

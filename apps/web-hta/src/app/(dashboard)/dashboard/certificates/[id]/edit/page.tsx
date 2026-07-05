@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -26,6 +26,7 @@ import { SectionUnlockRequest } from '@/components/engineer/SectionUnlockRequest
 import { ConflictResolutionDialog } from '@/components/certificates'
 import { apiFetch } from '@/lib/api-client'
 import { useCertificateImages, type CertificateImage } from '@/lib/hooks/useCertificateImages'
+import { resolveCertificateTat } from '@/lib/utils/certificate-tat'
 
 const SECTIONS: { id: string; label: string; showWhenNotDraft?: boolean }[] = [
   { id: 'summary', label: 'Summary' },
@@ -51,6 +52,111 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   REJECTED: { label: 'Rejected', className: 'bg-red-50 text-red-700 border-red-200' },
 }
 
+const hasFilledValue = (value: unknown) => {
+  if (typeof value === 'string') return value.trim().length > 0
+  return value !== null && value !== undefined
+}
+
+const isParameterComplete = (parameter: Parameter) => {
+  const baseFieldsComplete =
+    hasFilledValue(parameter.parameterName) &&
+    hasFilledValue(parameter.parameterUnit) &&
+    hasFilledValue(parameter.rangeMin) &&
+    hasFilledValue(parameter.rangeMax) &&
+    hasFilledValue(parameter.operatingMin) &&
+    hasFilledValue(parameter.operatingMax)
+
+  if (!baseFieldsComplete) return false
+
+  if (parameter.requiresBinning) {
+    return (
+      parameter.bins.length > 0 &&
+      parameter.bins.every((bin) =>
+        hasFilledValue(bin.binMin) &&
+        hasFilledValue(bin.binMax) &&
+        hasFilledValue(bin.accuracy) &&
+        hasFilledValue(bin.leastCount)
+      )
+    )
+  }
+
+  return hasFilledValue(parameter.accuracyValue) && hasFilledValue(parameter.leastCountValue)
+}
+
+const isSummarySectionComplete = (formData: CertificateFormData) =>
+  hasFilledValue(formData.certificateNumber) &&
+  hasFilledValue(formData.reviewerId) &&
+  hasFilledValue(formData.calibratedAt) &&
+  hasFilledValue(formData.srfNumber) &&
+  hasFilledValue(formData.srfDate) &&
+  hasFilledValue(formData.dateOfCalibration) &&
+  hasFilledValue(formData.calibrationStartTime) &&
+  hasFilledValue(formData.calibrationEndTime) &&
+  (formData.dueDateNotApplicable || hasFilledValue(formData.calibrationDueDate)) &&
+  hasFilledValue(formData.customerName) &&
+  hasFilledValue(formData.customerAddress) &&
+  hasFilledValue(formData.customerContactName) &&
+  hasFilledValue(formData.customerContactEmail)
+
+const isUucSectionComplete = (formData: CertificateFormData) =>
+  hasFilledValue(formData.uucDescription) &&
+  hasFilledValue(formData.uucMake) &&
+  hasFilledValue(formData.uucModel) &&
+  hasFilledValue(formData.uucSerialNumber) &&
+  hasFilledValue(formData.uucInstrumentId) &&
+  hasFilledValue(formData.uucLocationName) &&
+  hasFilledValue(formData.uucMachineName) &&
+  formData.parameters.length > 0 &&
+  formData.parameters.every(isParameterComplete)
+
+const isMasterInstrumentComplete = (instrument: CertificateFormData['masterInstruments'][number]) =>
+  instrument.masterInstrumentId > 0 &&
+  hasFilledValue(instrument.category) &&
+  hasFilledValue(instrument.description) &&
+  hasFilledValue(instrument.make) &&
+  hasFilledValue(instrument.model) &&
+  hasFilledValue(instrument.assetNo) &&
+  hasFilledValue(instrument.serialNumber) &&
+  hasFilledValue(instrument.calibratedAt) &&
+  hasFilledValue(instrument.reportNo) &&
+  hasFilledValue(instrument.calibrationDueDate) &&
+  !instrument.isExpired
+
+const isMasterInstrumentSectionComplete = (formData: CertificateFormData) =>
+  formData.masterInstruments.length > 0 &&
+  formData.masterInstruments.every(isMasterInstrumentComplete) &&
+  formData.parameters.length > 0 &&
+  formData.parameters.every((parameter) =>
+    parameter.masterInstrumentId !== null &&
+    parameter.masterInstrumentId > 0 &&
+    hasFilledValue(parameter.sopReference)
+  )
+
+const isEnvironmentSectionComplete = (formData: CertificateFormData) =>
+  hasFilledValue(formData.ambientTemperature) &&
+  hasFilledValue(formData.relativeHumidity)
+
+const isResultComplete = (parameter: Parameter, result: CalibrationResult) =>
+  hasFilledValue(result.standardReading) &&
+  hasFilledValue(result.beforeAdjustment) &&
+  (!parameter.showAfterAdjustment || hasFilledValue(result.afterAdjustment))
+
+const isResultsSectionComplete = (formData: CertificateFormData) =>
+  formData.parameters.length > 0 &&
+  formData.parameters.every((parameter) =>
+    parameter.results.length > 0 &&
+    parameter.results.every((result) => isResultComplete(parameter, result))
+  )
+
+const isRemarksSectionComplete = (formData: CertificateFormData) =>
+  formData.calibrationStatus.length > 0 &&
+  hasFilledValue(formData.stickerOldRemoved) &&
+  hasFilledValue(formData.stickerNewAffixed)
+
+const isConclusionSectionComplete = (formData: CertificateFormData) =>
+  formData.selectedConclusionStatements.length > 0 ||
+  hasFilledValue(formData.additionalConclusionStatement)
+
 interface ApiMasterInstrument {
   id: string
   masterInstrumentId: string
@@ -74,6 +180,8 @@ interface ApiCertificate {
   srfNumber: string | null
   srfDate: string | null
   dateOfCalibration: string | null
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
   calibrationTenure: number
   dueDateAdjustment: number
   calibrationDueDate: string | null
@@ -81,6 +189,7 @@ interface ApiCertificate {
   customerName: string | null
   customerAddress: string | null
   customerContactName: string | null
+  customerContactEmail: string | null
   uucDescription: string | null
   uucMake: string | null
   uucModel: string | null
@@ -201,6 +310,8 @@ function transformDraftToApiShape(draft: any): ApiCertificate {
     srfNumber: draft.srf_number || null,
     srfDate: draft.srf_date || null,
     dateOfCalibration: draft.date_of_calibration || null,
+    calibrationStartTime: draft.calibration_start_time || null,
+    calibrationEndTime: draft.calibration_end_time || null,
     calibrationTenure: draft.calibration_tenure ?? 12,
     dueDateAdjustment: draft.due_date_adjustment ?? 0,
     calibrationDueDate: draft.calibration_due_date || null,
@@ -208,6 +319,7 @@ function transformDraftToApiShape(draft: any): ApiCertificate {
     customerName: draft.customer_name || null,
     customerAddress: draft.customer_address || null,
     customerContactName: draft.customer_contact_name || null,
+    customerContactEmail: draft.customer_contact_email || null,
     uucDescription: draft.uuc_description || null,
     uucMake: draft.uuc_make || null,
     uucModel: draft.uuc_model || null,
@@ -289,6 +401,8 @@ const FIELD_LABELS: Record<string, string> = {
   customerContactEmail: 'Contact Email',
   calibratedAt: 'Calibrated At',
   dateOfCalibration: 'Date of Calibration',
+  calibrationStartTime: 'Calibration Start Time',
+  calibrationEndTime: 'Calibration End Time',
   calibrationDueDate: 'Calibration Due Date',
 }
 
@@ -441,6 +555,8 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     srfNumber: apiData.srfNumber || '',
     srfDate: apiData.srfDate ? apiData.srfDate.split('T')[0] : '',
     dateOfCalibration: apiData.dateOfCalibration ? apiData.dateOfCalibration.split('T')[0] : '',
+    calibrationStartTime: apiData.calibrationStartTime || '',
+    calibrationEndTime: apiData.calibrationEndTime || '',
     calibrationTenure: (apiData.calibrationTenure || 12) as 3 | 6 | 9 | 12,
     dueDateAdjustment: (apiData.dueDateAdjustment || 0) as -3 | -2 | -1 | 0,
     calibrationDueDate: apiData.calibrationDueDate ? apiData.calibrationDueDate.split('T')[0] : '',
@@ -448,6 +564,7 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     customerName: apiData.customerName || '',
     customerAddress: apiData.customerAddress || '',
     customerContactName: apiData.customerContactName || '',
+    customerContactEmail: apiData.customerContactEmail || '',
     uucDescription: apiData.uucDescription || '',
     uucMake: apiData.uucMake || '',
     uucModel: apiData.uucModel || '',
@@ -1029,9 +1146,58 @@ export default function EditCertificatePage() {
     hasConflict: boolean
     serverTimestamp: Date | null
   } | null>(null)
+  const editSessionStartedAtRef = useRef(Date.now())
+  const editSessionClosedRef = useRef(false)
+  const currentRevisionRef = useRef(currentRevision)
+  const isOfflineEditRef = useRef(isOfflineEdit)
 
   // Photos
   const { images: certificateImages } = useCertificateImages({ certificateId, autoRefresh: true })
+
+  useEffect(() => {
+    currentRevisionRef.current = currentRevision
+  }, [currentRevision])
+
+  useEffect(() => {
+    isOfflineEditRef.current = isOfflineEdit
+  }, [isOfflineEdit])
+
+  useEffect(() => {
+    if (!certificateId) return
+
+    editSessionStartedAtRef.current = Date.now()
+    editSessionClosedRef.current = false
+
+    const recordSessionEvent = (eventType: 'OPENED' | 'CLOSED') => {
+      if (eventType === 'CLOSED') {
+        if (editSessionClosedRef.current) return
+        editSessionClosedRef.current = true
+      }
+
+      const activeDurationSeconds = Math.max(0, Math.round((Date.now() - editSessionStartedAtRef.current) / 1000))
+      void apiFetch('/api/certificates/edit-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          certificateId,
+          eventType,
+          mode: isOfflineEditRef.current ? 'offline' : 'edit',
+          revision: currentRevisionRef.current,
+          activeDurationSeconds: eventType === 'CLOSED' ? activeDurationSeconds : undefined,
+        }),
+      }).catch(() => {})
+    }
+
+    recordSessionEvent('OPENED')
+
+    const handlePageHide = () => recordSessionEvent('CLOSED')
+    window.addEventListener('pagehide', handlePageHide)
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide)
+      recordSessionEvent('CLOSED')
+    }
+  }, [certificateId])
 
   // Fetch unlock requests when certificate is in REVISION_REQUIRED status
   useEffect(() => {
@@ -1136,32 +1302,32 @@ export default function EditCertificatePage() {
   // Compute completed sections for draft progress sidebar
   const completedSections = (() => {
     const completed: string[] = []
-    // Section 1: Summary — needs customer name and date of calibration at minimum
-    if (formData.customerName && formData.dateOfCalibration) {
+    // Section 1: Summary - all business/customer fields filled
+    if (isSummarySectionComplete(formData)) {
       completed.push('summary')
     }
-    // Section 2: UUC — needs description and at least one parameter
-    if (formData.uucDescription && formData.parameters.length > 0) {
+    // Section 2: UUC - UUC identity and every parameter filled
+    if (isUucSectionComplete(formData)) {
       completed.push('uuc-details')
     }
-    // Section 3: Master Instruments — needs at least one selected
-    if (formData.masterInstruments.length > 0) {
+    // Section 3: Master Instruments - instruments and parameter assignments filled
+    if (isMasterInstrumentSectionComplete(formData)) {
       completed.push('master-inst')
     }
-    // Section 4: Environment — needs both temperature and humidity
-    if (formData.ambientTemperature && formData.relativeHumidity) {
+    // Section 4: Environment - temperature and humidity filled
+    if (isEnvironmentSectionComplete(formData)) {
       completed.push('environment')
     }
-    // Section 5: Results — needs at least one parameter with at least one result filled
-    if (formData.parameters.some(p => p.results.some(r => r.standardReading !== null && r.standardReading !== ''))) {
+    // Section 5: Results - every relevant reading row filled
+    if (isResultsSectionComplete(formData)) {
       completed.push('results')
     }
-    // Section 6: Remarks — needs calibration status selected
-    if (formData.calibrationStatus.length > 0) {
+    // Section 6: Remarks - status and sticker decisions filled
+    if (isRemarksSectionComplete(formData)) {
       completed.push('remarks')
     }
-    // Section 7: Conclusion — needs at least one conclusion statement
-    if (formData.selectedConclusionStatements.length > 0) {
+    // Section 7: Conclusion - standard or custom conclusion filled
+    if (isConclusionSectionComplete(formData)) {
       completed.push('conclusion')
     }
     return completed
@@ -1239,33 +1405,13 @@ export default function EditCertificatePage() {
           }
         }
 
-        // Compute TAT start for engineer
-        let computedTatStart: string | null = null
-        if (data.events && data.events.length > 0) {
-          if (data.status === 'DRAFT') {
-            const createdEvent = data.events.find((e: { eventType: string }) => e.eventType === 'CERTIFICATE_CREATED')
-            computedTatStart = createdEvent?.createdAt || data.updatedAt
-          } else if (data.status === 'REVISION_REQUIRED') {
-            const revisionEvent = [...data.events]
-              .filter((e: { eventType: string }) => e.eventType === 'REVISION_REQUESTED' || e.eventType === 'CUSTOMER_REVISION_FORWARDED')
-              .sort((a: { createdAt: string }, b: { createdAt: string }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
-            computedTatStart = revisionEvent?.createdAt || null
-          } else if (data.status === 'CUSTOMER_REVISION_REQUIRED') {
-            const customerRevEvent = [...data.events]
-              .filter((e: { eventType: string }) => e.eventType === 'CUSTOMER_REVISION_REQUESTED')
-              .sort((a: { createdAt: string }, b: { createdAt: string }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
-            computedTatStart = customerRevEvent?.createdAt || null
-          }
-        }
-        setTatStartedAt(computedTatStart)
-
-        // Capture certificate creation time for total TAT
-        if (data.events && data.events.length > 0) {
-          const createdEvent = data.events.find((e: { eventType: string }) => e.eventType === 'CERTIFICATE_CREATED')
-          setCertificateCreatedAt(createdEvent?.createdAt || data.updatedAt)
-        } else {
-          setCertificateCreatedAt(data.updatedAt)
-        }
+        const tatState = resolveCertificateTat({
+          status: data.status,
+          events: data.events,
+          createdAt: data.updatedAt,
+        })
+        setTatStartedAt(tatState.phase.startedAt)
+        setCertificateCreatedAt(tatState.certificate.startedAt)
 
         setCurrentRevision(data.currentRevision ?? 1)
         setReviewerName(data.reviewer?.name || null)

@@ -26,6 +26,7 @@ import {
   type ParameterReadingImages,
 } from '@/components/certificate'
 import type { CertificateData, Signature } from './CustomerCertReviewClient'
+import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 
 interface CustomerCertificateContentProps {
   certificate: CertificateData
@@ -269,6 +270,14 @@ export function CustomerCertificateContent({
           <InfoField
             label="Date of Calibration"
             value={formatDate(certificate.dateOfCalibration)}
+          />
+          <InfoField
+            label="Calibration Time"
+            value={formatCalibrationTimeRange(certificate.calibrationStartTime, certificate.calibrationEndTime)}
+          />
+          <InfoField
+            label="Hours of Calibration"
+            value={formatCalibrationHours(certificate.calibrationStartTime, certificate.calibrationEndTime)}
           />
           <InfoField
             label="Calibration Due Date"
@@ -614,4 +623,3 @@ export function CustomerCertificateContent({
     </div>
   )
 }
-

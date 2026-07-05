@@ -6,6 +6,7 @@ import {
   syncPeersToGcs,
   getServerPublicKey,
 } from '../../services/vpn.js'
+import { writeDeviceAudit } from '../../lib/activity-audit.js'
 
 const WG_SERVER_ENDPOINT = process.env.WG_SERVER_ENDPOINT || '35.200.149.46:51820'
 
@@ -75,6 +76,15 @@ const vpnRoutes: FastifyPluginAsync = async (fastify) => {
         await syncPeersToGcs()
         const serverPublicKey = await getServerPublicKey()
 
+        await writeDeviceAudit(request, {
+          tenantId: user.tenantId,
+          userId: user.id,
+          action: 'VPN_REPROVISIONED',
+          entityType: 'VpnPeer',
+          entityId: user.vpnPeer.id,
+          metadata: { assignedIp: user.vpnPeer.ipAddress, tokenType: 'HTA' },
+        })
+
         return {
           serverPublicKey,
           serverEndpoint: WG_SERVER_ENDPOINT,
@@ -87,7 +97,7 @@ const vpnRoutes: FastifyPluginAsync = async (fastify) => {
       // New peer
       const assignedIp = await assignNextVpnIp()
 
-      await prisma.vpnPeer.create({
+      const peer = await prisma.vpnPeer.create({
         data: {
           userId: user.id,
           tenantId: user.tenantId,
@@ -99,6 +109,15 @@ const vpnRoutes: FastifyPluginAsync = async (fastify) => {
 
       await syncPeersToGcs()
       const serverPublicKey = await getServerPublicKey()
+
+      await writeDeviceAudit(request, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        action: 'VPN_PROVISIONED',
+        entityType: 'VpnPeer',
+        entityId: peer.id,
+        metadata: { assignedIp, tokenType: 'HTA' },
+      })
 
       return {
         serverPublicKey,
@@ -135,6 +154,15 @@ const vpnRoutes: FastifyPluginAsync = async (fastify) => {
 
       await syncPeersToGcs()
       const serverPublicKey = await getServerPublicKey()
+
+      await writeDeviceAudit(request, {
+        tenantId: peer.tenantId,
+        userId: peer.userId,
+        action: 'VPN_REPROVISIONED',
+        entityType: 'VpnPeer',
+        entityId: peer.id,
+        metadata: { assignedIp: peer.ipAddress, tokenType: 'RPT' },
+      })
 
       return {
         serverPublicKey,
@@ -175,7 +203,8 @@ const vpnRoutes: FastifyPluginAsync = async (fastify) => {
       where: { vpnProvisioningToken: body.token },
       select: {
         id: true,
-        vpnPeer: { select: { publicKey: true, isActive: true } },
+        tenantId: true,
+        vpnPeer: { select: { id: true, publicKey: true, ipAddress: true, isActive: true } },
       },
     })
 
@@ -186,6 +215,15 @@ const vpnRoutes: FastifyPluginAsync = async (fastify) => {
     await prisma.user.update({
       where: { id: user.id },
       data: { vpnProvisioningToken: null, vpnTokenGeneratedAt: null },
+    })
+
+    await writeDeviceAudit(request, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: 'VPN_PROVISIONING_CONFIRMED',
+      entityType: 'VpnPeer',
+      entityId: user.vpnPeer.id,
+      metadata: { assignedIp: user.vpnPeer.ipAddress, tokenType: 'HTA' },
     })
 
     return { success: true }

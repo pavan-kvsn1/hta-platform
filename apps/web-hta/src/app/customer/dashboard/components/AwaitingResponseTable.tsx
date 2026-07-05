@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import {
@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, Eye, ChevronDown, ChevronRight, ChevronLeft, MessageSquare, Loader2 } from 'lucide-react'
+import { Search, Eye, ChevronLeft, ChevronRight, MessageSquare, Loader2 } from 'lucide-react'
 import { apiFetch } from '@/lib/api-client'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -34,6 +34,9 @@ export interface AwaitingCertificate {
   uucDescription: string | null
   uucMake: string | null
   uucModel: string | null
+  srfNumber: string | null
+  dateOfCalibration: string | null
+  calibrationDueDate: string | null
   updatedAt: string
   internalStatus: 'PENDING_REVIEW' | 'CUSTOMER_REVISION_REQUIRED' | 'REVISION_REQUIRED'
   customerFeedback: string | null
@@ -64,7 +67,6 @@ export function AwaitingResponseTable() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('newest')
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
 
@@ -105,16 +107,6 @@ export function AwaitingResponseTable() {
   const handleSearch = (value: string) => { setSearchQuery(value); setCurrentPage(1) }
   const handleSort = (value: SortOption) => { setSortBy(value); setCurrentPage(1) }
   const handleRowsPerPage = (value: number) => { setRowsPerPage(value); setCurrentPage(1) }
-
-  const toggleRow = (id: string) => {
-    const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id)
-    } else {
-      newExpanded.add(id)
-    }
-    setExpandedRows(newExpanded)
-  }
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-'
@@ -164,12 +156,17 @@ export function AwaitingResponseTable() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#f1f5f9]">
-                <th className="w-8"></th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
                   Certificate No.
                 </th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
                   Instrument
+                </th>
+                <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                  SRF No.
+                </th>
+                <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                  Calibrated
                 </th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
                   Last Updated
@@ -184,7 +181,6 @@ export function AwaitingResponseTable() {
             </thead>
             <tbody>
               {certificates.map((cert) => {
-                const isExpanded = expandedRows.has(cert.id)
                 const statusDisplay = statusDisplayMap[cert.internalStatus] || {
                   text: 'Processing',
                   bg: 'bg-[#f1f5f9]',
@@ -193,18 +189,10 @@ export function AwaitingResponseTable() {
                 }
 
                 return (
-                  <React.Fragment key={cert.id}>
-                    <tr
-                      className="border-b border-[#f1f5f9] last:border-0 hover:bg-[#f8fafc] cursor-pointer transition-colors"
-                      onClick={() => toggleRow(cert.id)}
-                    >
-                      <td className="px-2">
-                        {isExpanded ? (
-                          <ChevronDown className="size-3.5 text-[#94a3b8]" />
-                        ) : (
-                          <ChevronRight className="size-3.5 text-[#94a3b8]" />
-                        )}
-                      </td>
+                  <tr
+                    key={cert.id}
+                    className="border-b border-[#f1f5f9] last:border-0 hover:bg-[#f8fafc] transition-colors"
+                  >
                       <td className="px-4 py-3">
                         <span className="text-[13px] font-medium text-[#0f172a]">{cert.certificateNumber}</span>
                       </td>
@@ -215,7 +203,19 @@ export function AwaitingResponseTable() {
                             {[cert.uucMake, cert.uucModel].filter(Boolean).join(' ')}
                           </div>
                         )}
+                        {cert.customerFeedback && (
+                          <div className="mt-1 max-w-[360px] truncate text-[11px] text-[#7c3aed]">
+                            Your request: {cert.customerFeedback}
+                          </div>
+                        )}
+                        {cert.adminResponse && (
+                          <div className="mt-1 max-w-[360px] truncate text-[11px] text-[#d97706]">
+                            Admin: {cert.adminResponse}
+                          </div>
+                        )}
                       </td>
+                      <td className="px-4 py-3 text-[13px] text-[#64748b]">{cert.srfNumber || '-'}</td>
+                      <td className="px-4 py-3 text-[13px] text-[#64748b]">{formatDate(cert.dateOfCalibration)}</td>
                       <td className="px-4 py-3 text-[13px] text-[#64748b]">{formatDate(cert.updatedAt)}</td>
                       <td className="px-4 py-3">
                         <span
@@ -231,44 +231,11 @@ export function AwaitingResponseTable() {
                         >
                           <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors">
                             <Eye className="size-3.5" />
-                            View
-                          </button>
-                        </Link>
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr className="bg-[#f8fafc]">
-                        <td colSpan={6} className="px-4 py-4">
-                          <div className="pl-6 space-y-3">
-                            {cert.customerFeedback && (
-                              <div>
-                                <span className="text-[12px] font-semibold text-[#0f172a]">
-                                  Your Request ({formatDate(cert.feedbackDate)}):
-                                </span>
-                                <p className="mt-1 text-[12.5px] text-[#475569] bg-[#faf5ff] border border-[#e9d5ff] rounded-lg p-2.5">
-                                  {cert.customerFeedback}
-                                </p>
-                              </div>
-                            )}
-                            {cert.adminResponse ? (
-                              <div>
-                                <span className="text-[12px] font-semibold text-[#0f172a]">
-                                  Admin Response ({cert.adminName}, {formatDate(cert.respondedAt)}):
-                                </span>
-                                <p className="mt-1 text-[12.5px] text-[#475569] bg-[#fffbeb] border border-[#fde68a] rounded-lg p-2.5">
-                                  {cert.adminResponse}
-                                </p>
-                              </div>
-                            ) : (
-                              <p className="text-[12.5px] text-[#94a3b8] italic">
-                                Admin is reviewing your request...
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+                          View
+                        </button>
+                      </Link>
+                    </td>
+                  </tr>
                 )
               })}
             </tbody>

@@ -52,6 +52,7 @@ import {
   CUSTOMER_ACKNOWLEDGMENT_TEXT,
   PDFSignatureData,
 } from './pdf-utils'
+import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 
 // Format ISO date string to readable format: "09 Feb 2026, 14:30 IST"
 function formatSigningDateTime(isoString: string | undefined, timezone?: string): string {
@@ -831,7 +832,12 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
               <Text style={styles.customerLabel}>Date of{'\n'}Calibration</Text>
             </View>
             <View style={styles.customerValueCellRight}>
-              <Text style={styles.customerValue}>{formatDateDDMMYYYY(data.dateOfCalibration)}</Text>
+              <Text style={styles.customerValue}>
+                {formatDateDDMMYYYY(data.dateOfCalibration)}
+                {data.calibrationStartTime && data.calibrationEndTime
+                  ? `\nTime: ${formatCalibrationTimeRange(data.calibrationStartTime, data.calibrationEndTime)}\nHours: ${formatCalibrationHours(data.calibrationStartTime, data.calibrationEndTime)}`
+                  : ''}
+              </Text>
             </View>
           </View>
           {/* Row 2: Certificate No. / Recommended Cal Due */}

@@ -3,41 +3,46 @@ import { auth, canAccessAdmin, isMasterAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminLayoutWrapper } from '@/components/admin/AdminLayoutWrapper'
+import { cached, CacheTTL } from '@/lib/cache'
 
 // Render at runtime, not build time (needs database)
 export const dynamic = 'force-dynamic'
 
 async function getSidebarBadges(isMaster: boolean) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  return cached(`admin:sidebar-badges:${isMaster ? 'master' : 'worker'}`, async () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-  const thirtyDaysFromNow = new Date(today)
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+    const thirtyDaysFromNow = new Date(today)
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
 
-  // Worker admins don't need request count (can't access that page)
-  const [pendingCustomerRequests, pendingInternalRequests, expiredInstruments, expiringInstruments, pendingAuthorizations] = await Promise.all([
-    isMaster ? prisma.customerRequest.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
-    isMaster ? prisma.internalRequest.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
-    prisma.masterInstrument.count({
+    // Keep these sequential to avoid opening several Cloud SQL connections for every admin page render.
+    const pendingCustomerRequests = isMaster
+      ? await prisma.customerRequest.count({ where: { status: 'PENDING' } })
+      : 0
+    const pendingInternalRequests = isMaster
+      ? await prisma.internalRequest.count({ where: { status: 'PENDING' } })
+      : 0
+    const expiredInstruments = await prisma.masterInstrument.count({
       where: {
         isActive: true,
         calibrationDueDate: { lt: today },
       },
-    }),
-    prisma.masterInstrument.count({
+    })
+    const expiringInstruments = await prisma.masterInstrument.count({
       where: {
         isActive: true,
         calibrationDueDate: { gte: today, lte: thirtyDaysFromNow },
       },
-    }),
-    prisma.certificate.count({ where: { status: 'PENDING_ADMIN_AUTHORIZATION' } }),
-  ])
+    })
+    const pendingAuthorizations = await prisma.certificate.count({ where: { status: 'PENDING_ADMIN_AUTHORIZATION' } })
 
-  return {
-    pendingRequests: pendingCustomerRequests + pendingInternalRequests,
-    instrumentAlerts: expiredInstruments + expiringInstruments,
-    pendingAuthorizations,
-  }
+    return {
+      pendingRequests: pendingCustomerRequests + pendingInternalRequests,
+      instrumentAlerts: expiredInstruments + expiringInstruments,
+      pendingAuthorizations,
+    }
+  }, { ttl: CacheTTL.SHORT })
 }
 
 export default async function AdminLayout({

@@ -105,6 +105,8 @@ export interface CertificateFormData {
   srfNumber: string        // Only for In-House Lab
   srfDate: string          // Only for In-House Lab
   dateOfCalibration: string
+  calibrationStartTime: string
+  calibrationEndTime: string
   calibrationTenure: 3 | 6 | 9 | 12
   dueDateAdjustment: -3 | -2 | -1 | 0  // Adjustment in days (negative only)
   calibrationDueDate: string
@@ -359,6 +361,8 @@ const initialFormData: CertificateFormData = {
   srfNumber: '',
   srfDate: '',
   dateOfCalibration: '', // Generated on client side to avoid hydration mismatch
+  calibrationStartTime: '',
+  calibrationEndTime: '',
   calibrationTenure: 12,
   dueDateAdjustment: 0,
   calibrationDueDate: '', // Generated on client side to avoid hydration mismatch

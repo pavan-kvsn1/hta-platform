@@ -53,6 +53,8 @@ const FIELD_LABELS: Record<string, string> = {
   'customerContactEmail': 'Customer Contact Email',
   'calibratedAt': 'Calibrated At',
   'dateOfCalibration': 'Date of Calibration',
+  'calibrationStartTime': 'Calibration Start Time',
+  'calibrationEndTime': 'Calibration End Time',
   'calibrationDueDate': 'Calibration Due Date',
 }
 
@@ -221,6 +223,8 @@ export function InternalRequestClient({
       case 'customerContactEmail': return certificate.customerContactEmail || ''
       case 'calibratedAt': return certificate.calibratedAt || ''
       case 'dateOfCalibration': return certificate.dateOfCalibration || ''
+      case 'calibrationStartTime': return certificate.calibrationStartTime || ''
+      case 'calibrationEndTime': return certificate.calibrationEndTime || ''
       case 'calibrationDueDate': return certificate.calibrationDueDate || ''
       default: return ''
     }

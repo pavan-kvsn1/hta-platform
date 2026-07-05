@@ -12,6 +12,7 @@ import {
   REFRESH_TOKEN_CONFIG,
 } from '../../services/refresh-token.js'
 import { queuePasswordResetEmail, enqueueNotification } from '../../services/queue.js'
+import { writeAuthActivity } from '../../lib/activity-audit.js'
 
 // =============================================================================
 // SCHEMAS
@@ -84,11 +85,26 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       if (!user || !user.isActive || !user.passwordHash) {
+        await writeAuthActivity(request, {
+          tenantId,
+          email: normalizedEmail,
+          userType,
+          eventType: 'LOGIN_FAILED',
+          metadata: { reason: 'invalid_credentials' },
+        })
         return reply.status(401).send({ error: 'Invalid credentials' })
       }
 
       const isValid = await verifyPassword(password, user.passwordHash)
       if (!isValid) {
+        await writeAuthActivity(request, {
+          tenantId,
+          userId: user.id,
+          email: user.email,
+          userType,
+          eventType: 'LOGIN_FAILED',
+          metadata: { reason: 'invalid_credentials' },
+        })
         return reply.status(401).send({ error: 'Invalid credentials' })
       }
 
@@ -110,11 +126,26 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       if (!customer || !customer.isActive || !customer.passwordHash) {
+        await writeAuthActivity(request, {
+          tenantId,
+          email: normalizedEmail,
+          userType,
+          eventType: 'LOGIN_FAILED',
+          metadata: { reason: 'invalid_credentials' },
+        })
         return reply.status(401).send({ error: 'Invalid credentials' })
       }
 
       const isValid = await verifyPassword(password, customer.passwordHash)
       if (!isValid) {
+        await writeAuthActivity(request, {
+          tenantId,
+          customerId: customer.id,
+          email: customer.email,
+          userType,
+          eventType: 'LOGIN_FAILED',
+          metadata: { reason: 'invalid_credentials' },
+        })
         return reply.status(401).send({ error: 'Invalid credentials' })
       }
 
@@ -146,6 +177,15 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Create access token (JWT)
     const accessToken = fastify.jwt.sign(userData)
+
+    await writeAuthActivity(request, {
+      tenantId,
+      userId,
+      customerId,
+      email: userData.email,
+      userType,
+      eventType: 'LOGIN_SUCCESS',
+    })
 
     return {
       accessToken,
@@ -257,7 +297,18 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const body = refreshSchema.safeParse(request.body)
 
     if (body.success && body.data.refreshToken) {
+      const validated = await validateRefreshToken(body.data.refreshToken)
       await revokeRefreshToken(body.data.refreshToken, 'LOGOUT')
+      if (validated) {
+        await writeAuthActivity(request, {
+          tenantId: validated.tenantId,
+          userId: validated.userId,
+          customerId: validated.customerId,
+          userType: validated.userType,
+          deviceId: validated.deviceId,
+          eventType: 'LOGOUT',
+        })
+      }
     }
 
     return { success: true }
@@ -275,6 +326,16 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       user.userType,
       'LOGOUT_ALL'
     )
+
+    await writeAuthActivity(request, {
+      tenantId: request.tenantId,
+      userId: user.userType === 'STAFF' ? user.sub : undefined,
+      customerId: user.userType === 'CUSTOMER' ? user.sub : undefined,
+      email: user.email,
+      userType: user.userType,
+      eventType: 'LOGOUT_ALL',
+      metadata: { revokedCount: count },
+    })
 
     return { success: true, revokedCount: count }
   })

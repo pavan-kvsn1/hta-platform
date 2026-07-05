@@ -38,6 +38,8 @@ const SECTIONS = [
     fields: [
       { id: 'certificateNumber', label: 'Certificate Number', type: 'text' },
       { id: 'dateOfCalibration', label: 'Date of Calibration', type: 'date' },
+      { id: 'calibrationStartTime', label: 'Calibration Start Time', type: 'time' },
+      { id: 'calibrationEndTime', label: 'Calibration End Time', type: 'time' },
       { id: 'calibrationDueDate', label: 'Calibration Due Date', type: 'date' },
       { id: 'srfNumber', label: 'SRF Number', type: 'text' },
       { id: 'srfDate', label: 'SRF Date', type: 'date' },
@@ -89,6 +91,10 @@ export function AdminEditPanel({
         return certificate.certificateNumber || ''
       case 'dateOfCalibration':
         return certificate.dateOfCalibration || ''
+      case 'calibrationStartTime':
+        return certificate.calibrationStartTime || ''
+      case 'calibrationEndTime':
+        return certificate.calibrationEndTime || ''
       case 'calibrationDueDate':
         return certificate.calibrationDueDate || ''
       case 'srfNumber':
@@ -336,6 +342,13 @@ export function AdminEditPanel({
             <DatePicker
               value={formatDateForInput(newValue)}
               onChange={setNewValue}
+            />
+          ) : fieldType === 'time' ? (
+            <input
+              type="time"
+              value={newValue}
+              onChange={(e) => setNewValue(e.target.value)}
+              className="w-full px-3 py-2 text-[13px] text-[#0f172a] border border-[#e2e8f0] rounded-[9px] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none"
             />
           ) : (
             <input

@@ -31,6 +31,8 @@ const FIELD_LABELS: Record<string, { label: string; section: string }> = {
   srfNumber: { label: 'SRF Number', section: 'summary' },
   srfDate: { label: 'SRF Date', section: 'summary' },
   dateOfCalibration: { label: 'Date of Calibration', section: 'summary' },
+  calibrationStartTime: { label: 'Calibration Start Time', section: 'summary' },
+  calibrationEndTime: { label: 'Calibration End Time', section: 'summary' },
   calibrationTenure: { label: 'Calibration Tenure', section: 'summary' },
   dueDateAdjustment: { label: 'Due Date Adjustment', section: 'summary' },
   calibrationDueDate: { label: 'Calibration Due Date', section: 'summary' },

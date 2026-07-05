@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { DatePicker } from '@/components/ui/date-picker'
-import { Edit, Search, Filter, X, Eye, Download, Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { Edit, Search, Filter, X, Eye, Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 
 export interface CertificateListItem {
@@ -336,61 +336,50 @@ export function CertificateTable({
                 ) : (
                   certificates.map((cert) => (
                     <tr key={cert.id} className="border-b border-[#f8fafc] hover:bg-[#f8fafc] cursor-pointer transition-colors">
-                      <td className="px-4 py-[15px] whitespace-nowrap">
+                      <td className="px-4 py-2.5 whitespace-nowrap">
                         <span className="text-[14px] text-[#0f172a]">
                           {cert.certificateNumber}
                         </span>
                       </td>
-                      <td className="px-4 py-[15px] text-[14px] text-[#0f172a]">
+                      <td className="px-4 py-2.5 text-[14px] text-[#0f172a]">
                         {cert.customerName}
                       </td>
-                      <td className="px-4 py-[15px] text-[14px] text-[#475569] line-clamp-1">
+                      <td className="px-4 py-2.5 text-[14px] text-[#475569] line-clamp-1">
                         {cert.uucDescription}
                       </td>
-                      <td className="px-4 py-[15px] whitespace-nowrap text-[14px] text-[#475569]">
+                      <td className="px-4 py-2.5 whitespace-nowrap text-[14px] text-[#475569]">
                         {cert.dateOfCalibration ? formatDate(cert.dateOfCalibration) : '-'}
                       </td>
-                      <td className="px-4 py-[15px] whitespace-nowrap">
+                      <td className="px-4 py-2.5 whitespace-nowrap">
                         <StatusBadge status={cert.status} />
                       </td>
-                      <td className="px-4 py-[15px] whitespace-nowrap text-[13px] text-[#475569]">
+                      <td className="px-4 py-2.5 whitespace-nowrap text-[13px] text-[#475569]">
                         v{cert.currentVersion}
                       </td>
                       {showActions && (
-                        <td className="px-4 py-[15px] whitespace-nowrap">
+                        <td className="px-4 py-2.5 whitespace-nowrap">
                           <div className="flex gap-2">
                             {userRole === 'ENGINEER' &&
-                              (cert.status === 'DRAFT' ||
-                                cert.status === 'REVISION_REQUIRED') && (
+                              cert.status === 'CONFLICT' ? (
+                                <Link href={`/dashboard/certificates/${cert.id}/resolve`}>
+                                  <button className="inline-flex h-7 min-w-[74px] justify-center items-center gap-1.5 px-2.5 border border-purple-200 rounded-[7px] bg-purple-50 text-[12px] font-semibold text-purple-700 hover:bg-purple-100 transition-colors">
+                                    Resolve
+                                  </button>
+                                </Link>
+                              ) : (cert.status === 'DRAFT' ||
+                                cert.status === 'REVISION_REQUIRED') ? (
                                 <Link href={`/dashboard/certificates/${cert.id}/edit`}>
-                                  <button className="inline-flex items-center gap-1.5 px-[11px] py-[6px] border border-border rounded-[7px] bg-white text-[12px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+                                  <button className="inline-flex h-7 min-w-[74px] justify-center items-center gap-1.5 px-2.5 rounded-[7px] bg-[#0f172a] text-[12px] font-medium text-white hover:bg-[#1e293b] transition-colors">
                                     <Edit className="h-[13px] w-[13px]" /> Edit
                                   </button>
                                 </Link>
-                              )}
-                            {userRole === 'ENGINEER' &&
-                              cert.status !== 'DRAFT' &&
-                              cert.status !== 'REVISION_REQUIRED' && (
+                              ) : (
                                 <Link href={`/dashboard/certificates/${cert.id}/view`}>
-                                  <button className="inline-flex items-center gap-1.5 px-[11px] py-[6px] border border-border rounded-[7px] bg-white text-[12px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+                                  <button className="inline-flex h-7 min-w-[74px] justify-center items-center gap-1.5 px-2.5 border border-border rounded-[7px] bg-white text-[12px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
                                     <Eye className="h-[13px] w-[13px]" /> View
                                   </button>
                                 </Link>
                               )}
-                            {cert.status === 'CONFLICT' && (
-                                <Link href={`/dashboard/certificates/${cert.id}/resolve`}>
-                                  <button className="inline-flex items-center gap-1.5 px-[11px] py-[6px] border border-purple-200 rounded-[7px] bg-purple-50 text-[12px] font-semibold text-purple-700 hover:bg-purple-100 transition-colors">
-                                    Resolve
-                                  </button>
-                                </Link>
-                              )}
-                            {cert.status === 'APPROVED' && (
-                              <a href={`/api/certificates/${cert.id}/download-signed`} download>
-                                <button className="inline-flex items-center gap-1.5 px-[11px] py-[6px] border border-border rounded-[7px] bg-white text-[12px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
-                                  <Download className="h-[13px] w-[13px]" /> PDF
-                                </button>
-                              </a>
-                            )}
                           </div>
                         </td>
                       )}

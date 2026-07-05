@@ -26,6 +26,7 @@ import type {
   CustomerData,
   CustomerHeaderData,
 } from '@/types/certificate'
+import { formatCalibrationHours } from '@/lib/utils/calibration-time'
 
 // Re-export types for components that import from this file
 export type { CertificateData, CustomerData }
@@ -238,6 +239,12 @@ export function TokenReviewClient({
                       <Calendar className="size-3 text-slate-500" />
                     </div>
                     <span>Calibrated: {formatDate(headerData.dateOfCalibration)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <div className="p-1 rounded bg-slate-100">
+                      <Clock className="size-3 text-slate-500" />
+                    </div>
+                    <span>Hours: {formatCalibrationHours(headerData.calibrationStartTime, headerData.calibrationEndTime)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-500">
                     <span className="text-slate-300">|</span>

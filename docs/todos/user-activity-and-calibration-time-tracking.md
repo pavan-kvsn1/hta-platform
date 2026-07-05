@@ -1,6 +1,6 @@
 # User Activity And Calibration Time Tracking
 
-Status: planned
+Status: in progress
 
 This document scopes four related but separate requirements. Each problem should be implemented independently enough that it can be tested and shipped without forcing the other three to be complete.
 
@@ -19,6 +19,8 @@ Current decision:
 New migrations for this work should be created from the root/package database scripts, not from `apps/web-hta/prisma`.
 
 ## Problem 1: Auth Activity
+
+Status: closed
 
 ### Requirement
 
@@ -165,7 +167,30 @@ Tests:
 - API unit tests for VPN provisioning success/failure activity logging.
 - API unit tests for device register/reregister activity logging.
 
+### Implementation Update
+
+Implemented in this branch:
+
+- Added `AuthActivityLog`.
+- Extended `DeviceAuditLog` with nullable IP/user-agent and nullable user/device fields so VPN provisioning can be logged before desktop device registration.
+- Added best-effort API audit helpers in `apps/api/src/lib/activity-audit.ts`.
+- Auth logs now capture `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`, and `LOGOUT_ALL`.
+- Desktop login proxy tags API login as `DESKTOP` via `X-Auth-Surface`.
+- Device/VPN logs now capture registration, re-registration, revoke, wipe request/confirmation, VPN provisioning/reprovisioning, provisioning confirmation, token generation/regeneration, and VPN revocation.
+
+Deferred:
+
+- Admin/reporting UI to view and filter these logs.
+- Optional device id propagation earlier in first-time provisioning if VPN provisioning logs must always carry a device id.
+
+Verification:
+
+- `pnpm --dir apps\api exec vitest run tests/unit/activity-audit.test.ts`
+- `pnpm --dir apps\api typecheck`
+
 ## Problem 2: Certificate Edit Session
+
+Status: closed
 
 ### Requirement
 
@@ -286,7 +311,28 @@ Tests:
 - Web tests for session start and save activity wiring where practical.
 - Desktop sync test for local edit sessions.
 
+### Implementation Update
+
+Implemented in this branch:
+
+- Added `CertificateEditSessionLog`.
+- API create/update/submit routes now write coarse session events: `SAVE_DRAFT` and `SUBMITTED`.
+- Added `/api/certificates/edit-sessions` for best-effort UI page events.
+- Engineer edit page now records `OPENED` on page mount and `CLOSED` on page hide/unmount with active duration seconds.
+
+Deferred:
+
+- Desktop-local offline edit session persistence before sync.
+- Admin/reporting UI to aggregate session duration/save counts.
+
+Verification:
+
+- `pnpm --dir apps\api exec vitest run tests/unit/activity-audit.test.ts`
+- `pnpm --dir apps\api typecheck`
+
 ## Problem 3: Field Change Audit
+
+Status: closed
 
 ### Requirement
 
@@ -356,6 +402,32 @@ Tests:
 - Change detection tests for new fields.
 - Certificate update tests asserting audit changes include new fields.
 - Desktop sync/conflict tests where new metadata can change offline.
+
+### Implementation Update
+
+Closed as a non-breaking consistency hardening.
+
+Existing production behavior already had the new calibration time fields in:
+
+- `apps/api/src/lib/change-detection.ts`
+- `apps/web-hta/src/lib/utils/change-detection.ts`
+- admin/internal request label maps
+- desktop draft/preload/sync/conflict mappings
+
+Added focused regression coverage so `calibrationStartTime` and `calibrationEndTime` remain audited as `summary` fields with stable labels.
+
+Deferred:
+
+- Dedicated reporting UI over field-change history.
+- Broader route-level certificate update tests for full persisted audit rows.
+- Additional desktop sync/conflict tests beyond existing mapping checks.
+
+Verification:
+
+- `pnpm --dir apps\api exec vitest run tests/unit/change-detection.test.ts`
+- `pnpm --dir apps\web-hta exec vitest run tests/unit/utils.test.ts`
+- `pnpm --dir apps\api typecheck`
+- `pnpm --dir apps\web-hta typecheck`
 
 ## Problem 4: Calibration Start/End Time And Derived Hours
 

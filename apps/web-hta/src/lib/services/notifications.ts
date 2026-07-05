@@ -13,6 +13,10 @@ export type NotificationType =
   | 'ENGINEER_RESPONDED'        // Assignee responded to revision
   | 'CUSTOMER_REVISION_REQUEST' // Customer requested revision
   | 'CUSTOMER_APPROVED'         // Customer approved certificate
+  // Admin notifications
+  | 'PENDING_ADMIN_AUTHORIZATION' // Customer approved certificate, waiting for admin authorization
+  | 'SECTION_UNLOCK_REQUESTED'    // Engineer requested section unlock approval
+  | 'FIELD_CHANGE_REQUESTED'      // Reviewer requested field change approval
   // Customer notifications
   | 'CERTIFICATE_READY'         // Certificate sent for approval
   | 'REVIEWER_REPLIED'          // Reviewer replied to feedback
@@ -56,6 +60,18 @@ const notificationTemplates: Record<NotificationType, { title: string; message: 
   CUSTOMER_APPROVED: {
     title: 'Customer Approved',
     message: (data) => `Customer approved certificate ${data.certificateNumber}`,
+  },
+  PENDING_ADMIN_AUTHORIZATION: {
+    title: 'Authorization Required',
+    message: (data) => `Certificate ${data.certificateNumber} is pending admin authorization`,
+  },
+  SECTION_UNLOCK_REQUESTED: {
+    title: 'Section Unlock Requested',
+    message: (data) => `${data.requesterName || 'Engineer'} requested section unlock for ${data.certificateNumber}`,
+  },
+  FIELD_CHANGE_REQUESTED: {
+    title: 'Field Change Requested',
+    message: (data) => `${data.requesterName || 'Reviewer'} requested field changes for ${data.certificateNumber}`,
   },
   CERTIFICATE_READY: {
     title: 'Certificate Ready for Review',

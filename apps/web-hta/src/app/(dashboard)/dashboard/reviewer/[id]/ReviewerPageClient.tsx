@@ -46,6 +46,8 @@ import type {
   Feedback,
   AdminHeaderData,
 } from '@/types/certificate'
+import type { CertificateFormData } from '@/lib/stores/certificate-store'
+import type { PDFSignatureData } from '@/components/pdf/pdf-utils'
 
 type HeaderData = AdminHeaderData
 
@@ -86,8 +88,23 @@ const FIELD_OPTIONS = [
   { id: 'customerContactEmail', label: 'Contact Email' },
   { id: 'calibratedAt', label: 'Calibrated At' },
   { id: 'dateOfCalibration', label: 'Date of Calibration' },
+  { id: 'calibrationStartTime', label: 'Calibration Start Time' },
+  { id: 'calibrationEndTime', label: 'Calibration End Time' },
   { id: 'calibrationDueDate', label: 'Calibration Due Date' },
 ] as const
+
+const REVIEWER_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  DRAFT: { label: 'Draft', className: 'bg-amber-50 text-amber-600 border-amber-100' },
+  PENDING_REVIEW: { label: 'Pending Review', className: 'bg-blue-50 text-blue-600 border-blue-100' },
+  REVISION_REQUIRED: { label: 'Revision Required', className: 'bg-orange-50 text-orange-600 border-orange-100' },
+  CUSTOMER_REVISION_REQUIRED: { label: 'Customer Feedback', className: 'bg-purple-50 text-purple-600 border-purple-100' },
+  PENDING_CUSTOMER_APPROVAL: { label: 'Pending Customer', className: 'bg-purple-50 text-purple-600 border-purple-100' },
+  PENDING_ADMIN_AUTHORIZATION: { label: 'Pending Authorization', className: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
+  APPROVED: { label: 'Approved', className: 'bg-green-50 text-green-600 border-green-100' },
+  AUTHORIZED: { label: 'Authorized', className: 'bg-green-50 text-green-600 border-green-100' },
+  REJECTED: { label: 'Rejected', className: 'bg-red-50 text-red-600 border-red-100' },
+  CUSTOMER_REVIEW_EXPIRED: { label: 'Review Expired', className: 'bg-red-50 text-red-600 border-red-100' },
+}
 
 interface SectionUnlockRequestData {
   id: string
@@ -330,17 +347,33 @@ export function ReviewerPageClient({
   // View mode state: 'details' shows certificate content, 'pdf' shows PDF preview
   const [viewMode, setViewMode] = useState<'details' | 'pdf'>('details')
   const [isDownloading, setIsDownloading] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState(certificate.status)
 
-  const decisionMade = ['APPROVED', 'PENDING_CUSTOMER_APPROVAL', 'PENDING_ADMIN_AUTHORIZATION', 'AUTHORIZED', 'REJECTED', 'CUSTOMER_REVIEW_EXPIRED'].includes(certificate.status)
-  const canReview = !decisionMade && certificate.status !== 'REVISION_REQUIRED'
-  const isRevisionRequired = certificate.status === 'REVISION_REQUIRED'
-  const isCustomerRevisionRequired = certificate.status === 'CUSTOMER_REVISION_REQUIRED'
-  const isCustomerReviewExpired = certificate.status === 'CUSTOMER_REVIEW_EXPIRED'
-  const isPendingCustomer = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
-  const isPendingAdminAuth = certificate.status === 'PENDING_ADMIN_AUTHORIZATION'
-  const isApproved = certificate.status === 'APPROVED'
-  const isAuthorized = certificate.status === 'AUTHORIZED'
-  const isRejected = certificate.status === 'REJECTED'
+  useEffect(() => {
+    setCurrentStatus(certificate.status)
+  }, [certificate.status])
+
+  const decisionMade = ['APPROVED', 'PENDING_CUSTOMER_APPROVAL', 'PENDING_ADMIN_AUTHORIZATION', 'AUTHORIZED', 'REJECTED', 'CUSTOMER_REVIEW_EXPIRED'].includes(currentStatus)
+  const canReview = !decisionMade && currentStatus !== 'REVISION_REQUIRED'
+  const isRevisionRequired = currentStatus === 'REVISION_REQUIRED'
+  const isCustomerRevisionRequired = currentStatus === 'CUSTOMER_REVISION_REQUIRED'
+  const isCustomerReviewExpired = currentStatus === 'CUSTOMER_REVIEW_EXPIRED'
+  const isPendingCustomer = currentStatus === 'PENDING_CUSTOMER_APPROVAL'
+  const isPendingAdminAuth = currentStatus === 'PENDING_ADMIN_AUTHORIZATION'
+  const isApproved = currentStatus === 'APPROVED'
+  const isAuthorized = currentStatus === 'AUTHORIZED'
+  const isRejected = currentStatus === 'REJECTED'
+  const currentStatusConfig = REVIEWER_STATUS_CONFIG[currentStatus] || REVIEWER_STATUS_CONFIG.PENDING_REVIEW
+  const displayHeaderData = {
+    ...headerData,
+    status: currentStatus,
+    statusLabel: currentStatusConfig.label,
+    statusClassName: currentStatusConfig.className,
+  }
+  const displayCertificate = {
+    ...certificate,
+    status: currentStatus,
+  }
 
   // Customer chat only available when sent to customer or customer has responded
   const canAccessCustomerChat = isPendingCustomer || isPendingAdminAuth || isApproved || isAuthorized || isCustomerRevisionRequired || isCustomerReviewExpired
@@ -431,6 +464,7 @@ export function ReviewerPageClient({
       setSectionFeedbackEntries([{ id: crypto.randomUUID(), section: '', comment: '' }])
       setForwardedCustomerItems(new Set())
       setGeneralNotes('')
+      setCurrentStatus('REVISION_REQUIRED')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -706,16 +740,22 @@ export function ReviewerPageClient({
     }
   }
 
-  // Handle download PDF (only for authorized certificates)
+  // Handle header PDF download.
+  // Reviewers can view/generate PDF data, but may not be allowed to fetch the stored signed PDF.
   const handleDownload = useCallback(async () => {
     setIsDownloading(true)
     try {
-      const response = await apiFetch(`/api/certificates/${certificate.id}/download-signed`)
+      const response = await apiFetch(`/api/certificates/${certificate.id}/pdf-data`)
       if (!response.ok) {
-        throw new Error('Failed to download PDF')
+        const data = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(data?.error || 'Failed to fetch certificate PDF data')
       }
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
+      const data = await response.json() as CertificateFormData & { signatures?: PDFSignatureData }
+      const { signatures, ...certificateData } = data
+      const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
+      const result = await generatePDFWithOptimalSpacing(certificateData, signatures)
+
+      const url = window.URL.createObjectURL(result.blob)
       const link = document.createElement('a')
       link.href = url
       const fileName = `${certificate.certificateNumber.replace(/\//g, '-')}.pdf`
@@ -726,7 +766,7 @@ export function ReviewerPageClient({
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Error downloading PDF:', err)
-      alert('Failed to download PDF')
+      alert(err instanceof Error ? err.message : 'Failed to download PDF')
     } finally {
       setIsDownloading(false)
     }
@@ -735,10 +775,10 @@ export function ReviewerPageClient({
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
       {/* Left Side - Header + Content (Scrollable) */}
-      <div className="flex-1 flex flex-col min-w-0 p-2.5 pr-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden p-2.5 pr-0">
         {/* TAT Banner */}
         {tatStartedAt && !decisionMade && (
-          <div className="flex-shrink-0 mb-1.5">
+          <div className="flex-shrink-0 mb-2.5">
             <TATBanner sentAt={tatStartedAt} certificateCreatedAt={certificateCreatedAt} />
           </div>
         )}
@@ -758,16 +798,16 @@ export function ReviewerPageClient({
               </Link>
               <span className="text-[#e2e8f0] text-lg flex-shrink-0">|</span>
               <h1 className="text-[15px] font-mono font-medium text-[#0f172a] tracking-[0.01em] truncate">
-                {headerData.certificateNumber}
+                {displayHeaderData.certificateNumber}
               </h1>
               <Badge
                 variant="outline"
                 className={cn(
                   'px-2.5 py-0.5 text-[10px] font-mono font-medium uppercase tracking-[0.05em] flex-shrink-0',
-                  headerData.statusClassName
+                  displayHeaderData.statusClassName
                 )}
               >
-                {headerData.statusLabel}
+                {displayHeaderData.statusLabel}
               </Badge>
             </div>
 
@@ -784,13 +824,13 @@ export function ReviewerPageClient({
 
           {/* Meta Info Row */}
           <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12.5px] text-[#64748b] mt-2">
-            <MetaInfoItem icon={User} emphasized>{headerData.assigneeName}</MetaInfoItem>
-            <MetaInfoItem icon={Building2}>{headerData.customerName}</MetaInfoItem>
+            <MetaInfoItem icon={User} emphasized>{displayHeaderData.assigneeName}</MetaInfoItem>
+            <MetaInfoItem icon={Building2}>{displayHeaderData.customerName}</MetaInfoItem>
             <MetaInfoItem icon={MapPin}>
-              {headerData.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}
+              {displayHeaderData.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}
             </MetaInfoItem>
             <span className="text-[#e2e8f0]">|</span>
-            <span>Revision {headerData.currentRevision}</span>
+            <span>Revision {displayHeaderData.currentRevision}</span>
           </div>
           </div>
 
@@ -798,7 +838,7 @@ export function ReviewerPageClient({
           <div className="flex-1 overflow-auto p-5 bg-[#f8fafc]">
             {viewMode === 'details' ? (
               <ReviewerContent
-                certificate={certificate}
+                certificate={displayCertificate}
                 assignee={assignee}
                 feedbacks={feedbacks}
                 customerFeedback={customerFeedback}
@@ -956,7 +996,7 @@ export function ReviewerPageClient({
         </div>
 
         {/* ===== REVIEW ACTIONS SECTION ===== */}
-        <div className="flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden flex-shrink-0">
+        <div className="flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden flex-shrink-0 max-h-[48vh] min-h-0">
           <button
             onClick={() => setIsActionsExpanded(!isActionsExpanded)}
             className="flex items-center justify-between px-[18px] py-[13px] hover:bg-[#f8fafc] transition-colors"
@@ -974,7 +1014,7 @@ export function ReviewerPageClient({
 
           {/* Actions Content - Only when expanded */}
           {isActionsExpanded && (
-            <div className="px-[18px] pb-[18px] pt-3 space-y-2.5 border-t border-[#f1f5f9]">
+            <div className="px-[18px] pb-[18px] pt-3 space-y-2.5 border-t border-[#f1f5f9] overflow-y-auto min-h-0">
               {error && (
                 <div className="p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-lg text-[12px] text-[#dc2626]">
                   {error}
@@ -1287,7 +1327,7 @@ export function ReviewerPageClient({
         certificateId={certificate.id}
         certificateNumber={certificate.certificateNumber}
         uucDescription={certificate.uucDescription}
-        customerName={certificate.customerContactName || certificate.customerName}
+        customerName={certificate.customerContactName || customerFeedback?.customerName || lastSentCustomerInfo?.name || certificate.customerName}
         customerEmail={certificate.customerContactEmail || customerFeedback?.customerEmail || lastSentCustomerInfo?.email || null}
         onApprove={handleApprove}
       />
@@ -1295,7 +1335,7 @@ export function ReviewerPageClient({
       {/* Revision Modal */}
       {showRevisionModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-[67rem] w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="px-5 py-3.5 border-b border-[#f1f5f9] flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2.5">
@@ -1418,11 +1458,12 @@ export function ReviewerPageClient({
                       >
                         <div className="flex items-start gap-3">
                           {/* Section dropdown — fixed width left column */}
-                          <div className="w-[180px] flex-shrink-0">
+                          <div className="w-[252px] flex-shrink-0">
+                            <div className="relative">
                             <select
                               value={entry.section}
                               onChange={(e) => updateSectionEntry(entry.id, 'section', e.target.value)}
-                              className="w-full px-2.5 py-2 text-[12.5px] border border-[#e2e8f0] rounded-lg bg-white text-[#0f172a] focus:ring-2 focus:ring-[#d97706]/20 focus:border-[#d97706]"
+                              className="w-full appearance-none pl-2.5 pr-8 py-2 text-[12.5px] border border-[#e2e8f0] rounded-lg bg-white text-[#0f172a] focus:ring-2 focus:ring-[#d97706]/20 focus:border-[#d97706]"
                             >
                               <option value="">Select section...</option>
                               {(currentSection ? [currentSection, ...availableSections.filter(s => s.id !== currentSection.id)] : availableSections).map((section) => (
@@ -1431,6 +1472,8 @@ export function ReviewerPageClient({
                                 </option>
                               ))}
                             </select>
+                            <ChevronDown className="pointer-events-none absolute right-[7.5px] top-1/2 size-4 -translate-y-1/2 text-[#64748b]" />
+                            </div>
                             {entry.fromCustomer && (
                               <span className="text-[10px] text-[#7c3aed] font-medium mt-1 block">From customer</span>
                             )}
@@ -1538,7 +1581,7 @@ export function ReviewerPageClient({
       {/* Reject Modal — Two-Step Confirmation */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-[45rem] w-full overflow-hidden flex flex-col">
             {/* Header */}
             <div className="px-5 py-3.5 border-b border-[#f1f5f9] flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2.5">

@@ -9,6 +9,7 @@ import { prisma, Prisma } from '@hta/database'
 import { requireStaff, requireAdmin } from '../../middleware/auth.js'
 import { createRefreshToken } from '../../services/refresh-token.js'
 import { getBatchStatus, generateCodeBatch } from '../../services/offline-codes.js'
+import { getRequestIp, getRequestUserAgent, writeDeviceAudit } from '../../lib/activity-audit.js'
 
 const deviceRoutes: FastifyPluginAsync = async (fastify) => {
   // POST /api/devices/register — Register a new desktop device
@@ -35,6 +36,8 @@ const deviceRoutes: FastifyPluginAsync = async (fastify) => {
       where: { deviceId },
     })
 
+    const action = existing ? 'DEVICE_REREGISTERED' : 'DEVICE_REGISTERED'
+
     if (existing) {
       if (existing.userId !== userId || existing.tenantId !== tenantId) {
         return reply.status(409).send({ error: 'Device already registered to another user' })
@@ -49,6 +52,16 @@ const deviceRoutes: FastifyPluginAsync = async (fastify) => {
         data: { tenantId, userId, deviceId, deviceName, platform, appVersion },
       })
     }
+
+    await writeDeviceAudit(request, {
+      tenantId,
+      userId,
+      deviceId,
+      action,
+      entityType: 'DeviceRegistration',
+      entityId: deviceId,
+      metadata: { deviceName, platform, appVersion: appVersion ?? null },
+    })
 
     // Get existing code batch, or generate a new one if none exists
     let batch = await getBatchStatus({ tenantId, userId })
@@ -185,6 +198,15 @@ const deviceRoutes: FastifyPluginAsync = async (fastify) => {
       data: { status: 'REVOKED' },
     })
 
+    await writeDeviceAudit(request, {
+      tenantId,
+      userId: device.userId,
+      deviceId,
+      action: 'DEVICE_REVOKED',
+      entityType: 'DeviceRegistration',
+      entityId: device.id,
+    })
+
     return { status: 'REVOKED' }
   })
 
@@ -206,6 +228,15 @@ const deviceRoutes: FastifyPluginAsync = async (fastify) => {
     await prisma.deviceRegistration.update({
       where: { id: device.id },
       data: { status: 'WIPE_PENDING' },
+    })
+
+    await writeDeviceAudit(request, {
+      tenantId,
+      userId: device.userId,
+      deviceId,
+      action: 'DEVICE_WIPE_REQUESTED',
+      entityType: 'DeviceRegistration',
+      entityId: device.id,
     })
 
     return { status: 'WIPE_PENDING' }
@@ -230,6 +261,15 @@ const deviceRoutes: FastifyPluginAsync = async (fastify) => {
     await prisma.deviceRegistration.update({
       where: { id: device.id },
       data: { status: 'WIPED', wipedAt: new Date() },
+    })
+
+    await writeDeviceAudit(request, {
+      tenantId,
+      userId,
+      deviceId,
+      action: 'DEVICE_WIPE_CONFIRMED',
+      entityType: 'DeviceRegistration',
+      entityId: device.id,
     })
 
     return { status: 'WIPED' }
@@ -277,6 +317,8 @@ const deviceRoutes: FastifyPluginAsync = async (fastify) => {
         entityType: log.entityType,
         entityId: log.entityId,
         metadata: (log.metadata as Prisma.InputJsonValue) ?? undefined,
+        ipAddress: getRequestIp(request),
+        userAgent: getRequestUserAgent(request),
         occurredAt: new Date(log.occurredAt),
       })),
     })

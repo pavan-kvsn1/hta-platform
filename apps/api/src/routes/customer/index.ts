@@ -19,6 +19,33 @@ function safeJsonParse<T>(value: unknown, fallback: T): T {
   return value as T
 }
 
+async function notifyTenantAdminsOfPendingAuthorization(params: {
+  tenantId: string
+  certificateId: string
+  certificateNumber: string
+}) {
+  const admins = await prisma.user.findMany({
+    where: { role: 'ADMIN', isActive: true, tenantId: params.tenantId },
+    select: { id: true },
+  })
+
+  if (admins.length === 0) return
+
+  await prisma.notification.createMany({
+    data: admins.map((admin) => ({
+      userId: admin.id,
+      type: 'PENDING_ADMIN_AUTHORIZATION',
+      title: 'Authorization Required',
+      message: `Certificate ${params.certificateNumber} is pending admin authorization`,
+      certificateId: params.certificateId,
+      data: JSON.stringify({
+        certificateId: params.certificateId,
+        certificateNumber: params.certificateNumber,
+      }),
+    })),
+  })
+}
+
 const customerRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/customer/dashboard - Customer dashboard data
   fastify.get('/dashboard', {
@@ -235,6 +262,9 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
           uucDescription: cert.uucDescription,
           uucMake: cert.uucMake,
           uucModel: cert.uucModel,
+          srfNumber: cert.srfNumber,
+          dateOfCalibration: cert.dateOfCalibration?.toISOString() || null,
+          calibrationDueDate: cert.calibrationDueDate?.toISOString() || null,
           updatedAt: cert.updatedAt.toISOString(),
           internalStatus: cert.status,
           customerFeedback,
@@ -480,6 +510,8 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       items: certificates.map((cert) => {
         const token = cert.approvalTokens[0]
+        const sentAt = token?.createdAt || cert.events[0]?.createdAt || cert.updatedAt
+        const expiresAt = token?.expiresAt || new Date(sentAt.getTime() + 48 * 60 * 60 * 1000)
         let adminMessage: string | null = null
         if (cert.events[0]) {
           const data = safeJsonParse<Record<string, string>>(cert.events[0].eventData, {})
@@ -491,8 +523,8 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
           uucDescription: cert.uucDescription,
           uucMake: cert.uucMake,
           uucModel: cert.uucModel,
-          sentAt: token?.createdAt.toISOString() || cert.updatedAt.toISOString(),
-          expiresAt: token?.expiresAt.toISOString() || null,
+          sentAt: sentAt.toISOString(),
+          expiresAt: expiresAt.toISOString(),
           tokenId: token?.token || null,
           hasToken: !!token,
           adminMessage,
@@ -579,6 +611,9 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
           uucDescription: cert.uucDescription,
           uucMake: cert.uucMake,
           uucModel: cert.uucModel,
+          srfNumber: cert.srfNumber,
+          dateOfCalibration: cert.dateOfCalibration?.toISOString() || null,
+          calibrationDueDate: cert.calibrationDueDate?.toISOString() || null,
           updatedAt: cert.updatedAt.toISOString(),
           internalStatus: cert.status,
           customerFeedback,
@@ -662,6 +697,9 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
           uucDescription: cert.uucDescription,
           uucMake: cert.uucMake,
           uucModel: cert.uucModel,
+          srfNumber: cert.srfNumber,
+          dateOfCalibration: cert.dateOfCalibration?.toISOString() || null,
+          calibrationDueDate: cert.calibrationDueDate?.toISOString() || null,
           signedAt: customerSig?.signedAt.toISOString() || cert.updatedAt.toISOString(),
           signerName: customerSig?.signerName || '',
           hasEngineerSig: sigTypes.includes('ASSIGNEE'),
@@ -730,6 +768,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         uucDescription: cert.uucDescription,
         uucMake: cert.uucMake,
         uucModel: cert.uucModel,
+        srfNumber: cert.srfNumber,
         dateOfCalibration: cert.dateOfCalibration?.toISOString() || null,
         calibrationDueDate: cert.calibrationDueDate?.toISOString() || null,
         signedPdfPath: cert.signedPdfPath,
@@ -1284,20 +1323,11 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         }).catch(() => {})
       }
 
-      // Notify all admins
-      const admins = await prisma.user.findMany({
-        where: { role: 'ADMIN', isActive: true, tenantId },
-        select: { id: true },
+      await notifyTenantAdminsOfPendingAuthorization({
+        tenantId,
+        certificateId: certificate.id,
+        certificateNumber: certNum,
       })
-      for (const admin of admins) {
-        enqueueNotification({
-          type: 'create-notification',
-          userId: admin.id,
-          notificationType: 'CUSTOMER_APPROVED',
-          certificateId: certificate.id,
-          data: { certificateNumber: certNum },
-        }).catch(() => {})
-      }
 
       return { success: true, message: 'Certificate approved successfully' }
     }
@@ -1431,21 +1461,11 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       }).catch(() => {})
     }
 
-    // Notify all admins
-    const tenantId = request.tenantId
-    const admins = await prisma.user.findMany({
-      where: { role: 'ADMIN', isActive: true, tenantId },
-      select: { id: true },
+    await notifyTenantAdminsOfPendingAuthorization({
+      tenantId: request.tenantId,
+      certificateId: tokenRecord.certificateId,
+      certificateNumber: certNum,
     })
-    for (const admin of admins) {
-      enqueueNotification({
-        type: 'create-notification',
-        userId: admin.id,
-        notificationType: 'CUSTOMER_APPROVED',
-        certificateId: tokenRecord.certificateId,
-        data: { certificateNumber: certNum },
-      }).catch(() => {})
-    }
 
     return { success: true, message: 'Certificate approved successfully' }
   })

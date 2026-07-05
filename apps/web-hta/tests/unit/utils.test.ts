@@ -233,6 +233,17 @@ describe('Change Detection Utilities', () => {
       expect(FIELD_LABELS.customerName.section).toBe('summary')
     })
 
+    it('has summary labels for calibration time fields', () => {
+      expect(FIELD_LABELS.calibrationStartTime).toEqual({
+        label: 'Calibration Start Time',
+        section: 'summary',
+      })
+      expect(FIELD_LABELS.calibrationEndTime).toEqual({
+        label: 'Calibration End Time',
+        section: 'summary',
+      })
+    })
+
     it('has label for uucDescription', () => {
       expect(FIELD_LABELS.uucDescription.label).toBe('UUC Description')
     })
@@ -270,6 +281,30 @@ describe('Change Detection Utilities', () => {
       expect(change).toBeDefined()
       expect(change!.previousValue).toBe('Old Name')
       expect(change!.newValue).toBe('New Name')
+    })
+
+    it('detects calibration start and end time changes', () => {
+      const existing = { calibrationStartTime: '09:00', calibrationEndTime: '12:00', parameters: [] }
+      const incoming = { calibrationStartTime: '09:30', calibrationEndTime: '12:45', parameters: [] }
+      const result = detectCertificateChanges(existing, incoming)
+
+      expect(result.hasChanges).toBe(true)
+      expect(result.certificateFields).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          field: 'calibrationStartTime',
+          fieldLabel: 'Calibration Start Time',
+          previousValue: '09:00',
+          newValue: '09:30',
+          section: 'summary',
+        }),
+        expect.objectContaining({
+          field: 'calibrationEndTime',
+          fieldLabel: 'Calibration End Time',
+          previousValue: '12:00',
+          newValue: '12:45',
+          section: 'summary',
+        }),
+      ]))
     })
 
     it('treats null and empty string as equal (no change)', () => {

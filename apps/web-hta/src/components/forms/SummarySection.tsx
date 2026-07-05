@@ -12,6 +12,7 @@ import { ReviewerSelect } from './ReviewerSelect'
 import { CustomerAutocomplete } from './CustomerAutocomplete'
 import { useCertificateStore } from '@/lib/stores/certificate-store'
 import { cn } from '@/lib/utils'
+import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 
 const TENURE_OPTIONS = [3, 6, 9, 12] as const
 
@@ -258,6 +259,12 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                   <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Cal. Date</p>
                   <p className="font-bold text-slate-900 text-sm">{formatDate(formData.dateOfCalibration)}</p>
                 </div>
+                <div className="bg-white rounded-xl p-3 border border-slate-200">
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Cal. Time</p>
+                  <p className="font-bold text-slate-900 text-sm">
+                    {formatCalibrationTimeRange(formData.calibrationStartTime, formData.calibrationEndTime)}
+                  </p>
+                </div>
                 <div className="bg-white rounded-xl p-3 border border-purple-200">
                   <p className="text-[10px] font-medium text-purple-500 uppercase tracking-wider mb-1">Reviewer</p>
                   <div className="flex items-center gap-1.5">
@@ -298,7 +305,7 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
         </div>
 
         {/* Date and Tenure Row */}
-        <div className={cn("grid gap-4", isNewCertificate ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1")}>
+        <div className={cn("grid gap-4", isNewCertificate ? "grid-cols-1 md:grid-cols-4" : "grid-cols-1")}>
           {/* Date of Calibration - Only editable for DRAFT */}
           {isNewCertificate && (
             <div className="bg-white rounded-xl p-4 border border-slate-200">
@@ -312,6 +319,36 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                 className="w-full rounded-xl border-slate-300 h-12 px-4"
               />
             </div>
+          )}
+
+          {isNewCertificate && (
+            <>
+              <div className="bg-white rounded-xl p-4 border border-slate-200">
+                <Label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                  Calibration Start Time
+                </Label>
+                <Input
+                  type="time"
+                  value={formData.calibrationStartTime}
+                  onChange={(e) => setFormField('calibrationStartTime', e.target.value)}
+                  className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-semibold text-xs md:text-xs"
+                />
+              </div>
+              <div className="bg-white rounded-xl p-4 border border-slate-200">
+                <Label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                  Calibration End Time
+                </Label>
+                <Input
+                  type="time"
+                  value={formData.calibrationEndTime}
+                  onChange={(e) => setFormField('calibrationEndTime', e.target.value)}
+                  className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-semibold text-xs md:text-xs"
+                />
+                <p className="mt-2 text-[10px] text-slate-400 font-bold uppercase">
+                  Hours: {formatCalibrationHours(formData.calibrationStartTime, formData.calibrationEndTime)}
+                </p>
+              </div>
+            </>
           )}
 
           {/* Calibration Tenure */}

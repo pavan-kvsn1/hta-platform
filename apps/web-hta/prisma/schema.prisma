@@ -457,6 +457,8 @@ model Certificate {
   srfNumber                     String?
   srfDate                       DateTime?
   dateOfCalibration             DateTime?
+  calibrationStartTime          String?
+  calibrationEndTime            String?
   calibrationTenure             Int                           @default(12)
   dueDateAdjustment             Int                           @default(0)
   calibrationDueDate            DateTime?
@@ -696,6 +698,49 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([entityType, entityId])
+}
+
+model AuthActivityLog {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  userId      String?
+  customerId  String?
+  email       String?
+  userType    String?
+  eventType   String
+  surface     String?
+  deviceId    String?
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([deviceId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model CertificateEditSessionLog {
+  id                    String   @id @default(cuid())
+  tenantId              String?
+  certificateId         String?
+  userId                String?
+  eventType             String
+  mode                  String?
+  source                String?
+  revision              Int?
+  activeDurationSeconds Int?
+  ipAddress             String?
+  userAgent             String?
+  metadata              Json?
+  createdAt             DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([certificateId, createdAt])
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
 }
 
 model Notification {
@@ -1031,18 +1076,21 @@ model DeviceRegistration {
 
 model DeviceAuditLog {
   id         String   @id @default(cuid())
-  tenantId   String
-  deviceId   String
-  userId     String
+  tenantId   String?
+  deviceId   String?
+  userId     String?
   action     String
   entityType String?
   entityId   String?
   metadata   Json?
+  ipAddress  String?
+  userAgent  String?
   occurredAt DateTime
   receivedAt DateTime @default(now())
 
   @@index([tenantId, deviceId])
   @@index([tenantId, userId])
+  @@index([action])
   @@index([occurredAt])
 }
 

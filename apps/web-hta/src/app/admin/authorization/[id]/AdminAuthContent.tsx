@@ -11,6 +11,7 @@ import { MasterInstrumentsTable } from '@/components/certificate/MasterInstrumen
 import { CalibrationResultsTable } from '@/components/certificate/CalibrationResultsTable'
 import { getConclusionText } from '@/components/pdf/pdf-utils'
 import { CALIBRATION_STATUS_OPTIONS } from '@/components/forms/RemarksSection'
+import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 import {
   ImageGalleryModal,
   ReadingImagesViewModal,
@@ -64,6 +65,8 @@ export interface CertificateFormData {
   srfNumber: string
   srfDate: string
   dateOfCalibration: string
+  calibrationStartTime: string
+  calibrationEndTime: string
   calibrationDueDate: string
   dueDateNotApplicable: boolean
   customerName: string
@@ -272,6 +275,14 @@ export function AdminAuthContent({ formData, certificateId }: AdminAuthContentPr
           <InfoField
             label="Date of Calibration"
             value={formatDate(formData.dateOfCalibration)}
+          />
+          <InfoField
+            label="Calibration Time"
+            value={formatCalibrationTimeRange(formData.calibrationStartTime, formData.calibrationEndTime)}
+          />
+          <InfoField
+            label="Hours of Calibration"
+            value={formatCalibrationHours(formData.calibrationStartTime, formData.calibrationEndTime)}
           />
           <InfoField
             label="Calibration Due Date"
@@ -593,4 +604,3 @@ export function AdminAuthContent({ formData, certificateId }: AdminAuthContentPr
     </div>
   )
 }
-

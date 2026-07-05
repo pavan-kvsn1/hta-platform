@@ -9,6 +9,7 @@ import { queueCertificateSubmittedEmail, queueCertificateReviewedEmail, queueCus
 import certificateImagesRoutes from './images/index.js'
 import { detectCertificateChanges, generateChangeSummary } from '../../lib/change-detection.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
+import { writeCertificateEditSession } from '../../lib/activity-audit.js'
 
 // Type for Prisma transaction client
 type TransactionClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
@@ -45,6 +46,38 @@ function parseUserAgentString(userAgent: string): string {
   return parts.length > 0 ? parts.join(' / ') : ''
 }
 
+const TIME_24H_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/
+
+function normalizeTime(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function timeToMinutes(value: string): number {
+  const [hours, minutes] = value.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+function validateCalibrationTimes(
+  startValue: unknown,
+  endValue: unknown,
+): { ok: true; start: string | null; end: string | null } | { ok: false; error: string } {
+  const start = normalizeTime(startValue)
+  const end = normalizeTime(endValue)
+
+  if (!start && !end) return { ok: true, start: null, end: null }
+  if (!start || !end) return { ok: false, error: 'Calibration start and end time are both required when either is provided' }
+  if (!TIME_24H_REGEX.test(start) || !TIME_24H_REGEX.test(end)) {
+    return { ok: false, error: 'Calibration start and end time must be in HH:mm format' }
+  }
+  if (timeToMinutes(end) <= timeToMinutes(start)) {
+    return { ok: false, error: 'Calibration end time must be after start time' }
+  }
+
+  return { ok: true, start, end }
+}
+
 // Schema for creating a certificate
 const createCertificateSchema = z.object({
   certificateNumber: z.string().min(1),
@@ -52,6 +85,8 @@ const createCertificateSchema = z.object({
   srfNumber: z.string().optional().nullable(),
   srfDate: z.string().optional().nullable(),
   dateOfCalibration: z.string().optional().nullable(),
+  calibrationStartTime: z.string().optional().nullable(),
+  calibrationEndTime: z.string().optional().nullable(),
   calibrationTenure: z.number().optional().default(12),
   dueDateAdjustment: z.number().optional().default(0),
   calibrationDueDate: z.string().optional().nullable(),
@@ -116,6 +151,34 @@ const createCertificateSchema = z.object({
     calibrationDueDate: z.string().optional().nullable(),
     sopReference: z.string().optional(),
   })).optional(),
+})
+
+const createDraftCertificateSchema = z.object({
+  action: z.literal('create-draft'),
+})
+
+async function generateDraftCertificateNumber(tx: TransactionClient, tenantId: string): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const stamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)
+    const suffix = crypto.randomBytes(3).toString('hex').toUpperCase()
+    const certificateNumber = `DRAFT-${stamp}-${suffix}`
+    const existing = await tx.certificate.findFirst({
+      where: { tenantId, certificateNumber },
+      select: { id: true },
+    })
+    if (!existing) return certificateNumber
+  }
+
+  throw new Error('Unable to generate unique draft certificate number')
+}
+
+const editSessionSchema = z.object({
+  certificateId: z.string().optional().nullable(),
+  eventType: z.enum(['OPENED', 'CLOSED', 'SAVE_DRAFT', 'SUBMITTED']),
+  mode: z.enum(['create', 'edit', 'offline']).optional().nullable(),
+  revision: z.number().int().optional().nullable(),
+  activeDurationSeconds: z.number().int().min(0).max(24 * 60 * 60).optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 const certificateRoutes: FastifyPluginAsync = async (fastify) => {
@@ -478,12 +541,89 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
   // POST /api/certificates - Create a new certificate
   fastify.post('/', {
     preHandler: [requireStaff],
-  }, async (request) => {
+  }, async (request, reply) => {
     const tenantId = request.tenantId
     const userId = request.user!.sub
     const userRole = request.user!.role
 
+    const draftRequest = createDraftCertificateSchema.safeParse(request.body)
+    if (draftRequest.success) {
+      await enforceLimit(tenantId, 'certificates')
+
+      const certificate = await prisma.$transaction(async (tx: TransactionClient) => {
+        const certificateNumber = await generateDraftCertificateNumber(tx, tenantId)
+
+        const cert = await tx.certificate.create({
+          data: {
+            tenantId,
+            certificateNumber,
+            status: 'DRAFT',
+            currentRevision: 1,
+            calibratedAt: 'LAB',
+            calibrationTenure: 12,
+            createdById: userId,
+            lastModifiedById: userId,
+          },
+        })
+
+        await tx.certificateEvent.create({
+          data: {
+            certificateId: cert.id,
+            sequenceNumber: 1,
+            revision: 1,
+            eventType: 'CERTIFICATE_CREATED',
+            eventData: JSON.stringify({
+              certificateNumber,
+              draftPlaceholder: true,
+            }),
+            userId,
+            userRole,
+          },
+        })
+
+        await tx.auditLog.create({
+          data: {
+            entityType: 'Certificate',
+            entityId: cert.id,
+            action: 'CREATE_DRAFT',
+            actorId: userId,
+            actorType: 'USER',
+            changes: JSON.stringify({ certificateNumber, draftPlaceholder: true }),
+          },
+        })
+
+        return cert
+      })
+
+      updateUsageTracking(tenantId).catch(() => {
+        // Log error but don't fail the request
+      })
+
+      await writeCertificateEditSession(request, {
+        tenantId,
+        certificateId: certificate.id,
+        userId,
+        eventType: 'SAVE_DRAFT',
+        mode: 'create',
+        source: 'API',
+        revision: certificate.currentRevision,
+        metadata: { created: true, draftPlaceholder: true },
+      })
+
+      return {
+        success: true,
+        certificate: {
+          id: certificate.id,
+          certificateNumber: certificate.certificateNumber,
+        },
+      }
+    }
+
     const body = createCertificateSchema.parse(request.body)
+    const calibrationTimes = validateCalibrationTimes(body.calibrationStartTime, body.calibrationEndTime)
+    if (!calibrationTimes.ok) {
+      return reply.status(400).send({ error: calibrationTimes.error })
+    }
 
     // Check subscription limit before creating
     await enforceLimit(tenantId, 'certificates')
@@ -501,6 +641,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           srfNumber: body.srfNumber || null,
           srfDate: body.srfDate ? new Date(body.srfDate) : null,
           dateOfCalibration: body.dateOfCalibration ? new Date(body.dateOfCalibration) : null,
+          calibrationStartTime: calibrationTimes.start,
+          calibrationEndTime: calibrationTimes.end,
           calibrationTenure: body.calibrationTenure || 12,
           dueDateAdjustment: body.dueDateAdjustment || 0,
           calibrationDueDate: body.calibrationDueDate ? new Date(body.calibrationDueDate) : null,
@@ -612,6 +754,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               customerName: body.customerName,
               uucDescription: body.uucDescription,
               dateOfCalibration: body.dateOfCalibration,
+              calibrationStartTime: calibrationTimes.start,
+              calibrationEndTime: calibrationTimes.end,
             },
           }),
           userId,
@@ -639,6 +783,17 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       // Log error but don't fail the request
     })
 
+    await writeCertificateEditSession(request, {
+      tenantId,
+      certificateId: certificate.id,
+      userId,
+      eventType: 'SAVE_DRAFT',
+      mode: 'create',
+      source: 'API',
+      revision: certificate.currentRevision,
+      metadata: { created: true },
+    })
+
     return {
       success: true,
       certificate: {
@@ -646,6 +801,29 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         certificateNumber: certificate.certificateNumber,
       },
     }
+  })
+
+  // POST /api/certificates/edit-sessions - Best-effort edit session tracking
+  fastify.post('/edit-sessions', {
+    preHandler: [requireStaff],
+  }, async (request) => {
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+    const body = editSessionSchema.parse(request.body)
+
+    await writeCertificateEditSession(request, {
+      tenantId,
+      userId,
+      certificateId: body.certificateId,
+      eventType: body.eventType,
+      mode: body.mode,
+      source: 'WEB',
+      revision: body.revision,
+      activeDurationSeconds: body.activeDurationSeconds,
+      metadata: body.metadata,
+    })
+
+    return { success: true }
   })
 
   // GET /api/certificates/:id - Get single certificate
@@ -781,6 +959,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       srfNumber,
       srfDate,
       dateOfCalibration,
+      calibrationStartTime,
+      calibrationEndTime,
       calibrationTenure,
       dueDateAdjustment,
       calibrationDueDate,
@@ -808,6 +988,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       masterInstruments,
     } = body as Record<string, any>
 
+    const calibrationTimes = validateCalibrationTimes(calibrationStartTime, calibrationEndTime)
+    if (!calibrationTimes.ok) {
+      return reply.status(400).send({ error: calibrationTimes.error })
+    }
+
     const certificate = await prisma.$transaction(async (tx: any) => {
       const cert = await tx.certificate.update({
         where: { id },
@@ -818,6 +1003,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           srfNumber: srfNumber || null,
           srfDate: srfDate ? new Date(srfDate) : null,
           dateOfCalibration: dateOfCalibration ? new Date(dateOfCalibration) : null,
+          calibrationStartTime: calibrationTimes.start,
+          calibrationEndTime: calibrationTimes.end,
           calibrationTenure: calibrationTenure || 12,
           dueDateAdjustment: dueDateAdjustment || 0,
           calibrationDueDate: calibrationDueDate ? new Date(calibrationDueDate) : null,
@@ -959,6 +1146,17 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       return cert
+    })
+
+    await writeCertificateEditSession(request, {
+      tenantId,
+      certificateId: certificate.id,
+      userId,
+      eventType: 'SAVE_DRAFT',
+      mode: 'edit',
+      source: 'API',
+      revision: certificate.currentRevision,
+      metadata: { status: certificate.status },
     })
 
     return {
@@ -1223,6 +1421,17 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       }).catch(() => {})
     }
 
+    await writeCertificateEditSession(request, {
+      tenantId,
+      certificateId: result.id,
+      userId,
+      eventType: 'SUBMITTED',
+      mode: isResubmission ? 'edit' : 'create',
+      source: 'API',
+      revision: result.currentRevision,
+      metadata: { isResubmission, reviewerId: effectiveReviewerId },
+    })
+
     return {
       success: true,
       message: isResubmission ? 'Certificate resubmitted for peer review' : 'Certificate submitted for peer review',
@@ -1298,11 +1507,18 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       if (!body.signatureData || !body.signerName?.trim()) {
         return reply.status(400).send({ error: 'Signature and signer name are required for approval' })
       }
+      if (!body.sendToCustomer?.email?.trim()) {
+        return reply.status(400).send({ error: 'Customer email is required to send the approval request' })
+      }
+      if (!body.sendToCustomer?.name?.trim()) {
+        return reply.status(400).send({ error: 'Customer name is required to send the approval request' })
+      }
     }
 
     // Process action
     if (body.action === 'approve') {
-      const newStatus = body.sendToCustomer ? 'PENDING_CUSTOMER_APPROVAL' : 'APPROVED'
+      const newStatus = 'PENDING_CUSTOMER_APPROVAL'
+      const customerDelivery = body.sendToCustomer!
 
       const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const lastEvent = await tx.certificateEvent.findFirst({
@@ -1328,13 +1544,13 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             revision: certificate.currentRevision,
             userId,
             userRole: 'ENGINEER',
-            eventType: body.sendToCustomer ? 'REVIEWER_APPROVED_SENT_TO_CUSTOMER' : 'APPROVED',
+            eventType: 'REVIEWER_APPROVED_SENT_TO_CUSTOMER',
             eventData: JSON.stringify({
               comment: body.comment || 'Certificate approved by peer reviewer.',
               reviewerId: userId,
               signerName: body.signerName,
               signerEmail: userEmail,
-              sentToCustomer: !!body.sendToCustomer,
+              sentToCustomer: true,
             }),
           },
         })
@@ -1366,54 +1582,52 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           }),
         })
 
-        // Create approval token if sending to customer
+        // Create approval token/customer handoff for customer approval
         let tokenResult: { token: string; customerId: string; expiresAt: Date; isRegistered: boolean } | null = null
-        if (body.sendToCustomer) {
-          // Find or create customer
-          let customer = await tx.customerUser.findUnique({
-            where: { tenantId_email: { tenantId, email: body.sendToCustomer.email.toLowerCase() } },
+        // Find or create customer
+        let customer = await tx.customerUser.findUnique({
+          where: { tenantId_email: { tenantId, email: customerDelivery.email.toLowerCase() } },
+        })
+
+        if (!customer) {
+          const tempPasswordHash = crypto.randomBytes(32).toString('hex')
+          // Try to link to existing customer account by company name
+          const customerAccount = certificate.customerName
+            ? await tx.customerAccount.findFirst({ where: { tenantId, companyName: certificate.customerName } })
+            : null
+          customer = await tx.customerUser.create({
+            data: {
+              tenantId,
+              email: customerDelivery.email.toLowerCase(),
+              name: customerDelivery.name,
+              passwordHash: tempPasswordHash,
+              companyName: certificate.customerName || 'Unknown Company',
+              customerAccountId: customerAccount?.id || null,
+              isActive: true,
+            },
+          })
+        }
+
+        const isRegistered = customer.isActive && customer.activatedAt !== null
+
+        if (isRegistered) {
+          // Registered customer — no token needed, they access via dashboard
+          tokenResult = { token: '', customerId: customer.id, expiresAt: new Date(), isRegistered: true }
+        } else {
+          // Unregistered customer — create 48h approval token
+          const expiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 48 hours
+          const token = crypto.randomUUID()
+
+          await tx.approvalToken.create({
+            data: {
+              token,
+              certificateId: id,
+              customerId: customer.id,
+              expiresAt,
+            },
           })
 
-          if (!customer) {
-            const tempPasswordHash = crypto.randomBytes(32).toString('hex')
-            // Try to link to existing customer account by company name
-            const customerAccount = certificate.customerName
-              ? await tx.customerAccount.findFirst({ where: { tenantId, companyName: certificate.customerName } })
-              : null
-            customer = await tx.customerUser.create({
-              data: {
-                tenantId,
-                email: body.sendToCustomer.email.toLowerCase(),
-                name: body.sendToCustomer.name,
-                passwordHash: tempPasswordHash,
-                companyName: certificate.customerName || 'Unknown Company',
-                customerAccountId: customerAccount?.id || null,
-                isActive: true,
-              },
-            })
-          }
-
-          const isRegistered = customer.isActive && customer.activatedAt !== null
-
-          if (isRegistered) {
-            // Registered customer — no token needed, they access via dashboard
-            tokenResult = { token: '', customerId: customer.id, expiresAt: new Date(), isRegistered: true }
-          } else {
-            // Unregistered customer — create 48h approval token
-            const expiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 48 hours
-            const token = crypto.randomUUID()
-
-            await tx.approvalToken.create({
-              data: {
-                token,
-                certificateId: id,
-                customerId: customer.id,
-                expiresAt,
-              },
-            })
-
-            tokenResult = { token, customerId: customer.id, expiresAt, isRegistered: false }
-          }
+          tokenResult = { token, customerId: customer.id, expiresAt, isRegistered: false }
         }
 
         return { tokenResult }
@@ -1440,20 +1654,20 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         }).catch(() => {})
       }
 
-      if (body.sendToCustomer && result.tokenResult) {
+      if (result.tokenResult) {
         if (result.tokenResult.isRegistered) {
           // Registered customer — send login-based review email
           queueCustomerReviewRegisteredEmail({
-            customerEmail: body.sendToCustomer.email,
-            customerName: body.sendToCustomer.name,
+            customerEmail: customerDelivery.email,
+            customerName: customerDelivery.name,
             certificateNumber: certNum,
             instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
           }).catch(() => {})
         } else {
           // Unregistered customer — send token-based review email
           queueCustomerReviewEmail({
-            customerEmail: body.sendToCustomer.email,
-            customerName: body.sendToCustomer.name,
+            customerEmail: customerDelivery.email,
+            customerName: customerDelivery.name,
             certificateNumber: certNum,
             instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
             token: result.tokenResult.token,
@@ -1485,7 +1699,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
       return {
         success: true,
-        message: body.sendToCustomer ? 'Certificate approved and sent to customer' : 'Certificate approved',
+        message: 'Certificate approved and sent to customer',
         ...(result.tokenResult && !result.tokenResult.isRegistered && {
           customerToken: {
             token: result.tokenResult.token,
@@ -2321,6 +2535,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       srfNumber: certificate.srfNumber || '',
       srfDate: certificate.srfDate?.toISOString().split('T')[0] || '',
       dateOfCalibration: certificate.dateOfCalibration?.toISOString().split('T')[0] || '',
+      calibrationStartTime: certificate.calibrationStartTime || '',
+      calibrationEndTime: certificate.calibrationEndTime || '',
       calibrationTenure: certificate.calibrationTenure || 12,
       dueDateAdjustment: certificate.dueDateAdjustment || 0,
       calibrationDueDate: certificate.calibrationDueDate?.toISOString().split('T')[0] || '',

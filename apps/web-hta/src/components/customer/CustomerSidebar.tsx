@@ -12,7 +12,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  FileText,
   Bell,
   Wrench,
 } from 'lucide-react'
@@ -99,13 +98,6 @@ export function CustomerSidebar({
       name: 'Dashboard',
       href: '/customer/dashboard',
       icon: LayoutDashboard,
-      badge: 0,
-      pocOnly: false,
-    },
-    {
-      name: 'Certificates',
-      href: '/customer/dashboard',
-      icon: FileText,
       badge: totalPending,
       pocOnly: false,
       isActive: (path: string) => path === '/customer/dashboard',

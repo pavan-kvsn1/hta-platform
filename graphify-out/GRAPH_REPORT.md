@@ -1,16 +1,16 @@
-# Graph Report - hta-platform  (2026-06-13)
+# Graph Report - hta-platform  (2026-07-05)
 
 ## Corpus Check
-- 1064 files · ~3,843,352 words
+- 1045 files · ~1,013,695 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 9752 nodes · 12881 edges · 590 communities (548 shown, 42 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 70 edges (avg confidence: 0.8)
+- 10278 nodes · 13714 edges · 617 communities (573 shown, 44 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 88 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `98735c17`
+- Built from commit: `dbe6a2de`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -572,114 +572,141 @@
 - [[_COMMUNITY_Community 585|Community 585]]
 - [[_COMMUNITY_Community 586|Community 586]]
 - [[_COMMUNITY_Community 587|Community 587]]
+- [[_COMMUNITY_Community 588|Community 588]]
+- [[_COMMUNITY_Community 589|Community 589]]
+- [[_COMMUNITY_Community 590|Community 590]]
+- [[_COMMUNITY_Community 591|Community 591]]
 - [[_COMMUNITY_Community 592|Community 592]]
 - [[_COMMUNITY_Community 593|Community 593]]
+- [[_COMMUNITY_Community 594|Community 594]]
+- [[_COMMUNITY_Community 595|Community 595]]
+- [[_COMMUNITY_Community 596|Community 596]]
+- [[_COMMUNITY_Community 597|Community 597]]
+- [[_COMMUNITY_Community 598|Community 598]]
+- [[_COMMUNITY_Community 599|Community 599]]
+- [[_COMMUNITY_Community 600|Community 600]]
+- [[_COMMUNITY_Community 601|Community 601]]
+- [[_COMMUNITY_Community 602|Community 602]]
+- [[_COMMUNITY_Community 603|Community 603]]
+- [[_COMMUNITY_Community 604|Community 604]]
+- [[_COMMUNITY_Community 605|Community 605]]
+- [[_COMMUNITY_Community 606|Community 606]]
+- [[_COMMUNITY_Community 607|Community 607]]
+- [[_COMMUNITY_Community 608|Community 608]]
+- [[_COMMUNITY_Community 609|Community 609]]
+- [[_COMMUNITY_Community 610|Community 610]]
+- [[_COMMUNITY_Community 611|Community 611]]
+- [[_COMMUNITY_Community 612|Community 612]]
+- [[_COMMUNITY_Community 613|Community 613]]
+- [[_COMMUNITY_Community 614|Community 614]]
+- [[_COMMUNITY_Community 615|Community 615]]
+- [[_COMMUNITY_Community 616|Community 616]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `apiFetch()` - 97 edges
-2. `prisma` - 54 edges
+1. `apiFetch()` - 98 edges
+2. `prisma` - 56 edges
 3. `auth()` - 49 edges
-4. `Phase 9B: API Separation - Detailed Implementation Plan` - 31 edges
-5. `scripts` - 27 edges
-6. `scripts` - 21 edges
-7. `scripts` - 21 edges
-8. `scripts` - 20 edges
-9. `scripts` - 20 edges
-10. `scripts` - 20 edges
+4. `formatCalibrationHours()` - 38 edges
+5. `Problem 3: Field Change Audit` - 37 edges
+6. `Problem 4: Calibration Start/End Time And Derived Hours` - 36 edges
+7. `Problem 2: Certificate Edit Session` - 34 edges
+8. `Phase 9B: API Separation - Detailed Implementation Plan` - 31 edges
+9. `scripts` - 27 edges
+10. `formatCalibrationTimeRange()` - 26 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `sendEmail()` --calls--> `renderEmail()`  [INFERRED]
-  apps/api/src/services/email.ts → packages/emails/src/render.ts
-- `POST()` --calls--> `verifyTOTP()`  [INFERRED]
-  apps/web-hta/src/app/api/auth/2fa/disable/route.ts → packages/shared/src/auth/totp.ts
-- `buildApp()` --calls--> `fastify`  [INFERRED]
-  apps/api/tests/unit/customer-routes.test.ts → apps/api/package.json
-- `EngineerDashboard()` --calls--> `auth()`  [INFERRED]
-  apps/web-hta/src/app/(dashboard)/dashboard/page.tsx → apps/web-hta/tests/unit/route-guards.test.ts
-- `OfflineCodesPage()` --calls--> `auth()`  [INFERRED]
-  apps/web-hta/src/app/(dashboard)/dashboard/offline-codes/page.tsx → apps/web-hta/tests/unit/route-guards.test.ts
+- `ReviewRequestPage()` --calls--> `format`  [INFERRED]
+  apps/web-hta/src/app/admin/customers/requests/[id]/page.tsx → package.json
+- `SettingsPage()` --calls--> `format`  [INFERRED]
+  apps/web-hta/src/app/customer/settings/page.tsx → package.json
+- `ReviewRequestPage()` --calls--> `format`  [INFERRED]
+  apps/web-tenant-template/src/app/admin/customers/requests/[id]/page.tsx → package.json
+- `CustomerDetailPage()` --calls--> `format`  [INFERRED]
+  apps/web-tenant-template/src/app/admin/customers/[id]/page.tsx → package.json
+- `CustomerRequestView()` --calls--> `format`  [INFERRED]
+  apps/web-tenant-template/src/app/admin/requests/[id]/CustomerRequestView.tsx → package.json
 
-## Communities (590 total, 42 thin omitted)
+## Communities (617 total, 44 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.03
-Nodes (38): AdminAuthorizationPanelProps, DownloadTokenHistory, SendDownloadLinkModalProps, Pagination, Registration, Admin, Stats, User (+30 more)
+Cohesion: 0.02
+Nodes (47): geistMono, geistSans, AdminAuthorizationPanelProps, DownloadTokenHistory, SendDownloadLinkModalProps, AdminEditModalProps, Admin, Pagination (+39 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.02
-Nodes (56): AdminAuthorizationPanelProps, DownloadTokenHistory, SendDownloadLinkModalProps, Certificate, Pagination, Admin, CustomerAccount, Pagination (+48 more)
+Cohesion: 0.03
+Nodes (42): AdminAuthorizationPanelProps, DownloadTokenHistory, SendDownloadLinkModalProps, Certificate, Pagination, Admin, CustomerAccount, Pagination (+34 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.03
-Nodes (36): Pagination, Registration, TokenValidation, TokenValidation, PasswordRequirement, passwordRequirements, PasswordRequirement, passwordRequirements (+28 more)
+Cohesion: 0.04
+Nodes (24): Pagination, Registration, TokenValidation, TokenValidation, PasswordRequirement, passwordRequirements, PasswordRequirement, passwordRequirements (+16 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.03
-Nodes (45): AdminAuthContentProps, CertificateFormData, MasterInstrument, Parameter, AdminCertificateContentProps, CustomerCertificateContentProps, TokenReviewContentProps, Assignee (+37 more)
+Cohesion: 0.04
+Nodes (66): AdminAuthContent(), AdminAuthContentProps, CertificateFormData, MasterInstrument, Parameter, AdminCertificateContent(), AdminCertificateContentProps, CustomerCertificateContent() (+58 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.03
-Nodes (63): Certificate, Pagination, Stats, STATUS_OPTIONS, AuthorizedCertificate, AuthorizedTable(), AwaitingCertificate, AwaitingResponseTable() (+55 more)
+Cohesion: 0.04
+Nodes (57): AuthorizedCertificate, AuthorizedTable(), AwaitingCertificate, AwaitingResponseTable(), statusDisplayMap, CompletedCertificate, CompletedTable(), ViewType (+49 more)
 
 ### Community 5 - "Community 5"
 Cohesion: 0.03
-Nodes (49): CONCLUSION_LABELS, CONCLUSION_STATEMENTS, ConclusionSectionProps, Customer, CustomerAutocompleteProps, CustomerUser, DEFAULT_REQUIREMENTS, ENVIRONMENTAL_REQUIREMENTS (+41 more)
+Nodes (51): CONCLUSION_LABELS, CONCLUSION_STATEMENTS, ConclusionSectionProps, Customer, CustomerAutocompleteProps, CustomerUser, DEFAULT_REQUIREMENTS, ENVIRONMENTAL_REQUIREMENTS (+43 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.20
 Nodes (8): getStatusBadge(), Instrument, InstrumentViewPage(), PARAMETER_CAPABILITIES, PARAMETER_ROLES, RangeDataItem, EngineerOption, TrainingRecord
 
 ### Community 7 - "Community 7"
-Cohesion: 0.03
-Nodes (55): CONCLUSION_LABELS, CONCLUSION_STATEMENTS, ConclusionSectionProps, DEFAULT_REQUIREMENTS, ENVIRONMENTAL_REQUIREMENTS, EnvironmentalSectionProps, Feedback, FeedbackHistorySectionProps (+47 more)
+Cohesion: 0.04
+Nodes (29): CONCLUSION_LABELS, CONCLUSION_STATEMENTS, ConclusionSectionProps, DEFAULT_REQUIREMENTS, ENVIRONMENTAL_REQUIREMENTS, EnvironmentalSectionProps, Feedback, FeedbackHistorySectionProps (+21 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.03
-Nodes (47): AdminAuthHeader(), AdminAuthHeaderProps, formatDate(), HeaderData, AdminCertificateHeaderProps, AdminReviewActionsProps, CustomerApprovalActionsProps, CustomerCertificateHeader() (+39 more)
+Cohesion: 0.04
+Nodes (40): AdminReviewActionsProps, CustomerApprovalActionsProps, ApprovalData, ReviewerApproveModalProps, CustomerFeedback, HeaderData, LastSentCustomerInfo, ReviewerPageClientProps (+32 more)
 
 ### Community 9 - "Community 9"
 Cohesion: 0.05
 Nodes (28): AdminAuthContentProps, CertificateFormData, MasterInstrument, Parameter, AdminCertificateContentProps, CustomerCertificateContentProps, TokenReviewContentProps, Assignee (+20 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.04
-Nodes (36): AdminEditModalProps, AdminEditPanelProps, PendingChange, SECTIONS, CATEGORIES, Instrument, InstrumentFormData, PARAMETER_CAPABILITIES (+28 more)
+Cohesion: 0.06
+Nodes (30): Admin, Certificate, CustomerAccount, CustomerDetailPage(), CustomerRequest, CustomerUser, CompanyUser, CustomerRequestData (+22 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.08
-Nodes (46): endDate, eventData, startDate, isValid, passwordHash, counts, futureDate, instrumentId (+38 more)
+Nodes (47): endDate, eventData, startDate, isValid, passwordHash, counts, futureDate, instrumentId (+39 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.05
 Nodes (49): alertAdminsOnInstrumentChange(), CSPAlertPayload, logger, securityRoutes(), isEmailConfigured(), logger, sendEmail(), SendEmailOptions (+41 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.04
-Nodes (26): AdminEditModalProps, AdminEditPanelProps, PendingChange, SECTIONS, Admin, Certificate, CustomerAccount, CustomerRequest (+18 more)
+Cohesion: 0.05
+Nodes (33): ApiCertificate, ApiEvent, ApiFeedback, ApiMasterInstrument, ApiParameter, ApiResult, ReviewerEdit, SECTIONS (+25 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.04
-Nodes (40): Certificate, Pagination, CustomerAccount, Pagination, CustomerRequest, Counts, CustomerRequest, Pagination (+32 more)
+Cohesion: 0.03
+Nodes (44): Certificate, Pagination, CustomerAccount, Pagination, Counts, CustomerRequest, Pagination, CATEGORIES (+36 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.04
-Nodes (36): AdminAuthorizationClientProps, CertificateData, HeaderData, AdminCertificateClientProps, HeaderData, AdminHistorySectionProps, DEFAULT_CONFIG, EVENT_CONFIG (+28 more)
+Nodes (37): AdminAuthorizationClientProps, CertificateData, HeaderData, AdminCertificateClientProps, HeaderData, AdminHistorySectionProps, DEFAULT_CONFIG, EVENT_CONFIG (+29 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.04
-Nodes (38): AdminCertificateClientProps, HeaderData, AdminChatPanelProps, formatDate(), HeaderData, Signature, TokenReviewClient(), TokenReviewClientProps (+30 more)
+Cohesion: 0.05
+Nodes (37): TokenApprovalActionsProps, formatDate(), HeaderData, Signature, TokenReviewClient(), TokenReviewClientProps, AdminHeaderData, Assignee (+29 more)
 
 ### Community 17 - "Community 17"
 Cohesion: 0.06
-Nodes (47): ALLOWED_MIME_TYPES, certificateImagesRoutes(), ImageUploadRequest, GCSStorageProvider, assetNumberToFileName(), CertificateImageType, fileNameToAssetNumber(), generateImageStorageKey() (+39 more)
+Nodes (48): ALLOWED_MIME_TYPES, certificateImagesRoutes(), ImageUploadRequest, enqueueImageProcessing(), GCSStorageProvider, assetNumberToFileName(), CertificateImageType, fileNameToAssetNumber() (+40 more)
 
 ### Community 18 - "Community 18"
 Cohesion: 0.04
 Nodes (46): Binned Parameters Display, code:block1 (COMPRESSION ◄─────────────────┼─────────────────► EXPANSION), code:block10 (Overflow = 670 - 550 = 120px), code:block11 (Page 1:                              Page 2:), code:block12 (1. Detect: Group E would be orphaned on Page 2), code:block13 (Page 1:                              Page 2:), code:block14 (Section Heights:), code:block15 (Page 1: A(170) + B(35) + Pressure(90) + Temp(250) = 545px) (+38 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.04
-Nodes (23): geistMono, geistSans, TokenValidation, TokenValidation, AuthorizedCertificate, AwaitingCertificate, statusDisplayMap, CompletedCertificate (+15 more)
+Cohesion: 0.17
+Nodes (19): deviceRoutes(), AuthActivityInput, CertificateEditSessionInput, DeviceAuditInput, getRequestDeviceId(), getRequestIp(), getRequestSurface(), getRequestUserAgent() (+11 more)
 
 ### Community 20 - "Community 20"
 Cohesion: 0.04
@@ -690,28 +717,28 @@ Cohesion: 0.04
 Nodes (49): 26.10 Implementation Checklist, 26.1 Environment Strategy, 26.2 Why No Staging Environment, 26.3.1 Cost Optimization Strategies, 26.3 Environment Comparison, 26.4.0 Redis Key Isolation, 26.4.1 Node Pool Configuration, 26.4.2 Resource Allocation Per Namespace (+41 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.06
-Nodes (42): checkLimit(), formatResourceName(), getEffectiveLimit(), getUsagePercentage(), hasFeature(), LimitCheckResult, LimitResource, SubscriptionData (+34 more)
+Cohesion: 0.13
+Nodes (21): checkLimit(), formatResourceName(), getEffectiveLimit(), getUsagePercentage(), hasFeature(), LimitCheckResult, LimitResource, SubscriptionData (+13 more)
 
 ### Community 23 - "Community 23"
-Cohesion: 0.06
-Nodes (33): FIELD_LABELS, SECTION_LABELS, FastifyJWT, JWTPayload, optionalAuth(), requireAdmin(), requireAuth(), requireCustomer() (+25 more)
+Cohesion: 0.07
+Nodes (25): FIELD_LABELS, SECTION_LABELS, FastifyJWT, JWTPayload, optionalAuth(), requireAdmin(), requireAuth(), requireCustomer() (+17 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.13
-Nodes (36): adminRoutes(), certificateRoutes(), createCertificateSchema, TransactionClient, customerRoutes(), getFullCertificateData(), safeJsonParse(), generateChangeSummary() (+28 more)
+Cohesion: 0.03
+Nodes (49): Certificate, EDITABLE_SECTIONS, EditActionsSidebarProps, FieldKey, Reviewer, SectionKey, Step, AdminEditModalProps (+41 more)
 
 ### Community 25 - "Community 25"
 Cohesion: 0.08
 Nodes (36): globalForPrisma, batchLoadCertificates(), batchLoadUsers(), certificateListSelect, createBatchLoader(), DashboardStats, getCertificatesPaginated(), getDashboardStats() (+28 more)
 
 ### Community 26 - "Community 26"
-Cohesion: 0.06
-Nodes (29): fastify, buildTestApp(), buildApp(), adminCalls, adminNotifCalls, approvalPayload, body, buildApp() (+21 more)
+Cohesion: 0.07
+Nodes (16): CalibrationCertificatePDF(), CalibrationCertificatePDFProps, formatSigningDateTime(), styles, generatePDFSimple(), generatePDFWithOptimalSpacing(), getPageCountFromPDF(), TwoPassResult (+8 more)
 
 ### Community 27 - "Community 27"
 Cohesion: 0.07
-Nodes (24): Admin, Certificate, CustomerAccount, CustomerRequest, CustomerUser, ChangePasswordFormProps, PasswordRequirement, passwordRequirements (+16 more)
+Nodes (27): import, types, import, types, import, types, import, types (+19 more)
 
 ### Community 28 - "Community 28"
 Cohesion: 0.04
@@ -734,12 +761,12 @@ Cohesion: 0.04
 Nodes (44): build, afterPack, appId, asarUnpack, directories, extraResources, files, nsis (+36 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.03
-Nodes (24): AdminAuthChatPanelProps, AdminChatPanelProps, Counts, Pagination, STATUS_CONFIG, TYPE_CONFIG, UnifiedRequest, ParameterReadingImages (+16 more)
+Cohesion: 0.07
+Nodes (10): AdminAuthChatPanelProps, AdminChatPanelProps, ChatContainerProps, Message, ChatInputProps, UploadedFile, ChatMessage(), ChatMessageProps (+2 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.05
-Nodes (23): DateGroup, Notification, Tab, DateGroup, Notification, Tab, DateGroup, Notification (+15 more)
+Nodes (27): DateGroup, Notification, Tab, DateGroup, Notification, Tab, DateGroup, Notification (+19 more)
 
 ### Community 35 - "Community 35"
 Cohesion: 0.05
@@ -750,20 +777,20 @@ Cohesion: 0.05
 Nodes (41): 1. Static Analysis (Build Time), 2. Dependency Scanning (CI), 3. Runtime Detection (Production), Alert Flow, API Authentication, Audit Trail, Backend Authorization, Certificate Protection (+33 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.07
-Nodes (37): base32Decode(), base32Encode(), generateBackupCodes(), generateHOTP(), generateSecret(), generateTOTP(), generateTOTPSecret(), hashBackupCode() (+29 more)
+Cohesion: 0.08
+Nodes (36): base32Decode(), base32Encode(), generateBackupCodes(), generateHOTP(), generateSecret(), generateTOTP(), generateTOTPSecret(), hashBackupCode() (+28 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.04
-Nodes (25): ApiCertificate, ApiEvent, Feedback, STATUS_CONFIG, CustomerEvent, Feedback, FeedbackStyle, formatDateDisplay() (+17 more)
+Cohesion: 0.06
+Nodes (19): CustomerEvent, Feedback, FeedbackStyle, formatDateDisplay(), formatTimeAgo(), groupFeedbacksByRevision(), isApproval(), ReviewerEdit (+11 more)
 
 ### Community 39 - "Community 39"
 Cohesion: 0.12
 Nodes (15): calculatePageSpacingMultiplier(), calculateSpacingStrategy(), detectStrategicBreaks(), estimateAdjustableSpacing(), estimateGroupAHeight(), estimateGroupBHeight(), estimateGroupEHeight(), estimateMasterInstrumentsHeight() (+7 more)
 
 ### Community 40 - "Community 40"
-Cohesion: 0.07
-Nodes (26): CalibrationCertificatePDF(), CalibrationCertificatePDFProps, formatSigningDateTime(), styles, calculatePageSpacingMultiplier(), calculateSpacingStrategy(), detectStrategicBreaks(), estimateAdjustableSpacing() (+18 more)
+Cohesion: 0.12
+Nodes (15): calculatePageSpacingMultiplier(), calculateSpacingStrategy(), detectStrategicBreaks(), estimateAdjustableSpacing(), estimateGroupAHeight(), estimateGroupBHeight(), estimateGroupEHeight(), estimateMasterInstrumentsHeight() (+7 more)
 
 ### Community 41 - "Community 41"
 Cohesion: 0.05
@@ -774,8 +801,8 @@ Cohesion: 0.07
 Nodes (31): ACCESS_TOKEN_FILE, affectedCertificates, apiReachableCache, controller, crypto, db, deviceId, empty (+23 more)
 
 ### Community 43 - "Community 43"
-Cohesion: 0.05
-Nodes (27): AdminReviewActionsProps, CustomerApprovalActionsProps, CustomerPDFViewerProps, TokenApprovalActionsProps, ApprovalData, ReviewerApproveModalProps, ChatMessage, CustomerChatPanelProps (+19 more)
+Cohesion: 0.04
+Nodes (36): AdminEditPanelProps, PendingChange, SECTIONS, AdminReviewActionsProps, CustomerRequest, ReviewRequestPage(), CustomerApprovalActionsProps, TokenApprovalActionsProps (+28 more)
 
 ### Community 44 - "Community 44"
 Cohesion: 0.05
@@ -787,7 +814,7 @@ Nodes (37): devDependencies, eslint-plugin-security, @microsoft/eslint-plugin-sd
 
 ### Community 46 - "Community 46"
 Cohesion: 0.05
-Nodes (43): devDependencies, eslint-plugin-security, @microsoft/eslint-plugin-sdl, prettier, tsx, turbo, @types/node, typescript (+35 more)
+Nodes (42): devDependencies, eslint-plugin-security, @microsoft/eslint-plugin-sdl, prettier, tsx, turbo, @types/node, typescript (+34 more)
 
 ### Community 47 - "Community 47"
 Cohesion: 0.07
@@ -798,8 +825,8 @@ Cohesion: 0.06
 Nodes (35): getUserId(), CreateDraftInput, createOfflineEditDraftFromCache(), ids(), ImageMeta, insertMasterInstruments(), insertParameters(), MasterInstrumentInput (+27 more)
 
 ### Community 49 - "Community 49"
-Cohesion: 0.05
-Nodes (35): createDocument(), CreateDocumentRequest, CreateDocumentResponse, downloadSignedPdf(), getDocument(), getHeaders(), isOpenSignHealthy(), OpenSignDocumentInfo (+27 more)
+Cohesion: 0.06
+Nodes (30): createDocument(), CreateDocumentRequest, CreateDocumentResponse, downloadSignedPdf(), getDocument(), getHeaders(), isOpenSignHealthy(), OpenSignDocumentInfo (+22 more)
 
 ### Community 50 - "Community 50"
 Cohesion: 0.10
@@ -822,8 +849,8 @@ Cohesion: 0.06
 Nodes (36): dependencies, bcryptjs, class-variance-authority, clsx, date-fns, dotenv, @hta/database, @hta/shared (+28 more)
 
 ### Community 55 - "Community 55"
-Cohesion: 0.30
-Nodes (11): cancelJob(), cleanupJobs(), enqueue(), enqueueBatch(), getJob(), getJobCounts(), getQueue(), getQueueService() (+3 more)
+Cohesion: 0.17
+Nodes (5): mockJob, mockJobs, mockQueueService, chatWorkers, notificationWorkers
 
 ### Community 56 - "Community 56"
 Cohesion: 0.06
@@ -850,8 +877,8 @@ Cohesion: 0.10
 Nodes (39): archiveUnreadableOfflineState(), AuthStatus, clearCredentials(), CRED_DIR(), deleteCredential(), deriveKey(), ensureCredDir(), getAuthStatus() (+31 more)
 
 ### Community 62 - "Community 62"
-Cohesion: 0.11
-Nodes (6): AccountLockoutConfig, AccountLockoutResult, RateLimitConfig, RateLimitResult, RateLimitType, RateLimitOptions
+Cohesion: 0.07
+Nodes (18): applyCorsHeaders(), CorsConfig, createCorsHeaders(), handleCorsPreflightRequest(), isOriginAllowed(), withCors(), AccountLockoutConfig, AccountLockoutResult (+10 more)
 
 ### Community 63 - "Community 63"
 Cohesion: 0.06
@@ -878,8 +905,8 @@ Cohesion: 0.11
 Nodes (28): chatRoutes(), canAccessChatThread(), ChatMessageInfo, ChatThreadInfo, getMessages(), getOrCreateThread(), getThreadsForUser(), getThreadWithCertificate() (+20 more)
 
 ### Community 69 - "Community 69"
-Cohesion: 0.09
-Nodes (8): ChatContainerProps, Message, ChatInputProps, UploadedFile, ChatMessage(), ChatMessageProps, formatMessageTime(), ChatSidebarProps
+Cohesion: 0.06
+Nodes (16): CATEGORIES, Instrument, Pagination, STAT_CARDS, Stats, STATUS_OPTIONS, Counts, Pagination (+8 more)
 
 ### Community 70 - "Community 70"
 Cohesion: 0.06
@@ -902,8 +929,8 @@ Cohesion: 0.18
 Nodes (25): logComplianceEvent(), logConsentChange(), logDataDeletion(), logDataExport(), logDataRectification(), logger, logPiiAccess(), logPiiModification() (+17 more)
 
 ### Community 75 - "Community 75"
-Cohesion: 0.08
-Nodes (21): activateSchema, AdminType, AdminTypes, authRoutes(), changePasswordSchema, forgotPasswordSchema, hashPassword(), loginSchema (+13 more)
+Cohesion: 0.07
+Nodes (23): PendingRequest, SettingsPage(), TeamData, TeamMember, ChangePasswordFormProps, PasswordRequirement, passwordRequirements, DialogContent (+15 more)
 
 ### Community 76 - "Community 76"
 Cohesion: 0.07
@@ -922,12 +949,12 @@ Cohesion: 0.07
 Nodes (28): Admin: Document Management, API Design, code:block1 (┌───────────────────────────────────────────────────────────), code:prisma (model KnowledgeDocument {), code:sql (-- Enable extension), code:typescript (// Query the knowledge base), code:typescript (// packages/shared/src/ai/knowledge/ingest.ts), code:typescript (// packages/shared/src/ai/knowledge/query.ts) (+20 more)
 
 ### Community 80 - "Community 80"
-Cohesion: 0.04
-Nodes (30): ApiCertificate, ApiEvent, ApiFeedback, ApiMasterInstrument, ApiParameter, ApiResult, ReviewerEdit, SECTIONS (+22 more)
+Cohesion: 0.08
+Nodes (24): AdminHistorySectionProps, DEFAULT_CONFIG, EVENT_CONFIG, FEEDBACK_CONFIG, INCLUDED_EVENTS, ROLE_LABELS, SECTION_LABELS, TimelineItem (+16 more)
 
 ### Community 81 - "Community 81"
-Cohesion: 0.20
-Nodes (6): ViewType, CustomerDashboard(), DashboardData, StatCardProps, viewDescriptions, viewTitles
+Cohesion: 0.06
+Nodes (36): dependencies, bcryptjs, class-variance-authority, clsx, date-fns, dotenv, @hta/database, @hta/shared (+28 more)
 
 ### Community 82 - "Community 82"
 Cohesion: 0.08
@@ -938,8 +965,8 @@ Cohesion: 0.07
 Nodes (28): 1. Executive Summary, 24. Post-Migration Checklist, 2. Decision Framework, 5. Target Architecture, 7. Migration Strategy, Approach: Strangler Fig Pattern, CI/CD, Cleanup (+20 more)
 
 ### Community 84 - "Community 84"
-Cohesion: 0.07
-Nodes (16): CalibrationCertificatePDF(), CalibrationCertificatePDFProps, formatSigningDateTime(), styles, generatePDFSimple(), generatePDFWithOptimalSpacing(), getPageCountFromPDF(), TwoPassResult (+8 more)
+Cohesion: 0.12
+Nodes (12): Admin, Stats, User, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay (+4 more)
 
 ### Community 85 - "Community 85"
 Cohesion: 0.07
@@ -950,8 +977,8 @@ Cohesion: 0.07
 Nodes (27): 1. Database Corruption, 2. Region Failure, 3. Accidental Data Deletion, 4. Security Breach, Cloud SQL, code:bash (# 1. Assess impact), code:bash (# 1. Confirm region failure (check GCP status)), code:bash (# 1. Stop the bleeding - identify and revoke access if malic) (+19 more)
 
 ### Community 87 - "Community 87"
-Cohesion: 0.08
-Nodes (17): CompanyUser, CustomerRequestData, CustomerRequestViewProps, RecentRequest, Props, RequestDetailPage(), DesktopVpnRequestClient(), DesktopVpnRequestClientProps (+9 more)
+Cohesion: 0.07
+Nodes (23): fastify, buildTestApp(), buildApp(), buildApp(), buildApp(), body, buildApp(), createdRequest (+15 more)
 
 ### Community 88 - "Community 88"
 Cohesion: 0.08
@@ -990,8 +1017,8 @@ Cohesion: 0.09
 Nodes (16): CustomerFeedback, CustomerFeedbackSidebar(), CustomerFeedbackSidebarProps, groupFeedbacksByRevision(), Feedback, FeedbackSidebar(), FeedbackSidebarProps, groupFeedbacksByRevision() (+8 more)
 
 ### Community 97 - "Community 97"
-Cohesion: 0.05
-Nodes (23): AdminAuthChatPanelProps, AdminAuthorizationClientProps, CertificateData, HeaderData, AdminAuthorizationPage(), getCertificateData(), Props, STATUS_CONFIG (+15 more)
+Cohesion: 0.10
+Nodes (15): AdminAuthHeader(), AdminAuthHeaderProps, formatDate(), HeaderData, AdminCertificateHeaderProps, CustomerCertificateHeader(), CustomerCertificateHeaderProps, formatDate() (+7 more)
 
 ### Community 98 - "Community 98"
 Cohesion: 0.08
@@ -1026,12 +1053,12 @@ Cohesion: 0.08
 Nodes (24): Code Maintenance Agent Options, code:block1 (┌───────────────────────────────────────────────────────────), code:yaml (# .github/workflows/code-health-agent.yml), code:yaml (# Add to existing CI), code:typescript (// Potential future: scheduled agent tasks), code:yaml (# Kubernetes-native approach (simpler than Immortal)), code:block6 (┌───────────────────────────────────────────────────────────), Comparison (+16 more)
 
 ### Community 106 - "Community 106"
-Cohesion: 0.13
-Nodes (7): AdminLayout(), getSidebarBadges(), CustomerLayout(), getCustomerData(), AdminLayoutWrapperProps, CustomerLayoutWrapperProps, DESKTOP_ONLINE_ONLY_PATHS
+Cohesion: 0.04
+Nodes (23): Certificate, Pagination, Stats, STATUS_OPTIONS, Counts, Pagination, STATUS_CONFIG, TYPE_CONFIG (+15 more)
 
 ### Community 107 - "Community 107"
-Cohesion: 0.08
-Nodes (30): offlineCodesRoutes(), deviceRoutes(), generateChallengeResponsePairs(), GeneratedPair, generateValue(), hashCode(), ROW_LABELS, generateCodeBatch() (+22 more)
+Cohesion: 0.06
+Nodes (30): offlineCodesRoutes(), generateChallengeResponsePairs(), GeneratedPair, generateValue(), hashCode(), ROW_LABELS, generateCodeBatch(), getBatchStatus() (+22 more)
 
 ### Community 108 - "Community 108"
 Cohesion: 0.26
@@ -1058,8 +1085,8 @@ Cohesion: 0.08
 Nodes (23): compilerOptions, declaration, declarationMap, esModuleInterop, forceConsistentCasingInFileNames, isolatedModules, module, moduleResolution (+15 more)
 
 ### Community 114 - "Community 114"
-Cohesion: 0.07
-Nodes (24): AdminCertificatePage(), calculateTAT(), getCertificateDetails(), Props, STATUS_CONFIG, CustomerCertReviewPage(), Props, STATUS_CONFIG (+16 more)
+Cohesion: 0.06
+Nodes (35): AdminCertificatePage(), calculateTAT(), getCertificateDetails(), Props, STATUS_CONFIG, CustomerCertReviewPage(), Props, STATUS_CONFIG (+27 more)
 
 ### Community 115 - "Community 115"
 Cohesion: 0.11
@@ -1071,7 +1098,7 @@ Nodes (18): AuthorizerCard(), AuthorizerMetrics, CustomerRequestMetrics, Custome
 
 ### Community 117 - "Community 117"
 Cohesion: 0.08
-Nodes (19): AdminAuthHeader(), AdminAuthHeaderProps, formatDate(), HeaderData, AdminCertificateHeaderProps, CustomerCertificateHeader(), CustomerCertificateHeaderProps, formatDate() (+11 more)
+Nodes (12): ApiCertificate, ApiEvent, ApiFeedback, ApiMasterInstrument, ApiParameter, ApiResult, ReviewerEdit, SECTIONS (+4 more)
 
 ### Community 118 - "Community 118"
 Cohesion: 0.10
@@ -1118,20 +1145,20 @@ Cohesion: 0.09
 Nodes (20): approveButton, certLink, commentArea, confirmBtn, confirmButton, engineerCreateAndSubmit(), messageInput, openAs() (+12 more)
 
 ### Community 129 - "Community 129"
-Cohesion: 0.07
-Nodes (9): CustomersLayout(), RegistrationsLayout(), CustomerDashboard(), authConfig, cookieOptions, getCurrentUser(), nextAuth, GET() (+1 more)
+Cohesion: 0.06
+Nodes (17): RegistrationsLayout(), authConfig, cookieOptions, getCurrentUser(), nextAuth, GET(), POST(), generateToken() (+9 more)
 
 ### Community 130 - "Community 130"
 Cohesion: 0.12
-Nodes (21): CustomersLayout(), RegistrationsLayout(), auth(), canReviewCertificate(), Certificate, isAdmin(), isMasterAdmin(), isWorkerAdmin() (+13 more)
+Nodes (21): CustomersLayout(), CustomerDashboard(), auth(), canReviewCertificate(), Certificate, isAdmin(), isMasterAdmin(), isWorkerAdmin() (+13 more)
 
 ### Community 131 - "Community 131"
-Cohesion: 0.33
-Nodes (3): mockJob, service1, service2
+Cohesion: 0.35
+Nodes (18): distribution(), gauge(), increment(), metrics, metricsEnabled(), set(), trackApiError(), trackApiRequest() (+10 more)
 
 ### Community 132 - "Community 132"
-Cohesion: 0.09
-Nodes (23): 7.1 Prerequisites Check, 7.3 Run Database Migrations, 7.4 Deploy Applications, 7.5 Verify Deployment, 7.6 Troubleshooting First Deployment, 7. First Deployment, Apply Kubernetes Manifests, code:bash (# Verify cluster connection) (+15 more)
+Cohesion: 0.17
+Nodes (12): 7.1 Prerequisites Check, 7.4 Deploy Applications, 7.5 Verify Deployment, 7.6 Troubleshooting First Deployment, 7. First Deployment, Apply Kubernetes Manifests, code:bash (# Verify cluster connection), code:bash (# From repo root - apply base manifests) (+4 more)
 
 ### Community 133 - "Community 133"
 Cohesion: 0.09
@@ -1150,12 +1177,12 @@ Cohesion: 0.09
 Nodes (16): createdAt, email, EmailNotification, generateEmailNotification(), getNotificationTitle(), groups, link, message (+8 more)
 
 ### Community 137 - "Community 137"
-Cohesion: 0.14
-Nodes (18): code:powershell (python -m graphify query "calibration start time end time da), code:prisma (model Certificate {), Current Coverage, Current Coverage, Current Coverage, Gaps, Gaps, Gaps (+10 more)
+Cohesion: 0.07
+Nodes (38): code:powershell (python -m graphify query "calibration start time end time da), code:prisma (model Certificate {), Current Coverage, Current Coverage, Current Coverage, Current Coverage, Current Coverage, Current Coverage (+30 more)
 
 ### Community 138 - "Community 138"
-Cohesion: 0.14
-Nodes (18): code:powershell (python -m graphify query "certificate edit session create ed), code:prisma (model CertificateEditSession {), Current Coverage, Current Coverage, Current Coverage, Gaps, Gaps, Gaps (+10 more)
+Cohesion: 0.07
+Nodes (36): code:powershell (python -m graphify query "certificate edit session create ed), code:prisma (model CertificateEditSession {), Current Coverage, Current Coverage, Current Coverage, Current Coverage, Current Coverage, Current Coverage (+28 more)
 
 ### Community 139 - "Community 139"
 Cohesion: 0.09
@@ -1214,8 +1241,8 @@ Cohesion: 0.10
 Nodes (20): AI Features Roadmap for HTA Platform, Appendix: Glossary, Business Context, code:block1 (┌───────────────────────────────────────────────────────────), code:block2 (┌───────────────────────────────────────────────────────────), code:block3 (┌───────────────────────────────────────────────────────────), Cost Estimates, Cost Optimization (+12 more)
 
 ### Community 153 - "Community 153"
-Cohesion: 0.11
-Nodes (19): changeset, existing, incoming, result, summary, ChangeSet, detectCertificateChanges(), FIELD_LABELS (+11 more)
+Cohesion: 0.09
+Nodes (45): adminRoutes(), getMasterInstrumentCertificatePathCandidates(), logger, normalizeCertificateLookupValue(), resolveMasterInstrumentCertificatePath(), sanitizeStorageFileName(), certificateRoutes(), createCertificateSchema (+37 more)
 
 ### Community 154 - "Community 154"
 Cohesion: 0.10
@@ -1242,8 +1269,8 @@ Cohesion: 0.10
 Nodes (19): 6.1 Measurement Outlier Detection, 6.2 Instrument Drift Prediction, 6.3 Process Anomaly Detection, API Endpoints, code:block1 (┌───────────────────────────────────────────────────────────), code:block2 (┌───────────────────────────────────────────────────────────), code:block3 (┌───────────────────────────────────────────────────────────), code:block4 (┌───────────────────────────────────────────────────────────) (+11 more)
 
 ### Community 160 - "Community 160"
-Cohesion: 0.14
-Nodes (14): AdminHistorySectionProps, DEFAULT_CONFIG, EVENT_CONFIG, FEEDBACK_CONFIG, INCLUDED_EVENTS, ROLE_LABELS, SECTION_LABELS, TimelineItem (+6 more)
+Cohesion: 0.07
+Nodes (10): AdminAuthChatPanelProps, AdminChatPanelProps, ChatContainerProps, Message, ChatInputProps, UploadedFile, ChatMessage(), ChatMessageProps (+2 more)
 
 ### Community 161 - "Community 161"
 Cohesion: 0.10
@@ -1258,12 +1285,12 @@ Cohesion: 0.10
 Nodes (20): scripts, build, chromatic, db:generate, db:migrate, db:migrate:deploy, db:push, db:reset (+12 more)
 
 ### Community 164 - "Community 164"
-Cohesion: 0.13
-Nodes (11): clientCache, getDb(), getDbForSession(), getDefaultTenantId(), getTenantClient(), globalForPrisma, ContextAwarePrismaClient, TENANT_SCOPED_MODELS (+3 more)
+Cohesion: 0.10
+Nodes (17): clientCache, getDb(), getDbForSession(), getDefaultTenantId(), getTenantClient(), globalForPrisma, ContextAwarePrismaClient, TENANT_SCOPED_MODELS (+9 more)
 
 ### Community 165 - "Community 165"
-Cohesion: 0.18
-Nodes (9): baseClientEvidence, baseServerEvidence, baseSignerInfo, evidence, hash, jsonData, payload, req (+1 more)
+Cohesion: 0.11
+Nodes (15): appendSigningEvidence(), ClientEvidence, computeHash(), SigningEvidencePayload, VerificationResult, verifyEvidenceChain(), baseClientEvidence, baseServerEvidence (+7 more)
 
 ### Community 166 - "Community 166"
 Cohesion: 0.10
@@ -1275,7 +1302,7 @@ Nodes (19): cert, Certificate, CertificateStatus, isReviewableStatus(), isValidE
 
 ### Community 168 - "Community 168"
 Cohesion: 0.05
-Nodes (27): MasterInstrumentSection(), AdminAuthorizationPage(), getCertificateData(), Props, STATUS_CONFIG, Props, RequestDetailPage(), CustomerCertReviewPage() (+19 more)
+Nodes (23): AdminAuthorizationPage(), getCertificateData(), Props, STATUS_CONFIG, CustomersLayout(), RegistrationsLayout(), Props, RequestDetailPage() (+15 more)
 
 ### Community 169 - "Community 169"
 Cohesion: 0.13
@@ -1322,8 +1349,8 @@ Cohesion: 0.11
 Nodes (17): approvedBox, buttonContainer, CustomerApprovalProps, detailLabel, detailRow, detailsBox, detailValue, heading (+9 more)
 
 ### Community 180 - "Community 180"
-Cohesion: 0.16
-Nodes (13): createNotification(), CreateNotificationParams, notificationTemplates, NotificationType, notifyAssigneeOnReview(), notifyCustomerOnRegistrationApproved(), notifyCustomerOnReviewerReply(), notifyOnChatMessage() (+5 more)
+Cohesion: 0.08
+Nodes (26): createNotification(), CreateNotificationParams, notificationTemplates, NotificationType, notifyAssigneeOnReview(), notifyCustomerOnRegistrationApproved(), notifyCustomerOnReviewerReply(), notifyOnChatMessage() (+18 more)
 
 ### Community 181 - "Community 181"
 Cohesion: 0.16
@@ -1362,8 +1389,8 @@ Cohesion: 0.11
 Nodes (14): Counts, Pagination, STATUS_CONFIG, TYPE_CONFIG, UserRequest, approvedBadges, mockApiFetch, paginationButtons (+6 more)
 
 ### Community 192 - "Community 192"
-Cohesion: 0.08
-Nodes (14): Certificate, Pagination, Stats, STATUS_OPTIONS, statusFilters, CertificateListItem, CertificateTableProps, statusFilters (+6 more)
+Cohesion: 0.17
+Nodes (5): mockJob, mockJobs, mockQueueService, chatWorkers, notificationWorkers
 
 ### Community 194 - "Community 194"
 Cohesion: 0.11
@@ -1418,8 +1445,8 @@ Cohesion: 0.12
 Nodes (16): Agent Definition, Agent Implementation, Agent Workflow, API Endpoints, code:block1 (┌───────────────────────────────────────────────────────────), code:block2 (┌───────────────────────────────────────────────────────────), code:typescript (// apps/api/src/agents/onboarding/agent.ts), code:block4 (Agent: Welcome! Upload your NABL certificate to get started.) (+8 more)
 
 ### Community 209 - "Community 209"
-Cohesion: 0.13
-Nodes (17): code:powershell (python -m graphify query "field change audit certificate cha), Current Coverage, Current Coverage, Current Coverage, Gaps, Gaps, Gaps, Graphify And Codebase Review (+9 more)
+Cohesion: 0.06
+Nodes (38): code:powershell (python -m graphify query "field change audit certificate cha), Current Coverage, Current Coverage, Current Coverage, Current Coverage, Current Coverage, Current Coverage, Current Coverage (+30 more)
 
 ### Community 212 - "Community 212"
 Cohesion: 0.12
@@ -1582,8 +1609,8 @@ Cohesion: 0.42
 Nodes (14): dr-drill.sh script, check_prerequisites(), cleanup(), create_test_instance(), generate_report(), get_latest_backup(), init_drill(), log_fail() (+6 more)
 
 ### Community 254 - "Community 254"
-Cohesion: 0.19
-Nodes (12): applyCorsHeaders(), CorsConfig, createCorsHeaders(), handleCorsPreflightRequest(), isOriginAllowed(), withCors(), config, headers (+4 more)
+Cohesion: 0.06
+Nodes (34): AdminCertificateClientProps, HeaderData, AdminCertificateHeader(), AdminCertificateHeaderProps, AdminEditPanelProps, PendingChange, SECTIONS, InternalRequestClientProps (+26 more)
 
 ### Community 255 - "Community 255"
 Cohesion: 0.13
@@ -1602,8 +1629,8 @@ Cohesion: 0.18
 Nodes (14): data, GET(), mockAuth, mockGetOrCreateThread, mockGetThreadsForUser, mockGetUnreadCountsByThread, mockThread, mockThreads (+6 more)
 
 ### Community 259 - "Community 259"
-Cohesion: 0.21
-Nodes (13): ChangeSet, compareParameters(), detectCertificateChanges(), detectCertificateFieldChanges(), detectParameterChanges(), FIELD_LABELS, FieldChange, formatValueForDisplay() (+5 more)
+Cohesion: 0.11
+Nodes (27): ChangeSet, compareParameters(), detectCertificateChanges(), detectCertificateFieldChanges(), detectParameterChanges(), FIELD_LABELS, FieldChange, formatValueForDisplay() (+19 more)
 
 ### Community 260 - "Community 260"
 Cohesion: 0.12
@@ -1650,24 +1677,24 @@ Cohesion: 0.24
 Nodes (10): requireAdmin(), requireAdminWithTierCheck(), requireAssigneeAccess(), requireAuth(), requireCertificateAccess(), requireCustomerAuth(), requireEngineer(), requireMasterAdmin() (+2 more)
 
 ### Community 271 - "Community 271"
-Cohesion: 0.25
-Nodes (7): categories, filtered, found, makes, state, stats, unique
+Cohesion: 0.15
+Nodes (10): enrichedInstruments, MasterInstrumentStore, useMasterInstrumentStore, categories, filtered, found, makes, state (+2 more)
 
 ### Community 273 - "Community 273"
 Cohesion: 0.15
 Nodes (10): authDuration, certificateCreateDuration, certificateGetDuration, certificateListDuration, errorRate, healthCheckDuration, options, requestCount (+2 more)
 
 ### Community 274 - "Community 274"
-Cohesion: 0.17
-Nodes (7): formatDate(), HeaderData, Signature, TokenReviewClient(), TokenReviewClientProps, CustomerChatContainerProps, Message
+Cohesion: 0.30
+Nodes (11): cancelJob(), cleanupJobs(), enqueue(), enqueueBatch(), getJob(), getJobCounts(), getQueue(), getQueueService() (+3 more)
 
 ### Community 275 - "Community 275"
-Cohesion: 0.08
-Nodes (12): ApiCertificate, ApiEvent, ApiFeedback, ApiMasterInstrument, ApiParameter, ApiResult, ReviewerEdit, SECTIONS (+4 more)
+Cohesion: 0.17
+Nodes (9): Job, JobOptions, JobPayloads, JobStatus, JobType, JobWorker, QueueService, WorkerRegistry (+1 more)
 
 ### Community 276 - "Community 276"
-Cohesion: 0.17
-Nodes (5): mockJob, mockJobs, mockQueueService, chatWorkers, notificationWorkers
+Cohesion: 0.08
+Nodes (21): activateSchema, AdminType, AdminTypes, authRoutes(), changePasswordSchema, forgotPasswordSchema, hashPassword(), loginSchema (+13 more)
 
 ### Community 278 - "Community 278"
 Cohesion: 0.17
@@ -1682,24 +1709,24 @@ Cohesion: 0.24
 Nodes (11): assetNumberToFileName(), CERTIFICATE_PDF_SOURCE, CERTIFICATE_STORAGE_PATH, DEFAULT_TENANT, main(), MasterInstrumentJson, parseDate(), prisma (+3 more)
 
 ### Community 281 - "Community 281"
-Cohesion: 0.18
-Nodes (8): FeedEvent, PIPELINE_STAGES, AdminDashboard(), getAdminStats(), EVENT_DOT_COLORS, EVENT_LABELS, LiveFeedCardProps, STATUS_LABELS
+Cohesion: 0.16
+Nodes (10): FeedEvent, AdminDashboard(), getAdminStats(), PIPELINE_STAGES, AdminDashboard(), getAdminStats(), EVENT_DOT_COLORS, EVENT_LABELS (+2 more)
 
 ### Community 282 - "Community 282"
 Cohesion: 0.17
 Nodes (10): buttonContainer, CertificateSentToCustomerProps, detailLabel, detailRow, detailsBox, detailValue, heading, noteBox (+2 more)
 
 ### Community 283 - "Community 283"
-Cohesion: 0.30
-Nodes (11): cancelJob(), cleanupJobs(), enqueue(), enqueueBatch(), getJob(), getJobCounts(), getQueue(), getQueueService() (+3 more)
+Cohesion: 0.08
+Nodes (26): devDependencies, chromatic, @chromatic-com/playwright, eslint, @eslint/js, eslint-plugin-react, eslint-plugin-react-hooks, ioredis (+18 more)
 
 ### Community 284 - "Community 284"
-Cohesion: 0.17
-Nodes (9): Job, JobOptions, JobPayloads, JobStatus, JobType, JobWorker, QueueService, WorkerRegistry (+1 more)
+Cohesion: 0.12
+Nodes (10): CustomerPDFViewerProps, ChatMessage, CustomerChatPanelProps, CertificateData, CustomerData, CustomerReviewClient(), CustomerReviewClientProps, formatDate() (+2 more)
 
 ### Community 285 - "Community 285"
 Cohesion: 0.17
-Nodes (5): mockJob, mockJobs, mockQueueService, chatWorkers, notificationWorkers
+Nodes (7): formatDate(), HeaderData, Signature, TokenReviewClient(), TokenReviewClientProps, CustomerChatContainerProps, Message
 
 ### Community 286 - "Community 286"
 Cohesion: 0.17
@@ -1726,8 +1753,8 @@ Cohesion: 0.18
 Nodes (10): apiLogger, authLogger, certificateLogger, createLogger(), emailLogger, GCP_SEVERITY, getSentry(), logError() (+2 more)
 
 ### Community 293 - "Community 293"
-Cohesion: 0.25
-Nodes (7): 9. Trade-offs & Alternatives Considered, code:block15 (┌───────────────────────────────────────────────────────────), HTA Platform - Architecture & Design Decisions, Quick Reference Card, Summary of Key Trade-offs, Table of Contents, What I'd Do Differently
+Cohesion: 0.17
+Nodes (11): 10. Scaling Strategy, 9. Trade-offs & Alternatives Considered, code:block15 (┌───────────────────────────────────────────────────────────), Current Capacity vs Usage, Growth Path, HTA Platform - Architecture & Design Decisions, Quick Reference Card, Scaling Triggers & Actions (+3 more)
 
 ### Community 294 - "Community 294"
 Cohesion: 0.17
@@ -1763,7 +1790,7 @@ Nodes (10): AggregatedTATMetrics, calculateCertificateTAT(), CertificateEvent, C
 
 ### Community 302 - "Community 302"
 Cohesion: 0.18
-Nodes (11): exports, ./logger, ./metrics, ./notifications, import, import, types, import (+3 more)
+Nodes (11): exports, ./logger, ./notifications, ./types, import, import, types, import (+3 more)
 
 ### Community 303 - "Community 303"
 Cohesion: 0.18
@@ -1786,8 +1813,8 @@ Cohesion: 0.24
 Nodes (4): metadata, metadata, BackLink(), metadata
 
 ### Community 308 - "Community 308"
-Cohesion: 0.15
-Nodes (14): cache, cached(), cachedSWR(), getCacheConfig(), getCacheProvider(), logCache(), MemoryEntry, CacheConfig (+6 more)
+Cohesion: 0.18
+Nodes (8): MemoryEntry, CacheConfig, CachedEntry, CacheKeys, CacheOptions, CacheProvider, CacheStats, CacheTTL
 
 ### Community 309 - "Community 309"
 Cohesion: 0.18
@@ -1834,8 +1861,8 @@ Cohesion: 0.18
 Nodes (10): Admin Dashboard Additions, Compliance Mapping, Device Lifecycle Management, Functional, HTA Calibr8s — Electron Offline Desktop App, ISO 27001 Annex A, Security, SOC 2 Type II (+2 more)
 
 ### Community 320 - "Community 320"
-Cohesion: 0.18
-Nodes (11): exports, ./logger, ./notifications, ./types, import, import, types, import (+3 more)
+Cohesion: 0.07
+Nodes (27): import, types, import, types, import, types, exports, ./audit (+19 more)
 
 ### Community 321 - "Community 321"
 Cohesion: 0.47
@@ -1878,8 +1905,8 @@ Cohesion: 0.20
 Nodes (10): devDependencies, eslint, @eslint/js, pino-pretty, @types/bcryptjs, typescript, typescript-eslint, @typescript-eslint/eslint-plugin (+2 more)
 
 ### Community 331 - "Community 331"
-Cohesion: 0.35
-Nodes (18): distribution(), gauge(), increment(), metrics, metricsEnabled(), set(), trackApiError(), trackApiRequest() (+10 more)
+Cohesion: 0.30
+Nodes (11): cancelJob(), cleanupJobs(), enqueue(), enqueueBatch(), getJob(), getJobCounts(), getQueue(), getQueueService() (+3 more)
 
 ### Community 332 - "Community 332"
 Cohesion: 0.18
@@ -1902,8 +1929,8 @@ Cohesion: 0.20
 Nodes (5): expected, numericPages, result, ROWS_PER_PAGE_OPTIONS, url
 
 ### Community 337 - "Community 337"
-Cohesion: 0.12
-Nodes (10): CustomerPDFViewerProps, ChatMessage, CustomerChatPanelProps, CertificateData, CustomerData, CustomerReviewClient(), CustomerReviewClientProps, formatDate() (+2 more)
+Cohesion: 0.07
+Nodes (21): Certificate, Pagination, Stats, STATUS_OPTIONS, CertificateListItem, CertificateTable(), CertificateTableProps, statusFilters (+13 more)
 
 ### Community 338 - "Community 338"
 Cohesion: 0.20
@@ -1986,8 +2013,8 @@ Cohesion: 0.15
 Nodes (19): getPrivateApiBase(), getProvisionApiBase(), normalizeBaseUrl(), buildWgConf(), confirmProvisioningToken(), execFileAsync, generateKeyPair(), installTunnelServiceElevated() (+11 more)
 
 ### Community 358 - "Community 358"
-Cohesion: 0.14
-Nodes (6): DEFAULT_CONFIG, SentryConfig, SentryIntegration, ServiceName, startSpan(), withSentry()
+Cohesion: 0.17
+Nodes (9): Job, JobOptions, JobPayloads, JobStatus, JobType, JobWorker, QueueService, WorkerRegistry (+1 more)
 
 ### Community 359 - "Community 359"
 Cohesion: 0.22
@@ -2074,8 +2101,8 @@ Cohesion: 0.25
 Nodes (7): AI Features Cost Analysis, Already Included (Existing Stack), Cost by Tenant Tier, Executive Summary, Infrastructure Costs, New Services (Optional), Pricing Recommendation
 
 ### Community 380 - "Community 380"
-Cohesion: 0.17
-Nodes (9): Job, JobOptions, JobPayloads, JobStatus, JobType, JobWorker, QueueService, WorkerRegistry (+1 more)
+Cohesion: 0.09
+Nodes (25): changeset, existing, incoming, result, summary, ChangeSet, detectCertificateChanges(), FIELD_LABELS (+17 more)
 
 ### Community 381 - "Community 381"
 Cohesion: 0.25
@@ -2086,12 +2113,12 @@ Cohesion: 0.25
 Nodes (6): buttonContainer, heading, paragraph, PasswordChangedProps, warningBox, warningText
 
 ### Community 383 - "Community 383"
-Cohesion: 0.29
-Nodes (5): emailSendWorker(), emailTemplates, emailWorkers, formatTextAsHtml(), TemplateConfig
+Cohesion: 0.04
+Nodes (25): Admin, Certificate, CustomerAccount, CustomerDetailPage(), CustomerRequest, CustomerUser, PendingRequest, TeamData (+17 more)
 
 ### Community 384 - "Community 384"
-Cohesion: 0.33
-Nodes (3): AdminLayout(), getSidebarBadges(), AdminSidebarProps
+Cohesion: 0.20
+Nodes (10): devDependencies, eslint, @eslint/js, pino-pretty, @types/bcryptjs, typescript, typescript-eslint, @typescript-eslint/eslint-plugin (+2 more)
 
 ### Community 385 - "Community 385"
 Cohesion: 0.29
@@ -2106,8 +2133,8 @@ Cohesion: 0.25
 Nodes (6): buttonContainer, heading, paragraph, PasswordChangedProps, warningBox, warningText
 
 ### Community 388 - "Community 388"
-Cohesion: 0.29
-Nodes (5): emailSendWorker(), emailTemplates, emailWorkers, formatTextAsHtml(), TemplateConfig
+Cohesion: 0.10
+Nodes (20): scripts, build, chromatic, db:generate, db:migrate, db:migrate:deploy, db:push, db:reset (+12 more)
 
 ### Community 389 - "Community 389"
 Cohesion: 0.25
@@ -2178,16 +2205,16 @@ Cohesion: 0.15
 Nodes (12): getAuthStatus, getReprovisionImpact, logout, mockElectronAPI, mockPush, mockReplace, passwordInput, resetLocalSetup (+4 more)
 
 ### Community 406 - "Community 406"
-Cohesion: 0.17
-Nodes (11): code:powershell (python -m graphify query "auth activity login logout refresh), code:prisma (model AuthActivityLog {), Current Coverage, Database Migration Ownership, Gaps, Graphify And Codebase Review, Implementation Notes, Problem 1: Auth Activity (+3 more)
+Cohesion: 0.15
+Nodes (12): code:powershell (python -m graphify query "auth activity login logout refresh), code:prisma (model AuthActivityLog {), Current Coverage, Database Migration Ownership, Gaps, Graphify And Codebase Review, Implementation Notes, Implementation Update (+4 more)
 
 ### Community 407 - "Community 407"
-Cohesion: 0.28
-Nodes (6): DashboardSidebarProps, BadgeState, getBadgeState(), STATE_CONFIG, SyncStatus, SyncStatusBadge()
+Cohesion: 0.12
+Nodes (9): AdminLayout(), getSidebarBadges(), AdminLayout(), getSidebarBadges(), CustomerLayout(), getCustomerData(), AdminLayoutWrapperProps, CustomerLayoutWrapperProps (+1 more)
 
 ### Community 408 - "Community 408"
-Cohesion: 0.52
-Nodes (6): cache, cached(), cachedSWR(), getCacheConfig(), getCacheProvider(), logCache()
+Cohesion: 0.09
+Nodes (16): ACCEPTED_TYPES, ReadingImage, ReadingImageModalProps, FORMULA_OPTIONS, getDefaultPrecision(), getLeastCountInfo(), getPrecisionFromLeastCount(), getStepFromPrecision() (+8 more)
 
 ### Community 409 - "Community 409"
 Cohesion: 0.29
@@ -2222,8 +2249,8 @@ Cohesion: 0.29
 Nodes (6): 5.1 Pre-cache on login, 5.2 IPC handlers for cached data, 5.3 Refresh schedule, 5.4 Verification, code:typescript (// In ipc-handlers.ts), Phase 5 — Reference Data Pre-Cache
 
 ### Community 417 - "Community 417"
-Cohesion: 0.29
-Nodes (6): main, name, private, type, types, version
+Cohesion: 0.18
+Nodes (10): main, name, private, type, version, main, name, private (+2 more)
 
 ### Community 418 - "Community 418"
 Cohesion: 0.29
@@ -2298,24 +2325,24 @@ Cohesion: 0.33
 Nodes (5): draftOption, newCertLink, searchInput, statusFilter, submitButton
 
 ### Community 436 - "Community 436"
-Cohesion: 0.33
-Nodes (5): name, prisma, seed, private, version
+Cohesion: 0.18
+Nodes (10): name, prisma, seed, private, version, name, prisma, seed (+2 more)
 
 ### Community 437 - "Community 437"
-Cohesion: 0.28
-Nodes (6): appendSigningEvidence(), ClientEvidence, computeHash(), SigningEvidencePayload, VerificationResult, verifyEvidenceChain()
+Cohesion: 0.29
+Nodes (5): emailSendWorker(), emailTemplates, emailWorkers, formatTextAsHtml(), TemplateConfig
 
 ### Community 438 - "Community 438"
-Cohesion: 0.40
-Nodes (6): calculateInstrumentStatus(), canMeasureParameter(), coversRange(), enrichInstrument(), extractCapabilities(), parseDueDate()
+Cohesion: 0.07
+Nodes (14): AuthorizedCertificate, AwaitingCertificate, statusDisplayMap, CompletedCertificate, ViewType, PendingCertificate, AuthorizedTableProps, AwaitingResponseTableProps (+6 more)
 
 ### Community 439 - "Community 439"
 Cohesion: 0.33
 Nodes (3): ButtonProps, primaryButton, secondaryButton
 
 ### Community 440 - "Community 440"
-Cohesion: 0.08
-Nodes (19): getMasterInstrumentCertificatePathCandidates(), logger, normalizeCertificateLookupValue(), resolveMasterInstrumentCertificatePath(), sanitizeStorageFileName(), assignNextVpnIp(), generateVpnProvisioningToken(), getServerPublicKey() (+11 more)
+Cohesion: 0.40
+Nodes (5): 4. Current Architecture, code:block6 (┌───────────────────────────────────────────────────────────), code:block7 (hta-calibration/), Current File Structure, Pain Points
 
 ### Community 441 - "Community 441"
 Cohesion: 0.40
@@ -2326,8 +2353,8 @@ Cohesion: 0.33
 Nodes (5): name, prisma, seed, private, version
 
 ### Community 443 - "Community 443"
-Cohesion: 0.25
-Nodes (7): ChatAttachmentInfo, ChatMessageInfo, ChatThreadInfo, CreateThreadInput, GetMessagesOptions, SendMessageInput, ThreadType
+Cohesion: 0.29
+Nodes (6): After Editing, Before Editing, code:powershell (python -m graphify query "<module or behavior question>" --g), code:powershell (python -m graphify update .), Graph Hygiene, Graphify Workflow
 
 ### Community 444 - "Community 444"
 Cohesion: 0.33
@@ -2394,8 +2421,8 @@ Cohesion: 0.40
 Nodes (5): code:block4 (Monthly AI Cost (medium): ₹22,000 (~$275)), ROI Analysis, ROI Calculation, Time Savings (Conservative), Value of Time Saved
 
 ### Community 460 - "Community 460"
-Cohesion: 0.25
-Nodes (7): ChatAttachmentInfo, ChatMessageInfo, ChatThreadInfo, CreateThreadInput, GetMessagesOptions, SendMessageInput, ThreadType
+Cohesion: 0.28
+Nodes (6): DashboardSidebarProps, BadgeState, getBadgeState(), STATE_CONFIG, SyncStatus, SyncStatusBadge()
 
 ### Community 461 - "Community 461"
 Cohesion: 0.40
@@ -2410,8 +2437,8 @@ Cohesion: 0.50
 Nodes (5): authFlow(), getHeaders(), normalLoad(), group, sleep()
 
 ### Community 465 - "Community 465"
-Cohesion: 0.40
-Nodes (3): CustomerLayout(), getCustomerData(), CustomerSidebarProps
+Cohesion: 0.25
+Nodes (7): ChatAttachmentInfo, ChatMessageInfo, ChatThreadInfo, CreateThreadInput, GetMessagesOptions, SendMessageInput, ThreadType
 
 ### Community 466 - "Community 466"
 Cohesion: 0.40
@@ -2506,8 +2533,8 @@ Cohesion: 0.67
 Nodes (3): Budget Allocation, code:block5 (Month 1-2: Phase 1 only ($50-80/mo)), Recommendations
 
 ### Community 492 - "Community 492"
-Cohesion: 0.67
-Nodes (3): ./tenant, import, types
+Cohesion: 0.25
+Nodes (7): ChatAttachmentInfo, ChatMessageInfo, ChatThreadInfo, CreateThreadInput, GetMessagesOptions, SendMessageInput, ThreadType
 
 ### Community 493 - "Community 493"
 Cohesion: 0.67
@@ -2546,8 +2573,8 @@ Cohesion: 0.67
 Nodes (3): ./security, import, types
 
 ### Community 502 - "Community 502"
-Cohesion: 0.67
-Nodes (3): LLM Pricing (as of 2026), Pricing Assumptions, Token Estimates
+Cohesion: 0.29
+Nodes (5): emailSendWorker(), emailTemplates, emailWorkers, formatTextAsHtml(), TemplateConfig
 
 ### Community 503 - "Community 503"
 Cohesion: 0.67
@@ -2582,16 +2609,16 @@ Cohesion: 0.67
 Nodes (3): ./sentry, import, types
 
 ### Community 511 - "Community 511"
-Cohesion: 0.33
-Nodes (3): mockJob, service1, service2
+Cohesion: 0.29
+Nodes (7): dependencies, bcryptjs, @hta/database, ioredis, pino, @sentry/node, zod
 
 ### Community 512 - "Community 512"
 Cohesion: 0.67
 Nodes (3): ./security, import, types
 
 ### Community 513 - "Community 513"
-Cohesion: 0.67
-Nodes (3): ./types, import, types
+Cohesion: 0.33
+Nodes (6): scripts, build, lint, test, test:unit, typecheck
 
 ### Community 514 - "Community 514"
 Cohesion: 0.67
@@ -2603,19 +2630,19 @@ Nodes (3): import, types, ./alerting
 
 ### Community 526 - "Community 526"
 Cohesion: 0.67
-Nodes (3): import, types, ./audit
+Nodes (3): ./tenant, import, types
 
 ### Community 527 - "Community 527"
-Cohesion: 0.67
-Nodes (3): import, types, ./auth
+Cohesion: 0.40
+Nodes (6): calculateInstrumentStatus(), canMeasureParameter(), coversRange(), enrichInstrument(), extractCapabilities(), parseDueDate()
 
 ### Community 528 - "Community 528"
-Cohesion: 0.67
-Nodes (3): import, types, ./cache
+Cohesion: 0.15
+Nodes (9): ChatMessage, CustomerChatPanelProps, CertificateData, CustomerData, CustomerReviewClient(), CustomerReviewClientProps, formatDate(), getInitials() (+1 more)
 
 ### Community 529 - "Community 529"
-Cohesion: 0.67
-Nodes (3): ./health, import, types
+Cohesion: 0.33
+Nodes (3): mockJob, service1, service2
 
 ### Community 530 - "Community 530"
 Cohesion: 0.67
@@ -2623,71 +2650,171 @@ Nodes (3): ./offline-codes, import, types
 
 ### Community 531 - "Community 531"
 Cohesion: 0.67
-Nodes (3): ./sentry, import, types
+Nodes (3): ./types, import, types
 
 ### Community 532 - "Community 532"
-Cohesion: 0.53
-Nodes (5): generateToken(), getJwtSecret(), hashToken(), POST(), REFRESH_TOKEN_CONFIG
+Cohesion: 0.67
+Nodes (3): ./tenant, import, types
 
 ### Community 533 - "Community 533"
-Cohesion: 0.67
-Nodes (3): ./security, import, types
+Cohesion: 0.25
+Nodes (7): ApiResponse, CertificateStatus, CertificateStatusType, PaginatedResponse, PaginationParams, RequestStatus, RequestStatusType
 
 ### Community 534 - "Community 534"
-Cohesion: 0.40
-Nodes (5): 4. Current Architecture, code:block6 (┌───────────────────────────────────────────────────────────), code:block7 (hta-calibration/), Current File Structure, Pain Points
+Cohesion: 0.05
+Nodes (25): CalibrationCertificatePDF(), CalibrationCertificatePDFProps, formatSigningDateTime(), styles, generatePDFSimple(), generatePDFWithOptimalSpacing(), getPageCountFromPDF(), TwoPassResult (+17 more)
 
 ### Community 535 - "Community 535"
-Cohesion: 0.67
-Nodes (3): ./utils, import, types
+Cohesion: 0.38
+Nodes (5): calculateTAT(), getCertificateDetails(), Props, ReviewerReviewPage(), STATUS_CONFIG
 
 ### Community 581 - "Community 581"
 Cohesion: 0.50
 Nodes (3): code:bash (pnpm db:schema:check), code:bash (pnpm db:migrate), Prisma Schema And Migrations
 
 ### Community 582 - "Community 582"
-Cohesion: 0.50
-Nodes (4): 10. Scaling Strategy, Current Capacity vs Usage, Growth Path, Scaling Triggers & Actions
+Cohesion: 0.06
+Nodes (32): HeaderProps, ACCURACY_TYPE_CONFIG, AccuracyType, CalibrationResult, CertificateFormData, CertificateStore, _createDefaultBin(), createDefaultParameter() (+24 more)
 
 ### Community 583 - "Community 583"
-Cohesion: 0.67
-Nodes (3): ./tenant, import, types
+Cohesion: 0.07
+Nodes (20): AdminAuthorizationClientProps, CertificateData, HeaderData, AdminAuthorizationPage(), getCertificateData(), Props, STATUS_CONFIG, ConflictResolutionDialogProps (+12 more)
 
 ### Community 584 - "Community 584"
 Cohesion: 0.18
 Nodes (10): API, Current Decisions, Data Model, Frontend, Future Policy Checks, Goal, Infra, Master Instrument Training Evidence (+2 more)
 
 ### Community 585 - "Community 585"
-Cohesion: 0.67
-Nodes (3): ./types, import, types
+Cohesion: 0.07
+Nodes (17): CustomerCertificateHeader(), CustomerCertificateHeaderProps, formatDate(), HeaderData, CustomerCertReviewClientProps, HeaderData, Signature, ViewToggleButtonProps (+9 more)
 
 ### Community 586 - "Community 586"
 Cohesion: 0.67
-Nodes (3): ./tenant, import, types
+Nodes (3): ./security, import, types
 
 ### Community 587 - "Community 587"
 Cohesion: 0.67
+Nodes (3): ./utils, import, types
+
+### Community 588 - "Community 588"
+Cohesion: 0.67
 Nodes (3): ./metrics, import, types
 
+### Community 589 - "Community 589"
+Cohesion: 0.52
+Nodes (6): cache, cached(), cachedSWR(), getCacheConfig(), getCacheProvider(), logCache()
+
+### Community 590 - "Community 590"
+Cohesion: 0.52
+Nodes (6): cache, cached(), cachedSWR(), getCacheConfig(), getCacheProvider(), logCache()
+
+### Community 591 - "Community 591"
+Cohesion: 0.11
+Nodes (21): BillCalculation, calculateMonthlyBill(), formatPrice(), generateLineItems(), InvoiceLineItem, OVERAGE_PRICES, PRICING_TIERS, PricingTier (+13 more)
+
+### Community 594 - "Community 594"
+Cohesion: 0.67
+Nodes (3): ./utils, import, types
+
+### Community 595 - "Community 595"
+Cohesion: 0.67
+Nodes (3): ./metrics, import, types
+
+### Community 596 - "Community 596"
+Cohesion: 0.67
+Nodes (3): ./types, import, types
+
+### Community 597 - "Community 597"
+Cohesion: 0.33
+Nodes (3): mockJob, service1, service2
+
+### Community 598 - "Community 598"
+Cohesion: 0.50
+Nodes (4): formatTAT(), TATBadge(), TATBadgeProps, TATStatus
+
+### Community 599 - "Community 599"
+Cohesion: 0.67
+Nodes (3): LLM Pricing (as of 2026), Pricing Assumptions, Token Estimates
+
+### Community 600 - "Community 600"
+Cohesion: 0.67
+Nodes (3): ./logger, import, types
+
+### Community 601 - "Community 601"
+Cohesion: 0.67
+Nodes (3): ./notifications, import, types
+
+### Community 602 - "Community 602"
+Cohesion: 0.67
+Nodes (3): ./security, import, types
+
+### Community 603 - "Community 603"
+Cohesion: 0.12
+Nodes (10): UUCImage, UUCImagesSidebarProps, ACCEPTED_TYPES, UUCImage, UUCImageUploadProps, button, handleClick, link (+2 more)
+
+### Community 604 - "Community 604"
+Cohesion: 0.17
+Nodes (12): ApiCertificate, ApiEvent, CollapsibleSection(), Feedback, STATUS_CONFIG, ApiCertificate, ApiEvent, CollapsibleSection() (+4 more)
+
+### Community 605 - "Community 605"
+Cohesion: 0.14
+Nodes (6): DEFAULT_CONFIG, SentryConfig, SentryIntegration, ServiceName, startSpan(), withSentry()
+
+### Community 606 - "Community 606"
+Cohesion: 0.14
+Nodes (13): adminCalls, adminNotifCalls, approvalPayload, body, certificate, customerUser, limit, mockedEnqueueNotification (+5 more)
+
+### Community 607 - "Community 607"
+Cohesion: 0.20
+Nodes (9): AdminAuthHeader(), AdminAuthHeaderProps, formatDate(), HeaderData, MetaInfoItemProps, AdminAuthHeader(), AdminAuthHeaderProps, formatDate() (+1 more)
+
+### Community 608 - "Community 608"
+Cohesion: 0.18
+Nodes (11): 7.3 Run Database Migrations, code:bash (# Enable public IP), code:bash (# Install Cloud SQL Proxy), code:powershell (# PowerShell - rename conflicting files), code:powershell (# Set DATABASE_URL environment variable), code:powershell (# Seed is configured in apps/web-hta), code:powershell (# Restore .env files), code:bash (# IMPORTANT: Disable public IP after migrations (security)) (+3 more)
+
+### Community 609 - "Community 609"
+Cohesion: 0.33
+Nodes (3): AdminLayout(), getSidebarBadges(), AdminSidebarProps
+
+### Community 610 - "Community 610"
+Cohesion: 0.47
+Nodes (5): MasterInstrumentSection(), EngineerDashboard(), MasterInstrumentSection(), getCertificates(), getStats()
+
+### Community 611 - "Community 611"
+Cohesion: 0.40
+Nodes (3): ParameterReadingImages, ReadingImageData, ReadingImagesViewModalProps
+
+### Community 612 - "Community 612"
+Cohesion: 0.40
+Nodes (4): countMap, oldDate, scheduledFor, stuckTime
+
+### Community 614 - "Community 614"
+Cohesion: 0.67
+Nodes (3): ./metrics, import, types
+
+### Community 615 - "Community 615"
+Cohesion: 0.67
+Nodes (3): ./tenant, import, types
+
 ## Knowledge Gaps
-- **5220 isolated node(s):** `apiVersion`, `kind`, `app.kubernetes.io/version`, `argocd.argoproj.io/tracking-id`, `kubectl.kubernetes.io/last-applied-configuration` (+5215 more)
+- **5534 isolated node(s):** `PreToolUse`, `graphify`, `AuthActivityInput`, `DeviceAuditInput`, `CertificateEditSessionInput` (+5529 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **42 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **44 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `auth()` connect `Community 130` to `Community 224`, `Community 97`, `Community 129`, `Community 384`, `Community 37`, `Community 168`, `Community 106`, `Community 269`, `Community 141`, `Community 270`, `Community 465`, `Community 114`, `Community 115`, `Community 532`, `Community 307`, `Community 81`, `Community 87`?**
-  _High betweenness centrality (0.049) - this node is a cross-community bridge._
-- **Why does `MasterInstrumentSection()` connect `Community 168` to `Community 7`?**
-  _High betweenness centrality (0.030) - this node is a cross-community bridge._
+- **Why does `MasterInstrumentSection()` connect `Community 610` to `Community 7`?**
+  _High betweenness centrality (0.035) - this node is a cross-community bridge._
+- **Why does `auth()` connect `Community 130` to `Community 224`, `Community 129`, `Community 610`, `Community 609`, `Community 535`, `Community 37`, `Community 583`, `Community 168`, `Community 10`, `Community 269`, `Community 141`, `Community 270`, `Community 114`, `Community 115`, `Community 307`, `Community 407`?**
+  _High betweenness centrality (0.035) - this node is a cross-community bridge._
 - **Are the 39 inferred relationships involving `auth()` (e.g. with `EngineerDashboard()` and `OfflineCodesPage()`) actually correct?**
   _`auth()` has 39 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `apiVersion`, `kind`, `app.kubernetes.io/version` to the rest of the system?**
-  _5220 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `PreToolUse`, `graphify`, `AuthActivityInput` to the rest of the system?**
+  _5534 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.030235162374020158 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.024246969128858892 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.02490842490842491 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.03364197530864198 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.027632561613144136 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0350140056022409 - nodes in this community are weakly interconnected._

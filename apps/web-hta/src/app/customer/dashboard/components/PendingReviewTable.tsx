@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import {
@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, Eye, ChevronDown, ChevronRight, ChevronLeft, Bell, Loader2 } from 'lucide-react'
+import { Search, Eye, ChevronLeft, ChevronRight, Bell, Loader2 } from 'lucide-react'
 import { apiFetch } from '@/lib/api-client'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -58,7 +58,6 @@ export function PendingReviewTable() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('newest')
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
 
@@ -100,16 +99,6 @@ export function PendingReviewTable() {
   const handleSort = (value: SortOption) => { setSortBy(value); setCurrentPage(1) }
   const handleRowsPerPage = (value: number) => { setRowsPerPage(value); setCurrentPage(1) }
 
-  const toggleRow = (id: string) => {
-    const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id)
-    } else {
-      newExpanded.add(id)
-    }
-    setExpandedRows(newExpanded)
-  }
-
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-'
     return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -119,12 +108,12 @@ export function PendingReviewTable() {
     })
   }
 
-  const getDaysUntilExpiry = (expiresAt: string | null) => {
+  const getHoursUntilExpiry = (expiresAt: string | null) => {
     if (!expiresAt) return null
     const expires = new Date(expiresAt)
+    if (Number.isNaN(expires.getTime())) return null
     const now = new Date()
-    const days = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    return days
+    return Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60))
   }
 
   const getReviewLink = (cert: PendingCertificate) => {
@@ -170,12 +159,17 @@ export function PendingReviewTable() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#f1f5f9]">
-                <th className="w-8"></th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
                   Certificate No.
                 </th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
                   Instrument
+                </th>
+                <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                  SRF No.
+                </th>
+                <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                  Calibrated
                 </th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
                   Received
@@ -190,22 +184,13 @@ export function PendingReviewTable() {
             </thead>
             <tbody>
               {certificates.map((cert) => {
-                const isExpanded = expandedRows.has(cert.id)
-                const daysLeft = getDaysUntilExpiry(cert.expiresAt)
+                const hoursLeft = getHoursUntilExpiry(cert.expiresAt)
 
                 return (
-                  <React.Fragment key={cert.id}>
                     <tr
-                      className="border-b border-[#f1f5f9] last:border-0 hover:bg-[#f8fafc] cursor-pointer transition-colors"
-                      onClick={() => toggleRow(cert.id)}
+                      key={cert.id}
+                      className="border-b border-[#f1f5f9] last:border-0 hover:bg-[#f8fafc] transition-colors"
                     >
-                      <td className="px-2">
-                        {isExpanded ? (
-                          <ChevronDown className="size-3.5 text-[#94a3b8]" />
-                        ) : (
-                          <ChevronRight className="size-3.5 text-[#94a3b8]" />
-                        )}
-                      </td>
                       <td className="px-4 py-3">
                         <span className="text-[13px] font-medium text-[#0f172a]">{cert.certificateNumber}</span>
                       </td>
@@ -216,21 +201,30 @@ export function PendingReviewTable() {
                             {[cert.uucMake, cert.uucModel].filter(Boolean).join(' ')}
                           </div>
                         )}
+                        {cert.adminMessage && (
+                          <div className="mt-1 max-w-[360px] truncate text-[11px] text-[#2563eb]">
+                            Admin: {cert.adminMessage}
+                          </div>
+                        )}
                       </td>
+                      <td className="px-4 py-3 text-[13px] text-[#64748b]">{cert.srfNumber || '-'}</td>
+                      <td className="px-4 py-3 text-[13px] text-[#64748b]">{formatDate(cert.dateOfCalibration)}</td>
                       <td className="px-4 py-3 text-[13px] text-[#64748b]">{formatDate(cert.sentAt)}</td>
                       <td className="px-4 py-3">
-                        {daysLeft !== null && (
+                        {hoursLeft !== null ? (
                           <span
                             className={`text-[12.5px] font-semibold ${
-                              daysLeft <= 2
+                              hoursLeft <= 0
                                 ? 'text-[#dc2626]'
-                                : daysLeft <= 5
+                                : hoursLeft <= 12
                                 ? 'text-[#d97706]'
                                 : 'text-[#64748b]'
                             }`}
                           >
-                            {daysLeft} day{daysLeft !== 1 ? 's' : ''}
+                            {hoursLeft <= 0 ? 'Expired' : `${hoursLeft}h`}
                           </span>
+                        ) : (
+                          <span className="text-[13px] text-[#94a3b8]">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -242,38 +236,6 @@ export function PendingReviewTable() {
                         </Link>
                       </td>
                     </tr>
-                    {isExpanded && (
-                      <tr className="bg-[#f8fafc]">
-                        <td colSpan={6} className="px-4 py-4">
-                          <div className="pl-6 space-y-2">
-                            {cert.adminMessage && (
-                              <div>
-                                <span className="text-[12px] font-semibold text-[#0f172a]">
-                                  Message from Admin:
-                                </span>
-                                <p className="mt-1 text-[12.5px] text-[#475569] bg-[#eff6ff] border border-[#bfdbfe] rounded-lg p-2.5">
-                                  {cert.adminMessage}
-                                </p>
-                              </div>
-                            )}
-                            <div className="flex flex-wrap gap-4 text-[12.5px] text-[#64748b]">
-                              {cert.srfNumber && (
-                                <span>
-                                  <span className="text-[#94a3b8]">SRF:</span> {cert.srfNumber}
-                                </span>
-                              )}
-                              {cert.dateOfCalibration && (
-                                <span>
-                                  <span className="text-[#94a3b8]">Calibrated:</span>{' '}
-                                  {formatDate(cert.dateOfCalibration)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
                 )
               })}
             </tbody>

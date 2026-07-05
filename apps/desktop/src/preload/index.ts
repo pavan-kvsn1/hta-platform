@@ -94,6 +94,8 @@ function mapDraftToApi(d: any) {
     srfNumber: d.srf_number || null,
     srfDate: d.srf_date || null,
     dateOfCalibration: d.date_of_calibration || null,
+    calibrationStartTime: d.calibration_start_time || null,
+    calibrationEndTime: d.calibration_end_time || null,
     calibrationTenure: d.calibration_tenure ?? 12,
     dueDateAdjustment: d.due_date_adjustment ?? 0,
     calibrationDueDate: d.calibration_due_date || null,

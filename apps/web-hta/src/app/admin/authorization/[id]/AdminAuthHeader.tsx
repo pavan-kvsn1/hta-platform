@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronLeft, User, Building2, MapPin, Calendar } from 'lucide-react'
+import { ChevronLeft, User, Building2, MapPin, Calendar, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ViewToggleButton } from '@/components/certificate/ViewToggleButton'
 import { MetaInfoItem } from '@/components/certificate/MetaInfoItem'
+import { formatCalibrationHours } from '@/lib/utils/calibration-time'
 
 interface HeaderData {
   certificateNumber: string
@@ -16,6 +17,8 @@ interface HeaderData {
   calibratedAt: string | null
   currentRevision: number
   dateOfCalibration: string | null
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
 }
 
 interface AdminAuthHeaderProps {
@@ -88,6 +91,9 @@ export function AdminAuthHeader({
           {headerData.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}
         </MetaInfoItem>
         <MetaInfoItem icon={Calendar}>{formatDate(headerData.dateOfCalibration)}</MetaInfoItem>
+        <MetaInfoItem icon={Clock}>
+          Hours {formatCalibrationHours(headerData.calibrationStartTime, headerData.calibrationEndTime)}
+        </MetaInfoItem>
         <div className="flex items-center gap-2 text-[#64748b]">
           <span className="text-[#cbd5e1]">|</span>
           <span>Revision {headerData.currentRevision}</span>

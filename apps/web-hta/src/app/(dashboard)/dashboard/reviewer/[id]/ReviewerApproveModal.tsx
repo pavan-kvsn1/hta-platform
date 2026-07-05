@@ -13,7 +13,6 @@ import {
   X,
   Loader2,
   AlertTriangle,
-  Pencil,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -37,7 +36,7 @@ interface ReviewerApproveModalProps {
 
 interface ApprovalData {
   comment?: string
-  sendToCustomer?: {
+  sendToCustomer: {
     email: string
     name: string
     message?: string
@@ -53,8 +52,8 @@ type Step = 1 | 2 | 3
 
 const STEPS = [
   { num: 1 as Step, label: 'Review Details' },
-  { num: 2 as Step, label: 'Delivery' },
-  { num: 3 as Step, label: 'Sign & Confirm' },
+  { num: 2 as Step, label: 'Customer Email' },
+  { num: 3 as Step, label: 'Sign & Send' },
 ]
 
 export function ReviewerApproveModal({
@@ -77,12 +76,9 @@ export function ReviewerApproveModal({
   const [approvalComment, setApprovalComment] = useState('')
 
   // Step 2 - Customer Delivery
-  const [sendToCustomer, setSendToCustomer] = useState(true)
   const [email, setEmail] = useState(customerEmail || '')
   const [name, setName] = useState(customerName || '')
   const [message, setMessage] = useState('')
-  const [editCustomerInfo, setEditCustomerInfo] = useState(false)
-  const hasPrefilledInfo = !!(customerEmail && customerName)
 
   // Step 3 - Signature
   const signatureRef = useRef<TypedSignatureHandle>(null)
@@ -109,8 +105,6 @@ export function ReviewerApproveModal({
       setEmail(customerEmail || '')
       setName(customerName || '')
       setMessage('')
-      setSendToCustomer(true)
-      setEditCustomerInfo(false)
       setConsentAccepted(false)
       setConsentAcceptedAt(null)
       setHasSignature(false)
@@ -123,7 +117,6 @@ export function ReviewerApproveModal({
   }, [])
 
   const canProceedStep2 = (): boolean => {
-    if (!sendToCustomer) return true
     if (!email.trim() || !name.trim()) return false
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false
     return true
@@ -132,9 +125,9 @@ export function ReviewerApproveModal({
   const handleNext = () => {
     setError(null)
     if (currentStep === 2 && !canProceedStep2()) {
-      if (!email.trim()) setError('Customer email is required')
+      if (!email.trim()) setError('Customer email is required to send the approval request')
       else if (!name.trim()) setError('Customer name is required')
-      else setError('Please enter a valid email address')
+      else setError('Please enter a valid customer email address')
       return
     }
     setCurrentStep((s) => Math.min(s + 1, 3) as Step)
@@ -177,19 +170,16 @@ export function ReviewerApproveModal({
 
     const approvalData: ApprovalData = {
       comment: approvalComment.trim() || undefined,
+      sendToCustomer: {
+        email: email.trim(),
+        name: name.trim(),
+        message: message.trim() || undefined,
+      },
       signatureInfo: {
         signatureImage,
         signerName: signerName.trim(),
         clientEvidence,
       },
-    }
-
-    if (sendToCustomer) {
-      approvalData.sendToCustomer = {
-        email: email.trim(),
-        name: name.trim(),
-        message: message.trim() || undefined,
-      }
     }
 
     try {
@@ -206,7 +196,7 @@ export function ReviewerApproveModal({
 
   return createPortal(
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
-      <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-[59rem] w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-5 py-3.5 border-b border-[#f1f5f9] flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
@@ -289,6 +279,7 @@ export function ReviewerApproveModal({
                   <div>
                     <p className="text-[11px] text-[#94a3b8]">Customer</p>
                     <p className="text-[13px] font-medium text-[#0f172a]">{customerName || '—'}</p>
+                    <p className="text-[12px] text-[#64748b]">{customerEmail || 'No email on record'}</p>
                   </div>
                 </div>
               </div>
@@ -312,40 +303,23 @@ export function ReviewerApproveModal({
           {/* ===== STEP 2: Customer Delivery ===== */}
           {currentStep === 2 && (
             <>
-              <label className="flex items-center gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sendToCustomer}
-                  onChange={(e) => setSendToCustomer(e.target.checked)}
-                  className="rounded border-[#e2e8f0] text-[#16a34a] focus:ring-[#16a34a]/20 h-4 w-4"
-                />
-                <span className="text-[13px] font-semibold text-[#0f172a]">
-                  Send to customer for approval
-                </span>
-              </label>
+              <div className="flex items-start gap-2.5 p-3 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl">
+                <Mail className="size-4 text-[#16a34a] mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-[12.5px] font-semibold text-[#166534]">
+                    This certificate will be sent to the customer for approval.
+                  </p>
+                  <p className="text-[12px] text-[#15803d]">
+                    The customer will receive an approval email after reviewer signature.
+                  </p>
+                </div>
+              </div>
 
-              {sendToCustomer && (
-                <div className="space-y-3 pl-6 border-l-2 border-[#dcfce7]">
-                  {hasPrefilledInfo && !editCustomerInfo ? (
-                    <div className="flex items-center justify-between bg-[#f8fafc] border border-[#f1f5f9] rounded-lg px-3.5 py-3">
-                      <div className="text-[12.5px] text-[#475569]">
-                        <span className="font-semibold text-[#0f172a]">{name || '(no name)'}</span>
-                        {email && <span className="text-[#94a3b8] ml-1.5">— {email}</span>}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setEditCustomerInfo(true)}
-                        className="flex items-center gap-1 text-[12px] text-primary hover:text-primary/80 font-semibold"
-                      >
-                        <Pencil className="size-3" />
-                        Edit
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wider">
-                          Reviewer Email <span className="text-[#dc2626]">*</span>
+                          Customer Email <span className="text-[#dc2626]">*</span>
                         </Label>
                         <Input
                           type="email"
@@ -357,7 +331,7 @@ export function ReviewerApproveModal({
                       </div>
                       <div>
                         <Label className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wider">
-                          Reviewer Name <span className="text-[#dc2626]">*</span>
+                          Customer Name <span className="text-[#dc2626]">*</span>
                         </Label>
                         <Input
                           type="text"
@@ -368,7 +342,6 @@ export function ReviewerApproveModal({
                         />
                       </div>
                     </div>
-                  )}
 
                   <div>
                     <Label className="text-[12.5px] font-semibold text-[#0f172a]">
@@ -377,21 +350,12 @@ export function ReviewerApproveModal({
                     <Textarea
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Add a personal message to the email..."
+                      placeholder="Add a message to the customer approval email..."
                       className="mt-1.5 resize-none text-[12.5px] md:text-[12.5px] border-[#e2e8f0] rounded-lg placeholder:text-[#94a3b8]"
                       rows={2}
                     />
                   </div>
-                </div>
-              )}
-
-              {!sendToCustomer && (
-                <div className="bg-[#f8fafc] border border-[#f1f5f9] rounded-xl p-4 text-center">
-                  <p className="text-[12.5px] text-[#94a3b8]">
-                    The certificate will be approved without sending to the customer.
-                  </p>
-                </div>
-              )}
+              </div>
             </>
           )}
 
@@ -502,17 +466,10 @@ export function ReviewerApproveModal({
               >
                 {isSubmitting ? (
                   <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-                ) : sendToCustomer ? (
-                  <Mail className="size-3.5 mr-1.5" />
                 ) : (
-                  <CheckCircle className="size-3.5 mr-1.5" />
+                  <Mail className="size-3.5 mr-1.5" />
                 )}
-                {isSubmitting
-                  ? 'Processing...'
-                  : sendToCustomer
-                    ? 'Approve & Send'
-                    : 'Approve Certificate'
-                }
+                {isSubmitting ? 'Processing...' : 'Approve & Send Email'}
               </Button>
             )}
           </div>

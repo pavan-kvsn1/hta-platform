@@ -41,7 +41,7 @@ export function CustomerAutocomplete({
   value,
   address,
   contactName,
-  contactEmail: _contactEmail,
+  contactEmail,
   onCustomerSelect,
   onNameChange,
   onAddressChange,
@@ -362,80 +362,96 @@ export function CustomerAutocomplete({
         </div>
       </div>
 
-      {/* Customer Contact Name Input with Autocomplete */}
-      <div ref={contactContainerRef} className="space-y-0">
-        <Label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-          Customer Contact Name
-        </Label>
-        <div className="relative">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-            <User className="size-5" />
-          </div>
-          <Input
-            ref={contactInputRef}
-            type="text"
-            value={contactName}
-            onChange={handleContactInputChange}
-            onFocus={handleContactInputFocus}
-            onKeyDown={handleContactInputKeyDown}
-            placeholder={value.length >= 2 ? "Start typing contact name..." : "Enter customer name first"}
-            disabled={disabled || value.length < 2}
-            className="w-full rounded-xl border border-slate-300 bg-white h-12 pl-12 pr-12 focus:ring-2 focus:ring-primary focus:border-primary font-semibold shadow-sm"
-          />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2">
-            {isContactLoading ? (
-              <Loader2 className="size-5 text-slate-400 animate-spin" />
-            ) : (
-              <Search className="size-5 text-slate-400" />
-            )}
-          </div>
-        </div>
-
-        {/* Contact Users Dropdown - inside contactContainerRef to prevent outside click issues */}
-        {isContactOpen && contactUsers.length > 0 && (
-          <div className="mt-2 bg-white border border-slate-300 rounded-xl shadow-lg max-h-64 overflow-auto">
-            <div className="p-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b">
-              Contact Suggestions
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Customer Contact Name Input with Autocomplete */}
+        <div ref={contactContainerRef} className="space-y-0">
+          <Label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+            Customer Contact Name
+          </Label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+              <User className="size-5" />
             </div>
-            {contactUsers.map((user, index) => (
-              <button
-                key={user.id}
-                type="button"
-                onClick={() => handleContactSelect(user)}
-                className={cn(
-                  "w-full px-4 py-3 text-left flex items-start gap-3 transition-colors border-b border-slate-100 last:border-b-0",
-                  index === contactHighlightedIndex
-                    ? "bg-primary/10 border-l-2 border-l-primary"
-                    : "hover:bg-slate-50"
-                )}
-              >
-                <div className="flex-shrink-0 mt-0.5">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <User className="h-4 w-4 text-primary" />
+            <Input
+              ref={contactInputRef}
+              type="text"
+              value={contactName}
+              onChange={handleContactInputChange}
+              onFocus={handleContactInputFocus}
+              onKeyDown={handleContactInputKeyDown}
+              placeholder={value.length >= 2 ? "Start typing contact name..." : "Enter customer name first"}
+              disabled={disabled || value.length < 2}
+              className="w-full rounded-xl border border-slate-300 bg-white h-12 pl-12 pr-12 focus:ring-2 focus:ring-primary focus:border-primary font-semibold shadow-sm"
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+              {isContactLoading ? (
+                <Loader2 className="size-5 text-slate-400 animate-spin" />
+              ) : (
+                <Search className="size-5 text-slate-400" />
+              )}
+            </div>
+          </div>
+
+          {/* Contact Users Dropdown - inside contactContainerRef to prevent outside click issues */}
+          {isContactOpen && contactUsers.length > 0 && (
+            <div className="mt-2 bg-white border border-slate-300 rounded-xl shadow-lg max-h-64 overflow-auto">
+              <div className="p-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b">
+                Contact Suggestions
+              </div>
+              {contactUsers.map((user, index) => (
+                <button
+                  key={user.id}
+                  type="button"
+                  onClick={() => handleContactSelect(user)}
+                  className={cn(
+                    "w-full px-4 py-3 text-left flex items-start gap-3 transition-colors border-b border-slate-100 last:border-b-0",
+                    index === contactHighlightedIndex
+                      ? "bg-primary/10 border-l-2 border-l-primary"
+                      : "hover:bg-slate-50"
+                  )}
+                >
+                  <div className="flex-shrink-0 mt-0.5">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
                   </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-slate-900 text-sm truncate">
-                      {user.name}
-                    </p>
-                    {user.isPoc && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
-                        <Star className="size-3" />
-                        POC
-                      </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-slate-900 text-sm truncate">
+                        {user.name}
+                      </p>
+                      {user.isPoc && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                          <Star className="size-3" />
+                          POC
+                        </span>
+                      )}
+                    </div>
+                    {user.email && (
+                      <p className="text-xs text-slate-500 truncate mt-0.5">
+                        {user.email}
+                      </p>
                     )}
                   </div>
-                  {user.email && (
-                    <p className="text-xs text-slate-500 truncate mt-0.5">
-                      {user.email}
-                    </p>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <Label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+            Contact Email
+          </Label>
+          <Input
+            type="email"
+            value={contactEmail}
+            onChange={(e) => onContactEmailChange(e.target.value)}
+            placeholder="Enter contact email"
+            disabled={disabled}
+            className="w-full rounded-xl border border-slate-300 bg-white h-12 px-4 focus:ring-2 focus:ring-primary focus:border-primary font-semibold shadow-sm"
+          />
+        </div>
       </div>
 
       {value.length >= 2 && !isLoading && customers.length === 0 && (

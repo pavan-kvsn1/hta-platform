@@ -191,55 +191,57 @@ export function AdminAuthorizationClient({
   }, [certificate.id, certificate.certificateNumber])
 
   return (
-    <div className="flex h-full bg-[#f1f5f9] overflow-hidden">
+    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
       {/* Left Side - Header + Signatures + Content (Scrollable) */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header Section - Fixed at top of content area */}
-        <AdminAuthHeader
-          headerData={headerData}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          onDownload={isAuthorized ? handleDownload : undefined}
-          isDownloading={isDownloading}
-        />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden p-2.5 pr-0">
+        <div className="flex-1 flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          {/* Header Section - Fixed at top of content area */}
+          <AdminAuthHeader
+            headerData={headerData}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            onDownload={isAuthorized ? handleDownload : undefined}
+            isDownloading={isDownloading}
+          />
 
-        {/* Signature Status Bar - Fixed below header */}
-        <SignatureStatusBar
-          signatures={signatures}
-          showAdminPending={!isAuthorized}
-        />
+          {/* Signature Status Bar - Fixed below header */}
+          <SignatureStatusBar
+            signatures={signatures}
+            showAdminPending={!isAuthorized}
+          />
 
-        {/* TAT Banner — visible for non-terminal statuses */}
-        {tatStartedAt && (
-          <div className="px-3 pt-3">
-            <TATBanner sentAt={tatStartedAt} certificateCreatedAt={certificateCreatedAt} targetHours={12} />
-          </div>
-        )}
-
-        {/* Content Area - Scrollable */}
-        <div className="flex-1 overflow-auto bg-[#f8fafc]">
-          {viewMode === 'details' ? (
-            <div className="p-3 space-y-6">
-              <AdminAuthContent formData={formData} certificateId={certificate.id} />
-
-              {/* Audit History Section - at the bottom */}
-              <AdminHistorySection
-                feedbacks={feedbacks}
-                events={events}
-                currentRevision={certificate.currentRevision}
-              />
+          {/* TAT Banner - visible for non-terminal statuses */}
+          {tatStartedAt && (
+            <div className="px-5 pt-5 bg-[#f8fafc]">
+              <TATBanner sentAt={tatStartedAt} certificateCreatedAt={certificateCreatedAt} targetHours={12} />
             </div>
-          ) : (
-            <InlinePDFViewer
-              certificateId={certificate.id}
-              certificateNumber={certificate.certificateNumber}
-            />
           )}
+
+          {/* Content Area - Scrollable */}
+          <div className="flex-1 overflow-auto bg-[#f8fafc]">
+            {viewMode === 'details' ? (
+              <div className="p-5 space-y-6">
+                <AdminAuthContent formData={formData} certificateId={certificate.id} />
+
+                {/* Audit History Section - at the bottom */}
+                <AdminHistorySection
+                  feedbacks={feedbacks}
+                  events={events}
+                  currentRevision={certificate.currentRevision}
+                />
+              </div>
+            ) : (
+              <InlinePDFViewer
+                certificateId={certificate.id}
+                certificateNumber={certificate.certificateNumber}
+              />
+            )}
+          </div>
         </div>
       </div>
 
       {/* Right Panel - Chat & Authorization */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col p-2 overflow-y-auto bg-[#f1f5f9]">
+      <div className="w-[380px] flex-shrink-0 flex flex-col gap-2.5 p-2.5 pl-0 h-full overflow-hidden bg-[#f1f5f9]">
         {/* Chat Panel */}
         <AdminAuthChatPanel
           certificateId={certificate.id}

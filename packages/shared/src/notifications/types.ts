@@ -18,6 +18,9 @@ export type NotificationType =
   | 'CUSTOMER_APPROVED'             // Customer approved certificate
   // Admin notifications
   | 'ADMIN_AUTHORIZED'              // Admin authorized certificate
+  | 'PENDING_ADMIN_AUTHORIZATION'   // Customer approved certificate, waiting for admin authorization
+  | 'SECTION_UNLOCK_REQUESTED'      // Engineer requested section unlock approval
+  | 'FIELD_CHANGE_REQUESTED'        // Reviewer requested field change approval
   | 'STAFF_CREATED'                 // Admin created a new staff user
   | 'MASTER_INSTRUMENT_CHANGE'      // Master instrument created/updated/deleted
   // Customer notifications

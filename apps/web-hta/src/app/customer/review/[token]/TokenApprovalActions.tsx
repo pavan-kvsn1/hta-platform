@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Plus,
   Trash2,
+  ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { REVISION_SECTIONS } from '@/components/feedback/shared/feedback-utils'
@@ -301,7 +302,7 @@ export function TokenApprovalActions({
       {/* Revision Modal - Section-wise Feedback */}
       {showRevisionModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl shadow-2xl max-w-[67rem] w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
@@ -352,29 +353,32 @@ export function TokenApprovalActions({
                             : 'border-gray-200 bg-white'
                         )}
                       >
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1 space-y-2">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 flex items-start gap-3">
                             {/* Section Dropdown */}
-                            <div>
+                            <div className="w-[252px] flex-shrink-0">
                               <label className="text-xs font-medium text-gray-600 mb-0.5 block pb-1">
                                 Section
                               </label>
-                              <select
-                                value={entry.section}
-                                onChange={(e) => updateSectionEntry(entry.id, 'section', e.target.value)}
-                                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                              >
-                                <option value="">Select a section...</option>
-                                {(currentSection ? [currentSection, ...availableSections.filter(s => s.id !== currentSection.id)] : availableSections).map((section) => (
-                                  <option key={section.id} value={section.id}>
-                                    {section.label}
-                                  </option>
-                                ))}
-                              </select>
+                              <div className="relative">
+                                <select
+                                  value={entry.section}
+                                  onChange={(e) => updateSectionEntry(entry.id, 'section', e.target.value)}
+                                  className="w-full appearance-none pl-2.5 pr-8 py-1.5 text-xs border border-gray-200 rounded bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                >
+                                  <option value="">Select a section...</option>
+                                  {(currentSection ? [currentSection, ...availableSections.filter(s => s.id !== currentSection.id)] : availableSections).map((section) => (
+                                    <option key={section.id} value={section.id}>
+                                      {section.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <ChevronDown className="pointer-events-none absolute right-[7.5px] top-1/2 size-4 -translate-y-1/2 text-gray-500" />
+                              </div>
                             </div>
 
                             {/* Comment Textarea */}
-                            <div>
+                            <div className="flex-1 min-w-0">
                               <label className="text-xs font-medium text-gray-600 mb-0.5 block py-1">
                                 Feedback
                               </label>

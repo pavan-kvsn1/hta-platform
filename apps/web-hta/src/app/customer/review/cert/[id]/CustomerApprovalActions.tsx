@@ -33,6 +33,7 @@ import {
   User,
   Plus,
   Trash2,
+  ChevronDown,
 } from 'lucide-react'
 import type { CertificateData, CustomerData, Signature } from './CustomerCertReviewClient'
 
@@ -621,7 +622,7 @@ export function CustomerApprovalActions({
       {/* ═══════════════════════════════════════════════════════ */}
       {showRevisionModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-2xl max-w-[67rem] w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="px-5 py-3.5 border-b border-[#f1f5f9] flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2.5">
@@ -679,22 +680,22 @@ export function CustomerApprovalActions({
                       >
                         <div className="flex items-start gap-3">
                           {/* Section dropdown */}
-                          <div className="w-[180px] flex-shrink-0">
-                            <select
-                              value={entry.section}
-                              onChange={(e) => updateSectionEntry(entry.id, 'section', e.target.value)}
-                              className="w-full px-2.5 py-2 text-[12.5px] border border-[#e2e8f0] rounded-lg bg-white text-[#0f172a] focus:ring-2 focus:ring-[#d97706]/20 focus:border-[#d97706]"
-                            >
-                              <option value="">Select section...</option>
-                              {(currentSection ? [currentSection, ...availableSections.filter(s => s.id !== currentSection.id)] : availableSections).map((section) => (
-                                <option key={section.id} value={section.id}>
-                                  {section.label}
-                                </option>
-                              ))}
-                            </select>
-                            {isComplete && (
-                              <span className="text-[10px] text-[#16a34a] font-medium mt-1 block">Complete</span>
-                            )}
+                          <div className="w-[252px] flex-shrink-0">
+                            <div className="relative">
+                              <select
+                                value={entry.section}
+                                onChange={(e) => updateSectionEntry(entry.id, 'section', e.target.value)}
+                                className="w-full appearance-none pl-2.5 pr-8 py-2 text-[12.5px] border border-[#e2e8f0] rounded-lg bg-white text-[#0f172a] focus:ring-2 focus:ring-[#d97706]/20 focus:border-[#d97706]"
+                              >
+                                <option value="">Select section...</option>
+                                {(currentSection ? [currentSection, ...availableSections.filter(s => s.id !== currentSection.id)] : availableSections).map((section) => (
+                                  <option key={section.id} value={section.id}>
+                                    {section.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-[7.5px] top-1/2 size-4 -translate-y-1/2 text-[#64748b]" />
+                            </div>
                           </div>
 
                           {/* Feedback textarea */}

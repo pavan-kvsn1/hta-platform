@@ -196,9 +196,11 @@ export function AdminCertificateClient({
   }, [certificate.id, certificate.certificateNumber])
 
   return (
-    <div className="flex h-full bg-[#f1f5f9] overflow-hidden">
+    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
       {/* Left Side - Header + Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-auto p-6 pr-3">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden p-2.5">
+        <div className="flex-1 flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+          <div className="px-5 pt-5 bg-white">
         {/* Header */}
         <AdminCertificateHeader
           headerData={headerData}
@@ -208,15 +210,19 @@ export function AdminCertificateClient({
           onDownload={isAuthorized ? handleDownload : undefined}
           isDownloading={isDownloading}
         />
+          </div>
 
         {/* TAT Banner — visible for active statuses only */}
         {tatData.phaseStartedAt && (
-          <TATBanner tatData={tatData} />
+          <div className="px-5 pt-5 bg-[#f8fafc]">
+            <TATBanner tatData={tatData} />
+          </div>
         )}
 
         {/* Content Area */}
+          <div className="flex-1 overflow-auto bg-[#f8fafc]">
         {viewMode === 'details' ? (
-          <div className="space-y-5 mt-5">
+          <div className="p-5 space-y-5">
             <AdminCertificateContent
               certificate={certificate}
               assignee={assignee}
@@ -228,21 +234,21 @@ export function AdminCertificateClient({
             />
           </div>
         ) : (
-          <div className="mt-5 flex-1 bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
             <InlinePDFViewer
               certificateId={certificate.id}
               certificateNumber={certificate.certificateNumber}
             />
-          </div>
         )}
+          </div>
+        </div>
       </div>
 
       {/* Right Panel — accordion: only one panel open at a time */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col gap-2.5 p-6 pl-3 overflow-y-auto">
+      <div className="w-[380px] flex-shrink-0 flex flex-col gap-2.5 p-2.5 pl-0 h-full overflow-hidden bg-[#f1f5f9]">
         {/* Chat Panel */}
         <div className={cn(
-          'flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden',
-          chatOpen ? 'h-[75vh]' : ''
+          'flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden min-h-0',
+          chatOpen ? 'flex-[2_1_0]' : 'flex-none'
         )}>
           <button
             onClick={() => setChatOpen(prev => !prev)}
@@ -269,7 +275,10 @@ export function AdminCertificateClient({
         </div>
 
         {/* Edit Actions */}
-        <div className="flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+        <div className={cn(
+          'flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden min-h-0',
+          editOpen ? 'flex-1' : 'flex-none'
+        )}>
           <button
             onClick={() => setEditOpen(prev => !prev)}
             className="flex items-center justify-between px-[18px] py-[13px] bg-[#f8fafc] border-b border-[#f1f5f9] flex-shrink-0 w-full text-left hover:bg-[#f1f5f9] transition-colors"
@@ -284,7 +293,7 @@ export function AdminCertificateClient({
             )} />
           </button>
           {editOpen && (
-            <div className="overflow-y-auto max-h-[50vh]">
+            <div className="flex-1 overflow-y-auto min-h-0">
               <AdminEditPanel
                 certificate={certificate}
                 reviewer={reviewer}
@@ -296,7 +305,10 @@ export function AdminCertificateClient({
         </div>
 
         {/* Review Actions */}
-        <div className="flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
+        <div className={cn(
+          'flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden min-h-0',
+          reviewOpen ? 'flex-1' : 'flex-none'
+        )}>
           <button
             onClick={() => setReviewOpen(prev => !prev)}
             className="flex items-center justify-between px-[18px] py-[13px] bg-[#f8fafc] border-b border-[#f1f5f9] flex-shrink-0 w-full text-left hover:bg-[#f1f5f9] transition-colors"
@@ -311,7 +323,7 @@ export function AdminCertificateClient({
             )} />
           </button>
           {reviewOpen && (
-            <div className="overflow-y-auto max-h-[50vh]">
+            <div className="flex-1 overflow-y-auto min-h-0">
               <AdminReviewActions
                 certificate={certificate}
                 assignee={assignee}

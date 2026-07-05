@@ -8,6 +8,7 @@ import { queueStaffActivationEmail, enqueueNotification } from '../../services/q
 import { generateCodeBatch } from '../../services/offline-codes.js'
 import { generateVpnProvisioningToken } from '../../services/vpn.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
+import { writeDeviceAudit } from '../../lib/activity-audit.js'
 import type { StorageProvider } from '../../lib/storage/index.js'
 
 const logger = createLogger('admin-routes')
@@ -2993,6 +2994,15 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
             data: JSON.stringify({ requestId: internalRequest.id }),
           },
         })
+
+        await writeDeviceAudit(request, {
+          tenantId,
+          userId: internalRequest.requestedById,
+          action: 'VPN_PROVISIONING_TOKEN_GENERATED',
+          entityType: 'InternalRequest',
+          entityId: internalRequest.id,
+          metadata: { approvedById: userId },
+        })
       } else {
         await prisma.notification.create({
           data: {
@@ -4282,6 +4292,15 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { syncPeersToGcs } = await import('../../services/vpn.js')
     await syncPeersToGcs()
 
+    await writeDeviceAudit(request, {
+      tenantId,
+      userId: peer.userId,
+      action: 'VPN_ACCESS_REVOKED',
+      entityType: 'VpnPeer',
+      entityId: peer.id,
+      metadata: { revokedById: request.user!.sub, assignedIp: peer.ipAddress },
+    })
+
     return { success: true, message: 'VPN access revoked' }
   })
 
@@ -4306,6 +4325,15 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     await prisma.user.update({
       where: { id },
       data: { vpnProvisioningToken: token, vpnTokenGeneratedAt: new Date() },
+    })
+
+    await writeDeviceAudit(request, {
+      tenantId,
+      userId: id,
+      action: 'VPN_PROVISIONING_TOKEN_REGENERATED',
+      entityType: 'User',
+      entityId: id,
+      metadata: { generatedById: request.user!.sub },
     })
 
     return { success: true, message: 'New provisioning token generated' }
@@ -4565,6 +4593,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         srfNumber: certificate.srfNumber,
         srfDate: certificate.srfDate?.toISOString() || null,
         dateOfCalibration: certificate.dateOfCalibration?.toISOString() || null,
+        calibrationStartTime: certificate.calibrationStartTime,
+        calibrationEndTime: certificate.calibrationEndTime,
         calibrationDueDate: certificate.calibrationDueDate?.toISOString() || null,
         dueDateNotApplicable: certificate.dueDateNotApplicable,
         uucDescription: certificate.uucDescription,
@@ -4658,6 +4688,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         customerName: certificate.customerName || '-',
         calibratedAt: certificate.calibratedAt,
         currentRevision: certificate.currentRevision,
+        calibrationStartTime: certificate.calibrationStartTime,
+        calibrationEndTime: certificate.calibrationEndTime,
       },
       reviewers,
     }
@@ -4673,7 +4705,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params
     const body = request.body as { field: string; value: string; reason: string }
 
-    const ALLOWED_FIELDS = ['certificateNumber', 'dateOfCalibration', 'calibrationDueDate', 'srfNumber', 'srfDate', 'customerName', 'customerAddress', 'customerContactName', 'customerContactEmail', 'calibratedAt', 'reviewerId'] as const
+    const ALLOWED_FIELDS = ['certificateNumber', 'dateOfCalibration', 'calibrationStartTime', 'calibrationEndTime', 'calibrationDueDate', 'srfNumber', 'srfDate', 'customerName', 'customerAddress', 'customerContactName', 'customerContactEmail', 'calibratedAt', 'reviewerId'] as const
     type AllowedField = (typeof ALLOWED_FIELDS)[number]
 
     if (!body.field || !ALLOWED_FIELDS.includes(body.field as AllowedField)) {
@@ -4698,8 +4730,14 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     // Prepare update data
     let updateData: Record<string, unknown> = {}
     const DATE_FIELDS = ['dateOfCalibration', 'calibrationDueDate', 'srfDate']
+    const TIME_FIELDS = ['calibrationStartTime', 'calibrationEndTime']
     if (DATE_FIELDS.includes(body.field)) {
       updateData = { [body.field]: body.value ? new Date(body.value) : null }
+    } else if (TIME_FIELDS.includes(body.field)) {
+      if (body.value && !/^([01]\d|2[0-3]):[0-5]\d$/.test(body.value)) {
+        return reply.status(400).send({ error: 'Time must be in HH:mm format' })
+      }
+      updateData = { [body.field]: body.value || null }
     } else if (body.field === 'reviewerId') {
       updateData = { [body.field]: body.value || null }
     } else {
@@ -4778,6 +4816,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const fieldLabels: Record<string, string> = {
       certificateNumber: 'Certificate Number',
       dateOfCalibration: 'Date of Calibration',
+      calibrationStartTime: 'Calibration Start Time',
+      calibrationEndTime: 'Calibration End Time',
       calibrationDueDate: 'Calibration Due Date',
       srfNumber: 'SRF Number',
       srfDate: 'SRF Date',
@@ -5746,52 +5786,55 @@ async function getCertificateStats(tenantId: string) {
     'PENDING_ADMIN_AUTHORIZATION',
   ]
 
-  const [
-    total, draft, pendingReview, revisionRequired,
-    pendingCustomerApproval, customerRevisionRequired,
-    pendingAdminAuthorization, authorized, rejected,
-    customerReviewExpired,
-    overdueGroups, approachingGroups,
-  ] = await Promise.all([
-    prisma.certificate.count({ where: { tenantId } }),
-    prisma.certificate.count({ where: { tenantId, status: 'DRAFT' } }),
-    prisma.certificate.count({ where: { tenantId, status: 'PENDING_REVIEW' } }),
-    prisma.certificate.count({ where: { tenantId, status: 'REVISION_REQUIRED' } }),
-    prisma.certificate.count({ where: { tenantId, status: 'PENDING_CUSTOMER_APPROVAL' } }),
-    prisma.certificate.count({ where: { tenantId, status: 'CUSTOMER_REVISION_REQUIRED' } }),
-    prisma.certificate.count({ where: { tenantId, status: 'PENDING_ADMIN_AUTHORIZATION' } }),
-    prisma.certificate.count({ where: { tenantId, status: 'AUTHORIZED' } }),
-    prisma.certificate.count({ where: { tenantId, status: 'REJECTED' } }),
-    prisma.certificate.count({ where: { tenantId, status: 'CUSTOMER_REVIEW_EXPIRED' } }),
-    // TAT overdue: phase >12h OR total >48h
-    prisma.certificate.groupBy({
-      by: ['status'],
-      where: {
-        tenantId,
-        status: { in: activeStatuses },
-        OR: [
-          { updatedAt: { lt: twelveHoursAgo } },
-          { createdAt: { lt: fortyEightHoursAgo } },
-        ],
-      },
-      _count: true,
-    }),
-    // TAT approaching: not overdue but phase >8h OR total >44h
-    prisma.certificate.groupBy({
-      by: ['status'],
-      where: {
-        tenantId,
-        status: { in: activeStatuses },
-        updatedAt: { gte: twelveHoursAgo },
-        createdAt: { gte: fortyEightHoursAgo },
-        OR: [
-          { updatedAt: { lt: eightHoursAgo } },
-          { createdAt: { lt: fortyFourHoursAgo } },
-        ],
-      },
-      _count: true,
-    }),
-  ])
+  const statusGroups = await prisma.certificate.groupBy({
+    by: ['status'],
+    where: { tenantId },
+    _count: true,
+  })
+
+  // TAT overdue: phase >12h OR total >48h
+  const overdueGroups = await prisma.certificate.groupBy({
+    by: ['status'],
+    where: {
+      tenantId,
+      status: { in: activeStatuses },
+      OR: [
+        { updatedAt: { lt: twelveHoursAgo } },
+        { createdAt: { lt: fortyEightHoursAgo } },
+      ],
+    },
+    _count: true,
+  })
+
+  // TAT approaching: not overdue but phase >8h OR total >44h
+  const approachingGroups = await prisma.certificate.groupBy({
+    by: ['status'],
+    where: {
+      tenantId,
+      status: { in: activeStatuses },
+      updatedAt: { gte: twelveHoursAgo },
+      createdAt: { gte: fortyEightHoursAgo },
+      OR: [
+        { updatedAt: { lt: eightHoursAgo } },
+        { createdAt: { lt: fortyFourHoursAgo } },
+      ],
+    },
+    _count: true,
+  })
+
+  const getStatusCount = (status: string) =>
+    statusGroups.find((g) => g.status === status)?._count || 0
+
+  const total = statusGroups.reduce((sum, group) => sum + group._count, 0)
+  const draft = getStatusCount('DRAFT')
+  const pendingReview = getStatusCount('PENDING_REVIEW')
+  const revisionRequired = getStatusCount('REVISION_REQUIRED')
+  const pendingCustomerApproval = getStatusCount('PENDING_CUSTOMER_APPROVAL')
+  const customerRevisionRequired = getStatusCount('CUSTOMER_REVISION_REQUIRED')
+  const pendingAdminAuthorization = getStatusCount('PENDING_ADMIN_AUTHORIZATION')
+  const authorized = getStatusCount('AUTHORIZED')
+  const rejected = getStatusCount('REJECTED')
+  const customerReviewExpired = getStatusCount('CUSTOMER_REVIEW_EXPIRED')
 
   const getGroupCount = (groups: { status: string; _count: number }[], status: string) =>
     groups.find((g) => g.status === status)?._count || 0

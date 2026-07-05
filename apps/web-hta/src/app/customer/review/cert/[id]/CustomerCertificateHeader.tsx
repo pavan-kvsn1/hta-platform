@@ -6,6 +6,7 @@ import { ChevronLeft, Building2, Calendar, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ViewToggleButton } from '@/components/certificate/ViewToggleButton'
 import { MetaInfoItem } from '@/components/certificate/MetaInfoItem'
+import { formatCalibrationHours } from '@/lib/utils/calibration-time'
 
 interface HeaderData {
   certificateNumber: string
@@ -15,6 +16,8 @@ interface HeaderData {
   customerName: string
   currentRevision: number
   dateOfCalibration: string | null
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
 }
 
 interface CustomerCertificateHeaderProps {
@@ -93,6 +96,9 @@ export function CustomerCertificateHeader({
       <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12.5px] text-[#64748b] mt-2">
         <MetaInfoItem icon={Building2} emphasized>{headerData.customerName || '-'}</MetaInfoItem>
         <MetaInfoItem icon={Calendar}>Calibrated: {formatDate(headerData.dateOfCalibration)}</MetaInfoItem>
+        <MetaInfoItem icon={Clock}>
+          Hours {formatCalibrationHours(headerData.calibrationStartTime, headerData.calibrationEndTime)}
+        </MetaInfoItem>
         <span className="text-[#e2e8f0]">|</span>
         <span>Revision {headerData.currentRevision}</span>
       </div>

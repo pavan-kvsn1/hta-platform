@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { safeJsonParse } from '@/lib/utils/safe-json'
+import { resolveCertificateTat } from '@/lib/utils/certificate-tat'
 import { notFound } from 'next/navigation'
 import { TokenReviewClient } from './TokenReviewClient'
 
@@ -154,6 +155,12 @@ export default async function CustomerReviewPage({
         orderBy: { sortOrder: 'asc' },
       },
       masterInstruments: true,
+      events: {
+        select: {
+          eventType: true,
+          createdAt: true,
+        },
+      },
       signatures: {
         select: {
           id: true,
@@ -199,6 +206,14 @@ export default async function CustomerReviewPage({
 
   // Get chat thread
   const chatThread = certificate.chatThreads[0] || null
+  const tatState = resolveCertificateTat({
+    status: certificate.status,
+    events: certificate.events,
+    createdAt: certificate.createdAt,
+  })
+  const customerSentAt = tatState.phase.owner === 'customer'
+    ? tatState.phase.startedAt
+    : sentAt?.toISOString() || null
 
   // Get status config
   const statusConfig = STATUS_CONFIG[certificate.status] || { label: certificate.status, className: 'bg-gray-50 text-gray-600 border-gray-100' }
@@ -216,6 +231,8 @@ export default async function CustomerReviewPage({
     srfNumber: certificate.srfNumber,
     srfDate: certificate.srfDate?.toISOString() || null,
     dateOfCalibration: certificate.dateOfCalibration?.toISOString() || null,
+    calibrationStartTime: certificate.calibrationStartTime,
+    calibrationEndTime: certificate.calibrationEndTime,
     calibrationDueDate: certificate.calibrationDueDate?.toISOString() || null,
     dueDateNotApplicable: certificate.dueDateNotApplicable,
     uucDescription: certificate.uucDescription,
@@ -295,6 +312,8 @@ export default async function CustomerReviewPage({
     customerName: certificate.customerName || '-',
     currentRevision: certificate.currentRevision,
     dateOfCalibration: certificate.dateOfCalibration?.toISOString() || null,
+    calibrationStartTime: certificate.calibrationStartTime,
+    calibrationEndTime: certificate.calibrationEndTime,
   }
 
   return (
@@ -306,7 +325,7 @@ export default async function CustomerReviewPage({
       chatThreadId={chatThread?.id || null}
       headerData={headerData}
       expiresAt={expiresAt?.toISOString() || null}
-      sentAt={sentAt?.toISOString() || null}
+      sentAt={customerSentAt}
     />
   )
 }

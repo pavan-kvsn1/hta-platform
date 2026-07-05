@@ -34,6 +34,7 @@ export interface AuthorizedCertificate {
   uucDescription: string | null
   uucMake: string | null
   uucModel: string | null
+  srfNumber: string | null
   dateOfCalibration: string | null
   calibrationDueDate: string | null
   signedPdfPath: string | null
@@ -205,6 +206,9 @@ export function AuthorizedTable() {
                   Instrument
                 </th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                  SRF No.
+                </th>
+                <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
                   Calibration Date
                 </th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
@@ -229,6 +233,7 @@ export function AuthorizedTable() {
                       </div>
                     )}
                   </td>
+                  <td className="px-4 py-3 text-[13px] text-[#64748b]">{cert.srfNumber || '-'}</td>
                   <td className="px-4 py-3 text-[13px] text-[#64748b]">{formatDate(cert.dateOfCalibration)}</td>
                   <td className="px-4 py-3 text-[13px] text-[#64748b]">{formatDate(cert.calibrationDueDate)}</td>
                   <td className="px-4 py-3 text-center">

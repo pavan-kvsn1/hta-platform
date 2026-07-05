@@ -115,6 +115,12 @@ function validateReviewRequest(
     if (!body.signatureData || !body.signerName?.trim()) {
       return { allowed: false, statusCode: 400, error: 'Signature and signer name are required for approval' }
     }
+    if (!body.sendToCustomer?.email?.trim()) {
+      return { allowed: false, statusCode: 400, error: 'Customer email is required to send the approval request' }
+    }
+    if (!body.sendToCustomer?.name?.trim()) {
+      return { allowed: false, statusCode: 400, error: 'Customer name is required to send the approval request' }
+    }
   }
 
   return { allowed: true, statusCode: 200 }
@@ -157,6 +163,10 @@ const approveBody: ReviewBody = {
   action: 'approve',
   signatureData: 'data:image/png;base64,AAAA',
   signerName: 'Jane Reviewer',
+  sendToCustomer: {
+    email: 'customer@hta.test',
+    name: 'Test Customer',
+  },
 }
 
 const revisionBody: ReviewBody = {
@@ -357,11 +367,40 @@ describe('POST /api/certificates/:id/review — reviewer action validation', () 
       const cert = makeCert()
       const result = validateReviewRequest(cert, reviewer, {
         action: 'approve',
+        sendToCustomer: approveBody.sendToCustomer,
       })
 
       expect(result.allowed).toBe(false)
       expect(result.statusCode).toBe(400)
       expect(result.error).toContain('Signature and signer name are required')
+    })
+
+    it('requires customer email for approval', () => {
+      const cert = makeCert()
+      const result = validateReviewRequest(cert, reviewer, {
+        action: 'approve',
+        signatureData: 'data:image/png;base64,AAAA',
+        signerName: 'Jane Reviewer',
+        sendToCustomer: { email: '', name: 'Test Customer' },
+      })
+
+      expect(result.allowed).toBe(false)
+      expect(result.statusCode).toBe(400)
+      expect(result.error).toBe('Customer email is required to send the approval request')
+    })
+
+    it('requires customer name for approval', () => {
+      const cert = makeCert()
+      const result = validateReviewRequest(cert, reviewer, {
+        action: 'approve',
+        signatureData: 'data:image/png;base64,AAAA',
+        signerName: 'Jane Reviewer',
+        sendToCustomer: { email: 'customer@hta.test', name: '   ' },
+      })
+
+      expect(result.allowed).toBe(false)
+      expect(result.statusCode).toBe(400)
+      expect(result.error).toBe('Customer name is required to send the approval request')
     })
 
     it('requires comment for rejection', () => {

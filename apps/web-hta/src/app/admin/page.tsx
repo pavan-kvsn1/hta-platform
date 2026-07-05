@@ -76,7 +76,7 @@ async function getAdminStats() {
         expiringInstruments,
         completedThisWeek,
         recentCertificates,
-      ] = await Promise.all([
+      ] = await prisma.$transaction([
         // Internal requests
         prisma.internalRequest.count({ where: { type: 'SECTION_UNLOCK', status: 'PENDING' } }),
         prisma.internalRequest.count({ where: { type: 'FIELD_CHANGE' as never, status: 'PENDING' } }),
@@ -95,7 +95,8 @@ async function getAdminStats() {
         prisma.certificate.groupBy({
           by: ['status'],
           where: { status: { in: activeStatuses } },
-          _count: true,
+          orderBy: { status: 'asc' },
+          _count: { _all: true },
         }),
         // Pipeline: TAT-exceeded counts (phase >12h OR total >48h)
         prisma.certificate.groupBy({
@@ -107,7 +108,8 @@ async function getAdminStats() {
               { createdAt: { lt: fortyEightHoursAgo } },
             ],
           },
-          _count: true,
+          orderBy: { status: 'asc' },
+          _count: { _all: true },
         }),
         // Pipeline: approaching TAT (phase 8-12h OR total 44-48h, but not yet exceeded)
         prisma.certificate.groupBy({
@@ -123,7 +125,8 @@ async function getAdminStats() {
               { createdAt: { lt: fortyFourHoursAgo } },
             ],
           },
-          _count: true,
+          orderBy: { status: 'asc' },
+          _count: { _all: true },
         }),
         // Instruments
         prisma.masterInstrument.count({
@@ -180,14 +183,22 @@ async function getAdminStats() {
       ])
 
       // Helper to extract count from groupBy results
-      const getStatusCount = (
-        results: { status: string; _count: number }[],
+      type StatusCountGroup = {
         status: string
-      ): number => {
-        return results.find((r) => r.status === status)?._count || 0
+        _count?: true | number | { _all?: number }
       }
 
-      const buildPipelineCounts = (results: { status: string; _count: number }[]) => ({
+      const getStatusCount = (
+        results: StatusCountGroup[],
+        status: string
+      ): number => {
+        const count = results.find((r) => r.status === status)?._count
+        if (typeof count === 'number') return count
+        if (count && typeof count === 'object') return count._all || 0
+        return 0
+      }
+
+      const buildPipelineCounts = (results: StatusCountGroup[]) => ({
         draft: getStatusCount(results, 'DRAFT'),
         review: getStatusCount(results, 'PENDING_REVIEW'),
         revision: getStatusCount(results, 'REVISION_REQUIRED'),

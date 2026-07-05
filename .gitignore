@@ -69,7 +69,6 @@ apps/web-hta/src/components/pdf/logo-base64.ts
 temp.yaml
 ns-patch.json
 .env.cloud
-.graphifyignore
 patch.json
 apps/web-hta/.env.local.bak
 check-field-change.cjs

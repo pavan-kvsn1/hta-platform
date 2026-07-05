@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { FileText, Search, MessageSquare, Eye, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { FileText, Search, Eye, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 
 export interface ReviewCertificateItem {
@@ -212,12 +212,12 @@ export function ReviewerCertificateTable() {
                 ) : (
                   certificates.map((cert) => (
                     <tr key={cert.id} className="border-b border-[#f8fafc] hover:bg-[#f8fafc] cursor-pointer transition-colors">
-                      <td className="px-4 py-[15px] whitespace-nowrap">
+                      <td className="px-4 py-2.5 whitespace-nowrap">
                         <span className="text-[14px] font-medium text-[#0f172a]">
                           {cert.certificateNumber}
                         </span>
                       </td>
-                      <td className="px-4 py-[15px] whitespace-nowrap">
+                      <td className="px-4 py-2.5 whitespace-nowrap">
                         <div>
                           <span className="text-[14px] font-medium text-[#0f172a]">
                             {cert.assigneeName}
@@ -225,37 +225,30 @@ export function ReviewerCertificateTable() {
                           <p className="text-[11px] text-[#94a3b8]">{cert.assigneeEmail}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-[15px] text-[14px] text-[#475569]">
+                      <td className="px-4 py-2.5 text-[14px] text-[#475569]">
                         {cert.customerName}
                       </td>
-                      <td className="px-4 py-[15px] text-[14px] text-[#475569] line-clamp-1">
+                      <td className="px-4 py-2.5 text-[14px] text-[#475569] line-clamp-1">
                         {cert.uucDescription}
                       </td>
-                      <td className="px-4 py-[15px] whitespace-nowrap text-[14px] text-[#475569]">
+                      <td className="px-4 py-2.5 whitespace-nowrap text-[14px] text-[#475569]">
                         {formatDateTime(cert.submittedAt)}
                       </td>
-                      <td className="px-4 py-[15px] whitespace-nowrap">
+                      <td className="px-4 py-2.5 whitespace-nowrap">
                         <StatusBadge status={cert.status} />
                       </td>
-                      <td className="px-4 py-[15px] whitespace-nowrap text-right">
+                      <td className="px-4 py-2.5 whitespace-nowrap text-right">
                         <div className="flex justify-end gap-2">
                           {cert.status === 'PENDING_REVIEW' ? (
                             <Link href={`/dashboard/reviewer/${cert.id}`}>
-                              <button className="inline-flex items-center gap-1.5 px-[11px] py-[6px] rounded-[7px] bg-[#0f172a] text-[12px] font-medium text-white hover:bg-[#1e293b] transition-colors">
+                              <button className="inline-flex h-7 min-w-[74px] justify-center items-center gap-1.5 px-2.5 rounded-[7px] bg-[#0f172a] text-[12px] font-medium text-white hover:bg-[#1e293b] transition-colors">
                                 <FileText className="h-[13px] w-[13px]" />
                                 Review
                               </button>
                             </Link>
-                          ) : cert.status === 'REVISION_REQUIRED' || cert.status === 'CUSTOMER_REVISION_REQUIRED' ? (
-                            <Link href={`/dashboard/reviewer/${cert.id}`}>
-                              <button className="inline-flex items-center gap-1.5 px-[11px] py-[6px] border border-border rounded-[7px] bg-white text-[12px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
-                                <MessageSquare className="h-[13px] w-[13px]" />
-                                Chat
-                              </button>
-                            </Link>
                           ) : (
                             <Link href={`/dashboard/reviewer/${cert.id}`}>
-                              <button className="inline-flex items-center gap-1.5 px-[11px] py-[6px] border border-border rounded-[7px] bg-white text-[12px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+                              <button className="inline-flex h-7 min-w-[74px] justify-center items-center gap-1.5 px-2.5 border border-border rounded-[7px] bg-white text-[12px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
                                 <Eye className="h-[13px] w-[13px]" />
                                 View
                               </button>

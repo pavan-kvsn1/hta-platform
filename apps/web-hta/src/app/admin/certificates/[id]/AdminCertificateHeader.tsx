@@ -1,11 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronLeft, User, Building2, MapPin } from 'lucide-react'
+import { ChevronLeft, User, Building2, MapPin, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ViewToggleButton } from '@/components/certificate/ViewToggleButton'
 import { MetaInfoItem } from '@/components/certificate/MetaInfoItem'
 import type { HeaderData } from './AdminCertificateClient'
+import { formatCalibrationHours } from '@/lib/utils/calibration-time'
 
 interface AdminCertificateHeaderProps {
   headerData: HeaderData
@@ -68,6 +69,9 @@ export function AdminCertificateHeader({
         <MetaInfoItem icon={Building2}>{headerData.customerName}</MetaInfoItem>
         <MetaInfoItem icon={MapPin}>
           {headerData.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}
+        </MetaInfoItem>
+        <MetaInfoItem icon={Clock}>
+          Hours {formatCalibrationHours(headerData.calibrationStartTime, headerData.calibrationEndTime)}
         </MetaInfoItem>
         <div className="flex items-center gap-2 text-[#94a3b8]">
           <span className="text-[#cbd5e1]">|</span>

@@ -98,7 +98,7 @@ export function AdminAuthorizationPanel({
 
   return (
     <>
-      <div className="flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden flex-shrink-0">
+      <div className="flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden flex-shrink-0 max-h-[48vh] min-h-0">
         {/* Header - Collapsible */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
@@ -129,7 +129,7 @@ export function AdminAuthorizationPanel({
 
         {/* Content - Only when expanded */}
         {isExpanded && (
-          <div className="border-t border-[#f1f5f9]">
+          <div className="border-t border-[#f1f5f9] overflow-y-auto min-h-0">
             <div className="p-4">
               {isAuthorized ? (
                 <div className="text-center py-2">

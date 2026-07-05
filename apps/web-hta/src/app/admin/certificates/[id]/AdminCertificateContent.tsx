@@ -18,6 +18,7 @@ import {
   type ParameterReadingImages,
 } from '@/components/certificate'
 import type { CertificateData, Assignee } from './AdminCertificateClient'
+import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 
 interface AdminCertificateContentProps {
   certificate: CertificateData
@@ -212,6 +213,14 @@ export function AdminCertificateContent({
           <InfoField
             label="Date of Calibration"
             value={formatDate(certificate.dateOfCalibration)}
+          />
+          <InfoField
+            label="Calibration Time"
+            value={formatCalibrationTimeRange(certificate.calibrationStartTime, certificate.calibrationEndTime)}
+          />
+          <InfoField
+            label="Hours of Calibration"
+            value={formatCalibrationHours(certificate.calibrationStartTime, certificate.calibrationEndTime)}
           />
           <InfoField
             label="Calibration Due Date"
@@ -557,4 +566,3 @@ export function AdminCertificateContent({
     </div>
   )
 }
-

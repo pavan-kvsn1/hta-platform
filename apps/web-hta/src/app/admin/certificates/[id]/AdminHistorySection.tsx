@@ -54,8 +54,56 @@ const FIELD_LABELS: Record<string, string> = {
   'customerContactEmail': 'Customer Contact Email',
   'calibratedAt': 'Calibrated At',
   'dateOfCalibration': 'Date of Calibration',
+  'calibrationStartTime': 'Calibration Start Time',
+  'calibrationEndTime': 'Calibration End Time',
   'calibrationDueDate': 'Calibration Due Date',
   'reviewerId': 'Reviewer',
+}
+
+const DATE_FIELDS = new Set(['dateOfCalibration', 'calibrationDueDate', 'srfDate'])
+const TIME_FIELDS = new Set(['calibrationStartTime', 'calibrationEndTime'])
+
+function formatDateValue(value: unknown): string {
+  if (value == null || value === '') return 'empty'
+
+  const raw = String(value)
+  const dateOnlyMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch
+    return format(new Date(Number(year), Number(month) - 1, Number(day)), 'dd MMM yyyy')
+  }
+
+  const parsed = new Date(raw)
+  if (!Number.isNaN(parsed.getTime())) {
+    return format(parsed, 'dd MMM yyyy')
+  }
+
+  return raw
+}
+
+function formatMetadataValue(field: unknown, value: unknown): string {
+  const fieldId = typeof field === 'string' ? field : ''
+  if (DATE_FIELDS.has(fieldId)) {
+    return formatDateValue(value)
+  }
+  if (TIME_FIELDS.has(fieldId)) {
+    if (value == null || value === '') return 'empty'
+
+    const raw = String(value).trim()
+    const timeOnlyMatch = raw.match(/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/)
+    if (timeOnlyMatch) {
+      const [, hour, minute] = timeOnlyMatch
+      return format(new Date(2000, 0, 1, Number(hour), Number(minute)), 'h:mm a')
+    }
+
+    const parsed = new Date(raw)
+    if (!Number.isNaN(parsed.getTime())) {
+      return format(parsed, 'h:mm a')
+    }
+
+    return raw
+  }
+  return value != null && value !== '' ? String(value) : 'empty'
 }
 
 // Role labels
@@ -689,13 +737,18 @@ export function AdminHistorySection({
                       {item.data.eventType === 'ADMIN_EDIT' && item.data.metadata && (
                         <div className="mt-2 p-2.5 bg-white/80 rounded border border-slate-100">
                           <p className="text-xs text-slate-700">
-                            <span className="font-medium">Field:</span> {String(item.data.metadata.field || 'Unknown')}
+                            <span className="font-medium">Field:</span>{' '}
+                            {FIELD_LABELS[String(item.data.metadata.field)] || String(item.data.metadata.field || 'Unknown')}
                           </p>
                           {item.data.metadata.from !== undefined && item.data.metadata.to !== undefined && (
                             <p className="text-xs text-slate-600 mt-1">
-                              <code className="bg-slate-100 px-1 rounded">{String(item.data.metadata.from || 'empty')}</code>
+                              <code className="bg-slate-100 px-1 rounded">
+                                {formatMetadataValue(item.data.metadata.field, item.data.metadata.from)}
+                              </code>
                               {' → '}
-                              <code className="bg-amber-100 px-1 rounded">{String(item.data.metadata.to || 'empty')}</code>
+                              <code className="bg-amber-100 px-1 rounded">
+                                {formatMetadataValue(item.data.metadata.field, item.data.metadata.to)}
+                              </code>
                             </p>
                           )}
                           {typeof item.data.metadata.reason === 'string' && item.data.metadata.reason && (

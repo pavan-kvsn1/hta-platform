@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import {
@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, Eye, ChevronDown, ChevronRight, ChevronLeft, CheckCircle, Check, Loader2 } from 'lucide-react'
+import { Search, Eye, ChevronLeft, ChevronRight, CheckCircle, Loader2 } from 'lucide-react'
 import { apiFetch } from '@/lib/api-client'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -34,6 +34,9 @@ export interface CompletedCertificate {
   uucDescription: string | null
   uucMake: string | null
   uucModel: string | null
+  srfNumber: string | null
+  dateOfCalibration: string | null
+  calibrationDueDate: string | null
   signedAt: string
   signerName: string
   hasEngineerSig: boolean
@@ -58,7 +61,6 @@ export function CompletedTable() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('newest')
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
 
@@ -107,16 +109,6 @@ export function CompletedTable() {
   const handleSearch = (value: string) => { setSearchQuery(value) }
   const handleSort = (value: SortOption) => { setSortBy(value) }
   const handleRowsPerPage = (value: number) => { setRowsPerPage(value) }
-
-  const toggleRow = (id: string) => {
-    const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id)
-    } else {
-      newExpanded.add(id)
-    }
-    setExpandedRows(newExpanded)
-  }
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-'
@@ -170,12 +162,17 @@ export function CompletedTable() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#f1f5f9]">
-                <th className="w-8"></th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
                   Certificate No.
                 </th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
                   Instrument
+                </th>
+                <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                  SRF No.
+                </th>
+                <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
+                  Calibrated
                 </th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.07em] text-[#94a3b8]">
                   Signed
@@ -190,21 +187,18 @@ export function CompletedTable() {
             </thead>
             <tbody>
               {certificates.map((cert) => {
-                const isExpanded = expandedRows.has(cert.id)
+                const signatureCount = [
+                  cert.hasEngineerSig,
+                  cert.hasReviewerSig,
+                  cert.hasCustomerSig,
+                  cert.hasAdminSig,
+                ].filter(Boolean).length
 
                 return (
-                  <React.Fragment key={cert.id}>
-                    <tr
-                      className="border-b border-[#f1f5f9] last:border-0 hover:bg-[#f8fafc] cursor-pointer transition-colors"
-                      onClick={() => toggleRow(cert.id)}
-                    >
-                      <td className="px-2">
-                        {isExpanded ? (
-                          <ChevronDown className="size-3.5 text-[#94a3b8]" />
-                        ) : (
-                          <ChevronRight className="size-3.5 text-[#94a3b8]" />
-                        )}
-                      </td>
+                  <tr
+                    key={cert.id}
+                    className="border-b border-[#f1f5f9] last:border-0 hover:bg-[#f8fafc] transition-colors"
+                  >
                       <td className="px-4 py-3">
                         <span className="text-[13px] font-medium text-[#0f172a]">{cert.certificateNumber}</span>
                       </td>
@@ -215,11 +209,18 @@ export function CompletedTable() {
                             {[cert.uucMake, cert.uucModel].filter(Boolean).join(' ')}
                           </div>
                         )}
+                        {cert.signerName && (
+                          <div className="mt-1 text-[11px] text-[#64748b]">
+                            Signed by {cert.signerName}
+                          </div>
+                        )}
                       </td>
+                      <td className="px-4 py-3 text-[13px] text-[#64748b]">{cert.srfNumber || '-'}</td>
+                      <td className="px-4 py-3 text-[13px] text-[#64748b]">{formatDate(cert.dateOfCalibration)}</td>
                       <td className="px-4 py-3 text-[13px] text-[#64748b]">{formatDate(cert.signedAt)}</td>
                       <td className="px-4 py-3">
                         <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-[0.05em] bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]">
-                          Admin Signature
+                          {signatureCount}/4 signed · Admin pending
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -229,39 +230,11 @@ export function CompletedTable() {
                         >
                           <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-[#475569] border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] rounded-[9px] transition-colors">
                             <Eye className="size-3.5" />
-                            View
-                          </button>
-                        </Link>
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr className="bg-[#f8fafc]">
-                        <td colSpan={6} className="px-4 py-4">
-                          <div className="pl-6 space-y-3">
-                            <div>
-                              <span className="text-[12px] font-semibold text-[#0f172a]">
-                                Signature Progress:
-                              </span>
-                              <div className="mt-2.5 flex items-center gap-2">
-                                <SignatureStep label="Engineer" completed={cert.hasEngineerSig} />
-                                <div className="w-6 h-px bg-[#e2e8f0]" />
-                                <SignatureStep label="Reviewer" completed={cert.hasReviewerSig} />
-                                <div className="w-6 h-px bg-[#e2e8f0]" />
-                                <SignatureStep label="Customer" completed={cert.hasCustomerSig} />
-                                <div className="w-6 h-px bg-[#e2e8f0]" />
-                                <SignatureStep label="Admin" completed={cert.hasAdminSig} pending />
-                              </div>
-                            </div>
-                            <div className="text-[12.5px] text-[#64748b]">
-                              <span className="text-[#94a3b8]">Signed by:</span> {cert.signerName}
-                              {' | '}
-                              <span className="text-[#94a3b8]">Date:</span> {formatDate(cert.signedAt)}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+                          View
+                        </button>
+                      </Link>
+                    </td>
+                  </tr>
                 )
               })}
             </tbody>
@@ -331,37 +304,6 @@ export function CompletedTable() {
           </div>
         )}
       </div>
-    </div>
-  )
-}
-
-function SignatureStep({
-  label,
-  completed,
-  pending,
-}: {
-  label: string
-  completed: boolean
-  pending?: boolean
-}) {
-  return (
-    <div className="flex flex-col items-center">
-      <div
-        className={`size-7 rounded-full flex items-center justify-center ${
-          completed
-            ? 'bg-[#dcfce7] text-[#16a34a]'
-            : pending
-            ? 'bg-[#dbeafe] text-[#2563eb] animate-pulse'
-            : 'bg-[#f1f5f9] text-[#94a3b8]'
-        }`}
-      >
-        {completed ? (
-          <Check className="size-3.5" />
-        ) : (
-          <span className="text-[10px] font-bold">{label.charAt(0)}</span>
-        )}
-      </div>
-      <span className="text-[10px] text-[#94a3b8] mt-1">{label}</span>
     </div>
   )
 }

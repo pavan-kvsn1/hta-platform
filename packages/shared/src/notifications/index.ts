@@ -61,6 +61,18 @@ const notificationTemplates: Record<NotificationType, NotificationTemplate> = {
     title: 'Certificate Authorized',
     message: (data: Record<string, string>) => `Certificate ${data.certificateNumber} has been authorized by ${data.adminName || 'admin'}`,
   },
+  PENDING_ADMIN_AUTHORIZATION: {
+    title: 'Authorization Required',
+    message: (data: Record<string, string>) => `Certificate ${data.certificateNumber} is pending admin authorization`,
+  },
+  SECTION_UNLOCK_REQUESTED: {
+    title: 'Section Unlock Requested',
+    message: (data: Record<string, string>) => `${data.requesterName || 'Engineer'} requested section unlock for ${data.certificateNumber}`,
+  },
+  FIELD_CHANGE_REQUESTED: {
+    title: 'Field Change Requested',
+    message: (data: Record<string, string>) => `${data.requesterName || 'Reviewer'} requested field changes for ${data.certificateNumber}`,
+  },
   STAFF_CREATED: {
     title: 'New Staff Member',
     message: (data: Record<string, string>) => `${data.creatorName || 'Admin'} created a new staff account for ${data.staffName} (${data.staffEmail})`,

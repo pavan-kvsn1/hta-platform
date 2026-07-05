@@ -73,6 +73,10 @@ interface DraftData {
   uucLocationName?: string
   date_of_calibration?: string
   dateOfCalibration?: string
+  calibration_start_time?: string
+  calibrationStartTime?: string
+  calibration_end_time?: string
+  calibrationEndTime?: string
   calibration_due_date?: string
   calibrationDueDate?: string
   ambient_temperature?: string
@@ -132,6 +136,8 @@ const UUC_FIELDS: FieldDef[] = [
 
 const CAL_FIELDS: FieldDef[] = [
   { label: 'Date of Calibration', localKey: 'date_of_calibration', serverKey: 'dateOfCalibration' },
+  { label: 'Calibration Start Time', localKey: 'calibration_start_time', serverKey: 'calibrationStartTime' },
+  { label: 'Calibration End Time', localKey: 'calibration_end_time', serverKey: 'calibrationEndTime' },
   { label: 'Due Date', localKey: 'calibration_due_date', serverKey: 'calibrationDueDate' },
   { label: 'SRF Number', localKey: 'srf_number', serverKey: 'srfNumber' },
   { label: 'Ambient Temp', localKey: 'ambient_temperature', serverKey: 'ambientTemperature' },

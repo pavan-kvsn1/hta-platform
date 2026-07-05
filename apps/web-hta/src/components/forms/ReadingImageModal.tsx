@@ -5,7 +5,8 @@ import Image from 'next/image'
 import {
   X,
   Camera,
-  Upload as _Upload,
+  Download,
+  Upload,
   Loader2,
   Image as ImageIcon,
   Trash2,
@@ -14,6 +15,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { apiFetch } from '@/lib/api-client'
 
 export interface ReadingImage {
   id: string
@@ -39,7 +41,6 @@ export interface ReadingImageModalProps {
   onUploadMaster: (file: File) => Promise<void>
   onDeleteUuc: (imageId: string) => Promise<void>
   onDeleteMaster: (imageId: string) => Promise<void>
-  // Navigation between points
   totalPoints: number
   onNavigate?: (direction: 'prev' | 'next') => void
   disabled?: boolean
@@ -51,6 +52,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 export function ReadingImageModal({
   isOpen,
   onClose,
+  certificateId,
   parameterName,
   pointNumber,
   standardReading,
@@ -69,12 +71,12 @@ export function ReadingImageModal({
   const [uploadingMaster, setUploadingMaster] = useState(false)
   const [deletingUuc, setDeletingUuc] = useState(false)
   const [deletingMaster, setDeletingMaster] = useState(false)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const uucInputRef = useRef<HTMLInputElement>(null)
   const masterInputRef = useRef<HTMLInputElement>(null)
 
-  // Handle keyboard navigation
   useEffect(() => {
     if (!isOpen) return
 
@@ -92,7 +94,6 @@ export function ReadingImageModal({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose, onNavigate, pointNumber, totalPoints])
 
-  // Auto-clear error
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(null), 5000)
@@ -108,13 +109,11 @@ export function ReadingImageModal({
       const file = event.target.files?.[0]
       if (!file) return
 
-      // Reset input
       const inputRef = type === 'uuc' ? uucInputRef : masterInputRef
       if (inputRef.current) {
         inputRef.current.value = ''
       }
 
-      // Validate
       if (!ACCEPTED_TYPES.includes(file.type)) {
         setError('Please select a valid image file (JPEG, PNG, HEIC, WebP)')
         return
@@ -175,6 +174,64 @@ export function ReadingImageModal({
     [uucImage, masterImage, onDeleteUuc, onDeleteMaster]
   )
 
+  const triggerDownload = useCallback((url: string, fileName: string) => {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }, [])
+
+  const handleDownload = useCallback(
+    async (image: ReadingImage) => {
+      if (downloadingId) return
+
+      setDownloadingId(image.id)
+      setError(null)
+
+      try {
+        if (certificateId && certificateId !== 'pending') {
+          try {
+            const response = await apiFetch(
+              `/api/certificates/${certificateId}/images/${image.id}/file?variant=original&download=true`
+            )
+
+            if (response.ok) {
+              const blob = await response.blob()
+              const url = URL.createObjectURL(blob)
+              triggerDownload(url, image.fileName)
+              URL.revokeObjectURL(url)
+              return
+            }
+          } catch {
+            // Fall through to signed URL or Electron local image download.
+          }
+        }
+
+        const directUrl = image.originalUrl || image.optimizedUrl || image.thumbnailUrl
+        if (directUrl) {
+          triggerDownload(directUrl, image.fileName)
+          return
+        }
+
+        const electronAPI = typeof window !== 'undefined'
+          ? (window as unknown as { electronAPI?: { getImagePath?: (imageId: string) => Promise<string | null> } }).electronAPI
+          : undefined
+        const localDataUrl = await electronAPI?.getImagePath?.(image.id)
+        if (localDataUrl) {
+          triggerDownload(localDataUrl, image.fileName)
+          return
+        }
+
+        setError('Image is not available for download yet')
+      } finally {
+        setDownloadingId(null)
+      }
+    },
+    [certificateId, downloadingId, triggerDownload]
+  )
+
   if (!isOpen) return null
 
   const renderImagePane = (
@@ -186,107 +243,139 @@ export function ReadingImageModal({
     onUploadClick: () => void,
     onDeleteClick: () => void,
     isProcessing?: boolean
-  ) => (
-    <div className="flex-1 flex flex-col rounded-xl border border-slate-200 overflow-hidden bg-white">
-      {/* Header */}
-      <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
-        <h3 className="font-semibold text-slate-800">{title}</h3>
-        <p className="text-sm text-slate-600 mt-1">
-          Reading: <span className="font-mono font-medium">{reading || '—'}</span>
-        </p>
-      </div>
+  ) => {
+    const imageUrl = image?.optimizedUrl || image?.thumbnailUrl || image?.originalUrl || null
+    const isDownloading = image ? downloadingId === image.id : false
 
-      {/* Image area */}
-      <div className="flex-1 p-4 flex flex-col">
-        {image ? (
-          <div className="flex-1 relative rounded-xl overflow-hidden bg-slate-100 group">
-            {image.thumbnailUrl || image.optimizedUrl ? (
-              <Image
-                src={image.optimizedUrl || image.thumbnailUrl || ''}
-                alt={title}
-                fill
-                className="object-contain"
-                unoptimized
-              />
-            ) : isProcessing || image.isProcessing ? (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-center">
-                  <Loader2 className="w-10 h-10 text-slate-400 animate-spin mx-auto" />
-                  <p className="text-sm text-slate-500 mt-2">Processing...</p>
+    return (
+      <div className="flex-1 flex flex-col rounded-xl border border-slate-200 overflow-hidden bg-white">
+        <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
+          <h3 className="font-semibold text-slate-800">{title}</h3>
+          <p className="text-sm text-slate-600 mt-1">
+            Reading: <span className="font-mono font-medium">{reading || '-'}</span>
+          </p>
+        </div>
+
+        <div className="p-4 flex flex-col items-center gap-3">
+          {image ? (
+            <div className="relative h-44 w-full max-w-[260px] rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+              {imageUrl ? (
+                <Image
+                  src={imageUrl}
+                  alt={title}
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              ) : isProcessing || image.isProcessing ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <Loader2 className="w-10 h-10 text-slate-400 animate-spin mx-auto" />
+                    <p className="text-sm text-slate-500 mt-2">Processing...</p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ImageIcon className="w-12 h-12 text-slate-300" />
-              </div>
-            )}
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ImageIcon className="w-12 h-12 text-slate-300" />
+                </div>
+              )}
 
-            {/* Delete button overlay */}
-            {!disabled && (
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={onDeleteClick}
-                  disabled={isDeleting}
-                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center gap-2 transition-colors"
-                >
-                  {isDeleting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                  Delete
-                </button>
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                <p className="text-sm text-white truncate">{image.fileName}</p>
               </div>
-            )}
-
-            {/* File name */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-              <p className="text-sm text-white truncate">{image.fileName}</p>
             </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={onUploadClick}
-            disabled={disabled || isUploading}
-            className={cn(
-              'flex-1 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3 transition-colors',
-              disabled || isUploading
-                ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
-                : 'border-slate-300 hover:border-primary hover:bg-primary/5 cursor-pointer'
-            )}
-          >
-            {isUploading ? (
-              <>
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                <p className="text-sm text-slate-600">Uploading...</p>
-              </>
-            ) : (
-              <>
-                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
-                  <Camera className="w-8 h-8 text-slate-500" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-slate-700">
-                    Click to upload {title.toLowerCase()} photo
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    JPEG, PNG, HEIC, WebP
-                  </p>
-                </div>
-              </>
-            )}
-          </button>
-        )}
+          ) : (
+            <button
+              type="button"
+              onClick={onUploadClick}
+              disabled={disabled || isUploading}
+              className={cn(
+                'h-44 w-full max-w-[260px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3 transition-colors',
+                disabled || isUploading
+                  ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
+                  : 'border-slate-300 hover:border-primary hover:bg-primary/5 cursor-pointer'
+              )}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                  <p className="text-sm text-slate-600">Uploading...</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+                    <Camera className="w-8 h-8 text-slate-500" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-slate-700">
+                      Click to upload {title.toLowerCase()} photo
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      JPEG, PNG, HEIC, WebP
+                    </p>
+                  </div>
+                </>
+              )}
+            </button>
+          )}
+
+          {image && (
+            <div className="flex w-full max-w-[260px] items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleDownload(image)}
+                disabled={isDownloading}
+                className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-blue-600 bg-blue-600 px-2.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-wait disabled:opacity-80"
+                title="Download image"
+              >
+                {isDownloading ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Download className="size-3.5" />
+                )}
+                Download
+              </button>
+
+              {!disabled && (
+                <>
+                  <button
+                    type="button"
+                    onClick={onUploadClick}
+                    disabled={isUploading}
+                    className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="size-3.5" />
+                    )}
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onDeleteClick}
+                    disabled={isDeleting}
+                    className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="size-3.5" />
+                    )}
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
       <div className="bg-slate-100 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
-        {/* Modal header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-bold text-slate-800">
@@ -297,7 +386,6 @@ export function ReadingImageModal({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Navigation buttons */}
             {onNavigate && (
               <div className="flex items-center gap-1 mr-2">
                 <button
@@ -305,7 +393,7 @@ export function ReadingImageModal({
                   onClick={() => onNavigate('prev')}
                   disabled={pointNumber <= 1}
                   className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Previous point (←)"
+                  title="Previous point"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
@@ -317,7 +405,7 @@ export function ReadingImageModal({
                   onClick={() => onNavigate('next')}
                   disabled={pointNumber >= totalPoints}
                   className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Next point (→)"
+                  title="Next point"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -327,13 +415,13 @@ export function ReadingImageModal({
               type="button"
               onClick={onClose}
               className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              aria-label="Close image modal"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Error banner */}
         {error && (
           <div className="mx-4 mt-4 flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -341,9 +429,7 @@ export function ReadingImageModal({
           </div>
         )}
 
-        {/* Split pane content */}
         <div className="flex-1 flex min-h-0 m-4 gap-4">
-          {/* UUC Reading pane */}
           {renderImagePane(
             'UUC Reading',
             uucReading,
@@ -355,7 +441,6 @@ export function ReadingImageModal({
             uucImage?.isProcessing
           )}
 
-          {/* Master Reading pane */}
           {renderImagePane(
             'Master Reading',
             standardReading,
@@ -368,7 +453,6 @@ export function ReadingImageModal({
           )}
         </div>
 
-        {/* Hidden file inputs */}
         <input
           ref={uucInputRef}
           type="file"
@@ -384,10 +468,9 @@ export function ReadingImageModal({
           className="hidden"
         />
 
-        {/* Footer */}
         <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-between">
           <p className="text-xs text-slate-500">
-            Use ← → arrow keys to navigate between points
+            Use left and right arrow keys to navigate between points
           </p>
           <button
             type="button"

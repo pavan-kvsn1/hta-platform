@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { safeJsonParse } from '@/lib/utils/safe-json'
+import { resolveCertificateTat } from '@/lib/utils/certificate-tat'
 import { CustomerCertReviewClient } from './CustomerCertReviewClient'
 
 // Render at runtime, not build time (needs database)
@@ -60,6 +61,12 @@ export default async function CustomerCertReviewPage({ params }: Props) {
         orderBy: { sortOrder: 'asc' },
       },
       masterInstruments: true,
+      events: {
+        select: {
+          eventType: true,
+          createdAt: true,
+        },
+      },
       signatures: {
         select: {
           id: true,
@@ -157,6 +164,14 @@ export default async function CustomerCertReviewPage({ params }: Props) {
     where: { certificateId: certificate.id },
     orderBy: { createdAt: 'desc' },
   })
+  const tatState = resolveCertificateTat({
+    status: certificate.status,
+    events: certificate.events,
+    createdAt: certificate.createdAt,
+  })
+  const customerSentAt = tatState.phase.owner === 'customer'
+    ? tatState.phase.startedAt
+    : approvalToken?.createdAt?.toISOString() || null
 
   // Get status config
   const statusConfig = STATUS_CONFIG[certificate.status] || { label: certificate.status, className: 'bg-[#f8fafc] text-[#64748b] border-[#e2e8f0]' }
@@ -174,6 +189,8 @@ export default async function CustomerCertReviewPage({ params }: Props) {
     srfNumber: certificate.srfNumber,
     srfDate: certificate.srfDate?.toISOString() || null,
     dateOfCalibration: certificate.dateOfCalibration?.toISOString() || null,
+    calibrationStartTime: certificate.calibrationStartTime,
+    calibrationEndTime: certificate.calibrationEndTime,
     calibrationDueDate: certificate.calibrationDueDate?.toISOString() || null,
     dueDateNotApplicable: certificate.dueDateNotApplicable,
     uucDescription: certificate.uucDescription,
@@ -250,6 +267,8 @@ export default async function CustomerCertReviewPage({ params }: Props) {
     customerName: certificate.customerName || '-',
     currentRevision: certificate.currentRevision,
     dateOfCalibration: certificate.dateOfCalibration?.toISOString() || null,
+    calibrationStartTime: certificate.calibrationStartTime,
+    calibrationEndTime: certificate.calibrationEndTime,
   }
 
   return (
@@ -260,7 +279,7 @@ export default async function CustomerCertReviewPage({ params }: Props) {
       chatThreadId={chatThread?.id || null}
       headerData={headerData}
       expiresAt={null}
-      sentAt={approvalToken?.createdAt?.toISOString() || null}
+      sentAt={customerSentAt}
     />
   )
 }

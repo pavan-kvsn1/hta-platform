@@ -7,7 +7,6 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft,
-  Download,
   Loader2,
   AlertTriangle,
   ChevronDown,
@@ -19,6 +18,7 @@ import {
   CheckCircle,
   MessageSquare,
   Image as ImageIcon,
+  Clock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,9 +31,12 @@ import { FeedbackTimeline, type InternalRequestItem } from '@/components/feedbac
 import {
   ImageGalleryModal,
   ReadingImagesViewModal,
+  ViewToggleButton,
   type GalleryImage,
   type ParameterReadingImages,
 } from '@/components/certificate'
+import { InlinePDFViewer } from '@/app/(dashboard)/dashboard/reviewer/[id]/InlinePDFViewer'
+import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Draft', className: 'bg-slate-50 text-slate-700 border-slate-200' },
@@ -76,6 +79,8 @@ interface ApiCertificate {
   srfNumber: string | null
   srfDate: string | null
   dateOfCalibration: string | null
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
   calibrationDueDate: string | null
   dueDateNotApplicable: boolean
   customerName: string | null
@@ -134,6 +139,7 @@ export default function CertificateViewPage() {
   const [certificate, setCertificate] = useState<ApiCertificate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'details' | 'pdf'>('details')
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     section1: true,
     section2: true,
@@ -398,9 +404,12 @@ export default function CertificateViewPage() {
   const hasReviewer = !!certificate.reviewer
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+    <>
+    <div className="flex h-[calc(100vh-4rem)] bg-[#f1f5f9] overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
       {/* Header Row */}
-      <div className="flex-shrink-0 px-7 py-[14px] bg-white border-b border-[#e2e8f0] flex items-center gap-3.5">
+      <div className="flex-shrink-0 px-5 py-[14px] bg-white border-b border-[#e2e8f0] flex items-center gap-3.5">
         <Link
           href="/dashboard"
           className="w-9 h-9 rounded-lg border border-[#e2e8f0] bg-white flex items-center justify-center hover:bg-[#f8fafc] transition-colors flex-shrink-0"
@@ -408,31 +417,28 @@ export default function CertificateViewPage() {
           <ArrowLeft className="size-[14px] text-[#64748b]" />
         </Link>
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <h1 className="text-[20px] font-extrabold tracking-[-0.025em] text-[#0f172a]">
+          <h1 className="text-[20px] font-extrabold tracking-[-0.025em] text-[#0f172a] truncate">
             {certificate.certificateNumber}
           </h1>
           <Badge
             variant="outline"
             className={cn(
-              'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+              'px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex-shrink-0',
               statusConfig.className
             )}
           >
             {statusConfig.label}
           </Badge>
         </div>
-        {(certificate.status === 'APPROVED' || certificate.status === 'AUTHORIZED') && (
-          <a href={`/api/certificates/${certificate.id}/download-signed`} download className="flex-shrink-0">
-            <Button size="sm" className="h-[38px] px-[18px] rounded-[9px] bg-primary hover:bg-primary/90 text-white text-[13px] font-bold">
-              <Download className="h-3.5 w-3.5 mr-1.5" />
-              Download PDF
-            </Button>
-          </a>
-        )}
+        <ViewToggleButton
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          isAuthorized={false}
+        />
       </div>
 
       {/* Breadcrumb Row */}
-      <div className="flex-shrink-0 px-7 py-[9px] bg-white border-b border-[#f1f5f9] flex items-center">
+      <div className="flex-shrink-0 px-5 py-[9px] bg-white border-b border-[#f1f5f9] flex flex-wrap items-center">
         <div className="flex items-center gap-[5px] text-[13px] text-[#64748b]">
           <User className="size-[13px] text-[#94a3b8]" />
           <span>{certificate.createdBy?.name || 'Unknown'}</span>
@@ -448,14 +454,17 @@ export default function CertificateViewPage() {
           <span>{certificate.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}</span>
         </div>
         <span className="text-[#e2e8f0] mx-3">|</span>
+        <div className="flex items-center gap-[5px] text-[13px] text-[#64748b]">
+          <Clock className="size-[13px] text-[#94a3b8]" />
+          <span>Hours {formatCalibrationHours(certificate.calibrationStartTime, certificate.calibrationEndTime)}</span>
+        </div>
+        <span className="text-[#e2e8f0] mx-3">|</span>
         <span className="text-[13px] text-[#64748b]">Revision {certificate.currentRevision}</span>
       </div>
 
-      {/* Body — left sections + right chat */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
-      {/* Left Side - Scrollable Sections */}
-      <div className="flex-1 overflow-auto min-w-0">
-          <div className="p-6 space-y-2.5 bg-[#f1f5f9]">
+          <div className="flex-1 overflow-auto min-h-0 bg-[#f1f5f9]">
+            {viewMode === 'details' ? (
+            <div className="p-6 space-y-2.5">
               {/* Out of Limit Warning */}
               {hasOutOfLimitResults && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
@@ -486,6 +495,14 @@ export default function CertificateViewPage() {
                   <InfoField
                     label="Date of Calibration"
                     value={formatDate(certificate.dateOfCalibration)}
+                  />
+                  <InfoField
+                    label="Calibration Time"
+                    value={formatCalibrationTimeRange(certificate.calibrationStartTime, certificate.calibrationEndTime)}
+                  />
+                  <InfoField
+                    label="Hours of Calibration"
+                    value={formatCalibrationHours(certificate.calibrationStartTime, certificate.calibrationEndTime)}
                   />
                   <InfoField
                     label="Calibration Due Date"
@@ -790,7 +807,15 @@ export default function CertificateViewPage() {
                 />
               )}
             </div>
-      </div>{/* end left panel */}
+            ) : (
+              <InlinePDFViewer
+                certificateId={certificate.id}
+                certificateNumber={certificate.certificateNumber}
+              />
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Right Panel - Chat */}
       <div className="w-[380px] flex-shrink-0 flex flex-col border-l border-[#e2e8f0] bg-white h-full overflow-hidden">
@@ -859,7 +884,7 @@ export default function CertificateViewPage() {
         isLoading={readingImagesModal.isLoading}
         error={readingImagesModal.error}
       />
-    </div>
+    </>
   )
 }
 

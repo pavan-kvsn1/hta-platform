@@ -26,6 +26,7 @@ import {
   type GalleryImage,
   type ParameterReadingImages,
 } from '@/components/certificate'
+import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 
 interface Parameter {
   id: string
@@ -113,6 +114,8 @@ interface CertificateData {
   srfNumber: string | null
   srfDate: string | null
   dateOfCalibration: string | null
+  calibrationStartTime: string | null
+  calibrationEndTime: string | null
   calibrationDueDate: string | null
   dueDateNotApplicable: boolean
   uucDescription: string | null
@@ -325,6 +328,14 @@ export function ReviewerContent({
           <InfoField
             label="Date of Calibration"
             value={formatDate(certificate.dateOfCalibration)}
+          />
+          <InfoField
+            label="Calibration Time"
+            value={formatCalibrationTimeRange(certificate.calibrationStartTime, certificate.calibrationEndTime)}
+          />
+          <InfoField
+            label="Hours of Calibration"
+            value={formatCalibrationHours(certificate.calibrationStartTime, certificate.calibrationEndTime)}
           />
           <InfoField
             label="Calibration Due Date"

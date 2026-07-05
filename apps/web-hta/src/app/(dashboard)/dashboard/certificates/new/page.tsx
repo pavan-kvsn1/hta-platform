@@ -26,31 +26,13 @@ export default function NewCertificatePage() {
           router.replace(`/dashboard/certificates/${id}/edit`)
           return
         }
+
+        const errorData = await res.json().catch(() => null)
+        setError(errorData?.message || errorData?.error || 'Failed to create certificate.')
+        return
       } catch {
-        // API unreachable — try offline
-      }
-
-      // Offline: create local draft via Electron IPC
-      const electronAPI = (window as unknown as { electronAPI?: {
-        createDraft?: (data?: unknown) => Promise<{ id: string }>
-      } }).electronAPI
-
-      if (electronAPI?.createDraft) {
-        try {
-          const tempNumber = `DRAFT-${Date.now()}`
-          const { id } = await electronAPI.createDraft({
-            tenantId: 'hta-calibration',
-            certificateNumber: tempNumber,
-            calibratedAt: 'LAB',
-            calibrationTenure: 12,
-            skipInitialSync: true,
-          })
-          router.replace(`/dashboard/certificates/${id}/edit?offline=true&tempNumber=${encodeURIComponent(tempNumber)}`)
-          return
-        } catch {
-          setError('Failed to create offline draft.')
-          return
-        }
+        setError('New certificates require an online connection. Reconnect and try again.')
+        return
       }
 
       setError('Failed to create certificate. Please check your connection.')

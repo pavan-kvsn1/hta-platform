@@ -16,6 +16,7 @@ import {
   Plus,
   Trash2,
   AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { REVISION_SECTIONS } from '@/components/feedback/shared/feedback-utils'
@@ -60,7 +61,8 @@ export function AdminReviewActions({
   const isPendingCustomer = certificate.status === 'PENDING_CUSTOMER_APPROVAL'
   const isCustomerRevisionRequired = certificate.status === 'CUSTOMER_REVISION_REQUIRED'
   const isCustomerReviewExpired = certificate.status === 'CUSTOMER_REVIEW_EXPIRED'
-  const isApproved = certificate.status === 'APPROVED'
+  const isPendingAdminAuthorization = certificate.status === 'PENDING_ADMIN_AUTHORIZATION'
+  const isAuthorized = certificate.status === 'AUTHORIZED' || certificate.status === 'APPROVED'
   const isRejected = certificate.status === 'REJECTED'
 
   interface ApprovalData {
@@ -370,7 +372,19 @@ export function AdminReviewActions({
           </div>
         )}
 
-        {isApproved && (
+        {isPendingAdminAuthorization && (
+          <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#eef2ff] rounded-xl border border-[#c7d2fe]">
+            <div className="size-7 rounded-lg bg-[#e0e7ff] flex items-center justify-center flex-shrink-0">
+              <ShieldCheck className="size-3.5 text-[#4f46e5]" />
+            </div>
+            <div>
+              <p className="text-[12.5px] font-semibold text-[#3730a3]">Pending Authorization</p>
+              <p className="text-[11px] text-[#4f46e5]">Use the authorization workflow to finalize this certificate</p>
+            </div>
+          </div>
+        )}
+
+        {isAuthorized && (
           <div className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[#f0fdf4] rounded-xl border border-[#bbf7d0]">
             <div className="size-7 rounded-lg bg-[#dcfce7] flex items-center justify-center flex-shrink-0">
               <CheckCircle className="size-3.5 text-[#16a34a]" />

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { apiFetch } from '@/lib/api-client'
+import { resolveCertificateTat } from '@/lib/utils/certificate-tat'
 import { Loader2 } from 'lucide-react'
 import { ReviewerPageClient } from './ReviewerPageClient'
 
@@ -121,14 +122,11 @@ export default function ReviewerReviewPage() {
             })()
           : null
 
-        // TAT start time
-        let tatStartedAt = null
-        if (['PENDING_REVIEW', 'CUSTOMER_REVISION_REQUIRED'].includes(cert.status)) {
-          const tatEvent = events.find((e: Record<string, unknown>) =>
-            ['SUBMITTED_FOR_REVIEW', 'RESUBMITTED_FOR_REVIEW', 'CUSTOMER_REVISION_REQUESTED'].includes(e.eventType as string)
-          )
-          tatStartedAt = tatEvent?.createdAt || null
-        }
+        const tatState = resolveCertificateTat({
+          status: cert.status,
+          events: events as Array<{ eventType: string; createdAt: string }>,
+          createdAt: cert.createdAt,
+        })
 
         const statusConfig = STATUS_CONFIG[cert.status] || STATUS_CONFIG.PENDING_REVIEW
         const tat = calculateTAT(cert.updatedAt)
@@ -152,6 +150,8 @@ export default function ReviewerReviewPage() {
             srfNumber: cert.srfNumber,
             srfDate: cert.srfDate,
             dateOfCalibration: cert.dateOfCalibration,
+            calibrationStartTime: cert.calibrationStartTime,
+            calibrationEndTime: cert.calibrationEndTime,
             calibrationDueDate: cert.calibrationDueDate,
             dueDateNotApplicable: cert.dueDateNotApplicable,
             uucDescription: cert.uucDescription,
@@ -209,8 +209,8 @@ export default function ReviewerReviewPage() {
           userRole: session?.user?.role || '',
           customerFeedback,
           lastSentCustomerInfo,
-          tatStartedAt,
-          certificateCreatedAt: cert.createdAt,
+          tatStartedAt: tatState.phase.startedAt,
+          certificateCreatedAt: tatState.certificate.startedAt,
           fieldChangeRequests,
           sectionUnlockRequests,
         })

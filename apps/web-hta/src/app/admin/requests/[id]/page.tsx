@@ -352,6 +352,8 @@ export default async function RequestDetailPage({ params, searchParams }: Props)
         srfNumber: cert.srfNumber,
         srfDate: cert.srfDate?.toISOString() || null,
         dateOfCalibration: cert.dateOfCalibration?.toISOString() || null,
+        calibrationStartTime: cert.calibrationStartTime,
+        calibrationEndTime: cert.calibrationEndTime,
         calibrationDueDate: cert.calibrationDueDate?.toISOString() || null,
         dueDateNotApplicable: cert.dueDateNotApplicable,
         uucDescription: cert.uucDescription,
