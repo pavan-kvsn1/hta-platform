@@ -90,7 +90,7 @@ function getNavigationPath(
 
   if (!certificateId) return null
 
-  if (userRole === 'CUSTOMER') return `/customer/certificates/${certificateId}`
+  if (userRole === 'CUSTOMER') return `/customer/review/cert/${certificateId}`
   if (userRole === 'ADMIN') return `/admin/certificates/${certificateId}`
 
   if (userRole === 'ENGINEER') {

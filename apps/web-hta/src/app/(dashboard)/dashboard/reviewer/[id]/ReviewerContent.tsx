@@ -102,6 +102,13 @@ const _SECTION_LABELS: Record<string, string> = {
   'conclusion': 'Conclusion',
 }
 
+function formatStickerDecision(value: string | null | undefined): string {
+  if (value === 'yes') return 'Yes'
+  if (value === 'no') return 'No'
+  if (value === 'na') return 'Not Applicable'
+  return value || '-'
+}
+
 interface CertificateData {
   id: string
   certificateNumber: string
@@ -126,6 +133,8 @@ interface CertificateData {
   ambientTemperature: string | null
   relativeHumidity: string | null
   calibrationStatus: string[]
+  stickerOldRemoved?: string | null
+  stickerNewAffixed?: string | null
   conclusionStatements: string[]
   additionalConclusionStatement: string | null
   currentRevision: number
@@ -620,7 +629,7 @@ export function ReviewerContent({
         }
       >
         <div className="space-y-4">
-          {certificate.calibrationStatus.length > 0 ? (
+          {certificate.calibrationStatus.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-2">
                 Calibration Status
@@ -639,7 +648,27 @@ export function ReviewerContent({
                 })}
               </div>
             </div>
-          ) : (
+          )}
+          {(certificate.stickerOldRemoved || certificate.stickerNewAffixed) && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                Sticker Status
+              </h4>
+              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <InfoField
+                  label="Removed Older Sticker"
+                  value={formatStickerDecision(certificate.stickerOldRemoved)}
+                />
+                <InfoField
+                  label="Affixed New Sticker"
+                  value={formatStickerDecision(certificate.stickerNewAffixed)}
+                />
+              </dl>
+            </div>
+          )}
+          {certificate.calibrationStatus.length === 0 &&
+            !certificate.stickerOldRemoved &&
+            !certificate.stickerNewAffixed && (
             <p className="text-gray-500 text-sm">No remarks added.</p>
           )}
         </div>

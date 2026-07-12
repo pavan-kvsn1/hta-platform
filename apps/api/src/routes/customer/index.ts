@@ -2042,15 +2042,25 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       request.ip || 'unknown'
     const userAgent = request.headers['user-agent'] as string | undefined
 
-    await prisma.$transaction([
-      prisma.downloadToken.update({
-        where: { id: downloadToken.id },
+    // Guard the counter in the update itself so concurrent requests cannot exceed
+    // the configured token limit.
+    const recordedDownload = await prisma.$transaction(async (tx) => {
+      const updated = await tx.downloadToken.updateMany({
+        where: {
+          id: downloadToken.id,
+          downloadCount: { lt: downloadToken.maxDownloads },
+        },
         data: {
           downloadCount: { increment: 1 },
           downloadedAt: downloadToken.downloadedAt || new Date(),
         },
-      }),
-      prisma.tokenAccessLog.create({
+      })
+
+      if (updated.count === 0) {
+        return false
+      }
+
+      await tx.tokenAccessLog.create({
         data: {
           tokenType: 'DOWNLOAD',
           tokenId: downloadToken.id,
@@ -2058,8 +2068,14 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
           ipAddress,
           userAgent,
         },
-      }),
-    ])
+      })
+
+      return true
+    })
+
+    if (!recordedDownload) {
+      return reply.status(410).send({ error: 'Maximum download limit reached for this link' })
+    }
 
     // Return the PDF
     const filename = `Certificate-${certificate.certificateNumber}.pdf`

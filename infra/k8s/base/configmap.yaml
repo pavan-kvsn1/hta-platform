@@ -34,6 +34,7 @@ data:
   LOG_LEVEL: "info"
 
   # Frontend configuration
+  APP_URL: "https://hta-calibration.com"
   NEXTAUTH_URL: "https://app.hta.example.com"
   API_URL: "https://api.hta.example.com"
 

@@ -162,6 +162,8 @@ export default function ReviewerReviewPage() {
             ambientTemperature: cert.ambientTemperature,
             relativeHumidity: cert.relativeHumidity,
             calibrationStatus,
+            stickerOldRemoved: cert.stickerOldRemoved,
+            stickerNewAffixed: cert.stickerNewAffixed,
             conclusionStatements,
             additionalConclusionStatement: cert.additionalConclusionStatement,
             currentRevision: cert.currentRevision,

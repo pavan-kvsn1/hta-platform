@@ -23,7 +23,7 @@ spec:
       serviceAccountName: api
       containers:
         - name: api
-          image: asia-south1-docker.pkg.dev/hta-platform-prod/production-docker/hta-api:latest
+          image: hta-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

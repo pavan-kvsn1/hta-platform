@@ -45,6 +45,50 @@ export function AdminAuthorizationPanel({
     if (initialCustomerName) setCustomerName(initialCustomerName)
   }, [initialCustomerEmail, initialCustomerName])
 
+  const ensureSignedPdf = async (): Promise<void> => {
+    const pdfDataResponse = await apiFetch(`/api/certificates/${certificateId}/pdf-data`)
+    if (!pdfDataResponse.ok) {
+      const data = await pdfDataResponse.json().catch(() => null) as { error?: string } | null
+      throw new Error(data?.error || 'Failed to prepare the finalized certificate PDF')
+    }
+
+    const { signatures, ...certificateData } = await pdfDataResponse.json()
+    const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
+    const result = await generatePDFWithOptimalSpacing(certificateData, signatures)
+
+    const formData = new FormData()
+    formData.append(
+      'file',
+      new File([result.blob], `HTA-${certificateId}-SIGNED.pdf`, { type: 'application/pdf' })
+    )
+
+    const uploadResponse = await apiFetch(`/api/admin/certificates/${certificateId}/signed-pdf`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!uploadResponse.ok) {
+      const data = await uploadResponse.json().catch(() => null) as { error?: string } | null
+      throw new Error(data?.error || 'Failed to store the finalized certificate PDF')
+    }
+  }
+
+  const queueDownloadLink = async (email: string, name: string): Promise<void> => {
+    const deliveryResponse = await apiFetch(`/api/admin/certificates/${certificateId}/send-download-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerEmail: email,
+        customerName: name,
+        expiresInDays: 30,
+      }),
+    })
+
+    if (!deliveryResponse.ok) {
+      const data = await deliveryResponse.json().catch(() => null) as { error?: string } | null
+      throw new Error(data?.error || 'Failed to queue the customer download email')
+    }
+  }
   // Authorize certificate
   const handleAuthorize = async (data: SignatureData) => {
     setIsAuthorizing(true)
@@ -58,23 +102,29 @@ export function AdminAuthorizationPanel({
           signatureData: data.signatureImage,
           signerName: data.signerName,
           clientEvidence: data.clientEvidence,
-          // Include download link options
-          sendDownloadLink: sendDownloadLink && customerEmail.trim() && customerName.trim(),
+          // Delivery happens only after the finalized PDF is uploaded below.
+          sendDownloadLink: false,
           customerEmail: customerEmail.trim(),
           customerName: customerName.trim(),
         }),
       })
 
       if (response.ok) {
-        const result = await response.json()
-        if (result.downloadLink?.sent) {
-          // Show success message briefly, then redirect
-          setTimeout(() => {
-            router.push('/admin/authorization')
-          }, 1500)
-        } else {
-          router.push('/admin/authorization')
+        const shouldSendDownloadLink = sendDownloadLink && customerEmail.trim() && customerName.trim()
+
+        if (shouldSendDownloadLink) {
+          try {
+            await ensureSignedPdf()
+            await queueDownloadLink(customerEmail.trim(), customerName.trim())
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to prepare and send the finalized certificate.'
+            setAuthorizeError(`Certificate was authorized, but ${message}`)
+            router.refresh()
+            return
+          }
         }
+
+        router.push('/admin/authorization')
       } else {
         let errorMessage = 'Failed to authorize certificate'
         try {
@@ -272,6 +322,7 @@ export function AdminAuthorizationPanel({
         certificateId={certificateId}
         customerName={initialCustomerName}
         customerEmail={initialCustomerEmail}
+        ensureSignedPdf={ensureSignedPdf}
       />
     </>
   )

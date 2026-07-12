@@ -95,6 +95,21 @@ describe('Queue Service', () => {
       consoleSpy.mockRestore()
     })
 
+    it('should reject required customer email when REDIS_URL is not set', async () => {
+      process.env.REDIS_URL = ''
+      const { enqueueEmail } = await import('../../src/services/queue.js')
+
+      await expect(enqueueEmail({
+        type: 'customer-review',
+        to: 'customer@test.com',
+        customerName: 'Customer',
+        certificateNumber: 'HTA/CAL/001',
+        instrumentDescription: 'Digital Multimeter',
+        reviewUrl: 'https://hta-calibration.com/customer/review/token',
+      }, { required: true })).rejects.toThrow('Email not queued (no REDIS_URL)')
+
+      expect(mockAdd).not.toHaveBeenCalled()
+    })
     it('should queue all 6 email types', async () => {
       process.env.REDIS_URL = 'redis://localhost:6379'
       const { enqueueEmail } = await import('../../src/services/queue.js')
@@ -183,7 +198,7 @@ describe('Queue Service', () => {
         expect.objectContaining({
           type: 'password-reset',
           to: 'staff@test.com',
-          resetUrl: 'https://app.hta.com/reset-password?token=reset-token-123',
+          resetUrl: 'https://app.hta.com/reset-password/reset-token-123',
           expiryMinutes: 60,
         }),
         expect.any(Object)
@@ -205,7 +220,7 @@ describe('Queue Service', () => {
       expect(mockAdd).toHaveBeenCalledWith(
         'password-reset',
         expect.objectContaining({
-          resetUrl: 'https://app.hta.com/customer/reset-password?token=token-abc',
+          resetUrl: 'https://app.hta.com/customer/reset-password/token-abc',
         }),
         expect.any(Object)
       )
@@ -226,7 +241,7 @@ describe('Queue Service', () => {
         'staff-activation',
         expect.objectContaining({
           type: 'staff-activation',
-          activationUrl: 'https://app.hta.com/activate?token=activation-token',
+          activationUrl: 'https://app.hta.com/activate/activation-token',
         }),
         expect.any(Object)
       )
@@ -274,12 +289,35 @@ describe('Queue Service', () => {
         'customer-review',
         expect.objectContaining({
           type: 'customer-review',
-          reviewUrl: 'https://app.hta.com/review/approval-token-xyz',
+          reviewUrl: 'https://app.hta.com/customer/review/approval-token-xyz',
         }),
         expect.any(Object)
       )
     })
 
+    it('queueCustomerAuthorizedTokenEmail builds the customer download URL', async () => {
+      process.env.REDIS_URL = 'redis://localhost:6379'
+      process.env.APP_URL = 'https://hta-calibration.com/'
+      const { queueCustomerAuthorizedTokenEmail } = await import('../../src/services/queue.js')
+
+      await queueCustomerAuthorizedTokenEmail({
+        customerEmail: 'cust@test.com',
+        customerName: 'Customer',
+        certificateNumber: 'HTA/CAL/003',
+        instrumentDescription: 'Digital Multimeter',
+        token: 'download-token-xyz',
+      })
+
+      expect(mockAdd).toHaveBeenCalledWith(
+        'customer-authorized-token',
+        expect.objectContaining({
+          downloadUrl: 'https://hta-calibration.com/customer/download/download-token-xyz',
+          maxDownloads: 10,
+          expiresInDays: 30,
+        }),
+        expect.any(Object)
+      )
+    })
     it('queueCertificateReviewedEmail sets approved flag correctly', async () => {
       process.env.REDIS_URL = 'redis://localhost:6379'
       const { queueCertificateReviewedEmail } = await import('../../src/services/queue.js')

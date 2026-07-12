@@ -6,7 +6,7 @@ namespace: hta-platform
 resources:
   - namespace.yaml
   - service-accounts.yaml
-  # - configmap.yaml         # Created manually with kubectl
+  - configmap.yaml
   # - secrets.yaml           # Using External Secrets Operator instead
   - api-deployment.yaml
   - api-service.yaml

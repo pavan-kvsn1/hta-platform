@@ -7,6 +7,8 @@ interface CustomerAuthorizedTokenProps {
   certificateNumber: string
   instrumentDescription: string
   downloadUrl: string
+  maxDownloads?: number
+  expiresInDays?: number
 }
 
 export function CustomerAuthorizedToken({
@@ -14,6 +16,8 @@ export function CustomerAuthorizedToken({
   certificateNumber,
   instrumentDescription,
   downloadUrl,
+  maxDownloads = 10,
+  expiresInDays = 30,
 }: CustomerAuthorizedTokenProps) {
   return (
     <Layout preview={`Certificate ${certificateNumber} has been authorized`}>
@@ -49,7 +53,7 @@ export function CustomerAuthorizedToken({
       </Section>
 
       <Text style={smallText}>
-        This link will expire in 30 days. If you have any questions, please contact us.
+        This link will expire in {expiresInDays} days and can be downloaded up to {maxDownloads} times. If you have any questions, please contact us.
       </Text>
     </Layout>
   )

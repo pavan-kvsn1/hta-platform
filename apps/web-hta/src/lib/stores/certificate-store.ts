@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { apiFetch } from '@/lib/api-client'
+import { resolveCalibrationPrecision, roundToCalibrationPrecision } from '@/lib/utils/calibration-precision'
 
 // Accuracy calculation types
 export type AccuracyType = 'PERCENT_READING' | 'ABSOLUTE' | 'PERCENT_SCALE'
@@ -674,11 +675,12 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
       // Calculate limit based on accuracy type
       const { limit } = calculateErrorLimit(parameter, standardReading)
       const isOutOfLimit = limit !== null && Math.abs(errorObserved) > limit
+      const { precision } = resolveCalibrationPrecision(parameter, result.standardReading)
 
       const newResults = [...parameter.results]
       newResults[resultIndex] = {
         ...result,
-        errorObserved: Math.round(errorObserved * 1000) / 1000,
+        errorObserved: roundToCalibrationPrecision(errorObserved, precision),
         isOutOfLimit,
       }
       newParameters[parameterIndex] = { ...parameter, results: newResults }

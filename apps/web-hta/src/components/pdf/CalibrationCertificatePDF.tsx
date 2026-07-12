@@ -42,7 +42,6 @@ import { HTA_WATERMARK_BASE64 } from './watermark-base64'
 import {
   formatDateDDMMYYYY,
   padSerialNumber,
-  getPrecisionFromLeastCount,
   formatWithPrecision,
   getConclusionText,
   COMPANY_INFO,
@@ -53,6 +52,7 @@ import {
   PDFSignatureData,
 } from './pdf-utils'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
+import { resolveCalibrationPrecision } from '@/lib/utils/calibration-precision'
 
 // Format ISO date string to readable format: "09 Feb 2026, 14:30 IST"
 function formatSigningDateTime(isoString: string | undefined, timezone?: string): string {
@@ -984,7 +984,6 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
         {/* Reordered based on layout plan for optimal page distribution */}
         {/* ================================================================ */}
         {parametersToRender.map((param, _paramIdx) => {
-          const precision = getPrecisionFromLeastCount(param.leastCountValue)
           const rangeStr = param.rangeMin && param.rangeMax
             ? `${param.rangeMin} to ${param.rangeMax} ${param.parameterUnit}`
             : ''
@@ -1075,6 +1074,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                   <View style={{ width: '72%' }}>
                     {param.results.map((result, resultIdx) => {
                       const isLastRow = resultIdx === param.results.length - 1
+                      const { precision } = resolveCalibrationPrecision(param, result.standardReading)
 
                       return (
                         <View

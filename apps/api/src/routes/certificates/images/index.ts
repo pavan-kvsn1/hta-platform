@@ -326,17 +326,21 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Worker will process images asynchronously and create optimized/thumbnail variants.
 
-    // Check if there's an existing image to supersede (for versioning)
-    const existingImage = await prisma.certificateImage.findFirst({
-      where: {
-        certificateId: id,
-        imageType: metadata.imageType,
-        masterInstrumentIndex: metadata.masterInstrumentIndex ?? null,
-        parameterIndex: metadata.parameterIndex ?? null,
-        pointNumber: metadata.pointNumber ?? null,
-        isLatest: true,
-      },
-    })
+    // UUC and master-instrument photos are independent evidence items. Only a
+    // reading photo replaces the existing photo for its exact measurement point.
+    const isReadingImage = metadata.imageType === 'READING_UUC' || metadata.imageType === 'READING_MASTER'
+    const existingImage = isReadingImage
+      ? await prisma.certificateImage.findFirst({
+        where: {
+          certificateId: id,
+          imageType: metadata.imageType,
+          masterInstrumentIndex: metadata.masterInstrumentIndex ?? null,
+          parameterIndex: metadata.parameterIndex ?? null,
+          pointNumber: metadata.pointNumber ?? null,
+          isLatest: true,
+        },
+      })
+      : null
 
     // Create database record
     const image = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {

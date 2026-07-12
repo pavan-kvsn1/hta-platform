@@ -1654,24 +1654,31 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         }).catch(() => {})
       }
 
+      let customerEmailQueued = false
+      let customerEmailWarning: string | null = null
+
       if (result.tokenResult) {
-        if (result.tokenResult.isRegistered) {
-          // Registered customer — send login-based review email
-          queueCustomerReviewRegisteredEmail({
-            customerEmail: customerDelivery.email,
-            customerName: customerDelivery.name,
-            certificateNumber: certNum,
-            instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
-          }).catch(() => {})
-        } else {
-          // Unregistered customer — send token-based review email
-          queueCustomerReviewEmail({
-            customerEmail: customerDelivery.email,
-            customerName: customerDelivery.name,
-            certificateNumber: certNum,
-            instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
-            token: result.tokenResult.token,
-          }).catch(() => {})
+        try {
+          if (result.tokenResult.isRegistered) {
+            await queueCustomerReviewRegisteredEmail({
+              customerEmail: customerDelivery.email,
+              customerName: customerDelivery.name,
+              certificateNumber: certNum,
+              instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+            })
+          } else {
+            await queueCustomerReviewEmail({
+              customerEmail: customerDelivery.email,
+              customerName: customerDelivery.name,
+              certificateNumber: certNum,
+              instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+              token: result.tokenResult.token,
+            })
+          }
+          customerEmailQueued = true
+        } catch (error) {
+          customerEmailWarning = 'Certificate was approved, but the customer email could not be queued. Use Resend to Customer to retry.'
+          request.log.error({ err: error, certificateId: id }, 'Failed to queue customer review email')
         }
 
         // Notify assignee that cert was sent to customer
@@ -1700,6 +1707,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       return {
         success: true,
         message: 'Certificate approved and sent to customer',
+        emailQueued: customerEmailQueued,
+        ...(customerEmailWarning && { warning: customerEmailWarning }),
         ...(result.tokenResult && !result.tokenResult.isRegistered && {
           customerToken: {
             token: result.tokenResult.token,
@@ -2117,21 +2126,30 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     // Queue customer review email + notification
     const certNum = certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
 
-    if (result.isRegistered) {
-      queueCustomerReviewRegisteredEmail({
-        customerEmail: body.customerEmail.toLowerCase(),
-        customerName: body.customerName,
-        certificateNumber: certNum,
-        instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
-      }).catch(() => {})
-    } else {
-      queueCustomerReviewEmail({
-        customerEmail: body.customerEmail.toLowerCase(),
-        customerName: body.customerName,
-        certificateNumber: certNum,
-        instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
-        token: result.token!,
-      }).catch(() => {})
+    let customerEmailQueued = false
+    let customerEmailWarning: string | null = null
+
+    try {
+      if (result.isRegistered) {
+        await queueCustomerReviewRegisteredEmail({
+          customerEmail: body.customerEmail.toLowerCase(),
+          customerName: body.customerName,
+          certificateNumber: certNum,
+          instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+        })
+      } else {
+        await queueCustomerReviewEmail({
+          customerEmail: body.customerEmail.toLowerCase(),
+          customerName: body.customerName,
+          certificateNumber: certNum,
+          instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+          token: result.token!,
+        })
+      }
+      customerEmailQueued = true
+    } catch (error) {
+      customerEmailWarning = 'Certificate was prepared for customer review, but the email could not be queued. Please retry.'
+      request.log.error({ err: error, certificateId: id }, 'Failed to queue customer review email')
     }
 
     enqueueNotification({
@@ -2158,6 +2176,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       ...(result.token && { token: result.token, tokenExpiry: result.expiresAt!.toISOString() }),
       customerId: result.customerId,
       isRegistered: result.isRegistered,
+      emailQueued: customerEmailQueued,
+      ...(customerEmailWarning && { warning: customerEmailWarning }),
     }
   })
 

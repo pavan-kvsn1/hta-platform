@@ -25,6 +25,7 @@ vi.mock('@hta/database', () => {
     signature: { create: vi.fn() },
     certificateEvent: { findFirst: vi.fn(), create: vi.fn() },
     user: { findMany: vi.fn() },
+    notification: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
     signingEvidence: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
   }
   // $transaction: call the callback with prisma itself
@@ -273,11 +274,20 @@ describe('customer approval routes', () => {
           where: { role: 'ADMIN', isActive: true, tenantId: TENANT_ID },
         }),
       )
-      // Two admins => two calls for admin notifications
-      const adminCalls = mockedEnqueueNotification.mock.calls.filter(
-        (call) => call[0].notificationType === 'CUSTOMER_APPROVED' && call[0].userId?.startsWith('admin-'),
-      )
-      expect(adminCalls).toHaveLength(2)
+      expect(mockedPrisma.notification.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            userId: 'admin-1',
+            type: 'PENDING_ADMIN_AUTHORIZATION',
+            certificateId: 'cert-1',
+          }),
+          expect.objectContaining({
+            userId: 'admin-2',
+            type: 'PENDING_ADMIN_AUTHORIZATION',
+            certificateId: 'cert-1',
+          }),
+        ],
+      })
     })
 
     it('returns 404 when certificate does not exist', async () => {
@@ -454,10 +464,15 @@ describe('customer approval routes', () => {
           where: { role: 'ADMIN', isActive: true, tenantId: TENANT_ID },
         }),
       )
-      const adminNotifCalls = mockedEnqueueNotification.mock.calls.filter(
-        (call) => call[0].notificationType === 'CUSTOMER_APPROVED' && call[0].userId === 'admin-1',
-      )
-      expect(adminNotifCalls).toHaveLength(1)
+      expect(mockedPrisma.notification.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            userId: 'admin-1',
+            type: 'PENDING_ADMIN_AUTHORIZATION',
+            certificateId: 'cert-1',
+          }),
+        ],
+      })
     })
 
     it('returns 404 for an invalid (nonexistent) token', async () => {

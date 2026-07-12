@@ -2,6 +2,16 @@
 
 import { apiFetch } from '@/lib/api-client'
 import { useState, useCallback, useEffect, useRef } from 'react'
+
+const IMAGE_CHANGE_EVENT = 'hta:certificate-images-changed'
+
+function notifyCertificateImagesChanged(certificateId: string) {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent<{ certificateId: string }>(IMAGE_CHANGE_EVENT, {
+    detail: { certificateId },
+  }))
+}
+
 // Mirror of Prisma enum for client-side usage
 export type CertificateImageType = 'UUC' | 'MASTER_INSTRUMENT' | 'READING_UUC' | 'READING_MASTER'
 
@@ -166,6 +176,22 @@ export function useCertificateImages({
     }
   }, [certificateId, fetchImages])
 
+  // UUC, master-instrument, results, and the Photos summary each use this hook.
+  // Keep their independently mounted copies synchronized after an image mutation.
+  useEffect(() => {
+    if (!certificateId) return
+
+    const handleImageChange = (event: Event) => {
+      const changedCertificateId = (event as CustomEvent<{ certificateId: string }>).detail?.certificateId
+      if (changedCertificateId === certificateId) {
+        void fetchImages()
+      }
+    }
+
+    window.addEventListener(IMAGE_CHANGE_EVENT, handleImageChange)
+    return () => window.removeEventListener(IMAGE_CHANGE_EVENT, handleImageChange)
+  }, [certificateId, fetchImages])
+
   // Check processing status and refresh if needed
   const checkProcessingStatus = useCallback(async () => {
     if (!certificateId || isRefreshingRef.current) return
@@ -180,14 +206,14 @@ export function useCertificateImages({
     isRefreshingRef.current = true
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/certificates/${certificateId}/images/process-check`,
         { method: 'POST' }
       )
       if (response.ok) {
         const data = await response.json()
-        if (data.updatedCount > 0) {
-          // Refresh to get updated URLs
+        if (data.processed || data.updatedCount > 0) {
+          // The worker can update keys before process-check runs. Refresh in both cases.
           await fetchImages()
         }
       }
@@ -273,6 +299,7 @@ export function useCertificateImages({
             originalUrl: null,
           }
           setImages((prev) => [...prev, newImage])
+          notifyCertificateImagesChanged(certId)
           return newImage
         }
       }
@@ -302,6 +329,7 @@ export function useCertificateImages({
       }
 
       setImages((prev) => [...prev, newImage])
+      notifyCertificateImagesChanged(certId)
 
       return newImage
     },
@@ -344,7 +372,7 @@ export function useCertificateImages({
     async (imageId: string): Promise<boolean> => {
       if (!certificateId) return false
 
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/certificates/${certificateId}/images/${imageId}`,
         { method: 'DELETE' }
       )
@@ -355,6 +383,7 @@ export function useCertificateImages({
 
       // Remove from local state
       setImages((prev) => prev.filter((img) => img.id !== imageId))
+      notifyCertificateImagesChanged(certificateId)
 
       return true
     },
@@ -366,7 +395,7 @@ export function useCertificateImages({
     async (imageId: string, caption: string): Promise<boolean> => {
       if (!certificateId) return false
 
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/certificates/${certificateId}/images/${imageId}`,
         {
           method: 'PATCH',

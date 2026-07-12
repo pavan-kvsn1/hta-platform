@@ -98,6 +98,8 @@ export interface CertificateData {
   ambientTemperature: string | null
   relativeHumidity: string | null
   calibrationStatus: string[]
+  stickerOldRemoved?: string | null
+  stickerNewAffixed?: string | null
   conclusionStatements: string[]
   additionalConclusionStatement: string | null
   currentRevision: number

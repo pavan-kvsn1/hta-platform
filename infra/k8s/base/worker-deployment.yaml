@@ -23,7 +23,7 @@ spec:
       serviceAccountName: worker
       containers:
         - name: worker
-          image: asia-south1-docker.pkg.dev/hta-platform-prod/production-docker/hta-worker:latest
+          image: hta-worker:latest
           imagePullPolicy: Always
           envFrom:
             - configMapRef:

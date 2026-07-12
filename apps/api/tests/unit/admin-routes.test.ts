@@ -68,6 +68,7 @@ vi.mock('@hta/database', () => ({
     },
     internalRequest: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       count: vi.fn(),
       update: vi.fn(),
@@ -1362,6 +1363,7 @@ describe('Admin Routes', () => {
         { status: 'DRAFT', _count: 3 },
         { status: 'AUTHORIZED', _count: 2 },
       ] as any)
+      mockedPrisma.internalRequest.findFirst.mockResolvedValue(null)
 
       const res = await app.inject({
         method: 'GET',

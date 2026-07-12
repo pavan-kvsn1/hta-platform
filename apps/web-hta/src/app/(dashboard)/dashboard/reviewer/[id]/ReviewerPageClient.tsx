@@ -411,13 +411,24 @@ export function ReviewerPageClient({
         }),
       })
 
+      const responseData = await response.json().catch(() => null) as {
+        error?: string
+        warning?: string
+        emailQueued?: boolean
+      } | null
+
       if (!response.ok) {
-        const responseData = await response.json()
-        throw new Error(responseData.error || 'Failed to approve certificate')
+        throw new Error(responseData?.error || 'Failed to approve certificate')
+      }
+
+      setCurrentStatus('PENDING_CUSTOMER_APPROVAL')
+      router.refresh()
+
+      if (responseData?.emailQueued === false) {
+        throw new Error(responseData.warning || 'Certificate approved, but the customer email was not queued. Use Resend to Customer to retry.')
       }
 
       setShowApproveModal(false)
-      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       throw err
@@ -727,12 +738,21 @@ export function ReviewerPageClient({
         }),
       })
 
+      const data = await response.json().catch(() => null) as {
+        error?: string
+        warning?: string
+        emailQueued?: boolean
+      } | null
+
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to resend to customer')
+        throw new Error(data?.error || 'Failed to resend to customer')
       }
 
       router.refresh()
+
+      if (data?.emailQueued === false) {
+        throw new Error(data.warning || 'Customer email was not queued. Please retry.')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {

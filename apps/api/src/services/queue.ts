@@ -96,6 +96,8 @@ export type EmailJobData =
       certificateNumber: string
       instrumentDescription: string
       downloadUrl: string
+      maxDownloads?: number
+      expiresInDays?: number
     }
   | {
       type: 'reviewer-customer-expired'
@@ -189,16 +191,21 @@ function getImageProcessingQueue(): Queue<ImageProcessingJobData> | null {
 // PUBLIC API
 // =============================================================================
 
-const APP_URL = () => process.env.APP_URL || 'https://app.hta-calibration.com'
+const APP_URL = () => (process.env.APP_URL || 'https://hta-calibration.com').replace(/\/+$/, '')
 const TENANT_NAME = () => process.env.TENANT_NAME || 'HTA Calibration'
 
 /**
- * Enqueue an email job. No-op if REDIS_URL is not configured.
+ * Enqueue an email job. Optional jobs remain a no-op without Redis; required jobs reject.
  */
-export async function enqueueEmail(data: EmailJobData): Promise<void> {
+export async function enqueueEmail(
+  data: EmailJobData,
+  options: { required?: boolean } = {},
+): Promise<void> {
   const queue = getEmailQueue()
   if (!queue) {
-    console.warn(`[Queue] Email not queued (no REDIS_URL): ${data.type} -> ${data.to}`)
+    const message = `[Queue] Email not queued (no REDIS_URL): ${data.type} -> ${data.to}`
+    if (options.required) throw new Error(message)
+    console.warn(message)
     return
   }
   await queue.add(data.type, data, {
@@ -326,8 +333,8 @@ export async function queueCustomerReviewEmail(opts: {
     customerName: opts.customerName,
     certificateNumber: opts.certificateNumber,
     instrumentDescription: opts.instrumentDescription,
-    reviewUrl: `${APP_URL()}/review/${opts.token}`,
-  })
+    reviewUrl: `${APP_URL()}/customer/review/${opts.token}`,
+  }, { required: true })
 }
 
 export async function queueCustomerReviewRegisteredEmail(opts: {
@@ -344,7 +351,7 @@ export async function queueCustomerReviewRegisteredEmail(opts: {
     certificateNumber: opts.certificateNumber,
     instrumentDescription: opts.instrumentDescription,
     loginUrl: `${APP_URL()}/customer/login`,
-  })
+  }, { required: true })
 }
 
 export async function queueCustomerAuthorizedRegisteredEmail(opts: {
@@ -361,7 +368,7 @@ export async function queueCustomerAuthorizedRegisteredEmail(opts: {
     certificateNumber: opts.certificateNumber,
     instrumentDescription: opts.instrumentDescription,
     loginUrl: `${APP_URL()}/customer/login`,
-  })
+  }, { required: true })
 }
 
 export async function queueCustomerAuthorizedTokenEmail(opts: {
@@ -370,6 +377,8 @@ export async function queueCustomerAuthorizedTokenEmail(opts: {
   certificateNumber: string
   instrumentDescription: string
   token: string
+  maxDownloads?: number
+  expiresInDays?: number
 }): Promise<void> {
   await enqueueEmail({
     type: 'customer-authorized-token',
@@ -378,8 +387,10 @@ export async function queueCustomerAuthorizedTokenEmail(opts: {
     customerName: opts.customerName,
     certificateNumber: opts.certificateNumber,
     instrumentDescription: opts.instrumentDescription,
-    downloadUrl: `${APP_URL()}/download/${opts.token}`,
-  })
+    downloadUrl: `${APP_URL()}/customer/download/${opts.token}`,
+    maxDownloads: opts.maxDownloads ?? 10,
+    expiresInDays: opts.expiresInDays ?? 30,
+  }, { required: true })
 }
 
 export async function queueCustomerApprovalNotificationEmail(opts: {

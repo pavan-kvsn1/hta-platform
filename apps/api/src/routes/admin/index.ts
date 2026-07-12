@@ -4,7 +4,12 @@ import { prisma, Prisma } from '@hta/database'
 import { requireAdmin, requireMasterAdmin } from '../../middleware/auth.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 import { createLogger } from '@hta/shared'
-import { queueStaffActivationEmail, enqueueNotification } from '../../services/queue.js'
+import {
+  enqueueNotification,
+  queueCertificateReviewedEmail,
+  queueCustomerAuthorizedTokenEmail,
+  queueStaffActivationEmail,
+} from '../../services/queue.js'
 import { generateCodeBatch } from '../../services/offline-codes.js'
 import { generateVpnProvisioningToken } from '../../services/vpn.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
@@ -12,6 +17,8 @@ import { writeDeviceAudit } from '../../lib/activity-audit.js'
 import type { StorageProvider } from '../../lib/storage/index.js'
 
 const logger = createLogger('admin-routes')
+const CUSTOMER_DOWNLOAD_MAX_DOWNLOADS = 10
+const SIGNED_CERTIFICATE_MAX_SIZE_BYTES = 25 * 1024 * 1024
 
 // Helper to safely parse JSON
 function safeJsonParse<T>(value: unknown, defaultValue: T): T {
@@ -3251,7 +3258,6 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Notify engineer and reviewer that certificate was authorized (email + notification)
     const certNum = result.certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
-    const { queueCertificateReviewedEmail, queueCustomerAuthorizedRegisteredEmail, queueCustomerAuthorizedTokenEmail } = await import('../../services/queue.js')
     const staffToNotify = [certificate.createdById, certificate.reviewerId].filter(
       (uid): uid is string => !!uid
     )
@@ -3300,124 +3306,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    // Handle customer notification for authorized certificate
-    let downloadLinkResult = null
-    if (body.sendDownloadLink && body.customerEmail && body.customerName) {
-      try {
-        const customerEmail = body.customerEmail.toLowerCase().trim()
-        const customerName = body.customerName.trim()
-
-        // Check if customer is registered
-        const customer = await prisma.customerUser.findUnique({
-          where: { tenantId_email: { tenantId, email: customerEmail } },
-          select: { isActive: true, activatedAt: true },
-        })
-        const isRegistered = customer?.isActive && customer?.activatedAt !== null
-
-        if (isRegistered) {
-          // Registered customer — email them to log in to download (no token needed)
-          queueCustomerAuthorizedRegisteredEmail({
-            customerEmail,
-            customerName,
-            certificateNumber: certNum,
-            instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
-          }).catch(() => {})
-
-          // Log event
-          const lastEvent = await prisma.certificateEvent.findFirst({
-            where: { certificateId: id },
-            orderBy: { sequenceNumber: 'desc' },
-          })
-
-          await prisma.certificateEvent.create({
-            data: {
-              certificateId: id,
-              sequenceNumber: (lastEvent?.sequenceNumber || 0) + 1,
-              revision: result.certificate.currentRevision,
-              eventType: 'DOWNLOAD_LINK_SENT',
-              eventData: JSON.stringify({
-                customerEmail,
-                customerName,
-                sentBy: userName,
-                isRegistered: true,
-              }),
-              userId,
-              userRole,
-            },
-          })
-
-          downloadLinkResult = {
-            sent: true,
-            isRegistered: true,
-            customerEmail,
-          }
-        } else {
-          // Unregistered customer — create download token (30-day, unlimited downloads)
-          const token = crypto.randomUUID()
-          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-
-          const downloadToken = await prisma.downloadToken.create({
-            data: {
-              token,
-              certificateId: id,
-              customerEmail,
-              customerName,
-              expiresAt,
-              maxDownloads: 999999,
-              sentById: userId,
-            },
-          })
-
-          // Send token-based download email
-          queueCustomerAuthorizedTokenEmail({
-            customerEmail,
-            customerName,
-            certificateNumber: certNum,
-            instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
-            token,
-          }).catch(() => {})
-
-          // Log event
-          const lastEvent = await prisma.certificateEvent.findFirst({
-            where: { certificateId: id },
-            orderBy: { sequenceNumber: 'desc' },
-          })
-
-          await prisma.certificateEvent.create({
-            data: {
-              certificateId: id,
-              sequenceNumber: (lastEvent?.sequenceNumber || 0) + 1,
-              revision: result.certificate.currentRevision,
-              eventType: 'DOWNLOAD_LINK_SENT',
-              eventData: JSON.stringify({
-                customerEmail,
-                customerName,
-                tokenId: downloadToken.id,
-                expiresAt: expiresAt.toISOString(),
-                sentBy: userName,
-                isRegistered: false,
-              }),
-              userId,
-              userRole,
-            },
-          })
-
-          downloadLinkResult = {
-            sent: true,
-            token,
-            customerEmail,
-            expiresAt: expiresAt.toISOString(),
-            isRegistered: false,
-          }
-        }
-      } catch {
-        downloadLinkResult = {
+    // A public download email is sent only after the final PDF is stored. The web
+    // client completes that upload immediately after authorization, then calls the
+    // delivery endpoint below. This prevents a valid email token from pointing to
+    // a missing PDF.
+    const downloadLinkResult = body.sendDownloadLink && body.customerEmail && body.customerName
+      ? {
           sent: false,
-          error: 'Failed to send download link. You can send it manually later.',
+          pendingPdfUpload: true,
+          customerEmail: body.customerEmail.toLowerCase().trim(),
+          customerName: body.customerName.trim(),
         }
-      }
-    }
-
+      : null
     return {
       success: true,
       certificate: {
@@ -4832,6 +4732,88 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, message: `${fieldLabels[body.field] || body.field} updated successfully` }
   })
 
+  // POST /api/admin/certificates/:id/signed-pdf - Store the final PDF before delivery
+  fastify.post<{ Params: { id: string } }>('/certificates/:id/signed-pdf', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params
+    const tenantId = request.tenantId
+    const userId = request.user!.sub
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { id, tenantId },
+      select: {
+        id: true,
+        status: true,
+        currentRevision: true,
+        certificateNumber: true,
+      },
+    })
+
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    if (!['AUTHORIZED', 'COMPLETED'].includes(certificate.status)) {
+      return reply.status(400).send({ error: 'Certificate must be authorized before uploading the signed PDF' })
+    }
+
+    const data = await request.file()
+    if (!data) {
+      return reply.status(400).send({ error: 'No signed PDF provided' })
+    }
+
+    if (data.mimetype !== 'application/pdf') {
+      return reply.status(400).send({ error: 'Only PDF files are allowed' })
+    }
+
+    const chunks: Buffer[] = []
+    for await (const chunk of data.file) {
+      chunks.push(chunk)
+    }
+    const buffer = Buffer.concat(chunks)
+
+    if (buffer.length === 0 || buffer.length > SIGNED_CERTIFICATE_MAX_SIZE_BYTES) {
+      return reply.status(400).send({ error: 'Signed PDF must be between 1 byte and 25MB' })
+    }
+
+    if (!buffer.subarray(0, 4).equals(Buffer.from('%PDF'))) {
+      return reply.status(400).send({ error: 'Uploaded file is not a valid PDF' })
+    }
+
+    const storagePath = `signed-certificates/${tenantId}/${id}/revision-${certificate.currentRevision}.pdf`
+    const { getSignedCertificateStorage } = await import('../../lib/storage/index.js')
+    const storage = getSignedCertificateStorage()
+
+    await storage.upload(storagePath, buffer, {
+      contentType: 'application/pdf',
+      metadata: {
+        certificateId: id,
+        tenantId,
+        revision: String(certificate.currentRevision),
+        uploadedBy: userId,
+      },
+    })
+
+    try {
+      await prisma.certificate.update({
+        where: { id },
+        data: {
+          signedPdfPath: storagePath,
+          lastModifiedById: userId,
+        },
+      })
+    } catch (error) {
+      await storage.delete(storagePath).catch(() => {})
+      throw error
+    }
+
+    return {
+      success: true,
+      signedPdfPath: storagePath,
+      certificateNumber: certificate.certificateNumber,
+    }
+  })
   // POST /api/admin/certificates/:id/send-download-link - Send download link to customer
   fastify.post<{ Params: { id: string } }>('/certificates/:id/send-download-link', {
     preHandler: [requireAdmin],
@@ -4845,6 +4827,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       customerEmail: string
       customerName: string
       ccAdmin?: boolean
+      expiresInDays?: number
     }
 
     if (!body.customerEmail?.trim()) {
@@ -4867,11 +4850,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     if (!certificate.signedPdfPath) {
-      return reply.status(400).send({ error: 'Signed PDF not available. Please generate the PDF first.' })
+      return reply.status(409).send({ error: 'Signed PDF not available. Please generate the PDF first.', code: 'SIGNED_PDF_NOT_AVAILABLE' })
     }
 
+    const expiresInDays = body.expiresInDays === 30 ? 30 : 7
     const now = new Date()
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const expiresAt = new Date(now.getTime() + expiresInDays * 24 * 60 * 60 * 1000)
     const token = crypto.randomUUID()
 
     const downloadToken = await prisma.downloadToken.create({
@@ -4881,7 +4865,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         customerEmail: body.customerEmail.toLowerCase().trim(),
         customerName: body.customerName.trim(),
         expiresAt,
-        maxDownloads: 5,
+        maxDownloads: CUSTOMER_DOWNLOAD_MAX_DOWNLOADS,
         sentById: userId,
       },
     })
@@ -4903,6 +4887,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           customerName: body.customerName.trim(),
           tokenId: downloadToken.id,
           expiresAt: expiresAt.toISOString(),
+          maxDownloads: CUSTOMER_DOWNLOAD_MAX_DOWNLOADS,
           sentBy: userName,
         }),
         userId,
@@ -4910,31 +4895,40 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       },
     })
 
-    const baseUrl = process.env.APP_URL || 'https://app.hta-calibration.com'
+    const baseUrl = process.env.APP_URL || 'https://hta-calibration.com'
     const downloadUrl = `${baseUrl}/customer/download/${token}`
 
-    // Send email
-    const { sendEmail } = await import('../../services/email.js')
-    const recipients = [body.customerEmail.toLowerCase().trim()]
-    if (body.ccAdmin && userEmail) {
-      recipients.push(userEmail)
+    // Customer delivery is only reported as successful after BullMQ accepts the job.
+    try {
+      await queueCustomerAuthorizedTokenEmail({
+        customerEmail: body.customerEmail.toLowerCase().trim(),
+        customerName: body.customerName.trim(),
+        certificateNumber: certificate.certificateNumber,
+        instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+        token,
+        maxDownloads: CUSTOMER_DOWNLOAD_MAX_DOWNLOADS,
+        expiresInDays,
+      })
+    } catch (error) {
+      logger.error({ error, certificateId: id }, 'Failed to queue certificate download email')
+      return reply.status(502).send({
+        error: 'Download link was created, but the customer email could not be queued. Please retry.',
+        downloadUrl,
+      })
     }
 
-    for (const to of recipients) {
-      sendEmail({
-        to,
-        template: 'certificate-download-ready' as any,
-        props: {
-          customerName: body.customerName.trim(),
-          certificateNumber: certificate.certificateNumber,
-          instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
-          serialNumber: certificate.uucSerialNumber || '',
-          calibrationDate: certificate.dateOfCalibration
-            ? certificate.dateOfCalibration.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-            : '',
-          downloadUrl,
-        },
-      }).catch(() => {})
+    if (body.ccAdmin && userEmail) {
+      queueCustomerAuthorizedTokenEmail({
+        customerEmail: userEmail,
+        customerName: userName,
+        certificateNumber: certificate.certificateNumber,
+        instrumentDescription: certificate.uucDescription || 'Calibration Certificate',
+        token,
+        maxDownloads: CUSTOMER_DOWNLOAD_MAX_DOWNLOADS,
+        expiresInDays,
+      }).catch((error) => {
+        logger.error({ error, certificateId: id }, 'Failed to queue admin copy of certificate download email')
+      })
     }
 
     return {
@@ -4958,7 +4952,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       include: { sentBy: { select: { name: true, email: true } } },
     })
 
-    const baseUrl = process.env.APP_URL || 'https://app.hta-calibration.com'
+    const baseUrl = process.env.APP_URL || 'https://hta-calibration.com'
 
     return {
       tokens: tokens.map((t: any) => ({
@@ -5072,7 +5066,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     // Send activation email
-    const baseUrl = process.env.APP_URL || 'https://app.hta-calibration.com'
+    const baseUrl = process.env.APP_URL || 'https://hta-calibration.com'
     const activationUrl = `${baseUrl}/customer/activate/${activationToken}`
 
     const { sendEmail } = await import('../../services/email.js')
@@ -5205,7 +5199,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     // Send activation email
-    const baseUrl = process.env.APP_URL || 'https://app.hta-calibration.com'
+    const baseUrl = process.env.APP_URL || 'https://hta-calibration.com'
     const activationUrl = `${baseUrl}/customer/activate/${activationToken}`
 
     const { sendEmail } = await import('../../services/email.js')
@@ -5387,7 +5381,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       // Send activation email
-      const baseUrl = process.env.APP_URL || 'https://app.hta-calibration.com'
+      const baseUrl = process.env.APP_URL || 'https://hta-calibration.com'
       const activationUrl = `${baseUrl}/customer/activate/${activationToken}`
       const { sendEmail } = await import('../../services/email.js')
       sendEmail({

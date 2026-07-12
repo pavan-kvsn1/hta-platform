@@ -4,6 +4,8 @@
 # Multi-stage build for production deployment
 # =============================================================================
 
+FROM gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0 AS cloud-sql-proxy
+
 # -----------------------------------------------------------------------------
 # Base stage: Node.js Alpine with pnpm
 # -----------------------------------------------------------------------------
@@ -32,6 +34,24 @@ COPY packages/emails/package.json ./packages/emails/
 # Install ALL dependencies (need devDeps for build)
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
+
+# -----------------------------------------------------------------------------
+# Migrator stage: Prisma CLI plus Cloud SQL Auth Proxy for one-off GKE Jobs
+# -----------------------------------------------------------------------------
+FROM base AS migrator
+WORKDIR /app
+
+COPY --from=deps /app ./
+COPY packages/database ./packages/database
+COPY apps/api/scripts/run-migrations.sh ./apps/api/scripts/run-migrations.sh
+COPY --from=cloud-sql-proxy /cloud-sql-proxy /usr/local/bin/cloud-sql-proxy
+
+RUN apk add --no-cache netcat-openbsd && \
+    chmod +x /usr/local/bin/cloud-sql-proxy ./apps/api/scripts/run-migrations.sh
+
+USER node
+
+ENTRYPOINT ["/app/apps/api/scripts/run-migrations.sh"]
 
 # -----------------------------------------------------------------------------
 # Builder stage: Build the application

@@ -11,14 +11,14 @@ resources:
 
 # Image tags - update these during deployment
 images:
-  - name: gcr.io/PROJECT_ID/hta-api
-    newName: gcr.io/YOUR_PROJECT_ID/hta-api
+  - name: hta-api
+    newName: asia-south1-docker.pkg.dev/hta-platform-prod/production-docker/hta-api
     newTag: latest
-  - name: gcr.io/PROJECT_ID/hta-web
-    newName: gcr.io/YOUR_PROJECT_ID/hta-web
+  - name: hta-web
+    newName: asia-south1-docker.pkg.dev/hta-platform-prod/production-docker/hta-web
     newTag: latest
-  - name: gcr.io/PROJECT_ID/hta-worker
-    newName: gcr.io/YOUR_PROJECT_ID/hta-worker
+  - name: hta-worker
+    newName: asia-south1-docker.pkg.dev/hta-platform-prod/production-docker/hta-worker
     newTag: latest
 
 # Production-specific patches

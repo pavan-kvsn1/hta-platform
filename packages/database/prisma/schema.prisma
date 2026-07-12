@@ -1024,7 +1024,7 @@ model DownloadToken {
   expiresAt     DateTime
   downloadedAt  DateTime?
   downloadCount Int              @default(0)
-  maxDownloads  Int              @default(5)
+  maxDownloads  Int              @default(10)
   createdAt     DateTime         @default(now())
   sentById      String?
   certificate   Certificate      @relation(fields: [certificateId], references: [id], onDelete: Cascade)

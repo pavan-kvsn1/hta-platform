@@ -97,6 +97,8 @@ export interface CustomerAuthorizedTokenEmailJob extends BaseEmailJob {
   certificateNumber: string
   instrumentDescription: string
   downloadUrl: string
+  maxDownloads?: number
+  expiresInDays?: number
 }
 
 export interface ReviewerCustomerExpiredEmailJob extends BaseEmailJob {

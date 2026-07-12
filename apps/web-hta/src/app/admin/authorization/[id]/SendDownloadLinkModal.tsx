@@ -41,6 +41,7 @@ interface SendDownloadLinkModalProps {
   certificateId: string
   customerName?: string | null
   customerEmail?: string | null
+  ensureSignedPdf: () => Promise<void>
 }
 
 export function SendDownloadLinkModal({
@@ -49,6 +50,7 @@ export function SendDownloadLinkModal({
   certificateId,
   customerName: initialCustomerName,
   customerEmail: initialCustomerEmail,
+  ensureSignedPdf,
 }: SendDownloadLinkModalProps) {
   const [customerEmail, setCustomerEmail] = useState(initialCustomerEmail || '')
   const [customerName, setCustomerName] = useState(initialCustomerName || '')
@@ -97,7 +99,7 @@ export function SendDownloadLinkModal({
     setError(null)
 
     try {
-      const response = await apiFetch(`/api/admin/certificates/${certificateId}/send-download-link`, {
+      const requestDownloadLink = () => apiFetch(`/api/admin/certificates/${certificateId}/send-download-link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,9 +109,16 @@ export function SendDownloadLinkModal({
         }),
       })
 
-      const data = await response.json()
+      let response = await requestDownloadLink()
+      let data = await response.json() as { error?: string; code?: string; downloadUrl?: string }
 
-      if (!response.ok) {
+      if (!response.ok && data.code === 'SIGNED_PDF_NOT_AVAILABLE') {
+        await ensureSignedPdf()
+        response = await requestDownloadLink()
+        data = await response.json() as { error?: string; code?: string; downloadUrl?: string }
+      }
+
+      if (!response.ok || !data.downloadUrl) {
         setError(data.error || 'Failed to send download link')
         return
       }

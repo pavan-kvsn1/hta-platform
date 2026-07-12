@@ -23,7 +23,7 @@ spec:
       serviceAccountName: web-hta
       containers:
         - name: web
-          image: asia-south1-docker.pkg.dev/hta-platform-prod/production-docker/hta-web:latest
+          image: hta-web:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

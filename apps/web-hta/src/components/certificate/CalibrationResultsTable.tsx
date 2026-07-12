@@ -2,6 +2,7 @@
 
 import { AlertCircle, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatToCalibrationPrecision, resolveCalibrationPrecision, type CalibrationPrecisionParameter } from '@/lib/utils/calibration-precision'
 
 /**
  * Minimal parameter result interface for table display
@@ -20,7 +21,7 @@ interface ParameterResult {
  * Minimal parameter interface for table display.
  * Compatible with both centralized Parameter type and local definitions.
  */
-interface CalibrationParameter {
+interface CalibrationParameter extends CalibrationPrecisionParameter {
   id: string
   parameterName: string
   parameterUnit: string | null
@@ -88,18 +89,23 @@ export function CalibrationResultsTable({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {param.results.map((result) => (
+                {param.results.map((result) => {
+                  const { precision } = resolveCalibrationPrecision(param, result.standardReading)
+
+                  return (
                   <tr
                     key={result.id}
                     className={cn(result.isOutOfLimit && 'bg-red-50')}
                   >
                     <td className="px-4 py-2 text-gray-900 text-xs">{result.pointNumber}</td>
-                    <td className="px-4 py-2 text-gray-700 text-xs">{result.standardReading || '-'}</td>
-                    <td className="px-4 py-2 text-gray-700 text-xs">{result.beforeAdjustment || '-'}</td>
+                    <td className="px-4 py-2 text-gray-700 text-xs">{formatToCalibrationPrecision(result.standardReading, precision)}</td>
+                    <td className="px-4 py-2 text-gray-700 text-xs">{formatToCalibrationPrecision(result.beforeAdjustment, precision)}</td>
                     {param.showAfterAdjustment && (
-                      <td className="px-4 py-2 text-gray-700 text-xs">{result.afterAdjustment || '-'}</td>
+                      <td className="px-4 py-2 text-gray-700 text-xs">{formatToCalibrationPrecision(result.afterAdjustment, precision)}</td>
                     )}
-                    <td className="px-4 py-2 text-gray-700 text-xs">{result.errorObserved ?? '-'}</td>
+                    <td className="px-4 py-2 text-gray-700 text-xs">
+                      {formatToCalibrationPrecision(result.errorObserved, precision)}
+                    </td>
                     <td className="px-4 py-2 text-center">
                       {result.isOutOfLimit ? (
                         <span className="inline-flex items-center gap-1 text-red-600">
@@ -114,7 +120,8 @@ export function CalibrationResultsTable({
                       )}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

@@ -60,42 +60,62 @@ export function ImageUploadGallery({
 
   const canUpload = images.length < maxImages && !disabled && !isUploading
 
-  const handleFileSelect = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-      if (!file) return
+  const handleFiles = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return
 
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-
-      // Validate file type
-      if (!ACCEPTED_TYPES.includes(file.type)) {
-        setError('Please select a valid image file (JPEG, PNG, HEIC, WebP)')
+      const availableSlots = maxImages - images.length
+      if (availableSlots <= 0) {
+        setError(`Maximum images (${maxImages}) reached`)
         return
       }
 
-      // Validate file size
-      if (file.size > MAX_FILE_SIZE) {
-        setError(`File is too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`)
+      const invalidFile = files.find(
+        (file) => !ACCEPTED_TYPES.includes(file.type) || file.size > MAX_FILE_SIZE
+      )
+      if (invalidFile) {
+        setError(
+          !ACCEPTED_TYPES.includes(invalidFile.type)
+            ? 'Please select valid image files (JPEG, PNG, HEIC, WebP)'
+            : `Images must be at most ${MAX_FILE_SIZE / 1024 / 1024}MB each`
+        )
         return
       }
 
+      const filesToUpload = files.slice(0, availableSlots)
       setError(null)
       setIsUploading(true)
 
       try {
-        await onUpload(file)
+        // Upload sequentially so each request observes the latest server-side limit.
+        for (const file of filesToUpload) {
+          await onUpload(file)
+        }
+
+        if (files.length > availableSlots) {
+          setError(`Only ${availableSlots} additional image${availableSlots === 1 ? '' : 's'} could be added`)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to upload image')
       } finally {
         setIsUploading(false)
       }
     },
-    [onUpload]
+    [images.length, maxImages, onUpload]
   )
 
+  const handleFileSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files || [])
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+
+      void handleFiles(files)
+    },
+    [handleFiles]
+  )
   const handleDelete = useCallback(
     async (imageId: string) => {
       if (deletingId) return
@@ -113,41 +133,16 @@ export function ImageUploadGallery({
   )
 
   const handleDrop = useCallback(
-    async (event: React.DragEvent<HTMLDivElement>) => {
+    (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault()
       event.stopPropagation()
 
       if (!canUpload) return
 
-      const file = event.dataTransfer.files[0]
-      if (!file) return
-
-      // Validate file type
-      if (!ACCEPTED_TYPES.includes(file.type)) {
-        setError('Please select a valid image file (JPEG, PNG, HEIC, WebP)')
-        return
-      }
-
-      // Validate file size
-      if (file.size > MAX_FILE_SIZE) {
-        setError(`File is too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`)
-        return
-      }
-
-      setError(null)
-      setIsUploading(true)
-
-      try {
-        await onUpload(file)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to upload image')
-      } finally {
-        setIsUploading(false)
-      }
+      void handleFiles(Array.from(event.dataTransfer.files))
     },
-    [canUpload, onUpload]
+    [canUpload, handleFiles]
   )
-
   const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.stopPropagation()
@@ -221,6 +216,7 @@ export function ImageUploadGallery({
           ref={fileInputRef}
           type="file"
           accept={ACCEPTED_TYPES.join(',')}
+          multiple
           onChange={handleFileSelect}
           className="hidden"
         />
@@ -279,6 +275,7 @@ export function ImageUploadGallery({
         ref={fileInputRef}
         type="file"
         accept={ACCEPTED_TYPES.join(',')}
+          multiple
         onChange={handleFileSelect}
         className="hidden"
       />
@@ -293,67 +290,68 @@ export function ImageUploadGallery({
 
       {/* Image grid */}
       {images.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {images.map((image) => (
-            <div
-              key={image.id}
-              className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-50 group"
-            >
-              {image.thumbnailUrl ? (
-                <Image
-                  src={image.thumbnailUrl}
-                  alt={image.fileName}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  {image.isProcessing ? (
-                    <div className="text-center">
-                      <Loader2 className="w-8 h-8 text-slate-400 animate-spin mx-auto" />
-                      <p className="text-xs text-slate-500 mt-2">Processing...</p>
-                    </div>
-                  ) : (
-                    <ImageIcon className="w-8 h-8 text-slate-300" />
-                  )}
-                </div>
-              )}
+        <div className="max-h-64 overflow-y-auto pr-1">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(6rem,6rem))] gap-2">
+            {images.map((image) => (
+              <div
+                key={image.id}
+                className="relative h-24 w-24 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 group"
+              >
+                {image.thumbnailUrl ? (
+                  <Image
+                    src={image.thumbnailUrl}
+                    alt={image.fileName}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    {image.isProcessing ? (
+                      <div className="text-center">
+                        <Loader2 className="w-8 h-8 text-slate-400 animate-spin mx-auto" />
+                        <p className="text-xs text-slate-500 mt-2">Processing...</p>
+                      </div>
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-slate-300" />
+                    )}
+                  </div>
+                )}
 
-              {/* Overlay actions */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                {image.optimizedUrl && (
+                {/* Overlay actions */}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  {image.optimizedUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewImage(image)}
+                      className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+                    >
+                      <ZoomIn className="w-5 h-5" />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setPreviewImage(image)}
-                    className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+                    onClick={() => handleDelete(image.id)}
+                    disabled={deletingId === image.id}
+                    className="w-10 h-10 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center text-white transition-colors"
                   >
-                    <ZoomIn className="w-5 h-5" />
+                    {deletingId === image.id ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-5 h-5" />
+                    )}
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleDelete(image.id)}
-                  disabled={deletingId === image.id}
-                  className="w-10 h-10 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center text-white transition-colors"
-                >
-                  {deletingId === image.id ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
+                </div>
 
-              {/* File name overlay */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                <p className="text-xs text-white truncate">{image.fileName}</p>
+                {/* File name overlay */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                  <p className="text-xs text-white truncate">{image.fileName}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
-
       {/* Image count */}
       <div className="flex items-center justify-between text-xs text-slate-500">
         <span>

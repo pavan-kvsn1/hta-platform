@@ -563,6 +563,50 @@ describe('certificate-store', () => {
       expect(result.current.formData.parameters[0].results[0].isOutOfLimit).toBe(true)
     })
 
+    it('uses the matching bucket precision when calculating error', () => {
+      const { result } = renderHook(() => useCertificateStore())
+
+      const parameter: Parameter = {
+        ...result.current.formData.parameters[0],
+        errorFormula: 'A-B',
+        accuracyValue: '1',
+        accuracyType: 'ABSOLUTE',
+        requiresBinning: true,
+        bins: [
+          {
+            id: 'low',
+            binMin: '0',
+            binMax: '10',
+            leastCount: '0.01',
+            accuracy: '1',
+          },
+          {
+            id: 'high',
+            binMin: '10.01',
+            binMax: '100',
+            leastCount: '0.0001',
+            accuracy: '1',
+          },
+        ],
+        results: [{
+          id: 'r1',
+          pointNumber: 1,
+          standardReading: '25.0000',
+          beforeAdjustment: '24.99994',
+          afterAdjustment: '',
+          errorObserved: null,
+          isOutOfLimit: false,
+        }],
+      }
+
+      act(() => {
+        result.current.setParameter(0, parameter)
+        result.current.calculateError(0, 0)
+      })
+
+      expect(result.current.formData.parameters[0].results[0].errorObserved).toBe(0.0001)
+    })
+
     it('does not calculate error if readings are invalid', () => {
       const { result } = renderHook(() => useCertificateStore())
 

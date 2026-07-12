@@ -148,6 +148,8 @@ async function renderEmailFromJob(data: EmailJobData): Promise<{ html: string; s
           certificateNumber: data.certificateNumber,
           instrumentDescription: data.instrumentDescription,
           downloadUrl: data.downloadUrl,
+          maxDownloads: data.maxDownloads,
+          expiresInDays: data.expiresInDays,
         },
       })
 
