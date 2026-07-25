@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useCallback } from 'react'
-import { CheckCircle, AlertTriangle, Info, Camera, ImageIcon } from 'lucide-react'
+import { CheckCircle, AlertTriangle, Info, Camera, ImageIcon, Plus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -792,6 +792,18 @@ function ResultsTable({
             })}
           </tbody>
         </table>
+      </div>
+
+      <div className="border-t border-slate-200 bg-slate-50/60 p-3">
+        <button
+          type="button"
+          onClick={() => onPointCountChange(parameter.results.length + 1)}
+          disabled={disabled}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Plus className="size-4" />
+          Add measurement row
+        </button>
       </div>
 
       {/* Status Footer */}
