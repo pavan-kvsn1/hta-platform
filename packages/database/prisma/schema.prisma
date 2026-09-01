@@ -27,6 +27,7 @@ model Tenant {
   customerUsers     CustomerUser[]
   customerAccounts  CustomerAccount[]
   certificates      Certificate[]
+  emailDeliveries   EmailDelivery[]
   masterInstruments MasterInstrument[]
   instrumentTrainings MasterInstrumentTraining[]
 
@@ -506,6 +507,7 @@ model Certificate {
   revisions                     CertificateRevision[]
   chatThreads                   ChatThread[]
   downloadTokens                DownloadToken[]
+  emailDeliveries               EmailDelivery[]
   internalRequests              InternalRequest[]
   notifications                 Notification[]
   openSignDocuments             OpenSignDocument[]
@@ -565,6 +567,46 @@ model CertificateRevision {
 
   @@unique([certificateId, revisionNumber])
   @@index([certificateId, createdAt])
+}
+
+model EmailDelivery {
+  id              String              @id @default(uuid())
+  tenantId        String
+  certificateId   String
+  emailType       String
+  recipientEmail  String
+  recipientName   String?
+  status          EmailDeliveryStatus @default(QUEUED)
+  bullJobId       String?
+  idempotencyKey  String              @unique
+  providerEmailId String?             @unique
+  queuedAt        DateTime            @default(now())
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  lastEventAt     DateTime?
+  failureReason   String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  certificate     Certificate         @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  events          EmailDeliveryEvent[]
+
+  @@index([tenantId, certificateId, createdAt])
+  @@index([certificateId, emailType, createdAt])
+  @@index([status])
+}
+
+model EmailDeliveryEvent {
+  id              String        @id @default(uuid())
+  deliveryId      String
+  providerEventId String        @unique
+  eventType       String
+  occurredAt      DateTime
+  details         Json?
+  createdAt       DateTime      @default(now())
+  delivery        EmailDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId, occurredAt])
 }
 
 model ReviewFeedback {
@@ -1133,6 +1175,17 @@ enum CustomerRequestType {
   POC_CHANGE
   ACCOUNT_DELETION
   DATA_EXPORT
+}
+
+enum EmailDeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  DELAYED
+  BOUNCED
+  FAILED
+  SUPPRESSED
+  COMPLAINED
 }
 
 enum CustomerRequestStatus {
