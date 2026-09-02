@@ -24,6 +24,14 @@ What the standardization does:
     standard names and never the 57 raw variants
   * canonicalizes units through the same map's unitAliases (µm vs um vs μm, %RH spellings)
   * normalizes accuracy into a discriminated union with a consistent shape per type
+  * collapses per-subtype profiles into one profile with a subtypes[] array, matching
+    how both wireframes render them (a profile header plus a subtype selector). The
+    working registry emits a profile per (parameter, role, subtype) - asset 711 alone
+    drops from 34 profiles to 10.
+  * splits indicator/sensor composite fields ('Ind: 1523 Sen: 5626') into parts, which
+    the Basic Info tab renders as a Composite checkbox
+  * maps calibration status to the badge vocabulary the wireframes use
+    (VALID / EXPIRING_SOON / EXPIRED / UNKNOWN)
   * distinguishes range capabilities from reference artifacts, which have no continuous
     range at all
   * drops every extraction/audit field
@@ -124,6 +132,116 @@ def normalize_accuracy(acc):
 
 
 UNIT_LETTER = re.compile(r"^\s*\d+\s*([A-Z])\b")
+
+# "Ind: 1523 Sen: 5626", "Ind : HD2303.0 Sen:AP471S3", "Ind : 08020628 Sen : 41020793"
+IND_SEN = re.compile(r"\bind\s*[:.]?\s*(.+?)\s*\bsen\s*[:.]?\s*(.+)$", re.I)
+
+# Days before the due date at which a calibration counts as expiring soon.
+EXPIRING_SOON_DAYS = 60
+
+
+def split_ind_sen(value):
+    """Split an indicator/sensor composite field into its two parts.
+
+    33 assets record make, model or serial as a single string covering both halves of
+    an indicator-plus-sensor instrument. The scope wireframe's Basic Info tab renders
+    these as a 'Composite: Ind [_] Sen [_]' pair, so the split has to be available
+    rather than left inside one string.
+    """
+    if not value:
+        return None
+    match = IND_SEN.match(str(value).strip())
+    if not match:
+        return None
+    return {"ind": match.group(1).strip(), "sen": match.group(2).strip()}
+
+
+def calibration_state(status):
+    """Map the registry's status to the vocabulary the wireframes use for badges.
+
+    UNDER_RECAL and SERVICE_PENDING are operational states the lab sets by hand; they
+    cannot be derived from a due date and so never come out of here.
+    """
+    if not status:
+        return {"state": "UNKNOWN", "days": None}
+    kind = status.get("status")
+    if kind == "overdue":
+        return {"state": "EXPIRED", "days": status.get("days_overdue")}
+    if kind == "valid":
+        days = status.get("days_until_due")
+        if days is not None and days <= EXPIRING_SOON_DAYS:
+            return {"state": "EXPIRING_SOON", "days": days}
+        return {"state": "VALID", "days": days}
+    return {"state": "UNKNOWN", "days": None}
+
+
+def group_profiles(profiles):
+    """Collapse per-subtype profiles into one profile carrying a subtypes[] array.
+
+    The working registry emits a separate profile for every (parameter, role, subtype)
+    combination - asset 711 has 34, of which 28 are RTD and Thermocouple subtype
+    variants. Both wireframes instead show one profile per (parameter, role) with a
+    subtype selector inside it, and buckets that follow the selected subtype.
+
+    Grouping here rather than in the UI means every screen that renders profiles gets
+    the same structure for free.
+    """
+    grouped = {}
+    order = []
+    for prof in profiles:
+        key = (
+            prof["parameter"],
+            prof["role"],
+            prof["kind"],
+            prof["unit"],
+            prof.get("mode"),
+        )
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        grouped[key].append(prof)
+
+    out = []
+    for key in order:
+        members = grouped[key]
+        subtyped = [p for p in members if p.get("subtype")]
+
+        # Profiles without a subtype stay as they are. More than one in a group would
+        # mean two indistinguishable capabilities, so they are kept separate rather
+        # than silently merged.
+        if not subtyped:
+            out.extend(members)
+            continue
+
+        base = dict(subtyped[0])
+        subtypes = []
+        for member in members:
+            subtypes.append(
+                {
+                    "id": member.get("subtype"),
+                    "min": member.get("min"),
+                    "max": member.get("max"),
+                    "min_inclusive": member.get("min_inclusive", True),
+                    "max_inclusive": member.get("max_inclusive", True),
+                    "buckets": member.get("buckets") or [],
+                }
+            )
+
+        lows = [s["min"] for s in subtypes if s["min"] is not None]
+        highs = [s["max"] for s in subtypes if s["max"] is not None]
+
+        base.pop("subtype", None)
+        base["subtypes"] = subtypes
+        # Profile range is the envelope across subtypes; per-subtype detail lives in
+        # subtypes[]. Buckets are empty here so there is one place to read them from.
+        base["min"] = min(lows) if lows else None
+        base["max"] = max(highs) if highs else None
+        base["buckets"] = []
+        out.append(base)
+
+    for index, prof in enumerate(out, start=1):
+        prof["id"] = f"P{index}"
+    return out
 
 
 def normalized_asset_no(asset):
@@ -298,19 +416,37 @@ def build(registry, mapping):
             if prov:
                 notes.extend(prov.get("notes") or [])
 
+        profiles_out = group_profiles(profiles_out)
+
         status = asset.get("calibration_status") or {}
+        state = calibration_state(status)
+
+        make_parts = split_ind_sen(asset.get("make"))
+        model_parts = split_ind_sen(asset.get("model"))
+        serial_parts = split_ind_sen(asset.get("serial_no"))
+
         unit_out = {
             "id": unit_id(asset_number, asset, unit_index),
             "instrument_desc": asset.get("instrument_desc"),
+            # 'composite' here means one instrument built from an indicator plus a
+            # sensor, which is what the Basic Info tab's Composite checkbox toggles.
+            # It is unrelated to several instruments sharing an asset number.
+            "asset_type": "composite"
+            if (make_parts or model_parts or serial_parts)
+            else "simple",
             "make": asset.get("make"),
+            "make_parts": make_parts,
             "model": asset.get("model"),
+            "model_parts": model_parts,
             "serial_no": asset.get("serial_no"),
+            "serial_parts": serial_parts,
             "category": asset.get("category"),
             "usage": asset.get("usage"),
             "calibrated_at": asset.get("calibrated_at"),
             "report_no": asset.get("report_no"),
             "next_due_on": asset.get("next_due_on"),
-            "calibration_status": status.get("status"),
+            "calibration_state": state["state"],
+            "calibration_days": state["days"],
             "sop_references": asset.get("sop_references") or [],
             "certificate_file": asset.get("certificate_file"),
             "capability_profiles": profiles_out,
@@ -463,15 +599,25 @@ def main():
     ]
     params = sorted({p["parameter"] for p in all_profiles})
     artifacts = [p for p in all_profiles if p["kind"] == "artifact"]
+    def profile_buckets(profile):
+        """All buckets of a profile, whether direct or held under a subtype."""
+        if profile.get("subtypes"):
+            return [b for s in profile["subtypes"] for b in s["buckets"]]
+        return profile["buckets"]
+
     acc_types = {}
+    subtyped = 0
     for p in all_profiles:
-        for b in p["buckets"]:
+        if p.get("subtypes"):
+            subtyped += 1
+        for b in profile_buckets(p):
             t = (b["accuracy"] or {}).get("type", "none")
             acc_types[t] = acc_types.get(t, 0) + 1
 
     print(f"schema {SCHEMA_VERSION}: {standardized['asset_count']} assets, "
           f"{standardized['unit_count']} units, {standardized['profile_count']} profiles, "
           f"{len(params)} distinct parameters")
+    print(f"  profiles w/ subtypes  : {subtyped}")
     print(f"  artifact profiles     : {len(artifacts)}")
     print(f"  accuracy by type      : {acc_types}")
     print(f"  assets with caveats   : {len(quality['assets'])}")

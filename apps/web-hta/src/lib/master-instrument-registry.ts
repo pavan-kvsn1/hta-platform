@@ -119,6 +119,24 @@ export interface ArtifactCapability {
   deviation_unit?: string
 }
 
+/**
+ * One selectable variant of a subtyped capability - a single thermocouple type or RTD
+ * curve, with its own range and buckets.
+ *
+ * A Fluke universal calibrator sources eight thermocouple types, each with a different
+ * range and accuracy. The wireframes render this as one profile with a subtype selector,
+ * so the shape follows: the profile carries the envelope, the subtype carries the detail.
+ */
+export interface CapabilitySubtype {
+  /** e.g. "Type K", "Pt-100", "24.12mm" - read with the profile's subtype_kind. */
+  id: string
+  min: number | null
+  max: number | null
+  min_inclusive: boolean
+  max_inclusive: boolean
+  buckets: CapabilityBucket[]
+}
+
 export interface CapabilityProfile {
   id: string
   /** Standard parameter name. Raw registry variants are normalized away. */
@@ -127,13 +145,18 @@ export interface CapabilityProfile {
   unit: string
   /** `range` capabilities have min/max and buckets; `artifact` ones have `artifact`. */
   kind: 'range' | 'artifact'
+  /** For a subtyped profile this is the envelope across all subtypes. */
   min: number | null
   max: number | null
   min_inclusive: boolean
   max_inclusive: boolean
+  /** Empty when `subtypes` is present - read buckets from the subtype instead. */
   buckets: CapabilityBucket[]
-  /** e.g. "Type K", "Pt-100", "24.12mm" - read with subtype_kind, not on its own. */
-  subtype?: string
+  /**
+   * Present when the parameter has selectable variants (thermocouple types, RTD curves,
+   * gauge sizes). Use `capabilityVariants()` if you want a uniform traversal.
+   */
+  subtypes?: CapabilitySubtype[]
   subtype_kind?: SubtypeKind
   /**
    * Some certificates state an operating range narrower than the declared range
@@ -153,6 +176,26 @@ export interface CapabilityProfile {
  * selects as a master - it has its own serial number, calibration date, due date and
  * capabilities. Several units can live under one asset number.
  */
+/** The two halves of an indicator-plus-sensor instrument. */
+export interface IndSenParts {
+  ind: string
+  sen: string
+}
+
+/**
+ * Calibration state, in the vocabulary the wireframes use for status badges.
+ *
+ * UNDER_RECAL and SERVICE_PENDING are operational states the lab sets by hand and are
+ * never derived from a due date, so they do not appear in generated data.
+ */
+export type CalibrationState =
+  | 'VALID'
+  | 'EXPIRING_SOON'
+  | 'EXPIRED'
+  | 'UNDER_RECAL'
+  | 'SERVICE_PENDING'
+  | 'UNKNOWN'
+
 export interface RegistryUnit {
   /**
    * Distinguishes units within an asset. Uses the lab's own certificate letter where
@@ -162,16 +205,28 @@ export interface RegistryUnit {
    */
   id: string
   instrument_desc: string | null
+  /**
+   * 'composite' means this one instrument is an indicator plus a sensor, which the
+   * Basic Info tab renders as a Composite checkbox with Ind/Sen fields. Unrelated to
+   * several instruments sharing an asset number - that is `RegistryAsset.units`.
+   */
+  asset_type: 'simple' | 'composite'
   make: string | null
+  /** Split of `make` when it covers both halves, else null. */
+  make_parts: IndSenParts | null
   model: string | null
+  model_parts: IndSenParts | null
   serial_no: string | null
+  serial_parts: IndSenParts | null
   category: string | null
   usage: string | null
   calibrated_at: string | null
   report_no: string | null
   /** ISO date. */
   next_due_on: string | null
-  calibration_status: string | null
+  calibration_state: CalibrationState
+  /** Days remaining when VALID/EXPIRING_SOON, days overdue when EXPIRED. */
+  calibration_days: number | null
   sop_references: string[]
   certificate_file: string | null
   capability_profiles: CapabilityProfile[]
@@ -216,6 +271,43 @@ export interface MasterInstrumentRegistry {
 /** Every instrument in the registry, flattened out of its asset grouping. */
 export function allUnits(registry: MasterInstrumentRegistry): RegistryUnit[] {
   return registry.assets.flatMap((asset) => asset.units)
+}
+
+/**
+ * A profile's selectable variants as a uniform list, whether or not it has subtypes.
+ *
+ * A subtyped profile yields one entry per subtype; a plain profile yields a single
+ * entry with `subtype: null`. Filtering code should use this so it never has to branch
+ * on whether a parameter happens to have thermocouple types.
+ */
+export function capabilityVariants(profile: CapabilityProfile): Array<{
+  subtype: string | null
+  min: number | null
+  max: number | null
+  min_inclusive: boolean
+  max_inclusive: boolean
+  buckets: CapabilityBucket[]
+}> {
+  if (profile.subtypes?.length) {
+    return profile.subtypes.map((s) => ({
+      subtype: s.id,
+      min: s.min,
+      max: s.max,
+      min_inclusive: s.min_inclusive,
+      max_inclusive: s.max_inclusive,
+      buckets: s.buckets,
+    }))
+  }
+  return [
+    {
+      subtype: null,
+      min: profile.min,
+      max: profile.max,
+      min_inclusive: profile.min_inclusive,
+      max_inclusive: profile.max_inclusive,
+      buckets: profile.buckets,
+    },
+  ]
 }
 
 // ---------------------------------------------------------------------------------
