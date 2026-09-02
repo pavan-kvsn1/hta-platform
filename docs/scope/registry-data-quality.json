@@ -1,0 +1,254 @@
+{
+  "$comment": [
+    "Caveats stripped out of the standardized registry so the app contract stays",
+    "clean. Keyed by asset number. Nothing here is needed to render or filter;",
+    "all of it matters when judging whether a master is fit for a given job."
+  ],
+  "assets": {
+    "783 HTAIPL/L": {
+      "instrument_desc": "Slip Gauge M10. Grade 0",
+      "notes": [
+        "REFERENCE ARTIFACT: a set of 10 discrete tungsten-carbide slip gauges (Mikronix, Grade 0), each with its own nominal size and deviation at centre. It is NOT a continuous 2.5-25 mm range - the set can realise only its nominal sizes, or sums of stacked blocks.",
+        "Calibrated by gauge block comparator against secondary master slip gauges."
+      ]
+    },
+    "782 HTAIPL/L": {
+      "instrument_desc": "Steel Caliper Checker",
+      "notes": [
+        "REFERENCE ARTIFACT with TWO capabilities, not one: pitch blocks for height measurement (0-370 mm) and for outside measurement (0-300 mm). The spreadsheet's '300 mm' captured only the outside capability and lost the 370 mm height one.",
+        "Discrete pitch-block sizes, not a continuous range.",
+        "REFERENCE ARTIFACT with TWO capabilities, not one: pitch blocks for height measurement (0-370 mm) and for outside measurement (0-300 mm). The spreadsheet's '300 mm' captured only the outside capability and lost the 370 mm height one.",
+        "Discrete pitch-block sizes, not a continuous range."
+      ]
+    },
+    "35 HTAIPL/L": {
+      "instrument_desc": "Granite Surface Plate",
+      "notes": [
+        "REFERENCE ARTIFACT, not a measuring instrument. A surface plate has no min/max measuring range - its capability is a flatness deviation over a fixed surface.",
+        "Measured flatness 3.75 µm (point heights -2.81 to +0.94 µm over a 4x4 grid), against the IS 7327-2003 Grade 0 limit of 4 µm for 400x400 mm.",
+        "The master list calls the parameter 'Level'; the certificate measures Flatness.",
+        "The certificate explicitly provides no conformity statement."
+      ]
+    },
+    "1003 HTAIPL/L": {
+      "instrument_desc": "Micrometer",
+      "notes": [
+        "Certificate calls the parameter Length; the registry says Thickness.",
+        "Accuracy is '±2 µm ... as per customer requirement' - customer-specified.",
+        "Certificate also records instrument-quality attributes (parallelism of measuring faces 0.9 µm, flatness of anvil 0.6 µm and spindle 0.9 µm, repeatability 1.0 µm) which are not measurement capabilities."
+      ]
+    },
+    "44 HTAIPL/L": {
+      "instrument_desc": "Lever Type Dial Gauge",
+      "notes": [
+        "Range/Resolution 0-0.14 mm / 0.001 mm; 24 calibration points, all Pass.",
+        "No accuracy limit is stated on the certificate. Repeatability 0.0004 mm.",
+        "Certificate calls the parameter Displacement; the registry says Thickness."
+      ]
+    },
+    "45 HTAIPL/L": {
+      "instrument_desc": "Dial Gauge",
+      "notes": [
+        "Calibrated in-house by HTA. The master used was SLIP GAUGES Sl.No 30 HTAIPL/L - an asset whose own capability the registry does not record.",
+        "Certificate calls the parameter Length; the registry says Thickness."
+      ]
+    },
+    "600 HTAIPL/L": {
+      "instrument_desc": "Vibration Meter",
+      "notes": [
+        "Three measurement modes, each with its own range and least count. The registry had zero profiles and the spreadsheet recorded only '5.5 mm/s to 135 mm/s', which appears nowhere in the certificate.",
+        "No accuracy is stated for any mode; only measurement uncertainty (±2.79-3.38%). Accuracy filtering cannot use these profiles.",
+        "NOT BUCKETED BY DECISION. Each mode states one global Range/LC. Not captured: uncertainty varies with excitation frequency and amplitude (2.79-3.38% on velocity, up to 6.7% at the 1.00 m/s2 acceleration points), and the calibration is organised by frequency (10/50/100/300 Hz) rather than by amplitude band, so amplitude buckets would not represent it correctly anyway.",
+        "Three measurement modes, each with its own range and least count. The registry had zero profiles and the spreadsheet recorded only '5.5 mm/s to 135 mm/s', which appears nowhere in the certificate.",
+        "No accuracy is stated for any mode; only measurement uncertainty (±2.79-3.38%). Accuracy filtering cannot use these profiles.",
+        "NOT BUCKETED BY DECISION. Each mode states one global Range/LC. Not captured: uncertainty varies with excitation frequency and amplitude (2.79-3.38% on velocity, up to 6.7% at the 1.00 m/s2 acceleration points), and the calibration is organised by frequency (10/50/100/300 Hz) rather than by amplitude band, so amplitude buckets would not represent it correctly anyway.",
+        "Three measurement modes, each with its own range and least count. The registry had zero profiles and the spreadsheet recorded only '5.5 mm/s to 135 mm/s', which appears nowhere in the certificate.",
+        "No accuracy is stated for any mode; only measurement uncertainty (±2.79-3.38%). Accuracy filtering cannot use these profiles.",
+        "NOT BUCKETED BY DECISION. Each mode states one global Range/LC. Not captured: uncertainty varies with excitation frequency and amplitude (2.79-3.38% on velocity, up to 6.7% at the 1.00 m/s2 acceleration points), and the calibration is organised by frequency (10/50/100/300 Hz) rather than by amplitude band, so amplitude buckets would not represent it correctly anyway."
+      ]
+    },
+    "909 HTAIPL/L": {
+      "instrument_desc": "Tachometer calibrator",
+      "notes": [
+        "Certificate nomenclature is 'Tachometer Calibrator (Speed Source)', so role is source, not measuring. The registry's roles field said measuring.",
+        "The certificate reports ONE RPM capability; it does not distinguish contact from non-contact. Both declared parameters are given the same verified capability, matching the spreadsheet's 'Speed (Contact & Non Contact)'.",
+        "Accuracy ±5 rpm is marked '(Claimed by Customer)' on the certificate - the lab measured deviation and uncertainty but did not establish the accuracy limit.",
+        "NOT BUCKETED BY DECISION. The certificate states one global Range/LC/Accuracy, so a single bucket is faithful to it. Be aware of what this does not capture: measurement uncertainty varies by 170x across the range - ±5.16% at the 6 rpm point, 0.70% at 10 rpm, 0.40% at 100 rpm, 0.09-0.13% through the middle, and ±0.03% at 60000-99000 rpm. Treating the whole span as ±0.03%-grade performance would badly overstate the low end. If accuracy-based filtering ever needs to be trustworthy near the bottom of this range, revisit.",
+        "Certificate nomenclature is 'Tachometer Calibrator (Speed Source)', so role is source, not measuring. The registry's roles field said measuring.",
+        "The certificate reports ONE RPM capability; it does not distinguish contact from non-contact. Both declared parameters are given the same verified capability, matching the spreadsheet's 'Speed (Contact & Non Contact)'.",
+        "Accuracy ±5 rpm is marked '(Claimed by Customer)' on the certificate - the lab measured deviation and uncertainty but did not establish the accuracy limit.",
+        "NOT BUCKETED BY DECISION. The certificate states one global Range/LC/Accuracy, so a single bucket is faithful to it. Be aware of what this does not capture: measurement uncertainty varies by 170x across the range - ±5.16% at the 6 rpm point, 0.70% at 10 rpm, 0.40% at 100 rpm, 0.09-0.13% through the middle, and ±0.03% at 60000-99000 rpm. Treating the whole span as ±0.03%-grade performance would badly overstate the low end. If accuracy-based filtering ever needs to be trustworthy near the bottom of this range, revisit."
+      ]
+    },
+    "853 HTAIPL/L": {
+      "instrument_desc": "Digital Manometer",
+      "notes": [
+        "The certificate results table is headed GAUGE PRESSURE and 'Parameter of Measurement' reads 'Pressure'; the master list calls this Differential Pressure. The declared parameter name is kept here to stay consistent with parameters[], with the certificate's own term recorded in certificate_parameter.",
+        "Unit is mbar on the certificate; the spreadsheet says hPa. 1 mbar = 1 hPa exactly, so the values agree, but string-based unit matching would not.",
+        "Observed error was 0.23% FS against a ±0.5% FS specification."
+      ]
+    },
+    "738 HTAIPL/L": {
+      "instrument_desc": "Digital Pressure Gauge",
+      "notes": [
+        "The certificate splits the two parameters across separate pages: Pressure on page 2 (0-6 bar), Vacuum on page 3 (-1 to 0 bar). The spreadsheet's combined '-1 to 6 bar' must NOT be applied to both.",
+        "Accuracy ±0.05% FS is marked '(Claimed by customer)'.",
+        "capability_appendix for this asset claims 'Time interval, 0-24 h', which appears nowhere in the certificate.",
+        "NOT BUCKETED BY DECISION. One global Range/LC/Accuracy per page, so a single bucket per parameter is faithful. Not captured: on the Pressure page the measurement uncertainty is ±0.0008 bar for the 0.6-2.0 bar points and jumps to ±0.0022 bar for 3.0-6.0 bar - nearly 3x. The Vacuum page is uniform at ±0.0003 bar.",
+        "The certificate splits the two parameters across separate pages: Pressure on page 2 (0-6 bar), Vacuum on page 3 (-1 to 0 bar). The spreadsheet's combined '-1 to 6 bar' must NOT be applied to both.",
+        "Accuracy ±0.05% FS is marked '(Claimed by customer)'.",
+        "capability_appendix for this asset claims 'Time interval, 0-24 h', which appears nowhere in the certificate.",
+        "NOT BUCKETED BY DECISION. One global Range/LC/Accuracy per page, so a single bucket per parameter is faithful. Not captured: on the Pressure page the measurement uncertainty is ±0.0008 bar for the 0.6-2.0 bar points and jumps to ±0.0022 bar for 3.0-6.0 bar - nearly 3x. The Vacuum page is uniform at ±0.0003 bar."
+      ]
+    },
+    "742 HTAIPL/L": {
+      "instrument_desc": "Digital Hi.Pr. Pirani Gauge",
+      "notes": [
+        "profile Ultra Vacuum: accuracy '±10% of the Master gauge' has no stated basis - percent_of is null and must not be assumed",
+        "Certificate face states 'Range : 1 x 10^3 To 1x10^-3 m.bar' - the unit is explicit. The spreadsheet's '103 to 10-3' lost the superscripts.",
+        "Acceptance criterion 'Pirani gauge ±10% of the Master gauge' was ACCEPTED. This is the tolerance used for the pass/fail decision, not a manufacturer accuracy specification, and it is coarse for a master (poor test uncertainty ratio).",
+        "capability_appendix recorded accuracy as NOT_STATED, which is wrong."
+      ]
+    },
+    "227 HTAIPL/L": {
+      "instrument_desc": "Digital Lux Meter",
+      "notes": [
+        "profile Light Intensity: bucket B3 is extrapolated above 19999.0 - Calibrated only to 19999 Lux. Extended to the declared maximum per the declared-range rule. CAUTION: the instrument's resolution list is 0.01/0.1/1/10/100 Lux, so real buckets with least count 10 and 100 almost certainly exist above 19999 Lux. Holding least count at 1 Lux across the whole extension is a placeholder, not a measured fact - split this bucket once the resolution breakpoints are known.",
+        "Declared range is 0 to 199990 Lux. The spreadsheet said 100-10000 and capability_appendix said 0-19999; both are wrong.",
+        "Per the declared-range rule, the top calibrated bucket (2000-19999 Lux, LC 1 Lux) is extended to the declared maximum of 199990 Lux.",
+        "The instrument's resolution list is 0.01/0.1/1/10/100 Lux - the 10 and 100 Lux steps were not exercised by the calibration, so the extended top bucket keeps LC 1 Lux. Revisit if finer bucket boundaries are needed above 19999 Lux.",
+        "The certificate also states an Operating Range of 60 to 5000 Lux, distinct from the declared range.",
+        "Remark on the certificate: 'The Lux Meter is not Verified for Spectral responsivity.'"
+      ]
+    },
+    "755 HTAIPL/L": {
+      "instrument_desc": "CO2 Transmitter",
+      "notes": [
+        "profile CO2: accuracy '+/- 1%' has no stated basis - percent_of is null and must not be assumed",
+        "profile CO2: accuracy '+/- 1%' has no stated basis - percent_of is null and must not be assumed",
+        "profile CO2: accuracy '+/- 1%' has no stated basis - percent_of is null and must not be assumed",
+        "profile CO2: bucket B4 is extrapolated above 25000.0 - Highest span gas was 2.5% CO2 (25,000 ppm). Extended to the declared maximum of 100,000 ppm per the declared-range rule, carrying the accuracy established at the top calibrated point.",
+        "profile CO2: accuracy '+/- 1%' has no stated basis - percent_of is null and must not be assumed",
+        "Declared range 'CO2: 100,000 PPM (10%)'. Span gases reached 25,000 ppm; per the declared-range rule the ±1% accuracy extends to the full declared range.",
+        "Calibration Accuracy is ±1% at every point. capability_appendix recorded '0.0% error', which is the OBSERVED error, not the accuracy limit.",
+        "The certificate covers a SECOND parameter absent from the registry: Temp 0 to 50 deg C. Added here as P2.",
+        "Alarm setting 15,000 PPM (1.5%). This asset is overdue.",
+        "Declared range 'CO2: 100,000 PPM (10%)'. Span gases reached 25,000 ppm; per the declared-range rule the ±1% accuracy extends to the full declared range.",
+        "Calibration Accuracy is ±1% at every point. capability_appendix recorded '0.0% error', which is the OBSERVED error, not the accuracy limit.",
+        "The certificate covers a SECOND parameter absent from the registry: Temp 0 to 50 deg C. Added here as P2.",
+        "Alarm setting 15,000 PPM (1.5%). This asset is overdue."
+      ]
+    }
+  },
+  "integrity": [
+    {
+      "issue": "duplicate_asset_number",
+      "id": "741",
+      "instruments": [
+        {
+          "instrument_desc": "TSI Air borne Particle Counter",
+          "serial_no": "95001923002"
+        },
+        {
+          "instrument_desc": "Aerosol Photometer",
+          "serial_no": "3131"
+        }
+      ],
+      "resolution": "ids were suffixed -1, -2 ... in generation order so the contract has unique keys, but asset_no remains ambiguous. Fix at source: two physically different instruments must not share an asset number."
+    },
+    {
+      "issue": "duplicate_asset_number",
+      "id": "784",
+      "instruments": [
+        {
+          "instrument_desc": "Digital Temperature and Humidity meter",
+          "serial_no": "181006615"
+        },
+        {
+          "instrument_desc": "Thermal Anemometer",
+          "serial_no": "Ind : 22011015 Sen: 19040050"
+        }
+      ],
+      "resolution": "ids were suffixed -1, -2 ... in generation order so the contract has unique keys, but asset_no remains ambiguous. Fix at source: two physically different instruments must not share an asset number."
+    },
+    {
+      "issue": "profile_without_unit",
+      "count": 18,
+      "profiles": [
+        {
+          "asset_no": "682 HTAIPL/L",
+          "parameter": "Thermocouple"
+        },
+        {
+          "asset_no": "228 HTAIPL/L",
+          "parameter": "RTD"
+        },
+        {
+          "asset_no": "228 HTAIPL/L",
+          "parameter": "Thermocouple"
+        },
+        {
+          "asset_no": "228 HTAIPL/L",
+          "parameter": "DC Voltage"
+        },
+        {
+          "asset_no": "228 HTAIPL/L",
+          "parameter": "DC Current"
+        },
+        {
+          "asset_no": "228 HTAIPL/L",
+          "parameter": "Frequency"
+        },
+        {
+          "asset_no": "228 HTAIPL/L",
+          "parameter": "Resistance"
+        },
+        {
+          "asset_no": "228 HTAIPL/L",
+          "parameter": "Capacitance"
+        },
+        {
+          "asset_no": "615 HTAIPL/L",
+          "parameter": "Time"
+        },
+        {
+          "asset_no": "1026 HTAIPL/L",
+          "parameter": "Temperature"
+        },
+        {
+          "asset_no": "1026 HTAIPL/L",
+          "parameter": "Relative Humidity"
+        },
+        {
+          "asset_no": "1027 HTAIPL/L",
+          "parameter": "Temperature"
+        },
+        {
+          "asset_no": "1027 HTAIPL/L",
+          "parameter": "Relative Humidity"
+        },
+        {
+          "asset_no": "1028 HTAIPL/L",
+          "parameter": "Temperature"
+        },
+        {
+          "asset_no": "1028 HTAIPL/L",
+          "parameter": "Relative Humidity"
+        },
+        {
+          "asset_no": "46 HTAIPL/L",
+          "parameter": "Level / Inclination"
+        },
+        {
+          "asset_no": "855 HTAIPL/L",
+          "parameter": "Air Velocity"
+        },
+        {
+          "asset_no": "741 HTAIPL/L",
+          "parameter": "Air Flow"
+        }
+      ],
+      "resolution": "A range with no unit cannot be compared against a UUC range. These profiles must be excluded from range filtering until a unit is supplied."
+    }
+  ]
+}

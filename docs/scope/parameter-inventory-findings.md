@@ -268,10 +268,39 @@ the accuracy discriminated union.
 | File | Kind | Purpose |
 |---|---|---|
 | `scripts/extract_parameter_inventory.py` | generated-output producer | Raw survey of the registry |
-| `docs/scope/parameter-inventory.json` | generated | 57 raw parameters with units/subtypes/roles/counts |
+| `docs/scope/parameter-inventory.json` | generated | raw parameters with units/subtypes/roles/counts |
 | `docs/scope/parameter-normalization-map.json` | **reviewed input** | Curated raw → standard mapping |
 | `scripts/build_parameter_standards.py` | validator + producer | Applies the map, fails closed |
-| `docs/scope/parameter-standards.json` | generated | 43 standards — the seed input |
+| `docs/scope/parameter-standards.json` | generated | the standards — seed input for §5.2 |
+| `scripts/apply_certificate_findings.py` | registry mutator | Writes certificate-verified profiles into the working registry |
+| `scripts/standardize_registry.py` | contract producer | Emits the app-facing registry + a caveat sidecar |
+| `apps/web-hta/src/data/master-instrument-registry.json` | **generated contract** | What the app consumes (schema 2.0) |
+| `apps/web-hta/src/lib/master-instrument-registry.ts` | hand-written types | TypeScript contract for the above |
+| `docs/scope/registry-data-quality.json` | generated | Caveats and integrity issues stripped out of the contract |
+
+### The pipeline
+
+```
+reference_docs/.../master_instrment_registry.json      (working registry, outside the repo)
+        │   apply_certificate_findings.py  ← certificate-verified profiles
+        ▼
+   working registry (annotated: provenance, notes, merge_issues, appendices)
+        │   standardize_registry.py  ← normalization map
+        ├──────────────────────────────► apps/web-hta/src/data/master-instrument-registry.json
+        │                                (clean contract: no provenance, no audit fields)
+        └──────────────────────────────► docs/scope/registry-data-quality.json
+                                         (every caveat that was stripped)
+```
+
+The working registry stays the place where extraction and verification are argued out;
+the standardized file is a stable contract with none of that noise. Regenerate rather
+than hand-editing either JSON.
+
+**Schema 2.0 differs from the scope doc's §1.1 sketch in three ways**, all forced by the
+data: `accuracy` is a discriminated union rather than `{type,value,unit,polarity}`;
+profiles carry `kind: 'range' | 'artifact'` because reference artifacts have no
+continuous range; and composite assets' component profiles are flattened onto the asset
+with a `component_id` tag so filtering never walks two levels.
 
 ```bash
 python scripts/extract_parameter_inventory.py
