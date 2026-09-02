@@ -23,11 +23,13 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import type { Feedback, CertificateEvent } from './AdminCertificateClient'
+import { EmailDeliveryPanel } from '@/components/email-delivery/EmailDeliveryPanel'
 
 interface AdminHistorySectionProps {
   feedbacks: Feedback[]
   events: CertificateEvent[]
   currentRevision: number
+  certificateId?: string
   className?: string
 }
 
@@ -491,6 +493,7 @@ export function AdminHistorySection({
   feedbacks,
   events,
   currentRevision: _currentRevision,
+  certificateId,
   className,
 }: AdminHistorySectionProps) {
   const [isExpanded, setIsExpanded] = useState(true)
@@ -594,9 +597,12 @@ export function AdminHistorySection({
           </div>
         </button>
         {isExpanded && (
-          <div className="px-4 py-8 text-center border-t border-[#f1f5f9]">
-            <Clock className="size-8 mx-auto mb-2 text-[#cbd5e1]" />
-            <p className="text-sm font-medium text-[#64748b]">No history yet</p>
+          <div className="space-y-3 border-t border-[#f1f5f9] px-4 py-4">
+            {certificateId && <EmailDeliveryPanel certificateId={certificateId} title="Email delivery history" />}
+            <div className="py-4 text-center">
+              <Clock className="size-8 mx-auto mb-2 text-[#cbd5e1]" />
+              <p className="text-sm font-medium text-[#64748b]">No history yet</p>
+            </div>
           </div>
         )}
       </div>
@@ -620,6 +626,11 @@ export function AdminHistorySection({
       {/* Timeline */}
       {isExpanded && (
         <div className="border-t border-[#f1f5f9]">
+          {certificateId && (
+            <div className="px-4 pt-4">
+              <EmailDeliveryPanel certificateId={certificateId} title="Email delivery history" />
+            </div>
+          )}
           <div className="relative px-4 py-4">
             {/* Vertical line */}
             <div className="absolute left-[27px] top-4 bottom-4 w-px bg-[#e2e8f0]" />

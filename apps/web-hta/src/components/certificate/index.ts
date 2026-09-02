@@ -19,6 +19,8 @@ export type { MasterInstrumentsTableProps } from './MasterInstrumentsTable'
 export { CalibrationResultsTable } from './CalibrationResultsTable'
 export type { CalibrationResultsTableProps } from './CalibrationResultsTable'
 
+export { ConclusionStatementText } from './ConclusionStatementText'
+
 export { ViewToggleButton } from './ViewToggleButton'
 export type { ViewToggleButtonProps } from './ViewToggleButton'
 

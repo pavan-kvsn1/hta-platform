@@ -1,11 +1,12 @@
 import { Text, Section } from '@react-email/components'
 import * as React from 'react'
-import { Layout, Button } from '../components/index.js'
+import { Layout, Button, UucDetailsSection, type UucDetails } from '../components/index.js'
 
 interface CustomerReviewProps {
   customerName: string
   certificateNumber: string
   instrumentDescription: string
+  uucDetails?: UucDetails
   reviewUrl: string
 }
 
@@ -13,6 +14,7 @@ export function CustomerReview({
   customerName,
   certificateNumber,
   instrumentDescription,
+  uucDetails,
   reviewUrl,
 }: CustomerReviewProps) {
   return (
@@ -37,6 +39,8 @@ export function CustomerReview({
           <span style={detailValue}>{instrumentDescription}</span>
         </Text>
       </Section>
+
+      <UucDetailsSection details={uucDetails} />
 
       <Text style={paragraph}>
         Please review the certificate details and provide your approval or feedback.

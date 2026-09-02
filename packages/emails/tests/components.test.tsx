@@ -62,6 +62,35 @@ describe('Button component', () => {
 })
 
 describe('Layout component', () => {
+  it('renders the default HTA logo beside the full company name', async () => {
+    const html = await renderHtml(
+      <Layout preview="Test">
+        <p>Content</p>
+      </Layout>
+    )
+
+    expect(html).toContain('/logo.png')
+    expect(html).toContain('HTA Instrumentation Pvt. Ltd.')
+    expect(html).toContain('width="32"')
+    expect(html).toContain('height="32"')
+  })
+
+  it('renders a custom tenant logo at title scale beside the tenant name', async () => {
+    const html = await renderHtml(
+      <Layout
+        preview="Test"
+        tenant={{ name: 'Lab One', logoUrl: 'https://lab.test/logo.png' }}
+      >
+        <p>Content</p>
+      </Layout>
+    )
+
+    expect(html).toContain('https://lab.test/logo.png')
+    expect(html.match(/Lab One/g)).toHaveLength(4)
+    expect(html).toContain('width="32"')
+    expect(html).toContain('height="32"')
+  })
+
   it('renders with preview text', async () => {
     const html = await renderHtml(
       <Layout preview="Preview text here">

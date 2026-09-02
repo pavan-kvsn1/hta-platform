@@ -9,6 +9,7 @@ import * as React from 'react'
 import {
   PasswordReset,
   StaffActivation,
+  CustomerActivation,
   CertificateSubmitted,
   CertificateReviewed,
   CustomerApproval,
@@ -20,11 +21,18 @@ import {
   SecurityAlert,
   ReviewerCustomerExpired,
   OfflineCodesExpiry,
+  InternalRequestDecision,
+  CustomerRequestDecision,
+  getInternalRequestDecisionSubject,
+  getCustomerRequestDecisionSubject,
+  type InternalRequestDecisionSubjectInput,
+  type CustomerRequestDecisionSubjectInput,
 } from './templates/index.js'
 
 export type EmailTemplate =
   | 'password-reset'
   | 'staff-activation'
+  | 'customer-activation'
   | 'certificate-submitted'
   | 'certificate-reviewed'
   | 'customer-approval'
@@ -36,6 +44,8 @@ export type EmailTemplate =
   | 'security-alert'
   | 'reviewer-customer-expired'
   | 'offline-codes-expiry'
+  | 'internal-request-decision'
+  | 'customer-request-decision'
 
 export interface RenderEmailOptions {
   template: EmailTemplate
@@ -63,6 +73,11 @@ export async function renderEmail(options: RenderEmailOptions): Promise<{
     case 'staff-activation':
       element = React.createElement(StaffActivation, props as unknown as React.ComponentProps<typeof StaffActivation>)
       subject = 'Activate Your Account'
+      break
+
+    case 'customer-activation':
+      element = React.createElement(CustomerActivation, props as unknown as React.ComponentProps<typeof CustomerActivation>)
+      subject = 'Activate Your HTA Calibration Portal Account'
       break
 
     case 'certificate-submitted':
@@ -120,6 +135,16 @@ export async function renderEmail(options: RenderEmailOptions): Promise<{
       subject = 'Your Offline Access Codes Have Expired'
       break
 
+    case 'internal-request-decision':
+      element = React.createElement(InternalRequestDecision, props as unknown as React.ComponentProps<typeof InternalRequestDecision>)
+      subject = getInternalRequestDecisionSubject(props as unknown as InternalRequestDecisionSubjectInput)
+      break
+
+    case 'customer-request-decision':
+      element = React.createElement(CustomerRequestDecision, props as unknown as React.ComponentProps<typeof CustomerRequestDecision>)
+      subject = getCustomerRequestDecisionSubject(props as unknown as CustomerRequestDecisionSubjectInput)
+      break
+
     default:
       throw new Error(`Unknown email template: ${template}`)
   }
@@ -138,6 +163,8 @@ export function getEmailSubject(template: EmailTemplate, props: Record<string, u
       return 'Reset Your Password'
     case 'staff-activation':
       return 'Activate Your Account'
+    case 'customer-activation':
+      return 'Activate Your HTA Calibration Portal Account'
     case 'certificate-submitted':
       return `Certificate ${props.certificateNumber || ''} Submitted for Review`
     case 'certificate-reviewed':
@@ -160,6 +187,10 @@ export function getEmailSubject(template: EmailTemplate, props: Record<string, u
       return `Customer Review Expired - Certificate ${props.certificateNumber || ''}`
     case 'offline-codes-expiry':
       return 'Your Offline Access Codes Have Expired'
+    case 'internal-request-decision':
+      return getInternalRequestDecisionSubject(props as unknown as InternalRequestDecisionSubjectInput)
+    case 'customer-request-decision':
+      return getCustomerRequestDecisionSubject(props as unknown as CustomerRequestDecisionSubjectInput)
     default:
       return 'HTA Calibration Notification'
   }

@@ -2,6 +2,13 @@
  * Worker Job Types
  */
 
+import type {
+  CustomerRequestDecisionProps,
+  InternalRequestDecisionProps,
+  UucDetails,
+} from '@hta/emails'
+import type { TrackedEmailJobFields } from '@hta/shared'
+
 // =============================================================================
 // EMAIL JOB TYPES
 // =============================================================================
@@ -18,6 +25,8 @@ export type EmailJobName =
   | 'customer-authorized-token'
   | 'reviewer-customer-expired'
   | 'offline-codes-expiry'
+  | 'internal-request-decision'
+  | 'customer-request-decision'
 
 export interface BaseEmailJob {
   to: string
@@ -43,6 +52,7 @@ export interface CertificateSubmittedEmailJob extends BaseEmailJob {
   certificateNumber: string
   assigneeName: string
   customerName?: string
+  uucDetails?: UucDetails
   dashboardUrl: string
 }
 
@@ -53,6 +63,7 @@ export interface CertificateReviewedEmailJob extends BaseEmailJob {
   reviewerName: string
   approved: boolean
   revisionNote?: string
+  uucDetails?: UucDetails
   dashboardUrl: string
 }
 
@@ -64,6 +75,7 @@ export interface CustomerApprovalEmailJob extends BaseEmailJob {
   approverName: string
   status: 'approved' | 'rejected'
   rejectionNote?: string
+  uucDetails?: UucDetails
   dashboardUrl: string
 }
 
@@ -72,6 +84,7 @@ export interface CustomerReviewEmailJob extends BaseEmailJob {
   customerName: string
   certificateNumber: string
   instrumentDescription: string
+  uucDetails?: UucDetails
   reviewUrl: string
 }
 
@@ -80,6 +93,7 @@ export interface CustomerReviewRegisteredEmailJob extends BaseEmailJob {
   customerName: string
   certificateNumber: string
   instrumentDescription: string
+  uucDetails?: UucDetails
   loginUrl: string
 }
 
@@ -88,6 +102,7 @@ export interface CustomerAuthorizedRegisteredEmailJob extends BaseEmailJob {
   customerName: string
   certificateNumber: string
   instrumentDescription: string
+  uucDetails?: UucDetails
   loginUrl: string
 }
 
@@ -96,6 +111,7 @@ export interface CustomerAuthorizedTokenEmailJob extends BaseEmailJob {
   customerName: string
   certificateNumber: string
   instrumentDescription: string
+  uucDetails?: UucDetails
   downloadUrl: string
   maxDownloads?: number
   expiresInDays?: number
@@ -107,6 +123,7 @@ export interface ReviewerCustomerExpiredEmailJob extends BaseEmailJob {
   certificateNumber: string
   customerName: string
   instrumentDescription: string
+  uucDetails?: UucDetails
   dashboardUrl: string
 }
 
@@ -116,7 +133,17 @@ export interface OfflineCodesExpiryEmailJob extends BaseEmailJob {
   loginUrl: string
 }
 
-export type EmailJobData =
+export type InternalRequestDecisionEmailJob = BaseEmailJob &
+  InternalRequestDecisionProps & {
+    type: 'internal-request-decision'
+  }
+
+export type CustomerRequestDecisionEmailJob = BaseEmailJob &
+  CustomerRequestDecisionProps & {
+    type: 'customer-request-decision'
+  }
+
+export type EmailJobData = (
   | PasswordResetEmailJob
   | StaffActivationEmailJob
   | CertificateSubmittedEmailJob
@@ -128,6 +155,9 @@ export type EmailJobData =
   | CustomerAuthorizedTokenEmailJob
   | ReviewerCustomerExpiredEmailJob
   | OfflineCodesExpiryEmailJob
+  | InternalRequestDecisionEmailJob
+  | CustomerRequestDecisionEmailJob
+) & Partial<TrackedEmailJobFields>
 
 // =============================================================================
 // NOTIFICATION JOB TYPES

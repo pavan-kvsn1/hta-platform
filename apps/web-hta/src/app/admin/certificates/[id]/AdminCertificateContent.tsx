@@ -9,7 +9,7 @@ import { CollapsibleSection } from '@/components/certificate/CollapsibleSection'
 import { InfoField } from '@/components/certificate/InfoField'
 import { MasterInstrumentsTable } from '@/components/certificate/MasterInstrumentsTable'
 import { CalibrationResultsTable } from '@/components/certificate/CalibrationResultsTable'
-import { getConclusionText } from '@/components/pdf/pdf-utils'
+import { ConclusionStatementText } from '@/components/certificate/ConclusionStatementText'
 import { CALIBRATION_STATUS_OPTIONS } from '@/components/forms/RemarksSection'
 import {
   ImageGalleryModal,
@@ -512,7 +512,7 @@ export function AdminCertificateContent({
               <ul className="list-disc list-inside space-y-2 text-gray-700">
                 {certificate.conclusionStatements.map((statementKey, i) => (
                   <li key={i} className="text-xs">
-                    {getConclusionText(statementKey)}
+                    <ConclusionStatementText statementKey={statementKey} />
                   </li>
                 ))}
               </ul>

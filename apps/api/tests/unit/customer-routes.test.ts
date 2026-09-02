@@ -1134,4 +1134,103 @@ describe('customer routes', () => {
       expect(res.json().error).toMatch(/customer not found/i)
     })
   })
+
+  describe('GET /api/customer/dashboard/authorized date range', () => {
+    const headers = {
+      'x-tenant-id': 'tenant-1',
+      'x-user-id': 'cust-user-1',
+      'x-user-role': 'CUSTOMER',
+      'x-user-email': 'customer@acme.com',
+    }
+
+    beforeEach(() => {
+      mockedPrisma.customerUser.findUnique.mockResolvedValue({
+        id: 'cust-user-1',
+        email: 'customer@acme.com',
+        companyName: 'Acme Corp',
+        customerAccountId: 'acct-1',
+        customerAccount: { id: 'acct-1', companyName: 'Acme Corp', primaryPocId: 'cust-user-1' },
+      } as any)
+      mockedPrisma.certificate.findMany.mockResolvedValue([])
+      mockedPrisma.certificate.count.mockResolvedValue(0)
+    })
+
+    it('filters calibration dates using an inclusive start and end date', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/customer/dashboard/authorized?startDate=2026-01-10&endDate=2026-01-20',
+        headers,
+      })
+
+      expect(res.statusCode).toBe(200)
+      expect(mockedPrisma.certificate.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            dateOfCalibration: {
+              gte: new Date('2026-01-10T00:00:00.000Z'),
+              lt: new Date('2026-01-21T00:00:00.000Z'),
+            },
+          }),
+        }),
+      )
+    })
+
+    it('supports a start date without an end date', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/customer/dashboard/authorized?startDate=2026-01-10',
+        headers,
+      })
+
+      expect(res.statusCode).toBe(200)
+      expect(mockedPrisma.certificate.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            dateOfCalibration: { gte: new Date('2026-01-10T00:00:00.000Z') },
+          }),
+        }),
+      )
+    })
+
+    it('supports an inclusive end date without a start date', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/customer/dashboard/authorized?endDate=2026-01-20',
+        headers,
+      })
+
+      expect(res.statusCode).toBe(200)
+      expect(mockedPrisma.certificate.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            dateOfCalibration: { lt: new Date('2026-01-21T00:00:00.000Z') },
+          }),
+        }),
+      )
+    })
+
+    it('rejects a start date after the end date', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/customer/dashboard/authorized?startDate=2026-01-21&endDate=2026-01-20',
+        headers,
+      })
+
+      expect(res.statusCode).toBe(400)
+      expect(res.json()).toEqual({ error: 'Start date must be on or before end date' })
+      expect(mockedPrisma.certificate.findMany).not.toHaveBeenCalled()
+    })
+
+    it('rejects malformed date values', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/customer/dashboard/authorized?startDate=not-a-date',
+        headers,
+      })
+
+      expect(res.statusCode).toBe(400)
+      expect(res.json()).toEqual({ error: 'Invalid start date' })
+      expect(mockedPrisma.certificate.findMany).not.toHaveBeenCalled()
+    })
+  })
 })

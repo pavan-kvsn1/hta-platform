@@ -47,17 +47,15 @@ interface PaginationInfo {
   totalPages: number
 }
 
-// Generate last 5 years for the year filter dropdown
-const currentYear = new Date().getFullYear()
-const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => String(currentYear - i))
-
 export function AuthorizedTable() {
   const [certificates, setCertificates] = useState<AuthorizedCertificate[]>([])
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 10, total: 0, totalPages: 1 })
   const [loading, setLoading] = useState(true)
+  const [hasLoaded, setHasLoaded] = useState(false)
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [yearFilter, setYearFilter] = useState<string>('all')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'due'>('newest')
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -73,7 +71,8 @@ export function AuthorizedTable() {
         sort: sortBy,
       })
       if (debouncedSearch) params.set('search', debouncedSearch)
-      if (yearFilter !== 'all') params.set('year', yearFilter)
+      if (startDate) params.set('startDate', startDate)
+      if (endDate) params.set('endDate', endDate)
 
       const res = await apiFetch(`/api/customer/dashboard/authorized?${params}`)
       if (!res.ok) throw new Error('Failed to fetch')
@@ -86,13 +85,14 @@ export function AuthorizedTable() {
       setPagination({ page: 1, limit: rowsPerPage, total: 0, totalPages: 1 })
     } finally {
       setLoading(false)
+      setHasLoaded(true)
     }
-  }, [currentPage, rowsPerPage, debouncedSearch, sortBy, yearFilter])
+  }, [currentPage, rowsPerPage, debouncedSearch, sortBy, startDate, endDate])
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearch, sortBy, rowsPerPage, yearFilter])
+  }, [debouncedSearch, sortBy, rowsPerPage, startDate, endDate])
 
   useEffect(() => {
     fetchData()
@@ -129,7 +129,6 @@ export function AuthorizedTable() {
   }
 
   const handleSearch = (value: string) => { setSearchQuery(value) }
-  const handleYearFilter = (value: string) => { setYearFilter(value) }
   const handleSort = (value: 'newest' | 'oldest' | 'due') => { setSortBy(value) }
   const handleRowsPerPage = (value: number) => { setRowsPerPage(value) }
 
@@ -142,7 +141,7 @@ export function AuthorizedTable() {
     })
   }
 
-  if (loading && certificates.length === 0) {
+  if (loading && !hasLoaded) {
     return (
       <div className="bg-white border border-[#e2e8f0] rounded-[14px] p-8 flex items-center justify-center">
         <Loader2 className="size-5 animate-spin text-[#94a3b8]" />
@@ -163,19 +162,30 @@ export function AuthorizedTable() {
             className="h-10 rounded-[9px] border-border pl-10 pr-3.5 text-sm bg-white"
           />
         </div>
-        <Select value={yearFilter} onValueChange={handleYearFilter}>
-          <SelectTrigger className="h-10 w-full sm:w-[150px] rounded-[9px] border-border bg-white text-sm text-[#64748b]">
-            <SelectValue placeholder="All Years" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Years</SelectItem>
-            {YEAR_OPTIONS.map((year) => (
-              <SelectItem key={year} value={year}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <label className="h-10 flex items-center gap-2 rounded-[9px] border border-border bg-white px-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#94a3b8]">From</span>
+            <input
+              type="date"
+              aria-label="Start date"
+              value={startDate}
+              max={endDate || undefined}
+              onChange={(event) => setStartDate(event.target.value)}
+              className="min-w-0 bg-transparent text-sm text-[#64748b] outline-none"
+            />
+          </label>
+          <label className="h-10 flex items-center gap-2 rounded-[9px] border border-border bg-white px-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#94a3b8]">To</span>
+            <input
+              type="date"
+              aria-label="End date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(event) => setEndDate(event.target.value)}
+              className="min-w-0 bg-transparent text-sm text-[#64748b] outline-none"
+            />
+          </label>
+        </div>
         <Select value={sortBy} onValueChange={(v) => handleSort(v as 'newest' | 'oldest' | 'due')}>
           <SelectTrigger className="h-10 w-full sm:w-[160px] rounded-[9px] border-border bg-white text-sm text-[#64748b]">
             <SelectValue placeholder="Sort by" />

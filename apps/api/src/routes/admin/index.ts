@@ -5,6 +5,7 @@ import { requireAdmin, requireMasterAdmin } from '../../middleware/auth.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 import { createLogger } from '@hta/shared'
 import {
+  buildCertificateUucDetails,
   enqueueNotification,
   queueCertificateReviewedEmail,
   queueCustomerAuthorizedTokenEmail,
@@ -12,6 +13,12 @@ import {
 } from '../../services/queue.js'
 import { generateCodeBatch } from '../../services/offline-codes.js'
 import { generateVpnProvisioningToken } from '../../services/vpn.js'
+import {
+  sendCustomerDecisionEmails,
+  sendInternalDecisionEmail,
+} from '../../services/request-decision-emails.js'
+import type { InternalRequestType } from '@hta/emails'
+import type { QueueCustomerRequestDecisionEmailOptions } from '../../services/queue.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
 import { writeDeviceAudit } from '../../lib/activity-audit.js'
 import type { StorageProvider } from '../../lib/storage/index.js'
@@ -2829,6 +2836,10 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       })
     }
 
+    if (body.action === 'reject' && !body.adminNote?.trim()) {
+      return reply.status(400).send({ error: 'Rejection reason is required' })
+    }
+
     const internalRequest = await prisma.internalRequest.findUnique({
       where: { id },
       include: {
@@ -3054,9 +3065,53 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
+    const requestData = safeJsonParse<{
+      sections?: string[]
+      fields?: string[]
+      reason?: string
+      description?: string
+    }>(internalRequest.data, {})
+    const requestedItems = internalRequest.type === 'SECTION_UNLOCK'
+      ? requestData.sections
+      : internalRequest.type === 'FIELD_CHANGE'
+        ? requestData.fields
+        : undefined
+    const originalReason = internalRequest.type === 'FIELD_CHANGE'
+      ? requestData.description
+      : requestData.reason
+    const commonDecisionEmail = {
+      requestId: internalRequest.id,
+      to: internalRequest.requestedBy.email,
+      recipientName: internalRequest.requestedBy.name,
+      requestType: internalRequest.type as InternalRequestType,
+      requestDate: internalRequest.createdAt.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }),
+      certificateId: internalRequest.certificate?.id,
+      certificateNumber: internalRequest.certificate?.certificateNumber,
+      requestedItems,
+      originalReason,
+      logger: request.log,
+    }
+    const emailResult = newStatus === 'REJECTED'
+      ? await sendInternalDecisionEmail({
+          ...commonDecisionEmail,
+          decision: 'REJECTED',
+          adminNote: body.adminNote!.trim(),
+        })
+      : await sendInternalDecisionEmail({
+          ...commonDecisionEmail,
+          decision: 'APPROVED',
+          adminNote: body.adminNote?.trim() || undefined,
+        })
+
     return {
       success: true,
       message: `Request ${newStatus.toLowerCase()}`,
+      ...emailResult,
       request: {
         id: updatedRequest.id,
         type: updatedRequest.type,
@@ -3297,6 +3352,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       })
       if (engineer) {
         queueCertificateReviewedEmail({
+          tenantId,
+          certificateId: id,
+          uucDetails: buildCertificateUucDetails(certificate),
           assigneeEmail: engineer.email,
           assigneeName: engineer.name,
           certificateNumber: certNum,
@@ -4901,6 +4959,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     // Customer delivery is only reported as successful after BullMQ accepts the job.
     try {
       await queueCustomerAuthorizedTokenEmail({
+        tenantId,
+        certificateId: id,
+        uucDetails: buildCertificateUucDetails(certificate),
         customerEmail: body.customerEmail.toLowerCase().trim(),
         customerName: body.customerName.trim(),
         certificateNumber: certificate.certificateNumber,
@@ -4919,6 +4980,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (body.ccAdmin && userEmail) {
       queueCustomerAuthorizedTokenEmail({
+        tenantId,
+        certificateId: id,
+        uucDetails: buildCertificateUucDetails(certificate),
         customerEmail: userEmail,
         customerName: userName,
         certificateNumber: certificate.certificateNumber,
@@ -5072,7 +5136,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { sendEmail } = await import('../../services/email.js')
     sendEmail({
       to: body.pocEmail.trim().toLowerCase(),
-      template: 'customer-activation' as any,
+      template: 'customer-activation',
       props: {
         userName: body.pocName.trim(),
         companyName: body.companyName.trim(),
@@ -5205,7 +5269,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { sendEmail } = await import('../../services/email.js')
     sendEmail({
       to: normalizedEmail,
-      template: 'customer-activation' as any,
+      template: 'customer-activation',
       props: {
         userName: body.name.trim(),
         companyName: account.companyName,
@@ -5323,7 +5387,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       where: { id },
       include: {
         customerAccount: {
-          select: { id: true, companyName: true, primaryPocId: true, tenantId: true },
+          select: {
+            id: true,
+            companyName: true,
+            primaryPocId: true,
+            tenantId: true,
+            primaryPoc: { select: { id: true, name: true, email: true } },
+          },
         },
         requestedBy: { select: { id: true, name: true, email: true } },
       },
@@ -5335,10 +5405,20 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     if (customerRequest.status !== 'PENDING') {
       return reply.status(400).send({ error: 'Request has already been processed' })
     }
+    if (!customerRequest.requestedBy?.email) {
+      return reply.status(400).send({ error: 'Cannot identify request recipient' })
+    }
 
     const data = typeof customerRequest.data === 'string'
       ? JSON.parse(customerRequest.data) as Record<string, string>
       : customerRequest.data as Record<string, string>
+    const requestDate = customerRequest.createdAt.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
+    const companyName = customerRequest.customerAccount!.companyName
 
     if (customerRequest.type === 'USER_ADDITION') {
       const normalizedEmail = (data.email || '').toLowerCase()
@@ -5386,7 +5466,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       const { sendEmail } = await import('../../services/email.js')
       sendEmail({
         to: normalizedEmail,
-        template: 'customer-activation' as any,
+        template: 'customer-activation',
         props: {
           userName: data.name || '',
           companyName: customerRequest.customerAccount!.companyName,
@@ -5394,9 +5474,25 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         },
       }).catch(() => {})
 
+      const emailResult = await sendCustomerDecisionEmails({
+        requestId: customerRequest.id,
+        logger: request.log,
+        jobs: [{
+          to: customerRequest.requestedBy.email,
+          recipientName: customerRequest.requestedBy.name,
+          requestType: 'USER_ADDITION',
+          decision: 'APPROVED',
+          companyName,
+          requestDate,
+          newUserName: data.name || '',
+          newUserEmail: normalizedEmail,
+        }],
+      })
+
       return {
         success: true,
         message: 'User addition request approved. Invite email will be sent.',
+        ...emailResult,
         user: { id: result.id, name: result.name, email: result.email },
       }
     }
@@ -5439,9 +5535,55 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         })
       })
 
+      const previousPoc = customerRequest.customerAccount!.primaryPoc
+      const previousPocName = previousPoc?.name || 'Not assigned'
+      const pocJobs: QueueCustomerRequestDecisionEmailOptions[] = [
+        {
+          to: customerRequest.requestedBy.email,
+          recipientName: customerRequest.requestedBy.name,
+          requestType: 'POC_CHANGE',
+          decision: 'APPROVED',
+          audience: 'REQUESTER',
+          companyName,
+          requestDate,
+          previousPocName,
+          newPocName: newPocUser.name,
+        },
+        {
+          to: newPocUser.email,
+          recipientName: newPocUser.name,
+          requestType: 'POC_CHANGE',
+          decision: 'APPROVED',
+          audience: 'NEW_POC',
+          companyName,
+          requestDate,
+          previousPocName,
+          newPocName: newPocUser.name,
+        },
+      ]
+      if (previousPoc?.email) {
+        pocJobs.push({
+          to: previousPoc.email,
+          recipientName: previousPoc.name,
+          requestType: 'POC_CHANGE',
+          decision: 'APPROVED',
+          audience: 'PREVIOUS_POC',
+          companyName,
+          requestDate,
+          previousPocName,
+          newPocName: newPocUser.name,
+        })
+      }
+      const emailResult = await sendCustomerDecisionEmails({
+        requestId: customerRequest.id,
+        logger: request.log,
+        jobs: pocJobs,
+      })
+
       return {
         success: true,
         message: 'POC change request approved. Both parties will be notified.',
+        ...emailResult,
         newPoc: { id: newPocUser.id, name: newPocUser.name, email: newPocUser.email },
       }
     }
@@ -5492,9 +5634,24 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         })
       })
 
+      const emailResult = await sendCustomerDecisionEmails({
+        requestId: customerRequest.id,
+        logger: request.log,
+        jobs: [{
+          to: userToDelete.email,
+          recipientName: userToDelete.name,
+          requestType: 'ACCOUNT_DELETION',
+          decision: 'APPROVED',
+          companyName,
+          requestDate,
+          wasPoc: isPoc,
+        }],
+      })
+
       return {
         success: true,
         message: 'Account deletion request approved. User has been deactivated and anonymized.',
+        ...emailResult,
       }
     }
 
@@ -5508,9 +5665,23 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         },
       })
 
+      const emailResult = await sendCustomerDecisionEmails({
+        requestId: customerRequest.id,
+        logger: request.log,
+        jobs: [{
+          to: customerRequest.requestedBy.email,
+          recipientName: customerRequest.requestedBy.name,
+          requestType: 'DATA_EXPORT',
+          decision: 'APPROVED',
+          companyName,
+          requestDate,
+        }],
+      })
+
       return {
         success: true,
-        message: 'Data export request approved. The data will be sent to the requester.',
+        message: 'Data export request approved for preparation.',
+        ...emailResult,
       }
     }
 
@@ -5532,7 +5703,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const customerRequest = await prisma.customerRequest.findUnique({
       where: { id },
       include: {
-        customerAccount: { select: { id: true, companyName: true } },
+        customerAccount: {
+          select: {
+            id: true,
+            companyName: true,
+            primaryPoc: { select: { id: true, name: true, email: true } },
+          },
+        },
         requestedBy: { select: { id: true, name: true, email: true } },
       },
     })
@@ -5543,6 +5720,22 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     if (customerRequest.status !== 'PENDING') {
       return reply.status(400).send({ error: 'Request has already been processed' })
     }
+    if (!customerRequest.requestedBy?.email) {
+      return reply.status(400).send({ error: 'Cannot identify request recipient' })
+    }
+
+    const data = typeof customerRequest.data === 'string'
+      ? JSON.parse(customerRequest.data) as Record<string, string>
+      : customerRequest.data as Record<string, string>
+    const proposedPoc = customerRequest.type === 'POC_CHANGE' && data.newPocUserId
+      ? await prisma.customerUser.findFirst({
+          where: {
+            id: data.newPocUserId,
+            customerAccountId: customerRequest.customerAccount.id,
+          },
+          select: { id: true, name: true, email: true },
+        })
+      : null
 
     await prisma.customerRequest.update({
       where: { id },
@@ -5554,9 +5747,54 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       },
     })
 
+    const commonJob = {
+      to: customerRequest.requestedBy.email,
+      recipientName: customerRequest.requestedBy.name,
+      companyName: customerRequest.customerAccount.companyName,
+      requestDate: customerRequest.createdAt.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }),
+      decision: 'REJECTED' as const,
+      rejectionReason: body.reason.trim(),
+    }
+    let decisionJob: QueueCustomerRequestDecisionEmailOptions
+    switch (customerRequest.type) {
+      case 'USER_ADDITION':
+        decisionJob = {
+          ...commonJob,
+          requestType: 'USER_ADDITION',
+          newUserName: data.name || 'Requested user',
+          newUserEmail: data.email || 'Not provided',
+        }
+        break
+      case 'POC_CHANGE':
+        decisionJob = {
+          ...commonJob,
+          requestType: 'POC_CHANGE',
+          previousPocName: customerRequest.customerAccount.primaryPoc?.name || 'Not assigned',
+          newPocName: proposedPoc?.name || data.newPocName || 'Requested user',
+        }
+        break
+      case 'ACCOUNT_DELETION':
+        decisionJob = { ...commonJob, requestType: 'ACCOUNT_DELETION' }
+        break
+      case 'DATA_EXPORT':
+        decisionJob = { ...commonJob, requestType: 'DATA_EXPORT' }
+        break
+    }
+    const emailResult = await sendCustomerDecisionEmails({
+      requestId: customerRequest.id,
+      logger: request.log,
+      jobs: [decisionJob],
+    })
+
     return {
       success: true,
       message: 'Request rejected. The requester will be notified.',
+      ...emailResult,
     }
   })
 

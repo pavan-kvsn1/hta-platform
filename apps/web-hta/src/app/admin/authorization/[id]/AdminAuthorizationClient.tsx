@@ -11,6 +11,7 @@ import { AdminAuthChatPanel } from './AdminAuthChatPanel'
 import { AdminAuthorizationPanel } from './AdminAuthorizationPanel'
 import { AdminHistorySection } from '@/app/admin/certificates/[id]/AdminHistorySection'
 import { SignatureStatusBar, SignatureInfo } from '@/components/certificates'
+import { EmailDeliveryPanel } from '@/components/email-delivery/EmailDeliveryPanel'
 import { InlinePDFViewer } from '@/app/(dashboard)/dashboard/reviewer/[id]/InlinePDFViewer'
 import type {
   AuthorizationCertificateData,
@@ -242,6 +243,11 @@ export function AdminAuthorizationClient({
 
       {/* Right Panel - Chat & Authorization */}
       <div className="w-[380px] flex-shrink-0 flex flex-col gap-2.5 p-2.5 pl-0 h-full overflow-hidden bg-[#f1f5f9]">
+        <EmailDeliveryPanel
+          certificateId={certificate.id}
+          purpose={['CUSTOMER_AUTHORIZED_REGISTERED', 'CUSTOMER_AUTHORIZED_TOKEN', 'CUSTOMER_APPROVAL']}
+          title="Customer authorization email"
+        />
         {/* Chat Panel */}
         <AdminAuthChatPanel
           certificateId={certificate.id}

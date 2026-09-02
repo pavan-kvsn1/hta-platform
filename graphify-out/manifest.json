@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\package.json": {
-    "mtime": 1776956865.158945,
-    "ast_hash": "0c27cb435a3616e1a5788ff9aa3da283",
+    "mtime": 1788252936.8272455,
+    "ast_hash": "a547afc405c8e102ab6ff1bb5b25f4cb",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tsconfig.json": {
@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\server.ts": {
-    "mtime": 1777921079.8728418,
-    "ast_hash": "7ef3ed1096eb1d43fcd12aa9f9ce6a77",
+    "mtime": 1788253205.8827884,
+    "ast_hash": "6bc1c741d1eee61fd5e89bf2b57b8901",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\lib\\change-detection.ts": {
@@ -120,8 +120,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\routes\\admin\\index.ts": {
-    "mtime": 1783247041.3893988,
-    "ast_hash": "00685426d27757979cb7f734b3db1760",
+    "mtime": 1788364185.3733072,
+    "ast_hash": "fee8c06cc194934b56deb1f9ba87a082",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\routes\\auth\\index.ts": {
@@ -130,13 +130,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\routes\\certificates\\index.ts": {
-    "mtime": 1782669371.7352448,
-    "ast_hash": "a3cdb48335406494614604c8a6f72c7b",
+    "mtime": 1788364183.4029515,
+    "ast_hash": "9284d3235f2c5eee639cfb4080215002",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\routes\\certificates\\images\\index.ts": {
-    "mtime": 1780104685.0324645,
-    "ast_hash": "d11f3b52a1f2aa890945799b4920a153",
+    "mtime": 1783879269.4614322,
+    "ast_hash": "3a22d2e215337ce03f8080c06fa607f5",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\routes\\chat\\index.ts": {
@@ -145,8 +145,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\routes\\customer\\index.ts": {
-    "mtime": 1783272964.1872659,
-    "ast_hash": "3b247633fec65e3f82c87d2981a462aa",
+    "mtime": 1788359873.4855094,
+    "ast_hash": "c08a5fe9ea5b787d9f6c1f5d9e14f339",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\routes\\customers\\index.ts": {
@@ -210,8 +210,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\services\\index.ts": {
-    "mtime": 1776889716.6260285,
-    "ast_hash": "ff0b144b81bc415096ca97cca1ef7381",
+    "mtime": 1788172943.656465,
+    "ast_hash": "6392d840cfa2cd4b194f15fe602776b7",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\services\\offline-codes.ts": {
@@ -220,8 +220,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\services\\queue.ts": {
-    "mtime": 1780104674.4653778,
-    "ast_hash": "55ebab504035f7c6a8f37c389d8adb94",
+    "mtime": 1788359871.6629114,
+    "ast_hash": "1418a9629a06c2cf756f11128555e7c7",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\services\\subscription.ts": {
@@ -270,8 +270,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\integration\\queue-integration.test.ts": {
-    "mtime": 1776961017.5959635,
-    "ast_hash": "d729c4809ad3a415545035bfbfa313d5",
+    "mtime": 1788252147.687229,
+    "ast_hash": "2faa49bde43a2d34d0d057c78054df76",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\integration\\service-communication.test.ts": {
@@ -290,8 +290,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\integration\\setup\\test-db.ts": {
-    "mtime": 1776960885.997272,
-    "ast_hash": "25db16156474bd1d3022293abb374e98",
+    "mtime": 1788250735.142208,
+    "ast_hash": "041ccac1939849fb9444ffcea0e17922",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\integration\\setup\\vitest-setup.ts": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\admin-routes.test.ts": {
-    "mtime": 1777903893.5336723,
-    "ast_hash": "f056d06d6a15ca15a14672244dca3af1",
+    "mtime": 1788179708.8653164,
+    "ast_hash": "930cd0ba55814dd0ca9bd14c70683d23",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\change-detection.test.ts": {
@@ -315,13 +315,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\customer-approval.test.ts": {
-    "mtime": 1777893523.8208122,
-    "ast_hash": "41e92c30c73b4751a7cca36948a39282",
+    "mtime": 1788363665.2925665,
+    "ast_hash": "656bdbe66935e06cc97961ef80189656",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\customer-routes.test.ts": {
-    "mtime": 1777903855.2573278,
-    "ast_hash": "6c7f4a6fab7a9d4dcc3038d659184a9a",
+    "mtime": 1788280838.592627,
+    "ast_hash": "c5139e0b47c600987585797fbf01346c",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\devices.test.ts": {
@@ -360,8 +360,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\queue.test.ts": {
-    "mtime": 1776960103.5020485,
-    "ast_hash": "abf474043f564b728e313248d85afe38",
+    "mtime": 1788351247.4902427,
+    "ast_hash": "71df05064588361ec3657f20fb4ffde0",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\remaining-routes.test.ts": {
@@ -880,8 +880,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\(dashboard)\\dashboard\\certificates\\[id]\\edit\\page.tsx": {
-    "mtime": 1782678842.5336103,
-    "ast_hash": "a6bce892e1f4e973caef459803e08b7b",
+    "mtime": 1788253711.7728882,
+    "ast_hash": "8a66c592c176d8e2d0652b83e1c785f3",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\(dashboard)\\dashboard\\certificates\\[id]\\resolve\\page.tsx": {
@@ -890,8 +890,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\(dashboard)\\dashboard\\certificates\\[id]\\view\\page.tsx": {
-    "mtime": 1781354024.3604276,
-    "ast_hash": "b632bdf06cddd24398877a6a103a18f9",
+    "mtime": 1788253713.8784907,
+    "ast_hash": "157783b2d06a5eefdf028821ad09edcf",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\(dashboard)\\dashboard\\offline-codes\\OfflineCodesClient.tsx": {
@@ -930,8 +930,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\(dashboard)\\dashboard\\reviewer\\[id]\\page.tsx": {
-    "mtime": 1781363328.2992618,
-    "ast_hash": "daa6715843f2543f499bfc2b645447d2",
+    "mtime": 1783663232.62949,
+    "ast_hash": "81069c457d7b847dc6e7a5c68412cd07",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\(dashboard)\\dashboard\\reviewer\\[id]\\ReviewerApproveModal.tsx": {
@@ -940,13 +940,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\(dashboard)\\dashboard\\reviewer\\[id]\\ReviewerContent.tsx": {
-    "mtime": 1781354038.473699,
-    "ast_hash": "1b28c4ac875ef904a96d1f83e2a42f0f",
+    "mtime": 1788161337.118302,
+    "ast_hash": "daaa0c1179454bebebe73ddae38baf10",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\(dashboard)\\dashboard\\reviewer\\[id]\\ReviewerPageClient.tsx": {
-    "mtime": 1783232004.1797295,
-    "ast_hash": "a270c229af035b7bf2d80e1dd0b01601",
+    "mtime": 1788253733.5936823,
+    "ast_hash": "4f7655d2c7a67ad33168f865fb36cc96",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\(dashboard)\\notifications\\page.tsx": {
@@ -1005,8 +1005,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\authorization\\[id]\\AdminAuthContent.tsx": {
-    "mtime": 1781354270.6472998,
-    "ast_hash": "ee9d5deb8117cb8ed111a23311e980a7",
+    "mtime": 1788161340.7069643,
+    "ast_hash": "979788542f68c4370ee6744ed424c0f2",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\authorization\\[id]\\AdminAuthHeader.tsx": {
@@ -1015,13 +1015,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\authorization\\[id]\\AdminAuthorizationClient.tsx": {
-    "mtime": 1783244346.3343947,
-    "ast_hash": "74016fbf6cf82fba42e960e38c74582b",
+    "mtime": 1788253745.8969367,
+    "ast_hash": "44d94552fc8fbb0bc82051a5aa5a5361",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\authorization\\[id]\\AdminAuthorizationPanel.tsx": {
-    "mtime": 1783244360.1104,
-    "ast_hash": "abdc45ad9a8ecb25a1241e7380d0b9d8",
+    "mtime": 1783884117.492165,
+    "ast_hash": "d69d971d68e59692fed471e917833fe8",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\authorization\\[id]\\page.tsx": {
@@ -1030,8 +1030,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\authorization\\[id]\\SendDownloadLinkModal.tsx": {
-    "mtime": 1777203443.0741127,
-    "ast_hash": "32e38a2d144cbf8b49196d568d480b6e",
+    "mtime": 1783883336.2055483,
+    "ast_hash": "7e816daf5e265cc296aa1e3b8ce77ce5",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\certificates\\page.tsx": {
@@ -1040,13 +1040,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\certificates\\[id]\\AdminCertificateClient.tsx": {
-    "mtime": 1783270015.3934195,
-    "ast_hash": "cf70a949a1dbaca55a42e62e00077966",
+    "mtime": 1788253768.276418,
+    "ast_hash": "1f9532b9e1b4cf492e15e80e0e376e91",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\certificates\\[id]\\AdminCertificateContent.tsx": {
-    "mtime": 1781354130.9100757,
-    "ast_hash": "34c03637b279f6c576d4ef1db218c3fc",
+    "mtime": 1788161338.8045344,
+    "ast_hash": "5bf8db8dbfb14c8e670c54dbef7108d8",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\certificates\\[id]\\AdminCertificateHeader.tsx": {
@@ -1070,8 +1070,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\certificates\\[id]\\AdminHistorySection.tsx": {
-    "mtime": 1783270388.9957569,
-    "ast_hash": "4e80c6fd0b3c3e9bc66116e29aeb7703",
+    "mtime": 1788253766.206445,
+    "ast_hash": "b7e7afcd684da890eee4b3d5a29962a5",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\admin\\certificates\\[id]\\AdminReviewActions.tsx": {
@@ -1290,8 +1290,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\customer\\dashboard\\components\\AuthorizedTable.tsx": {
-    "mtime": 1782680689.808952,
-    "ast_hash": "8c3f2cd0dc17b563dc9fa6f111e19db5",
+    "mtime": 1788281235.9034598,
+    "ast_hash": "6a3f719c3e2fd1d7decf284e0ff2084c",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\customer\\dashboard\\components\\AwaitingResponseTable.tsx": {
@@ -1355,8 +1355,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\customer\\review\\cert\\[id]\\CustomerCertificateContent.tsx": {
-    "mtime": 1781354153.7912385,
-    "ast_hash": "4fd983adde10aa762dd32fec4833b20c",
+    "mtime": 1788161344.6085672,
+    "ast_hash": "af42220238111c7d3591dba494fb7e45",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\customer\\review\\cert\\[id]\\CustomerCertificateHeader.tsx": {
@@ -1395,8 +1395,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\customer\\review\\[token]\\TokenReviewContent.tsx": {
-    "mtime": 1781354204.323648,
-    "ast_hash": "2034dac39f957c1217e4e84f8439689f",
+    "mtime": 1788161342.436228,
+    "ast_hash": "39a174dc6c9a960485e8176aeaf47b4d",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\app\\customer\\review\\[token]\\revision-requested\\page.tsx": {
@@ -1515,8 +1515,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\certificate\\CalibrationResultsTable.tsx": {
-    "mtime": 1776104623.153558,
-    "ast_hash": "7429fbfddd918ad3406752aa9874c29c",
+    "mtime": 1788160545.920943,
+    "ast_hash": "361f151453236b1647320008175feece",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\certificate\\CollapsibleSection.tsx": {
@@ -1530,8 +1530,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\certificate\\index.ts": {
-    "mtime": 1776104623.1393845,
-    "ast_hash": "016ec78cb84513566f26ff9e213ef71f",
+    "mtime": 1788161189.7765582,
+    "ast_hash": "0a3bfe3cb182c0e58e6bbf22cc9ff344",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\certificate\\InfoField.tsx": {
@@ -1735,8 +1735,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\forms\\ConclusionSection.tsx": {
-    "mtime": 1777069458.7766683,
-    "ast_hash": "c245a399ef8c3383ef6fbc001de203a3",
+    "mtime": 1788161191.1816864,
+    "ast_hash": "f09691c29517766dbd5bd33afa35e712",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\forms\\CustomerAutocomplete.tsx": {
@@ -1755,8 +1755,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\forms\\FinalizeSection.tsx": {
-    "mtime": 1777435747.5580628,
-    "ast_hash": "79986bfd2da39b6d00e6d6e5a07cec30",
+    "mtime": 1788242158.0469446,
+    "ast_hash": "362e5ccae2bdd76c7f7bf32c8dba99d6",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\forms\\FormSection.tsx": {
@@ -1765,8 +1765,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\forms\\ImageUploadGallery.tsx": {
-    "mtime": 1776243315.658139,
-    "ast_hash": "2e4b7e4b710e145690bcc4651bc466b8",
+    "mtime": 1783880290.1967514,
+    "ast_hash": "e38ffaa28c549a87501551a27a3ab209",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\forms\\index.ts": {
@@ -1790,8 +1790,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\forms\\ResultsSection.tsx": {
-    "mtime": 1777069455.7754035,
-    "ast_hash": "7937ecaa5325b77381bd7c8b5f5cd479",
+    "mtime": 1788161572.2181728,
+    "ast_hash": "8f3457f76968a04c106d4d3e9e0e6b6e",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\forms\\ReviewerSelect.tsx": {
@@ -1905,13 +1905,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\notifications\\NotificationItem.tsx": {
-    "mtime": 1783273038.8299987,
-    "ast_hash": "6ddbb30025645a0b56c21eb2afcd98d0",
+    "mtime": 1783663232.6327617,
+    "ast_hash": "0a945e8e23fccb4ca63274bbb3adb900",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\pdf\\CalibrationCertificatePDF.tsx": {
-    "mtime": 1781354003.2544796,
-    "ast_hash": "93b6b1d9f0fca9a6d0c8f9985bbe1456",
+    "mtime": 1788167326.6088846,
+    "ast_hash": "d8be50b326a67fdd19bf0ad31e4a431b",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\pdf\\index.ts": {
@@ -2155,8 +2155,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\emails\\components\\Layout.tsx": {
-    "mtime": 1776106541.1870883,
-    "ast_hash": "beb52bcc78b812d127868399218de44f",
+    "mtime": 1788171396.747007,
+    "ast_hash": "b58bc21b2c568f1d87056f4a973cfaad",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\hooks\\index.ts": {
@@ -2250,8 +2250,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\lib\\hooks\\useCertificateImages.ts": {
-    "mtime": 1778128577.3855782,
-    "ast_hash": "f58c6aba02ad96786ae8536356cb49e6",
+    "mtime": 1783879462.354931,
+    "ast_hash": "9432660f03152e59210c5a5a1787a516",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\lib\\security\\cors.ts": {
@@ -2360,8 +2360,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\lib\\stores\\certificate-store.ts": {
-    "mtime": 1781353844.136727,
-    "ast_hash": "9f4eb00b5d78e78ddfd13289c946f605",
+    "mtime": 1783660946.5359764,
+    "ast_hash": "fb95ef7e0e65cceee8952fccb9f8c690",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\lib\\stores\\master-instrument-store.ts": {
@@ -2375,8 +2375,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\lib\\stores\\__tests__\\certificate-store.test.ts": {
-    "mtime": 1776249497.0698242,
-    "ast_hash": "79e3b0845b0e6e64c2665396f9399f1c",
+    "mtime": 1783661222.9991908,
+    "ast_hash": "c019f4d5aef2dfb15a4463b751787eb3",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\lib\\utils\\certificate-status.ts": {
@@ -2410,8 +2410,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\types\\certificate.ts": {
-    "mtime": 1781354099.61741,
-    "ast_hash": "9ef0d1a01738fe647ae03171b3804a52",
+    "mtime": 1783663232.6284895,
+    "ast_hash": "6ab02a5b25db981c6133169a877659b5",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\types\\electron.d.ts": {
@@ -2670,8 +2670,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\offline-codes-client.test.tsx": {
-    "mtime": 1777891231.9773529,
-    "ast_hash": "f954cc23e08f7abc9fdfefe63328aa21",
+    "mtime": 1788366472.1471891,
+    "ast_hash": "30a2553d7ccfabdd97ebbc8bc925c3fc",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\opensign.test.ts": {
@@ -4280,18 +4280,18 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\worker\\src\\types.ts": {
-    "mtime": 1780104693.593321,
-    "ast_hash": "d84dba2a4db0a3bce0121ec41f5ec906",
+    "mtime": 1788364957.384801,
+    "ast_hash": "43e2e2e62cf9972b22dc6945ac8769fd",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\worker\\src\\jobs\\cleanup.ts": {
-    "mtime": 1777463442.3902347,
-    "ast_hash": "1ce3a96315c3a778aa534b3097b7191d",
+    "mtime": 1788364961.3324823,
+    "ast_hash": "920a5f17bd560d575ac6d7e4c8e6e226",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\worker\\src\\jobs\\email.ts": {
-    "mtime": 1778349647.1889784,
-    "ast_hash": "c43a1c4eadd8f57dc4df62f01a19ce81",
+    "mtime": 1788364959.4284914,
+    "ast_hash": "1814b8be4aca2290728ddb84312f5d3f",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\worker\\src\\jobs\\index.ts": {
@@ -4335,13 +4335,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\worker\\tests\\unit\\cleanup.test.ts": {
-    "mtime": 1777891220.6866312,
-    "ast_hash": "e7cc45b782c34ed422fee1e40e465096",
+    "mtime": 1788364337.3088825,
+    "ast_hash": "43f1635679c7d7fefa870a51f83255ab",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\worker\\tests\\unit\\email.test.ts": {
-    "mtime": 1776243133.34545,
-    "ast_hash": "e3a507faffe568a26955117b3e689dae",
+    "mtime": 1788364335.410158,
+    "ast_hash": "5ffdacab5198b1a2dda0dafe28100883",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\worker\\tests\\unit\\notifications.test.ts": {
@@ -4440,13 +4440,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\index.ts": {
-    "mtime": 1776846583.1145868,
-    "ast_hash": "29516441856c745479918e6528e83252",
+    "mtime": 1788351068.326686,
+    "ast_hash": "fdeb0e438a02fc5c190de244fe1b1646",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\render.ts": {
-    "mtime": 1777462859.0724497,
-    "ast_hash": "8299eb628185c1a660fe185067fe5ce4",
+    "mtime": 1788172236.6643357,
+    "ast_hash": "e7827f249a8063fd1a1de8096b0c4fca",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\components\\Button.tsx": {
@@ -4455,53 +4455,53 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\components\\index.ts": {
-    "mtime": 1776846614.3455918,
-    "ast_hash": "db2b67acdff5e0c9621c7e30b52f5fe6",
+    "mtime": 1788351066.2046478,
+    "ast_hash": "f5394a8e52e866479294e42e26c8f905",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\components\\Layout.tsx": {
-    "mtime": 1776103461.164713,
-    "ast_hash": "b52721d7fbda1ba81fbb434f14855bc8",
+    "mtime": 1788171376.8306959,
+    "ast_hash": "11fae1e6d50bd723e9f57307bab69c64",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\CertificateReviewed.tsx": {
-    "mtime": 1776846793.7794056,
-    "ast_hash": "84c9f9355d1b9a571ecc00962bd1c212",
+    "mtime": 1788351072.9857125,
+    "ast_hash": "8d6652ca51e0b4c3f16584d22f916da2",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\CertificateSubmitted.tsx": {
-    "mtime": 1776846793.817914,
-    "ast_hash": "005e9e203a04cac202369e6ae182b571",
+    "mtime": 1788351070.4610145,
+    "ast_hash": "50a58aebc018de8f83caad7135fd96d2",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\CustomerApproval.tsx": {
-    "mtime": 1776846793.8469436,
-    "ast_hash": "49f4217eb9da328c72bdc1f21b901dd7",
+    "mtime": 1788351075.064431,
+    "ast_hash": "9b663b0eb6df7125b799d46ae81b755c",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\CustomerAuthorizedRegistered.tsx": {
-    "mtime": 1777452871.79404,
-    "ast_hash": "8beb5b7af3ed5c953ef9b237248a7aea",
+    "mtime": 1788351083.18671,
+    "ast_hash": "8e77cbc59dfa22784a5b379433b056fe",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\CustomerAuthorizedToken.tsx": {
-    "mtime": 1777452881.299061,
-    "ast_hash": "1b9bc5f79bdc64ddc7f1b155c3164166",
+    "mtime": 1788351081.3284404,
+    "ast_hash": "584b81b9d735e14313d712ee17d5a2fe",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\CustomerReview.tsx": {
-    "mtime": 1777452841.944295,
-    "ast_hash": "734a5ad2ad12e24fb284922a9673cf54",
+    "mtime": 1788351077.1017134,
+    "ast_hash": "1f2682e600c3360000f9e8c056b6abb0",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\CustomerReviewRegistered.tsx": {
-    "mtime": 1777452860.6473703,
-    "ast_hash": "853f83d3e4877542adfdd941380dbcda",
+    "mtime": 1788351079.1620185,
+    "ast_hash": "650caba7552136947f1decf288d5b7fd",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\index.ts": {
-    "mtime": 1777462848.2156515,
-    "ast_hash": "0b0609d4efb175e92dee2121be4be37d",
+    "mtime": 1788171905.7240522,
+    "ast_hash": "0ebb664eec9a28c00fdb9e51f9cb82f2",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\MasterInstrumentChange.tsx": {
@@ -4520,8 +4520,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\ReviewerCustomerExpired.tsx": {
-    "mtime": 1777453761.7519424,
-    "ast_hash": "51da1f41e986499162c422c10d6294c6",
+    "mtime": 1788351085.7354891,
+    "ast_hash": "02ea54d936ec73de879ddb1e182fb4cf",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\SecurityAlert.tsx": {
@@ -4535,23 +4535,23 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\tests\\components.test.tsx": {
-    "mtime": 1777902835.3089263,
-    "ast_hash": "695f470239df0a48dcbe6db7bd3fb2fc",
+    "mtime": 1788171375.4982896,
+    "ast_hash": "2aa1807ec8464d8fd7cd6dd69aeb28c6",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\tests\\index.test.ts": {
-    "mtime": 1776242994.8677602,
-    "ast_hash": "8de98dd6ae0def8acd91a20c910064c2",
+    "mtime": 1788172058.971774,
+    "ast_hash": "b64f23c9a0166e83b0c3887567035028",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\tests\\render.test.ts": {
-    "mtime": 1777891088.5175889,
-    "ast_hash": "d716015da732c3567fc80e79f15d9102",
+    "mtime": 1788172057.8033319,
+    "ast_hash": "a2d285824e9ccb35f07f4233f39a053c",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\tests\\templates.test.tsx": {
-    "mtime": 1777902908.182515,
-    "ast_hash": "03e3764e8adca060a6aaa88712e5c1ab",
+    "mtime": 1788366005.9125917,
+    "ast_hash": "f8c091108ac085e10492e18e3489b157",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\shared\\eslint.config.mjs": {
@@ -4575,8 +4575,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\shared\\src\\index.ts": {
-    "mtime": 1777462824.3878355,
-    "ast_hash": "2ee7a5b4b280744436854545489c567c",
+    "mtime": 1788251251.9282932,
+    "ast_hash": "55bff736fd3f24f1e5cd50eaeff0ea4e",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\shared\\src\\alerting\\index.ts": {
@@ -5000,8 +5000,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\.github\\workflows\\deploy.yml": {
-    "mtime": 1776961399.3296654,
-    "ast_hash": "569aed6536e15639dda4a8bbc7fb080b",
+    "mtime": 1783746394.9983773,
+    "ast_hash": "8307d811cc65c2ce311b2d2917bb2a09",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\.github\\workflows\\desktop-release.yml": {
@@ -5010,8 +5010,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\.github\\workflows\\gitops-deploy.yml": {
-    "mtime": 1776961436.228891,
-    "ast_hash": "13221ac3daddd9716f4204da83eb3bf5",
+    "mtime": 1783718276.352902,
+    "ast_hash": "6a6d6bba433bf563f1c00082de945f32",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\.github\\workflows\\performance.yml": {
@@ -5110,8 +5110,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\deployment-guide.md": {
-    "mtime": 1778331584.5649567,
-    "ast_hash": "564ff428720a40f3f14ca3cf2ab47f56",
+    "mtime": 1784953857.0672662,
+    "ast_hash": "eb327dd35e62b7c7af81d5241990a625",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\performance-baselines.md": {
@@ -5229,16 +5229,6 @@
     "ast_hash": "11c1b183ccb8389036084ae0bd754572",
     "semantic_hash": ""
   },
-  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\consent-store-persistence.md": {
-    "mtime": 1777899260.566531,
-    "ast_hash": "4c713571436a7a7574563c112a540b3c",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\reviewer-request-actions-fixes.md": {
-    "mtime": 1778414934.21089,
-    "ast_hash": "2ebd8dd5e8b63e4db34c1353514446eb",
-    "semantic_hash": ""
-  },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\closed\\customer-account-linking.md": {
     "mtime": 1778069670.7354782,
     "ast_hash": "8ba0c34ec95229717ecda8f1fda8f5be",
@@ -5295,8 +5285,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\README.md": {
-    "mtime": 1776162764.6208014,
-    "ast_hash": "c3f8d725ebfe4d870750dce09e8508ea",
+    "mtime": 1788254609.1459818,
+    "ast_hash": "6f73c57e7fe7b8a022a7adbc3b877cc2",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\README.md": {
@@ -5305,8 +5295,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\base\\api-deployment.yaml": {
-    "mtime": 1777556381.4712796,
-    "ast_hash": "b72aada210d3be1bed8f4336990579e5",
+    "mtime": 1783715505.186144,
+    "ast_hash": "1934d976e0139e1faf6c59dfc0e9eb90",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\base\\api-nodeport.yaml": {
@@ -5320,8 +5310,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\base\\configmap.yaml": {
-    "mtime": 1780104200.241376,
-    "ast_hash": "260e71e1934bcdd626aa7165f0a3f8ce",
+    "mtime": 1783708286.8269215,
+    "ast_hash": "8f3c8c9ee45e84e007b54731db16e014",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\base\\gateway.yaml": {
@@ -5335,8 +5325,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\base\\kustomization.yaml": {
-    "mtime": 1777534553.1897802,
-    "ast_hash": "ecd85f841fd8451df2598f52b3be65bf",
+    "mtime": 1783715505.1841319,
+    "ast_hash": "b482d18858d6929072f15ec355a2b50c",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\base\\namespace.yaml": {
@@ -5345,8 +5335,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\base\\web-hta-deployment.yaml": {
-    "mtime": 1777556382.821211,
-    "ast_hash": "d425946f61dc333abc6bf9a5c65f9f43",
+    "mtime": 1783715505.18867,
+    "ast_hash": "f379654633688226083fc98b2e209613",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\base\\web-hta-service.yaml": {
@@ -5360,8 +5350,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\base\\worker-deployment.yaml": {
-    "mtime": 1777556384.2186048,
-    "ast_hash": "bf53117412e0028ca2dcab97eea21e79",
+    "mtime": 1783715505.1876733,
+    "ast_hash": "35416219ef56044ee65847433fff1124",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\base\\argo-rollouts\\install.yaml": {
@@ -5430,8 +5420,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\overlays\\production\\kustomization.yaml": {
-    "mtime": 1777542236.7291317,
-    "ast_hash": "8f80460dd9823b487af105f4f5eced84",
+    "mtime": 1783715505.190191,
+    "ast_hash": "b908fa1a8a297005bb01468bca984bd2",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\k8s\\httproute-fix.yaml": {
@@ -7424,11 +7414,6 @@
     "ast_hash": "42072f8d7b58bfca25872ea8e4d64cfd",
     "semantic_hash": ""
   },
-  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\master-instrument-training-evidence.md": {
-    "mtime": 1779530869.663448,
-    "ast_hash": "313cf5be032fd02e7654dffaff9b3d49",
-    "semantic_hash": ""
-  },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\desktop\\src\\main\\api-config.ts": {
     "mtime": 1779561772.8482072,
     "ast_hash": "b690f58db19887706e220bebc2fcec84",
@@ -7492,16 +7477,6 @@
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\desktop\\release\\win-unpacked\\resources\\app-update.yml": {
     "mtime": 1780119316.8708656,
     "ast_hash": "110e420b4f596a7a425b252e578d7544",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\artifact-storage-split-plan.md": {
-    "mtime": 1780101506.9541147,
-    "ast_hash": "5dfaef5ddfe6cfc93d665f6881446cd3",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\user-activity-and-calibration-time-tracking.md": {
-    "mtime": 1781360044.9492133,
-    "ast_hash": "1efae017d53d2c1d19083c98dd487713",
     "semantic_hash": ""
   },
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\database\\prisma\\migrations\\20260413193611_init\\migration.sql": {
@@ -7597,6 +7572,311 @@
   "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\certificate-tat.test.ts": {
     "mtime": 1781363492.7881873,
     "ast_hash": "c3eafc2a7aa616e7d489cb2388817503",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\lib\\utils\\calibration-precision.ts": {
+    "mtime": 1783660641.241337,
+    "ast_hash": "a0fa4c52e44bd12c8ca6bfdab62433f9",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\calibration-precision.test.ts": {
+    "mtime": 1783661194.1101391,
+    "ast_hash": "0bcfc4152a07e00890b5141fe08a34cb",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\scripts\\run-migrations.sh": {
+    "mtime": 1783718194.9618974,
+    "ast_hash": "fe9c823b7416a89c60a245f8e60cbfd6",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\infra\\k8s\\jobs\\db-migrate.yaml": {
+    "mtime": 1783717725.4304154,
+    "ast_hash": "57a5875e6200638a51fc61f3b3323923",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\database\\prisma\\migrations\\20260712090000_restore_multi_evidence_images\\migration.sql": {
+    "mtime": 1783879462.3627577,
+    "ast_hash": "cc6bb109478d79980719ef21f403d3f7",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\database\\prisma\\migrations\\20260713090000_limit_download_tokens_to_ten\\migration.sql": {
+    "mtime": 1783882941.2056663,
+    "ast_hash": "fced085b01c187d81dc087fef0cadfea",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\results-section-add-row.test.tsx": {
+    "mtime": 1788161533.8962314,
+    "ast_hash": "7ef64a1b67c46023dbd2a5b34b311af2",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\superpowers\\plans\\2026-07-25-calibration-results-add-row.md": {
+    "mtime": 1784965812.1842923,
+    "ast_hash": "7f2ffbc5b1c1cf167777c833ac499d00",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\superpowers\\specs\\2026-07-25-calibration-results-add-row-design.md": {
+    "mtime": 1784965405.4769845,
+    "ast_hash": "3e28d318ce00abc1a6f2c1d1249362f7",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\certificate\\ConclusionStatementText.tsx": {
+    "mtime": 1788161188.5803528,
+    "ast_hash": "6788b40be8d19f0c23043d85116eccd9",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\calibration-failure-presentation.test.tsx": {
+    "mtime": 1788167278.2935827,
+    "ast_hash": "5aa146e22946a110ecffccdfa460618a",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\conclusion-statement-emphasis.test.tsx": {
+    "mtime": 1788161097.587041,
+    "ast_hash": "bdea169613b15417809d9797d194c95c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\CustomerActivation.tsx": {
+    "mtime": 1788168727.6109085,
+    "ast_hash": "81995a932c7128b3b55ea54612f70353",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\tests\\customer-activation.test.ts": {
+    "mtime": 1788168730.7783604,
+    "ast_hash": "7d205af0adbd5c4b656d6da9b496185c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\wireframes\\request-decision-email-notifications.md": {
+    "mtime": 1788170283.1524737,
+    "ast_hash": "8f5191afbecffa76098ad7270cd6a11c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\superpowers\\plans\\2026-08-31-request-decision-email-notifications.md": {
+    "mtime": 1788170772.2776625,
+    "ast_hash": "eb230290ba18a10374ac57706313b59d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\services\\request-decision-emails.ts": {
+    "mtime": 1788180268.0184872,
+    "ast_hash": "031ec81e4cfecee7d22f8a439d076fc3",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\request-decision-emails.test.ts": {
+    "mtime": 1788174154.0276663,
+    "ast_hash": "1ba49a9687daa9b25cdea69eb55b1adc",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\email-layout.test.tsx": {
+    "mtime": 1788171085.3831475,
+    "ast_hash": "e890d70ca52a77b3223a743ccab79c27",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\CustomerRequestDecision.tsx": {
+    "mtime": 1788171945.5406215,
+    "ast_hash": "f80c937715fde5bd7b2f7a13bfd0b84b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\InternalRequestDecision.tsx": {
+    "mtime": 1788171944.3557522,
+    "ast_hash": "d2f393be69e49f79f6b97abe2b4527be",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\templates\\RequestDecisionEmail.tsx": {
+    "mtime": 1788171901.5872302,
+    "ast_hash": "b37ca2445ff343a7a765c68ada903b37",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\tests\\request-decision-templates.test.tsx": {
+    "mtime": 1788171625.6265776,
+    "ast_hash": "77af455aef774708bbd5184220f2df5f",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\submission-feedback.test.ts": {
+    "mtime": 1788242056.7094636,
+    "ast_hash": "5b1f4d3e9375a8b0def743ba7f54c4cd",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\superpowers\\specs\\2026-09-01-certificate-email-delivery-tracking-design.md": {
+    "mtime": 1788245041.590477,
+    "ast_hash": "2cb31743775ff755a04fb05c8932f114",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\superpowers\\plans\\2026-09-01-certificate-email-delivery-tracking.md": {
+    "mtime": 1788246629.2491324,
+    "ast_hash": "31afd84feea75fca42369c456eded640",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\integration\\email-delivery-database.test.ts": {
+    "mtime": 1788249546.9440382,
+    "ast_hash": "a72c3c48efb4c9cbd8e118727094a201",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\database\\prisma\\migrations\\20260901090000_add_certificate_email_delivery_tracking\\migration.sql": {
+    "mtime": 1788249860.4383843,
+    "ast_hash": "91c978b5531c1041f1a1c8644a136cd1",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\services\\email-delivery-events.ts": {
+    "mtime": 1788251253.5166733,
+    "ast_hash": "a5dbb44392145ca423e521573f8cb046",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\email-delivery-events.test.ts": {
+    "mtime": 1788250992.3915732,
+    "ast_hash": "7262b0f6ffc293d32445971de2da473e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\shared\\src\\email-delivery\\index.ts": {
+    "mtime": 1788251250.355406,
+    "ast_hash": "47b4830130673aca862de8a18e5bcbc3",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\services\\tracked-email.ts": {
+    "mtime": 1788251643.9921107,
+    "ast_hash": "fee833a13940ccdfc020803d02cd06b8",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\tracked-email.test.ts": {
+    "mtime": 1788251670.3130338,
+    "ast_hash": "ecd325ab4521f57b52c4f3ccedbefeec",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\routes\\webhooks\\resend.ts": {
+    "mtime": 1788253350.8183439,
+    "ast_hash": "98f5307e878d0a21f4176b7d99ed046e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\src\\services\\resend-webhook.ts": {
+    "mtime": 1788254667.34855,
+    "ast_hash": "5f1efb29201fe731eaea6573ba1190ad",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\resend-webhook-route.test.ts": {
+    "mtime": 1788253352.7178128,
+    "ast_hash": "5e9c68f29dd5eb6c42e680ff05f73736",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\api\\tests\\unit\\resend-webhook.test.ts": {
+    "mtime": 1788252986.492275,
+    "ast_hash": "f1cd63b28c134bbbc056a0ac22ee54fe",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\email-delivery\\EmailDeliveryPanel.tsx": {
+    "mtime": 1788253591.3824594,
+    "ast_hash": "c297c632e94bcb7efeef508541ef473d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\components\\email-delivery\\EmailDeliveryStatus.tsx": {
+    "mtime": 1788253589.5625522,
+    "ast_hash": "48cbc0846488f37f76cf711009ffaf53",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\src\\lib\\email-deliveries.ts": {
+    "mtime": 1788253586.1378078,
+    "ast_hash": "b0e59b0fc91380a9fadb281dab5d1407",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\email-delivery-panel.test.tsx": {
+    "mtime": 1788253804.265872,
+    "ast_hash": "aa8d28acb6ece4cc06910503d130fb6b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\email-delivery-status.test.tsx": {
+    "mtime": 1788253801.9928932,
+    "ast_hash": "df3c25d0c385b31b5a79272470d11d89",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\runbooks\\resend-webhook-delivery-tracking.md": {
+    "mtime": 1788254624.906105,
+    "ast_hash": "32d12db670df82fb301a2be05aa26c76",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\apps\\web-hta\\tests\\unit\\authorized-table-date-filter.test.tsx": {
+    "mtime": 1788280435.2018356,
+    "ast_hash": "a40c2e56e87c19174141b8fb66e52444",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\scripts\\convert_master_list.py": {
+    "mtime": 1788282785.1390815,
+    "ast_hash": "205d310265ec7c7bead455f857fc94c5",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\section05-dynamic-fields-revamp.md": {
+    "mtime": 1788279524.5918553,
+    "ast_hash": "1c40c66ca7f76466e268fbcd6cde002b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\closed\\artifact-storage-split-plan.md": {
+    "mtime": 1780101506.9541147,
+    "ast_hash": "5dfaef5ddfe6cfc93d665f6881446cd3",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\closed\\consent-store-persistence.md": {
+    "mtime": 1777899260.566531,
+    "ast_hash": "4c713571436a7a7574563c112a540b3c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\closed\\master-instrument-training-evidence.md": {
+    "mtime": 1779530869.663448,
+    "ast_hash": "313cf5be032fd02e7654dffaff9b3d49",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\closed\\reviewer-request-actions-fixes.md": {
+    "mtime": 1778414934.21089,
+    "ast_hash": "2ebd8dd5e8b63e4db34c1353514446eb",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\todos\\closed\\user-activity-and-calibration-time-tracking.md": {
+    "mtime": 1781360044.9492133,
+    "ast_hash": "1efae017d53d2c1d19083c98dd487713",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\.claude\\settings.local.json": {
+    "mtime": 1788286046.8580194,
+    "ast_hash": "16a0076471e40fed7431af3e8b6911b4",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\src\\components\\UucDetailsSection.tsx": {
+    "mtime": 1788351064.2373443,
+    "ast_hash": "fa964b1fb0b7d4d9515052ff9ea65deb",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\packages\\emails\\tests\\certificate-uuc-details.test.tsx": {
+    "mtime": 1788350048.6446621,
+    "ast_hash": "c659b3a4cee164a1cffcde639e51470d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\scripts\\extract_least_counts.py": {
+    "mtime": 1788285543.271623,
+    "ast_hash": "094b2c19b4db687b90998dcbb00c7391",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\scripts\\extract_least_counts_manual.py": {
+    "mtime": 1788286107.4338095,
+    "ast_hash": "4079b184a145c45d45d05598e8c2bc8e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\scope\\data-flow-architecture.md": {
+    "mtime": 1788365489.9148319,
+    "ast_hash": "ed5c9640671f76ee344b72db558ddee5",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\scope\\master-spec-integration-scope.md": {
+    "mtime": 1788365286.6006508,
+    "ast_hash": "e0f6c0fe3e422c35460df5132ecf4f5e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\wireframes\\admin-instrument-edit-final-fixed.md": {
+    "mtime": 1788350973.1674871,
+    "ast_hash": "e397687fe86c07f023063b8c56464e54",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\wireframes\\master-selection-ui.md": {
+    "mtime": 1788349928.0481677,
+    "ast_hash": "4258d842962fb63558ae8ec7c4dda2c4",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\kcsva\\OneDrive\\Documents\\HTACalibr8s\\hta-platform\\docs\\wireframes\\uuc-admin-enhancements.md": {
+    "mtime": 1788349978.918008,
+    "ast_hash": "0a21547cb543d04d153ef8c986ab09d3",
     "semantic_hash": ""
   }
 }

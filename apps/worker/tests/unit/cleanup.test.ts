@@ -29,6 +29,10 @@ vi.mock('@hta/database', () => ({
       findFirst: vi.fn(),
       create: vi.fn(),
     },
+    emailDelivery: {
+      create: vi.fn(),
+      update: vi.fn(),
+    },
     offlineCodeBatch: {
       findMany: vi.fn(),
       update: vi.fn(),
@@ -276,17 +280,24 @@ describe('Cleanup Job Processor', () => {
     it('should transition expired reviews to CUSTOMER_REVIEW_EXPIRED and queue emails', async () => {
       const { processCleanupJob, setEmailQueue } = await import('../../src/jobs/cleanup.js')
 
-      const mockEmailQueue = { add: vi.fn().mockResolvedValue({}) } as any
+      const mockEmailQueue = { add: vi.fn().mockResolvedValue({ id: 'expiry-job-1' }) } as any
       setEmailQueue(mockEmailQueue)
 
       const mockCerts = [
         {
           id: 'cert-1',
+          tenantId: 'tenant-1',
           status: 'PENDING_CUSTOMER_APPROVAL',
           currentRevision: 1,
           certificateNumber: 'HTA-2026-0001',
           customerName: 'Acme Corp',
           uucDescription: 'Pressure Gauge 0-100 PSI',
+          uucMake: 'Wika',
+          uucModel: 'CPG1500',
+          uucSerialNumber: 'SN-90817',
+          uucInstrumentId: 'UUC-204',
+          uucLocationName: 'Utility Bay 3',
+          uucMachineName: 'Compressor Line A',
           reviewer: { id: 'user-r1', email: 'reviewer@example.com', name: 'Jane Reviewer' },
           createdBy: { id: 'user-e1', email: 'engineer@example.com', name: 'Bob Engineer' },
           approvalTokens: [{ customer: { name: 'Alice Customer' } }],
@@ -325,9 +336,41 @@ describe('Cleanup Job Processor', () => {
           certificateNumber: 'HTA-2026-0001',
           customerName: 'Alice Customer',
           instrumentDescription: 'Pressure Gauge 0-100 PSI',
+          uucDetails: {
+            description: 'Pressure Gauge 0-100 PSI',
+            make: 'Wika',
+            model: 'CPG1500',
+            serialNumber: 'SN-90817',
+            instrumentId: 'UUC-204',
+            location: 'Utility Bay 3',
+            machineName: 'Compressor Line A',
+          },
         }),
         expect.objectContaining({ attempts: 3 })
       )
+      expect(prisma.emailDelivery.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          tenantId: 'tenant-1',
+          certificateId: 'cert-1',
+          emailType: 'CUSTOMER_REVIEW_EXPIRED',
+          recipientEmail: 'reviewer@example.com',
+          status: 'QUEUED',
+          idempotencyKey: expect.stringMatching(/^email-delivery\//),
+        }),
+      })
+      expect(mockEmailQueue.add).toHaveBeenCalledWith(
+        'reviewer-customer-expired',
+        expect.objectContaining({
+          deliveryId: expect.any(String),
+          certificateId: 'cert-1',
+          idempotencyKey: expect.stringMatching(/^email-delivery\//),
+        }),
+        expect.any(Object),
+      )
+      expect(prisma.emailDelivery.update).toHaveBeenCalledWith({
+        where: { id: expect.any(String) },
+        data: { bullJobId: 'expiry-job-1' },
+      })
     })
 
     it('should return early with zero deleted when no expired reviews exist', async () => {

@@ -92,12 +92,9 @@ describe('OfflineCodesClient', () => {
     render(<OfflineCodesClient />)
 
     await waitFor(() => {
-      expect(screen.getByText('Request Pending')).toBeInTheDocument()
+      expect(screen.getByText('Request pending admin approval')).toBeInTheDocument()
     })
 
-    expect(
-      screen.getByText(/awaiting admin approval/i)
-    ).toBeInTheDocument()
   })
 
   it('shows rejection banner with admin note', async () => {
@@ -124,12 +121,11 @@ describe('OfflineCodesClient', () => {
     render(<OfflineCodesClient />)
 
     await waitFor(() => {
-      expect(screen.getByText('Request Rejected')).toBeInTheDocument()
+      expect(
+        screen.getByText('Insufficient justification provided.')
+      ).toBeInTheDocument()
     })
 
-    expect(
-      screen.getByText('Insufficient justification provided.')
-    ).toBeInTheDocument()
   })
 
   it('renders code grid when active batch exists', async () => {
@@ -163,9 +159,7 @@ describe('OfflineCodesClient', () => {
     render(<OfflineCodesClient />)
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Your Challenge-Response Card')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Your Card')).toBeInTheDocument()
     })
 
     // Verify code values appear in the grid

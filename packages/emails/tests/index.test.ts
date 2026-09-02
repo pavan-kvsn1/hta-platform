@@ -56,5 +56,12 @@ describe('@hta/emails exports', () => {
       expect(emails.CustomerReview).toBeDefined()
       expect(typeof emails.CustomerReview).toBe('function')
     })
+
+    it('exports both request decision templates', () => {
+      expect(emails.InternalRequestDecision).toBeDefined()
+      expect(typeof emails.InternalRequestDecision).toBe('function')
+      expect(emails.CustomerRequestDecision).toBeDefined()
+      expect(typeof emails.CustomerRequestDecision).toBe('function')
+    })
   })
 })

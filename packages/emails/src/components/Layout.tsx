@@ -6,6 +6,8 @@ import {
   Img,
   Link,
   Preview,
+  Row,
+  Column,
   Section,
   Text,
   Hr,
@@ -27,7 +29,7 @@ interface LayoutProps {
 }
 
 const defaultBranding: TenantBranding = {
-  name: 'HTA Instrumentation',
+  name: 'HTA Instrumentation Pvt. Ltd.',
   primaryColor: '#1e40af',
   supportEmail: 'support@htainstrumentation.com',
   websiteUrl: process.env.FRONTEND_URL || 'https://hta-calibration.com',
@@ -36,6 +38,7 @@ const defaultBranding: TenantBranding = {
 export function Layout({ preview, children, tenant = defaultBranding }: LayoutProps) {
   const branding = { ...defaultBranding, ...tenant }
   const baseUrl = branding.websiteUrl || ''
+  const logoUrl = branding.logoUrl || `${baseUrl}/logo.png`
 
   const colors = {
     primary: branding.primaryColor || '#1e40af',
@@ -67,24 +70,26 @@ export function Layout({ preview, children, tenant = defaultBranding }: LayoutPr
             padding: '24px 32px',
             textAlign: 'center' as const,
           }}>
-            {branding.logoUrl ? (
-              <Img
-                src={branding.logoUrl}
-                width="180"
-                height="50"
-                alt={branding.name}
-                style={{ margin: '0 auto' }}
-              />
-            ) : (
-              <Text style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: colors.primary,
-                margin: '0',
-              }}>
-                {branding.name}
-              </Text>
-            )}
+            <Row style={{ width: 'auto', margin: '0 auto' }}>
+              <Column style={{ width: '32px', verticalAlign: 'middle' }}>
+                <Img
+                  src={logoUrl}
+                  width="32"
+                  height="32"
+                  alt={`${branding.name} logo`}
+                />
+              </Column>
+              <Column style={{ paddingLeft: '10px', verticalAlign: 'middle' }}>
+                <Text style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: colors.primary,
+                  margin: '0',
+                }}>
+                  {branding.name}
+                </Text>
+              </Column>
+            </Row>
           </Section>
 
           {/* Main Content */}

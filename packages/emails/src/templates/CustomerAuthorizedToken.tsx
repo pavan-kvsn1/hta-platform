@@ -1,11 +1,12 @@
 import { Text, Section } from '@react-email/components'
 import * as React from 'react'
-import { Layout, Button } from '../components/index.js'
+import { Layout, Button, UucDetailsSection, type UucDetails } from '../components/index.js'
 
 interface CustomerAuthorizedTokenProps {
   customerName: string
   certificateNumber: string
   instrumentDescription: string
+  uucDetails?: UucDetails
   downloadUrl: string
   maxDownloads?: number
   expiresInDays?: number
@@ -15,6 +16,7 @@ export function CustomerAuthorizedToken({
   customerName,
   certificateNumber,
   instrumentDescription,
+  uucDetails,
   downloadUrl,
   maxDownloads = 10,
   expiresInDays = 30,
@@ -41,6 +43,8 @@ export function CustomerAuthorizedToken({
           <span style={detailValue}>{instrumentDescription}</span>
         </Text>
       </Section>
+
+      <UucDetailsSection details={uucDetails} />
 
       <Text style={paragraph}>
         Click the button below to download your certificate PDF.

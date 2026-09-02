@@ -1,6 +1,7 @@
 'use client'
 
 import { apiFetch } from '@/lib/api-client'
+import { EmailDeliveryPanel } from '@/components/email-delivery/EmailDeliveryPanel'
 
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -857,27 +858,34 @@ export function ReviewerPageClient({
           {/* Content Area - Scrollable */}
           <div className="flex-1 overflow-auto p-5 bg-[#f8fafc]">
             {viewMode === 'details' ? (
-              <ReviewerContent
-                certificate={displayCertificate}
-                assignee={assignee}
-                feedbacks={feedbacks}
-                customerFeedback={customerFeedback}
-                internalRequests={[
-                  ...sectionUnlockRequests,
-                  ...fieldChangeRequests.map((r) => ({
-                    id: r.id,
-                    type: 'FIELD_CHANGE' as const,
-                    status: r.status,
-                    fields: r.fields,
-                    description: r.description,
-                    adminNote: r.adminNote,
-                    requestedByName: r.requestedByName || undefined,
-                    reviewedByName: r.reviewedBy,
-                    createdAt: r.createdAt,
-                    revisionNumber: r.revisionNumber,
-                  })),
-                ]}
-              />
+              <div className="space-y-4">
+                <EmailDeliveryPanel
+                  certificateId={certificate.id}
+                  purpose={['CERTIFICATE_SUBMITTED', 'CUSTOMER_REVIEW', 'CUSTOMER_REVIEW_REGISTERED', 'CUSTOMER_REVIEW_EXPIRED']}
+                  title="Reviewer and customer handoff"
+                />
+                <ReviewerContent
+                  certificate={displayCertificate}
+                  assignee={assignee}
+                  feedbacks={feedbacks}
+                  customerFeedback={customerFeedback}
+                  internalRequests={[
+                    ...sectionUnlockRequests,
+                    ...fieldChangeRequests.map((r) => ({
+                      id: r.id,
+                      type: 'FIELD_CHANGE' as const,
+                      status: r.status,
+                      fields: r.fields,
+                      description: r.description,
+                      adminNote: r.adminNote,
+                      requestedByName: r.requestedByName || undefined,
+                      reviewedByName: r.reviewedBy,
+                      createdAt: r.createdAt,
+                      revisionNumber: r.revisionNumber,
+                    })),
+                  ]}
+                />
+              </div>
             ) : (
               <InlinePDFViewer
                 certificateId={certificate.id}

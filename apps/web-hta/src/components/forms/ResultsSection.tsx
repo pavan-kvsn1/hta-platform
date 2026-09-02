@@ -621,9 +621,9 @@ function ResultsTable({
               return (
                 <tr
                   key={result.id}
-                  className={cn(result.isOutOfLimit && 'bg-red-50')}
+                  className={cn(result.isOutOfLimit && 'bg-red-50 text-red-700 font-bold')}
                 >
-                  <td className="px-6 py-4 font-bold text-slate-400">
+                  <td className={cn('px-6 py-4 font-bold', result.isOutOfLimit ? 'text-red-700' : 'text-slate-400')}>
                     {String(result.pointNumber).padStart(2, '0')}
                   </td>
                   <td className="px-6 py-4">
@@ -637,7 +637,8 @@ function ResultsTable({
                         }
                         placeholder={`0.${'0'.repeat(precision)}`}
                         className={cn(
-                          "w-full max-w-[140px] rounded-lg font-semibold",
+                          "w-full max-w-[140px] rounded-lg",
+                          result.isOutOfLimit ? "text-red-700 font-bold" : "font-semibold",
                           !operatingRangeViolation.isValid
                             ? "border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200"
                             : stdViolation.isViolation
@@ -672,7 +673,8 @@ function ResultsTable({
                         }
                         placeholder={`0.${'0'.repeat(precision)}`}
                         className={cn(
-                          "w-full max-w-[140px] rounded-lg font-semibold",
+                          "w-full max-w-[140px] rounded-lg",
+                          result.isOutOfLimit ? "text-red-700 font-bold" : "font-semibold",
                           uucViolation.isViolation
                             ? "border-amber-400 bg-amber-50 focus:border-amber-500 focus:ring-amber-200"
                             : "border-slate-300"
@@ -700,7 +702,8 @@ function ResultsTable({
                           }
                           placeholder={`0.${'0'.repeat(precision)}`}
                           className={cn(
-                            "w-full max-w-[140px] rounded-lg font-semibold",
+                            "w-full max-w-[140px] rounded-lg",
+                            result.isOutOfLimit ? "text-red-700 font-bold" : "font-semibold",
                             afterViolation.isViolation
                               ? "border-amber-400 bg-amber-50 focus:border-amber-500 focus:ring-amber-200"
                               : "border-slate-300"
@@ -730,7 +733,7 @@ function ResultsTable({
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-slate-500 font-medium text-xs">
+                    <span className={cn('text-xs', result.isOutOfLimit ? 'text-red-700 font-bold' : 'text-slate-500 font-medium')}>
                       {limit !== null ? `±${formatWithPrecision(limit, precision).replace('-', '')}` : '—'}
                       {displayBinIndex !== null && (
                         <span className="text-[9px] text-slate-400 ml-1">(Bin {displayBinIndex + 1})</span>
@@ -738,18 +741,16 @@ function ResultsTable({
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    {result.errorObserved !== null ? (
-                      result.isOutOfLimit ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-bold uppercase">
-                          <AlertTriangle className="size-3" />
-                          Fail
-                        </span>
-                      ) : (
+                    {result.isOutOfLimit ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-bold uppercase">
+                        <AlertTriangle className="size-3" />
+                        Fail*
+                      </span>
+                    ) : result.errorObserved !== null ? (
                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-bold uppercase">
                           <CheckCircle className="size-3" />
                           Pass
                         </span>
-                      )
                     ) : (
                       <span className="text-slate-300 text-[10px]">—</span>
                     )}

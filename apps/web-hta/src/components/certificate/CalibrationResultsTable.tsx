@@ -95,22 +95,22 @@ export function CalibrationResultsTable({
                   return (
                   <tr
                     key={result.id}
-                    className={cn(result.isOutOfLimit && 'bg-red-50')}
+                    className={cn(result.isOutOfLimit && 'bg-red-50 text-red-700 font-bold')}
                   >
-                    <td className="px-4 py-2 text-gray-900 text-xs">{result.pointNumber}</td>
-                    <td className="px-4 py-2 text-gray-700 text-xs">{formatToCalibrationPrecision(result.standardReading, precision)}</td>
-                    <td className="px-4 py-2 text-gray-700 text-xs">{formatToCalibrationPrecision(result.beforeAdjustment, precision)}</td>
+                    <td className={cn('px-4 py-2 text-xs', result.isOutOfLimit ? 'text-red-700 font-bold' : 'text-gray-900')}>{result.pointNumber}</td>
+                    <td className={cn('px-4 py-2 text-xs', result.isOutOfLimit ? 'text-red-700 font-bold' : 'text-gray-700')}>{formatToCalibrationPrecision(result.standardReading, precision)}</td>
+                    <td className={cn('px-4 py-2 text-xs', result.isOutOfLimit ? 'text-red-700 font-bold' : 'text-gray-700')}>{formatToCalibrationPrecision(result.beforeAdjustment, precision)}</td>
                     {param.showAfterAdjustment && (
-                      <td className="px-4 py-2 text-gray-700 text-xs">{formatToCalibrationPrecision(result.afterAdjustment, precision)}</td>
+                      <td className={cn('px-4 py-2 text-xs', result.isOutOfLimit ? 'text-red-700 font-bold' : 'text-gray-700')}>{formatToCalibrationPrecision(result.afterAdjustment, precision)}</td>
                     )}
-                    <td className="px-4 py-2 text-gray-700 text-xs">
+                    <td className={cn('px-4 py-2 text-xs', result.isOutOfLimit ? 'text-red-700 font-bold' : 'text-gray-700')}>
                       {formatToCalibrationPrecision(result.errorObserved, precision)}
                     </td>
                     <td className="px-4 py-2 text-center">
                       {result.isOutOfLimit ? (
-                        <span className="inline-flex items-center gap-1 text-red-600">
+                        <span className="inline-flex items-center gap-1 text-red-700 font-bold">
                           <AlertCircle className="h-3 w-3" />
-                          <span className="text-xs">Out of Limit</span>
+                          <span className="text-xs font-bold">Fail*</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-green-600">

@@ -3,7 +3,11 @@ import { prisma, Prisma } from '@hta/database'
 import { requireCustomer, optionalAuth } from '../../middleware/auth.js'
 import { parsePagination, paginationResponse } from '../../lib/pagination.js'
 import bcrypt from 'bcryptjs'
-import { queueCustomerApprovalNotificationEmail, enqueueNotification } from '../../services/queue.js'
+import {
+  buildCertificateUucDetails,
+  queueCustomerApprovalNotificationEmail,
+  enqueueNotification,
+} from '../../services/queue.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
 
 // Helper to safely parse JSON strings
@@ -17,6 +21,26 @@ function safeJsonParse<T>(value: unknown, fallback: T): T {
     }
   }
   return value as T
+}
+
+function parseDateOnly(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return null
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null
+  }
+
+  return date
 }
 
 async function notifyTenantAdminsOfPendingAuthorization(params: {
@@ -715,11 +739,18 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/customer/dashboard/authorized
   fastify.get('/dashboard/authorized', {
     preHandler: [requireCustomer],
-  }, async (request) => {
+  }, async (request, reply) => {
     const ctx = await getCustomerContext(request as Parameters<typeof getCustomerContext>[0])
     if (!ctx) return { error: 'Customer not found' }
     const { customerEmail, tenantId } = ctx
-    const query = request.query as { page?: string; limit?: string; search?: string; sort?: string; year?: string }
+    const query = request.query as {
+      page?: string
+      limit?: string
+      search?: string
+      sort?: string
+      startDate?: string
+      endDate?: string
+    }
     const { page, limit, skip } = parsePagination(query)
 
     const where: Prisma.CertificateWhereInput = {
@@ -728,12 +759,28 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       signatures: { some: { signerEmail: customerEmail, signerType: 'CUSTOMER' } },
     }
 
-    if (query.year) {
-      const year = parseInt(query.year)
-      where.dateOfCalibration = {
-        gte: new Date(`${year}-01-01`),
-        lt: new Date(`${year + 1}-01-01`),
+    const startDate = query.startDate ? parseDateOnly(query.startDate) : null
+    const endDate = query.endDate ? parseDateOnly(query.endDate) : null
+
+    if (query.startDate && !startDate) {
+      return reply.code(400).send({ error: 'Invalid start date' })
+    }
+    if (query.endDate && !endDate) {
+      return reply.code(400).send({ error: 'Invalid end date' })
+    }
+    if (startDate && endDate && startDate > endDate) {
+      return reply.code(400).send({ error: 'Start date must be on or before end date' })
+    }
+
+    if (startDate || endDate) {
+      const dateRange: { gte?: Date; lt?: Date } = {}
+      if (startDate) dateRange.gte = startDate
+      if (endDate) {
+        const endDateExclusive = new Date(endDate)
+        endDateExclusive.setUTCDate(endDateExclusive.getUTCDate() + 1)
+        dateRange.lt = endDateExclusive
       }
+      where.dateOfCalibration = dateRange
     }
 
     if (query.search) {
@@ -1296,6 +1343,9 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       const certNum = certificate.certificateNumber || `CERT-${certificate.id.substring(0, 8)}`
       if (certificate.createdBy) {
         queueCustomerApprovalNotificationEmail({
+          tenantId: certificate.tenantId,
+          certificateId: certificate.id,
+          uucDetails: buildCertificateUucDetails(certificate),
           staffEmail: certificate.createdBy.email,
           staffName: certificate.createdBy.name,
           certificateNumber: certNum,
@@ -1434,6 +1484,9 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     const certNum = tokenRecord.certificate.certificateNumber || `CERT-${tokenRecord.certificateId.substring(0, 8)}`
     if (tokenRecord.certificate.createdBy) {
       queueCustomerApprovalNotificationEmail({
+        tenantId: tokenRecord.certificate.tenantId,
+        certificateId: tokenRecord.certificateId,
+        uucDetails: buildCertificateUucDetails(tokenRecord.certificate),
         staffEmail: tokenRecord.certificate.createdBy.email,
         staffName: tokenRecord.certificate.createdBy.name,
         certificateNumber: certNum,
@@ -1608,6 +1661,9 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       const certNum = certificate.certificateNumber || `CERT-${certificate.id.substring(0, 8)}`
       if (certificate.createdBy) {
         queueCustomerApprovalNotificationEmail({
+          tenantId: certificate.tenantId,
+          certificateId: certificate.id,
+          uucDetails: buildCertificateUucDetails(certificate),
           staffEmail: certificate.createdBy.email,
           staffName: certificate.createdBy.name,
           certificateNumber: certNum,
@@ -1722,6 +1778,9 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     const certNum = tokenRecord.certificate.certificateNumber || `CERT-${tokenRecord.certificateId.substring(0, 8)}`
     if (tokenRecord.certificate.createdBy) {
       queueCustomerApprovalNotificationEmail({
+        tenantId: tokenRecord.certificate.tenantId,
+        certificateId: tokenRecord.certificateId,
+        uucDetails: buildCertificateUucDetails(tokenRecord.certificate),
         staffEmail: tokenRecord.certificate.createdBy.email,
         staffName: tokenRecord.certificate.createdBy.name,
         certificateNumber: certNum,

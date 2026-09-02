@@ -9,7 +9,7 @@ import { CollapsibleSection } from '@/components/certificate/CollapsibleSection'
 import { InfoField } from '@/components/certificate/InfoField'
 import { MasterInstrumentsTable } from '@/components/certificate/MasterInstrumentsTable'
 import { CalibrationResultsTable } from '@/components/certificate/CalibrationResultsTable'
-import { getConclusionText } from '@/components/pdf/pdf-utils'
+import { ConclusionStatementText } from '@/components/certificate/ConclusionStatementText'
 import { CALIBRATION_STATUS_OPTIONS } from '@/components/forms/RemarksSection'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 import {
@@ -550,7 +550,7 @@ export function AdminAuthContent({ formData, certificateId }: AdminAuthContentPr
               <ul className="list-disc list-inside space-y-2 text-gray-700">
                 {formData.selectedConclusionStatements.map((statementKey, i) => (
                   <li key={i} className="text-xs">
-                    {getConclusionText(statementKey)}
+                    <ConclusionStatementText statementKey={statementKey} />
                   </li>
                 ))}
               </ul>

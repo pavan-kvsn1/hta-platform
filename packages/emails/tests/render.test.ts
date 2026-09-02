@@ -116,6 +116,24 @@ describe('getEmailSubject', () => {
     })
   })
 
+  describe('request decision templates', () => {
+    it('returns the internal request decision subject', () => {
+      expect(getEmailSubject('internal-request-decision', {
+        requestType: 'SECTION_UNLOCK',
+        decision: 'APPROVED',
+        certificateNumber: 'CERT-1',
+      })).toBe('Section Unlock Request Approved — CERT-1')
+    })
+
+    it('returns the customer request decision subject', () => {
+      expect(getEmailSubject('customer-request-decision', {
+        requestType: 'POC_CHANGE',
+        decision: 'REJECTED',
+        companyName: 'Acme',
+      })).toBe('POC Change Request Rejected — Acme')
+    })
+  })
+
   describe('unknown template', () => {
     it('returns default subject for unknown template', () => {
       const subject = getEmailSubject('unknown-template' as EmailTemplate, {})
@@ -248,6 +266,35 @@ describe('renderEmail', () => {
     })
 
     expect(result.subject).toBe('Your Offline Access Codes Have Expired')
+    expect(result.html).toContain('Mocked Email')
+  })
+
+  it('renders an internal request decision', async () => {
+    const result = await renderEmail({
+      template: 'internal-request-decision',
+      props: {
+        requestType: 'SECTION_UNLOCK',
+        decision: 'APPROVED',
+        certificateNumber: 'CERT-200',
+      },
+    })
+
+    expect(result.subject).toBe('Section Unlock Request Approved — CERT-200')
+    expect(result.html).toContain('Mocked Email')
+  })
+
+  it('renders a customer request decision', async () => {
+    const result = await renderEmail({
+      template: 'customer-request-decision',
+      props: {
+        requestType: 'POC_CHANGE',
+        decision: 'APPROVED',
+        audience: 'NEW_POC',
+        companyName: 'Acme',
+      },
+    })
+
+    expect(result.subject).toBe('You Are Now the Primary Point of Contact — Acme')
     expect(result.html).toContain('Mocked Email')
   })
 

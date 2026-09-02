@@ -1,6 +1,6 @@
 import { Text, Section } from '@react-email/components'
 import * as React from 'react'
-import { Layout, Button } from '../components/index.js'
+import { Layout, Button, UucDetailsSection, type UucDetails } from '../components/index.js'
 
 interface CustomerApprovalProps {
   recipientName: string
@@ -9,6 +9,7 @@ interface CustomerApprovalProps {
   approverName: string
   status: 'approved' | 'rejected'
   rejectionNote?: string
+  uucDetails?: UucDetails
   dashboardUrl: string
 }
 
@@ -19,6 +20,7 @@ export function CustomerApproval({
   approverName,
   status,
   rejectionNote,
+  uucDetails,
   dashboardUrl,
 }: CustomerApprovalProps) {
   const isApproved = status === 'approved'
@@ -64,6 +66,8 @@ export function CustomerApproval({
           <span style={detailValue}>{approverName}</span>
         </Text>
       </Section>
+
+      <UucDetailsSection details={uucDetails} />
 
       {!isApproved && rejectionNote && (
         <Section style={noteBox}>

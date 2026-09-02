@@ -8,6 +8,20 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+const { mockDeliveryCreate, mockDeliveryUpdate } = vi.hoisted(() => ({
+  mockDeliveryCreate: vi.fn(),
+  mockDeliveryUpdate: vi.fn(),
+}))
+
+vi.mock('@hta/database', () => ({
+  prisma: {
+    emailDelivery: {
+      create: mockDeliveryCreate,
+      update: mockDeliveryUpdate,
+    },
+  },
+}))
+
 // Mock BullMQ Queue
 const mockAdd = vi.fn().mockResolvedValue({ id: 'job-1' })
 const mockClose = vi.fn().mockResolvedValue(undefined)
@@ -34,6 +48,8 @@ describe('Queue Service', () => {
   beforeEach(() => {
     originalRedisUrl = process.env.REDIS_URL
     vi.clearAllMocks()
+    mockDeliveryCreate.mockImplementation(async ({ data }) => data)
+    mockDeliveryUpdate.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -51,13 +67,15 @@ describe('Queue Service', () => {
       process.env.REDIS_URL = 'redis://localhost:6379'
       const { enqueueEmail } = await import('../../src/services/queue.js')
 
-      await enqueueEmail({
+      const jobId = await enqueueEmail({
         type: 'password-reset',
         to: 'user@test.com',
         userName: 'Test User',
         resetUrl: 'https://app.test.com/reset?token=abc',
         expiryMinutes: 60,
       })
+
+      expect(jobId).toBe('job-1')
 
       expect(mockAdd).toHaveBeenCalledWith(
         'password-reset',
@@ -182,6 +200,65 @@ describe('Queue Service', () => {
   })
 
   describe('Convenience helpers', () => {
+    it('queueInternalRequestDecisionEmail queues a required decision job with retries', async () => {
+      process.env.REDIS_URL = 'redis://localhost:6379'
+      process.env.APP_URL = 'https://app.hta.com/'
+      const { queueInternalRequestDecisionEmail } = await import('../../src/services/queue.js')
+
+      await queueInternalRequestDecisionEmail({
+        to: 'engineer@example.com',
+        recipientName: 'Engineer',
+        requestType: 'SECTION_UNLOCK',
+        decision: 'REJECTED',
+        certificateId: 'cert-1',
+        certificateNumber: 'CERT-1',
+        requestedItems: ['Results'],
+        originalReason: 'Correction',
+        adminNote: 'Not justified',
+        requestDate: '31 Aug 2026',
+      })
+
+      expect(mockAdd).toHaveBeenCalledWith(
+        'internal-request-decision',
+        expect.objectContaining({
+          type: 'internal-request-decision',
+          to: 'engineer@example.com',
+          adminNote: 'Not justified',
+          portalUrl: 'https://app.hta.com',
+        }),
+        { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+      )
+    })
+
+    it('queueCustomerRequestDecisionEmail queues the POC audience without adding sensitive fields', async () => {
+      process.env.REDIS_URL = 'redis://localhost:6379'
+      const { queueCustomerRequestDecisionEmail } = await import('../../src/services/queue.js')
+
+      await queueCustomerRequestDecisionEmail({
+        to: 'new.poc@example.com',
+        recipientName: 'New POC',
+        requestType: 'POC_CHANGE',
+        decision: 'APPROVED',
+        audience: 'NEW_POC',
+        companyName: 'Acme',
+        previousPocName: 'Old POC',
+        newPocName: 'New POC',
+        requestDate: '31 Aug 2026',
+      })
+
+      expect(mockAdd).toHaveBeenCalledWith(
+        'customer-request-decision',
+        expect.objectContaining({
+          type: 'customer-request-decision',
+          audience: 'NEW_POC',
+          companyName: 'Acme',
+        }),
+        { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+      )
+      expect(mockAdd.mock.calls.at(-1)?.[1]).not.toHaveProperty('provisioningToken')
+      expect(mockAdd.mock.calls.at(-1)?.[1]).not.toHaveProperty('offlineCodes')
+    })
+
     it('queuePasswordResetEmail builds correct URL for staff', async () => {
       process.env.REDIS_URL = 'redis://localhost:6379'
       process.env.APP_URL = 'https://app.hta.com'
@@ -253,6 +330,8 @@ describe('Queue Service', () => {
       const { queueCertificateSubmittedEmail } = await import('../../src/services/queue.js')
 
       await queueCertificateSubmittedEmail({
+        tenantId: 'tenant-1',
+        certificateId: 'certificate-1',
         reviewerEmail: 'reviewer@test.com',
         reviewerName: 'Reviewer',
         certificateNumber: 'HTA/CAL/001',
@@ -272,12 +351,30 @@ describe('Queue Service', () => {
       )
     })
 
+    it('queueCertificateSubmittedEmail rejects when the email queue is unavailable', async () => {
+      process.env.REDIS_URL = ''
+      const { queueCertificateSubmittedEmail } = await import('../../src/services/queue.js')
+
+      await expect(queueCertificateSubmittedEmail({
+        tenantId: 'tenant-1',
+        certificateId: 'certificate-1',
+        reviewerEmail: 'reviewer@test.com',
+        reviewerName: 'Reviewer',
+        certificateNumber: 'HTA/CAL/001',
+        assigneeName: 'Engineer',
+      })).rejects.toThrow('Email not queued (no REDIS_URL)')
+
+      expect(mockAdd).not.toHaveBeenCalled()
+    })
+
     it('queueCustomerReviewEmail builds review URL with token', async () => {
       process.env.REDIS_URL = 'redis://localhost:6379'
       process.env.APP_URL = 'https://app.hta.com'
       const { queueCustomerReviewEmail } = await import('../../src/services/queue.js')
 
       await queueCustomerReviewEmail({
+        tenantId: 'tenant-1',
+        certificateId: 'certificate-1',
         customerEmail: 'cust@test.com',
         customerName: 'Customer',
         certificateNumber: 'HTA/CAL/002',
@@ -301,6 +398,8 @@ describe('Queue Service', () => {
       const { queueCustomerAuthorizedTokenEmail } = await import('../../src/services/queue.js')
 
       await queueCustomerAuthorizedTokenEmail({
+        tenantId: 'tenant-1',
+        certificateId: 'certificate-1',
         customerEmail: 'cust@test.com',
         customerName: 'Customer',
         certificateNumber: 'HTA/CAL/003',
@@ -324,6 +423,8 @@ describe('Queue Service', () => {
 
       // Approved
       await queueCertificateReviewedEmail({
+        tenantId: 'tenant-1',
+        certificateId: 'certificate-1',
         assigneeEmail: 'eng@test.com',
         assigneeName: 'Engineer',
         certificateNumber: 'C1',
@@ -341,6 +442,8 @@ describe('Queue Service', () => {
 
       // Revision requested
       await queueCertificateReviewedEmail({
+        tenantId: 'tenant-1',
+        certificateId: 'certificate-1',
         assigneeEmail: 'eng@test.com',
         assigneeName: 'Engineer',
         certificateNumber: 'C1',
@@ -359,8 +462,20 @@ describe('Queue Service', () => {
     it('queueCustomerApprovalNotificationEmail handles approved and rejected', async () => {
       process.env.REDIS_URL = 'redis://localhost:6379'
       const { queueCustomerApprovalNotificationEmail } = await import('../../src/services/queue.js')
+      const uucDetails = {
+        description: 'Digital Pressure Gauge',
+        make: 'Wika',
+        model: 'CPG1500',
+        serialNumber: 'SN-90817',
+        instrumentId: 'UUC-204',
+        location: 'Utility Bay 3',
+        machineName: 'Compressor Line A',
+      }
 
       await queueCustomerApprovalNotificationEmail({
+        tenantId: 'tenant-1',
+        certificateId: 'certificate-1',
+        uucDetails,
         staffEmail: 'eng@test.com',
         staffName: 'Engineer',
         certificateNumber: 'C1',
@@ -370,13 +485,16 @@ describe('Queue Service', () => {
 
       expect(mockAdd).toHaveBeenCalledWith(
         'customer-approval',
-        expect.objectContaining({ status: 'approved' }),
+        expect.objectContaining({ status: 'approved', uucDetails }),
         expect.any(Object)
       )
 
       mockAdd.mockClear()
 
       await queueCustomerApprovalNotificationEmail({
+        tenantId: 'tenant-1',
+        certificateId: 'certificate-1',
+        uucDetails,
         staffEmail: 'eng@test.com',
         staffName: 'Engineer',
         certificateNumber: 'C1',

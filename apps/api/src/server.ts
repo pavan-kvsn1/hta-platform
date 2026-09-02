@@ -21,6 +21,7 @@ import securityRoutes from './routes/security/index.js'
 import deviceRoutes from './routes/devices/index.js'
 import offlineCodesRoutes from './routes/devices/codes.js'
 import vpnRoutes from './routes/vpn/index.js'
+import resendWebhookRoutes from './routes/webhooks/resend.js'
 
 // Import middleware
 import { tenantMiddleware } from './middleware/tenant.js'
@@ -100,6 +101,10 @@ server.addHook('preHandler', async (request, reply) => {
   if (request.url.startsWith('/api/security/csp-alert')) {
     return
   }
+  // Resend authenticates this public callback with its Svix signature.
+  if (request.url.startsWith('/api/webhooks/resend')) {
+    return
+  }
   // Skip tenant check for CORS preflight requests (OPTIONS)
   // Preflight requests don't include custom headers like X-Tenant-ID
   if (request.method === 'OPTIONS') {
@@ -117,6 +122,9 @@ server.setErrorHandler(errorHandler)
 
 // Health check (no auth required)
 await server.register(healthRoutes, { prefix: '/health' })
+
+// Resend delivery events (public, signed raw-body callback)
+await server.register(resendWebhookRoutes, { prefix: '/api/webhooks/resend' })
 
 // Auth routes
 await server.register(authRoutes, { prefix: '/api/auth' })

@@ -915,7 +915,7 @@ gcloud sql instances patch production-postgres --authorized-networks=YOUR_PUBLIC
 # Or: gcloud components install cloud-sql-proxy
 
 # Start proxy in a separate terminal
-cloud-sql-proxy hta-platform-prod:asia-south1:production-postgres --port=5432
+cloud-sql-proxy --private-ip --port 5433 hta-platform-prod:asia-south1:production-postgres
 
 # Should show: "Listening on 127.0.0.1:5432"
 ```

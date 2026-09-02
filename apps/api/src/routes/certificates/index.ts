@@ -5,11 +5,19 @@ import { prisma, Prisma } from '@hta/database'
 import { requireStaff, requireAuth, requireAdmin } from '../../middleware/auth.js'
 import { parsePagination, paginationResponse } from '../../lib/pagination.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
-import { queueCertificateSubmittedEmail, queueCertificateReviewedEmail, queueCustomerReviewEmail, queueCustomerReviewRegisteredEmail, enqueueNotification } from '../../services/queue.js'
+import {
+  buildCertificateUucDetails,
+  queueCertificateSubmittedEmail,
+  queueCertificateReviewedEmail,
+  queueCustomerReviewEmail,
+  queueCustomerReviewRegisteredEmail,
+  enqueueNotification,
+} from '../../services/queue.js'
 import certificateImagesRoutes from './images/index.js'
 import { detectCertificateChanges, generateChangeSummary } from '../../lib/change-detection.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
 import { writeCertificateEditSession } from '../../lib/activity-audit.js'
+import type { EmailDeliverySummary } from '@hta/shared'
 
 // Type for Prisma transaction client
 type TransactionClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
@@ -826,6 +834,59 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true }
   })
 
+  // GET /api/certificates/:id/email-deliveries - Staff-only delivery history
+  fastify.get<{ Params: { id: string } }>('/:id/email-deliveries', {
+    preHandler: [requireStaff],
+  }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const user = request.user!
+    const { id } = request.params
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId, id },
+      select: { createdById: true, reviewerId: true },
+    })
+    if (!certificate) {
+      return reply.status(404).send({ error: 'Certificate not found' })
+    }
+
+    const canRead = certificate.createdById === user.sub
+      || certificate.reviewerId === user.sub
+      || user.role === 'ADMIN'
+    if (!canRead) {
+      return reply.status(403).send({ error: 'Forbidden' })
+    }
+
+    const rows = await prisma.emailDelivery.findMany({
+      where: { tenantId, certificateId: id },
+      orderBy: { createdAt: 'desc' },
+      include: { events: { orderBy: { occurredAt: 'asc' } } },
+    })
+
+    const deliveries: EmailDeliverySummary[] = rows.map((delivery) => ({
+      id: delivery.id,
+      emailType: delivery.emailType as EmailDeliverySummary['emailType'],
+      recipientEmail: delivery.recipientEmail,
+      recipientName: delivery.recipientName,
+      status: delivery.status,
+      queuedAt: delivery.queuedAt.toISOString(),
+      sentAt: delivery.sentAt?.toISOString() ?? null,
+      deliveredAt: delivery.deliveredAt?.toISOString() ?? null,
+      lastEventAt: delivery.lastEventAt?.toISOString() ?? null,
+      failureReason: delivery.failureReason,
+      events: delivery.events.map((event) => ({
+        id: event.id,
+        eventType: event.eventType as EmailDeliverySummary['events'][number]['eventType'],
+        occurredAt: event.occurredAt.toISOString(),
+        details: event.details && typeof event.details === 'object' && !Array.isArray(event.details)
+          ? event.details as Record<string, unknown>
+          : null,
+      })),
+    }))
+
+    return { deliveries }
+  })
+
   // GET /api/certificates/:id - Get single certificate
   fastify.get<{ Params: { id: string } }>('/:id', {
     preHandler: [requireAuth],
@@ -1397,19 +1458,42 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Queue email + notification to reviewer
     const certNumber = result.certificateNumber || `CERT-${result.id.substring(0, 8)}`
+    let reviewerEmailQueued = false
+    let reviewerEmailWarning: string | null = null
+
     if (effectiveReviewerId) {
       const reviewer = await prisma.user.findUnique({
         where: { id: effectiveReviewerId },
         select: { email: true, name: true },
       })
       if (reviewer) {
-        queueCertificateSubmittedEmail({
-          reviewerEmail: reviewer.email,
-          reviewerName: reviewer.name,
-          certificateNumber: certNumber,
-          assigneeName: userName,
-          customerName: certificate.customerName || undefined,
-        }).catch(() => {})
+        try {
+          await queueCertificateSubmittedEmail({
+            tenantId,
+            certificateId: id,
+            uucDetails: buildCertificateUucDetails(certificate),
+            reviewerEmail: reviewer.email,
+            reviewerName: reviewer.name,
+            certificateNumber: certNumber,
+            assigneeName: userName,
+            customerName: certificate.customerName || undefined,
+          })
+          reviewerEmailQueued = true
+        } catch (error) {
+          reviewerEmailWarning = 'Certificate was submitted, but the reviewer email could not be queued. Please notify the reviewer directly.'
+          request.log.error({
+            err: error,
+            certificateId: result.id,
+            reviewerId: effectiveReviewerId,
+            reviewerEmail: reviewer.email,
+          }, 'Failed to queue certificate submission email')
+        }
+      } else {
+        reviewerEmailWarning = 'Certificate was submitted, but the assigned reviewer account could not be found. Please notify an administrator.'
+        request.log.error({
+          certificateId: result.id,
+          reviewerId: effectiveReviewerId,
+        }, 'Assigned reviewer not found while queuing certificate submission email')
       }
 
       enqueueNotification({
@@ -1441,6 +1525,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         status: result.status,
         revision: result.currentRevision,
       },
+      emailQueued: reviewerEmailQueued,
+      ...(reviewerEmailWarning && { warning: reviewerEmailWarning }),
     }
   })
 
@@ -1638,6 +1724,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (certificate.createdBy) {
         queueCertificateReviewedEmail({
+          tenantId,
+          certificateId: id,
+          uucDetails: buildCertificateUucDetails(certificate),
           assigneeEmail: certificate.createdBy.email,
           assigneeName: certificate.createdBy.name,
           certificateNumber: certNum,
@@ -1661,6 +1750,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         try {
           if (result.tokenResult.isRegistered) {
             await queueCustomerReviewRegisteredEmail({
+              tenantId,
+              certificateId: id,
+              uucDetails: buildCertificateUucDetails(certificate),
               customerEmail: customerDelivery.email,
               customerName: customerDelivery.name,
               certificateNumber: certNum,
@@ -1668,6 +1760,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             })
           } else {
             await queueCustomerReviewEmail({
+              tenantId,
+              certificateId: id,
+              uucDetails: buildCertificateUucDetails(certificate),
               customerEmail: customerDelivery.email,
               customerName: customerDelivery.name,
               certificateNumber: certNum,
@@ -1788,6 +1883,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       if (certificate.createdBy) {
         const certNum = certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
         queueCertificateReviewedEmail({
+          tenantId,
+          certificateId: id,
+          uucDetails: buildCertificateUucDetails(certificate),
           assigneeEmail: certificate.createdBy.email,
           assigneeName: certificate.createdBy.name,
           certificateNumber: certNum,
@@ -1848,6 +1946,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       if (certificate.createdBy) {
         const certNum = certificate.certificateNumber || `CERT-${id.substring(0, 8)}`
         queueCertificateReviewedEmail({
+          tenantId,
+          certificateId: id,
+          uucDetails: buildCertificateUucDetails(certificate),
           assigneeEmail: certificate.createdBy.email,
           assigneeName: certificate.createdBy.name,
           certificateNumber: certNum,
@@ -1977,6 +2078,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       // Also email the engineer
       if (certificate.createdBy) {
         queueCertificateReviewedEmail({
+          tenantId,
+          certificateId: id,
+          uucDetails: buildCertificateUucDetails(certificate),
           assigneeEmail: certificate.createdBy.email,
           assigneeName: certificate.createdBy.name,
           certificateNumber: certNum,
@@ -2132,6 +2236,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       if (result.isRegistered) {
         await queueCustomerReviewRegisteredEmail({
+          tenantId,
+          certificateId: id,
+          uucDetails: buildCertificateUucDetails(certificate),
           customerEmail: body.customerEmail.toLowerCase(),
           customerName: body.customerName,
           certificateNumber: certNum,
@@ -2139,6 +2246,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         })
       } else {
         await queueCustomerReviewEmail({
+          tenantId,
+          certificateId: id,
+          uucDetails: buildCertificateUucDetails(certificate),
           customerEmail: body.customerEmail.toLowerCase(),
           customerName: body.customerName,
           certificateNumber: certNum,

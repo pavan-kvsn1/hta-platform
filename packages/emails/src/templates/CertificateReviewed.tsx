@@ -1,6 +1,6 @@
 import { Text, Section } from '@react-email/components'
 import * as React from 'react'
-import { Layout, Button } from '../components/index.js'
+import { Layout, Button, UucDetailsSection, type UucDetails } from '../components/index.js'
 
 interface CertificateReviewedProps {
   assigneeName: string
@@ -8,6 +8,7 @@ interface CertificateReviewedProps {
   reviewerName: string
   status: 'approved' | 'revision'
   revisionNote?: string
+  uucDetails?: UucDetails
   dashboardUrl: string
 }
 
@@ -17,6 +18,7 @@ export function CertificateReviewed({
   reviewerName,
   status,
   revisionNote,
+  uucDetails,
   dashboardUrl,
 }: CertificateReviewedProps) {
   const isApproved = status === 'approved'
@@ -55,6 +57,8 @@ export function CertificateReviewed({
           </span>
         </Text>
       </Section>
+
+      <UucDetailsSection details={uucDetails} />
 
       {!isApproved && revisionNote && (
         <Section style={revisionBox}>

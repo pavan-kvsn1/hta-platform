@@ -38,10 +38,14 @@ vi.mock('../../src/middleware/auth.js', () => ({
   optionalAuth: vi.fn((_req: any, _reply: any, done: any) => done?.()),
 }))
 
-vi.mock('../../src/services/queue.js', () => ({
-  queueCustomerApprovalNotificationEmail: vi.fn().mockResolvedValue(undefined),
-  enqueueNotification: vi.fn().mockResolvedValue(undefined),
-}))
+vi.mock('../../src/services/queue.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/queue.js')>()
+  return {
+    ...actual,
+    queueCustomerApprovalNotificationEmail: vi.fn().mockResolvedValue(undefined),
+    enqueueNotification: vi.fn().mockResolvedValue(undefined),
+  }
+})
 
 vi.mock('../../src/lib/signing-evidence.js', () => ({
   appendSigningEvidence: vi.fn().mockResolvedValue(undefined),
@@ -118,6 +122,13 @@ const certificate = {
   tenantId: TENANT_ID,
   certificateNumber: 'HTA-2026-001',
   customerName: 'Acme Corp',
+  uucDescription: 'Digital Pressure Gauge',
+  uucMake: 'Wika',
+  uucModel: 'CPG1500',
+  uucSerialNumber: 'SN-90817',
+  uucInstrumentId: 'UUC-204',
+  uucLocationName: 'Utility Bay 3',
+  uucMachineName: 'Compressor Line A',
   status: 'PENDING_CUSTOMER_APPROVAL',
   currentRevision: 1,
   reviewerId: 'reviewer-1',
@@ -248,6 +259,15 @@ describe('customer approval routes', () => {
         expect.objectContaining({
           staffEmail: 'bob@hta.com',
           approved: true,
+          uucDetails: {
+            description: 'Digital Pressure Gauge',
+            make: 'Wika',
+            model: 'CPG1500',
+            serialNumber: 'SN-90817',
+            instrumentId: 'UUC-204',
+            location: 'Utility Bay 3',
+            machineName: 'Compressor Line A',
+          },
         }),
       )
 

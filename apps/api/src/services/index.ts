@@ -24,3 +24,14 @@ export {
   sendSecurityAlertEmail,
   isEmailConfigured,
 } from './email.js'
+
+export {
+  dedupeDecisionRecipients,
+  sendCustomerDecisionEmails,
+  sendInternalDecisionEmail,
+  type DecisionEmailLogger,
+  type DecisionEmailResult,
+  type DecisionRecipient,
+  type SendCustomerDecisionEmailsOptions,
+  type SendInternalDecisionEmailOptions,
+} from './request-decision-emails.js'

@@ -41,8 +41,10 @@ vi.mock('@hta/database', () => ({
     },
     customerUser: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
     customerRequest: {
       findMany: vi.fn(),
@@ -50,6 +52,7 @@ vi.mock('@hta/database', () => ({
       count: vi.fn(),
       groupBy: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
     masterInstrument: {
       findMany: vi.fn(),
@@ -130,6 +133,16 @@ vi.mock('../../src/services/queue.js', () => ({
   queueCustomerAuthorizedTokenEmail: vi.fn().mockResolvedValue(undefined),
 }))
 
+const { mockSendInternalDecisionEmail, mockSendCustomerDecisionEmails } = vi.hoisted(() => ({
+  mockSendInternalDecisionEmail: vi.fn().mockResolvedValue({}),
+  mockSendCustomerDecisionEmails: vi.fn().mockResolvedValue({}),
+}))
+
+vi.mock('../../src/services/request-decision-emails.js', () => ({
+  sendInternalDecisionEmail: mockSendInternalDecisionEmail,
+  sendCustomerDecisionEmails: mockSendCustomerDecisionEmails,
+}))
+
 vi.mock('../../src/services/offline-codes.js', () => ({
   generateCodeBatch: vi.fn().mockResolvedValue({ batchId: 'batch-1', pairs: [] }),
 }))
@@ -178,6 +191,7 @@ import Fastify from 'fastify'
 import { prisma } from '@hta/database'
 import adminRoutes from '../../src/routes/admin/index.js'
 import { getSubscriptionStatus, getCurrentUsage } from '../../src/services/subscription.js'
+import { sendEmail } from '../../src/services/email.js'
 
 const mockedPrisma = vi.mocked(prisma)
 const mockedGetSubscriptionStatus = vi.mocked(getSubscriptionStatus)
@@ -1200,6 +1214,223 @@ describe('Admin Routes', () => {
           where: expect.objectContaining({ status: 'APPROVED' }),
         }),
       )
+    })
+  })
+
+  describe('POST /api/admin/internal-requests/:id/review', () => {
+    const cases = [
+      ['SECTION_UNLOCK', 'approve', { sections: ['Results'], reason: 'Correction required' }],
+      ['SECTION_UNLOCK', 'reject', { sections: ['Results'], reason: 'Correction required' }],
+      ['FIELD_CHANGE', 'approve', { fields: ['uucMake'], description: 'Correct manufacturer' }],
+      ['FIELD_CHANGE', 'reject', { fields: ['uucMake'], description: 'Correct manufacturer' }],
+      ['OFFLINE_CODE_REQUEST', 'approve', { reason: 'Need field access' }],
+      ['OFFLINE_CODE_REQUEST', 'reject', { reason: 'Need field access' }],
+      ['DESKTOP_VPN_REQUEST', 'approve', { reason: 'Need desktop access' }],
+      ['DESKTOP_VPN_REQUEST', 'reject', { reason: 'Need desktop access' }],
+    ] as const
+
+    it.each(cases)('dispatches the %s %s result after its action completes', async (type, action, data) => {
+      const hasCertificate = type === 'SECTION_UNLOCK' || type === 'FIELD_CHANGE'
+      const internalRequest = {
+        id: 'request-1',
+        type,
+        status: 'PENDING',
+        data: JSON.stringify(data),
+        certificateId: hasCertificate ? 'cert-1' : null,
+        requestedById: 'user-1',
+        requestedBy: { id: 'user-1', name: 'Engineer One', email: 'eng@test.com', tenantId: 'tenant-1' },
+        certificate: hasCertificate
+          ? { id: 'cert-1', certificateNumber: 'CERT-001', status: 'DRAFT', currentRevision: 1, tenantId: 'tenant-1' }
+          : null,
+        createdAt: new Date('2026-08-31T00:00:00.000Z'),
+      }
+      mockedPrisma.internalRequest.findUnique.mockResolvedValue(internalRequest as any)
+      mockedPrisma.internalRequest.update.mockResolvedValue({
+        ...internalRequest,
+        status: action === 'approve' ? 'APPROVED' : 'REJECTED',
+        reviewedAt: new Date('2026-08-31T01:00:00.000Z'),
+        adminNote: action === 'reject' ? 'Insufficient evidence' : 'Reviewed',
+        reviewedBy: { id: 'admin-1', name: 'Admin' },
+      } as any)
+      mockedPrisma.certificateEvent.findFirst.mockResolvedValue(null)
+      mockedPrisma.certificateEvent.create.mockResolvedValue({} as any)
+      mockedPrisma.notification.create.mockResolvedValue({} as any)
+      mockedPrisma.user.update.mockResolvedValue({} as any)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/admin/internal-requests/request-1/review',
+        headers: { 'x-tenant-id': 'tenant-1' },
+        payload: {
+          action,
+          adminNote: action === 'reject' ? 'Insufficient evidence' : 'Reviewed',
+        },
+      })
+
+      expect(res.statusCode).toBe(200)
+      expect(mockSendInternalDecisionEmail).toHaveBeenCalledWith(expect.objectContaining({
+        requestId: 'request-1',
+        to: 'eng@test.com',
+        recipientName: 'Engineer One',
+        requestType: type,
+        decision: action === 'approve' ? 'APPROVED' : 'REJECTED',
+        certificateId: hasCertificate ? 'cert-1' : undefined,
+        certificateNumber: hasCertificate ? 'CERT-001' : undefined,
+        originalReason: 'reason' in data ? data.reason : data.description,
+      }))
+      const dispatchPayload = mockSendInternalDecisionEmail.mock.calls.at(-1)?.[0]
+      expect(dispatchPayload).not.toHaveProperty('vpnProvisioningToken')
+      expect(dispatchPayload).not.toHaveProperty('offlineCodes')
+    })
+
+    it('rejects an internal rejection without a meaningful reason before mutation', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/admin/internal-requests/request-1/review',
+        payload: { action: 'reject', adminNote: '   ' },
+      })
+
+      expect(res.statusCode).toBe(400)
+      expect(res.json()).toEqual({ error: 'Rejection reason is required' })
+      expect(mockedPrisma.internalRequest.update).not.toHaveBeenCalled()
+      expect(mockSendInternalDecisionEmail).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('customer request decisions', () => {
+    const requestedBy = { id: 'customer-user-1', name: 'Requester One', email: 'requester@acme.com' }
+    const previousPoc = { id: 'old-poc', name: 'Previous POC', email: 'old.poc@acme.com' }
+    const customerAccount = {
+      id: 'account-1', companyName: 'Acme Calibration', primaryPocId: 'old-poc',
+      tenantId: 'tenant-1', primaryPoc: previousPoc,
+    }
+
+    function requestFixture(type: string, data: Record<string, string>) {
+      return {
+        id: 'customer-request-1', type, status: 'PENDING', data: JSON.stringify(data),
+        customerAccountId: 'account-1', requestedById: requestedBy.id,
+        customerAccount, requestedBy, createdAt: new Date('2026-08-31T00:00:00.000Z'),
+      }
+    }
+
+    function enableTransactions() {
+      mockedPrisma.$transaction.mockImplementation(async (callback: any) => callback(mockedPrisma))
+      mockedPrisma.customerRequest.update.mockResolvedValue({} as any)
+      mockedPrisma.customerUser.update.mockResolvedValue({} as any)
+      mockedPrisma.customerAccount.update.mockResolvedValue({} as any)
+    }
+
+    it('approves user addition and sends requester decision plus invited-user activation', async () => {
+      const requestRecord = requestFixture('USER_ADDITION', { name: 'New User', email: 'new.user@acme.com' })
+      mockedPrisma.customerRequest.findUnique.mockResolvedValue(requestRecord as any)
+      mockedPrisma.customerUser.findFirst.mockResolvedValue(null)
+      mockedPrisma.customerUser.create.mockResolvedValue({ id: 'new-user', name: 'New User', email: 'new.user@acme.com' } as any)
+      enableTransactions()
+
+      const res = await app.inject({ method: 'POST', url: '/api/admin/customers/requests/customer-request-1/approve' })
+
+      expect(res.statusCode).toBe(200)
+      expect(vi.mocked(sendEmail)).toHaveBeenCalledWith(expect.objectContaining({
+        to: 'new.user@acme.com', template: 'customer-activation',
+      }))
+      expect(mockSendCustomerDecisionEmails).toHaveBeenCalledWith(expect.objectContaining({
+        requestId: 'customer-request-1',
+        jobs: [expect.objectContaining({
+          to: 'requester@acme.com', requestType: 'USER_ADDITION', decision: 'APPROVED',
+          newUserName: 'New User', newUserEmail: 'new.user@acme.com',
+        })],
+      }))
+    })
+
+    it('approves a POC change and dispatches requester, previous-POC, and new-POC jobs', async () => {
+      const requestRecord = requestFixture('POC_CHANGE', { newPocUserId: 'new-poc' })
+      mockedPrisma.customerRequest.findUnique.mockResolvedValue(requestRecord as any)
+      mockedPrisma.customerUser.findFirst.mockResolvedValue({ id: 'new-poc', name: 'New POC', email: 'new.poc@acme.com' } as any)
+      enableTransactions()
+
+      const res = await app.inject({ method: 'POST', url: '/api/admin/customers/requests/customer-request-1/approve' })
+
+      expect(res.statusCode).toBe(200)
+      const jobs = mockSendCustomerDecisionEmails.mock.calls.at(-1)?.[0].jobs
+      expect(jobs).toHaveLength(3)
+      expect(jobs).toEqual(expect.arrayContaining([
+        expect.objectContaining({ to: 'requester@acme.com', audience: 'REQUESTER' }),
+        expect.objectContaining({ to: 'old.poc@acme.com', audience: 'PREVIOUS_POC' }),
+        expect.objectContaining({ to: 'new.poc@acme.com', audience: 'NEW_POC' }),
+      ]))
+    })
+
+    it('approves account deletion using the original address captured before anonymization', async () => {
+      const requestRecord = requestFixture('ACCOUNT_DELETION', {})
+      requestRecord.customerAccount = {
+        ...customerAccount,
+        primaryPocId: requestedBy.id,
+        primaryPoc: requestedBy,
+      }
+      mockedPrisma.customerRequest.findUnique.mockResolvedValue(requestRecord as any)
+      mockedPrisma.customerUser.findUnique.mockResolvedValue({ ...requestedBy, isPoc: true } as any)
+      enableTransactions()
+
+      const res = await app.inject({ method: 'POST', url: '/api/admin/customers/requests/customer-request-1/approve' })
+
+      expect(res.statusCode).toBe(200)
+      expect(mockSendCustomerDecisionEmails).toHaveBeenCalledWith(expect.objectContaining({
+        jobs: [expect.objectContaining({
+          to: 'requester@acme.com', recipientName: 'Requester One',
+          requestType: 'ACCOUNT_DELETION', decision: 'APPROVED', wasPoc: true,
+        })],
+      }))
+    })
+
+    it('approves data export for preparation without claiming delivery', async () => {
+      mockedPrisma.customerRequest.findUnique.mockResolvedValue(requestFixture('DATA_EXPORT', {}) as any)
+      mockedPrisma.customerRequest.update.mockResolvedValue({} as any)
+
+      const res = await app.inject({ method: 'POST', url: '/api/admin/customers/requests/customer-request-1/approve' })
+
+      expect(res.statusCode).toBe(200)
+      expect(res.json().message).toContain('approved for preparation')
+      expect(res.json().message).not.toContain('will be sent')
+      expect(mockSendCustomerDecisionEmails).toHaveBeenCalledWith(expect.objectContaining({
+        jobs: [expect.objectContaining({ requestType: 'DATA_EXPORT', decision: 'APPROVED' })],
+      }))
+    })
+
+    it.each(['USER_ADDITION', 'POC_CHANGE', 'ACCOUNT_DELETION', 'DATA_EXPORT'] as const)(
+      'rejects %s and notifies only the requester',
+      async (type) => {
+        const data = type === 'USER_ADDITION'
+          ? { name: 'New User', email: 'new.user@acme.com' }
+          : type === 'POC_CHANGE'
+            ? { newPocUserId: 'new-poc', newPocName: 'New POC' }
+            : {}
+        mockedPrisma.customerRequest.findUnique.mockResolvedValue(requestFixture(type, data) as any)
+        mockedPrisma.customerRequest.update.mockResolvedValue({} as any)
+
+        const res = await app.inject({
+          method: 'POST', url: '/api/admin/customers/requests/customer-request-1/reject',
+          payload: { reason: 'Not authorized' },
+        })
+
+        expect(res.statusCode).toBe(200)
+        const jobs = mockSendCustomerDecisionEmails.mock.calls.at(-1)?.[0].jobs
+        expect(jobs).toHaveLength(1)
+        expect(jobs[0]).toEqual(expect.objectContaining({
+          to: 'requester@acme.com', requestType: type, decision: 'REJECTED',
+          rejectionReason: 'Not authorized',
+        }))
+      },
+    )
+
+    it('does not dispatch when a customer request was already decided', async () => {
+      mockedPrisma.customerRequest.findUnique.mockResolvedValue({
+        ...requestFixture('DATA_EXPORT', {}), status: 'APPROVED',
+      } as any)
+
+      const res = await app.inject({ method: 'POST', url: '/api/admin/customers/requests/customer-request-1/approve' })
+
+      expect(res.statusCode).toBe(400)
+      expect(mockSendCustomerDecisionEmails).not.toHaveBeenCalled()
     })
   })
 

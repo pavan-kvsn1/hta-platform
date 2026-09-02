@@ -27,6 +27,7 @@ import { ConflictResolutionDialog } from '@/components/certificates'
 import { apiFetch } from '@/lib/api-client'
 import { useCertificateImages, type CertificateImage } from '@/lib/hooks/useCertificateImages'
 import { resolveCertificateTat } from '@/lib/utils/certificate-tat'
+import { EmailDeliveryPanel } from '@/components/email-delivery/EmailDeliveryPanel'
 
 const SECTIONS: { id: string; label: string; showWhenNotDraft?: boolean }[] = [
   { id: 'summary', label: 'Summary' },
@@ -1850,6 +1851,11 @@ export default function EditCertificatePage() {
                     ]}
                   />
                 )}
+                <EmailDeliveryPanel
+                  certificateId={certificateId}
+                  purpose={['CERTIFICATE_SUBMITTED', 'CERTIFICATE_REVIEWED', 'CUSTOMER_REVIEW', 'CUSTOMER_REVIEW_REGISTERED']}
+                  title="Workflow email delivery"
+                />
                 <FinalizeSection feedbacks={feedbacks} reviewerName={reviewerName} />
               </div>
             </div>

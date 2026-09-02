@@ -11,6 +11,17 @@ import type { EmailJobData } from '../../src/types.js'
 
 // Create mock send function that we can control
 const mockSend = vi.fn()
+const mockDeliveryFindUnique = vi.fn()
+const mockDeliveryUpdate = vi.fn()
+
+vi.mock('@hta/database', () => ({
+  prisma: {
+    emailDelivery: {
+      findUnique: mockDeliveryFindUnique,
+      update: mockDeliveryUpdate,
+    },
+  },
+}))
 
 // Mock @hta/emails
 vi.mock('@hta/emails', () => ({
@@ -32,7 +43,7 @@ import { renderEmail } from '@hta/emails'
 // Helper to create mock job
 function createMockEmailJob<T extends EmailJobData>(
   data: T,
-  opts?: { id?: string }
+  opts?: { id?: string; attempts?: number; attemptsMade?: number }
 ): Job<T> {
   return {
     id: opts?.id || 'test-email-job-id',
@@ -41,6 +52,8 @@ function createMockEmailJob<T extends EmailJobData>(
     progress: vi.fn(),
     log: vi.fn(),
     updateProgress: vi.fn(),
+    opts: { attempts: opts?.attempts },
+    attemptsMade: opts?.attemptsMade ?? 0,
   } as unknown as Job<T>
 }
 
@@ -59,6 +72,11 @@ describe('Email Job Processor', () => {
       data: { id: 'email-123' },
       error: null,
     })
+    mockDeliveryFindUnique.mockResolvedValue({
+      certificateId: 'certificate-1',
+      idempotencyKey: 'email-delivery/delivery-1',
+    })
+    mockDeliveryUpdate.mockResolvedValue({})
   })
 
   describe('password-reset email', () => {
@@ -310,6 +328,119 @@ describe('Email Job Processor', () => {
     })
   })
 
+  it('forwards UUC details for every certificate lifecycle email', async () => {
+    const { processEmailJob } = await import('../../src/jobs/email.js')
+    const uucDetails = {
+      description: 'Digital Pressure Gauge',
+      make: 'Wika',
+      model: 'CPG1500',
+      serialNumber: 'SN-90817',
+      instrumentId: 'UUC-204',
+      location: 'Utility Bay 3',
+      machineName: 'Compressor Line A',
+    }
+    const common = {
+      to: 'recipient@example.com',
+      certificateNumber: 'HTA-2026-0042',
+      uucDetails,
+    }
+    const jobs: EmailJobData[] = [
+      { ...common, type: 'certificate-submitted', reviewerName: 'Reviewer', assigneeName: 'Engineer', dashboardUrl: 'https://example.com/dashboard' },
+      { ...common, type: 'certificate-reviewed', assigneeName: 'Engineer', reviewerName: 'Reviewer', approved: true, dashboardUrl: 'https://example.com/dashboard' },
+      { ...common, type: 'customer-approval', recipientName: 'Engineer', customerName: 'Acme', approverName: 'Approver', status: 'approved', dashboardUrl: 'https://example.com/dashboard' },
+      { ...common, type: 'customer-review', customerName: 'Acme', instrumentDescription: 'Digital Pressure Gauge', reviewUrl: 'https://example.com/review' },
+      { ...common, type: 'customer-review-registered', customerName: 'Acme', instrumentDescription: 'Digital Pressure Gauge', loginUrl: 'https://example.com/login' },
+      { ...common, type: 'customer-authorized-registered', customerName: 'Acme', instrumentDescription: 'Digital Pressure Gauge', loginUrl: 'https://example.com/login' },
+      { ...common, type: 'customer-authorized-token', customerName: 'Acme', instrumentDescription: 'Digital Pressure Gauge', downloadUrl: 'https://example.com/download' },
+      { ...common, type: 'reviewer-customer-expired', reviewerName: 'Reviewer', customerName: 'Acme', instrumentDescription: 'Digital Pressure Gauge', dashboardUrl: 'https://example.com/dashboard' },
+    ]
+
+    for (const data of jobs) {
+      await processEmailJob(createMockEmailJob(data))
+      expect(renderEmail).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          props: expect.objectContaining({ uucDetails }),
+        }),
+      )
+    }
+  })
+
+  describe('request decision emails', () => {
+    it('maps an internal request decision job to the shared renderer', async () => {
+      const { processEmailJob } = await import('../../src/jobs/email.js')
+      const job = createMockEmailJob({
+        type: 'internal-request-decision',
+        to: 'engineer@example.com',
+        recipientName: 'Engineer',
+        requestType: 'SECTION_UNLOCK',
+        decision: 'REJECTED',
+        requestDate: '31 Aug 2026',
+        certificateId: 'cert-1',
+        certificateNumber: 'CERT-1',
+        requestedItems: ['Results'],
+        originalReason: 'Correction',
+        adminNote: 'Not justified',
+        portalUrl: 'https://hta-calibration.com',
+      })
+
+      await processEmailJob(job)
+
+      expect(renderEmail).toHaveBeenCalledWith({
+        template: 'internal-request-decision',
+        props: {
+          recipientName: 'Engineer',
+          requestType: 'SECTION_UNLOCK',
+          decision: 'REJECTED',
+          requestDate: '31 Aug 2026',
+          certificateId: 'cert-1',
+          certificateNumber: 'CERT-1',
+          requestedItems: ['Results'],
+          originalReason: 'Correction',
+          adminNote: 'Not justified',
+          portalUrl: 'https://hta-calibration.com',
+        },
+      })
+    })
+
+    it('maps a customer request decision job to the shared renderer', async () => {
+      const { processEmailJob } = await import('../../src/jobs/email.js')
+      const job = createMockEmailJob({
+        type: 'customer-request-decision',
+        to: 'new.poc@example.com',
+        recipientName: 'New POC',
+        requestType: 'POC_CHANGE',
+        decision: 'APPROVED',
+        audience: 'NEW_POC',
+        companyName: 'Acme',
+        requestDate: '31 Aug 2026',
+        previousPocName: 'Old POC',
+        newPocName: 'New POC',
+        portalUrl: 'https://hta-calibration.com',
+      })
+
+      await processEmailJob(job)
+
+      expect(renderEmail).toHaveBeenCalledWith({
+        template: 'customer-request-decision',
+        props: {
+          recipientName: 'New POC',
+          requestType: 'POC_CHANGE',
+          decision: 'APPROVED',
+          audience: 'NEW_POC',
+          companyName: 'Acme',
+          requestDate: '31 Aug 2026',
+          newUserName: undefined,
+          newUserEmail: undefined,
+          previousPocName: 'Old POC',
+          newPocName: 'New POC',
+          wasPoc: undefined,
+          adminNote: undefined,
+          portalUrl: 'https://hta-calibration.com',
+        },
+      })
+    })
+  })
+
   describe('error handling', () => {
     it('should throw error for unknown email type', async () => {
       const { processEmailJob } = await import('../../src/jobs/email.js')
@@ -368,6 +499,88 @@ describe('Email Job Processor', () => {
       })
 
       await expect(processEmailJob(job)).rejects.toThrow('Network error')
+    })
+  })
+
+  describe('tracked certificate delivery', () => {
+    const trackedData = {
+      type: 'certificate-submitted' as const,
+      to: 'reviewer@example.com',
+      reviewerName: 'Reviewer',
+      certificateNumber: 'CERT-001',
+      assigneeName: 'Engineer',
+      dashboardUrl: 'https://hta-calibration.com/dashboard',
+      deliveryId: 'delivery-1',
+      certificateId: 'certificate-1',
+      idempotencyKey: 'email-delivery/delivery-1',
+    }
+
+    it('uses provider idempotency and records provider acceptance', async () => {
+      const { processEmailJob } = await import('../../src/jobs/email.js')
+
+      await processEmailJob(createMockEmailJob(trackedData))
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({ to: 'reviewer@example.com' }),
+        { idempotencyKey: 'email-delivery/delivery-1' },
+      )
+      expect(mockDeliveryUpdate).toHaveBeenCalledWith({
+        where: { id: 'delivery-1' },
+        data: expect.objectContaining({
+          providerEmailId: 'email-123',
+          status: 'SENT',
+          sentAt: expect.any(Date),
+          failureReason: null,
+        }),
+      })
+    })
+
+    it('stores a safe reason without final status while retries remain', async () => {
+      mockSend.mockRejectedValueOnce(new Error('temporary provider outage'))
+      const { processEmailJob } = await import('../../src/jobs/email.js')
+
+      await expect(processEmailJob(createMockEmailJob(trackedData, {
+        attempts: 3,
+        attemptsMade: 0,
+      }))).rejects.toThrow('temporary provider outage')
+
+      expect(mockDeliveryUpdate).toHaveBeenLastCalledWith({
+        where: { id: 'delivery-1' },
+        data: { failureReason: 'temporary provider outage' },
+      })
+    })
+
+    it('marks the final exhausted attempt failed', async () => {
+      mockSend.mockRejectedValueOnce(new Error('permanent provider outage'))
+      const { processEmailJob } = await import('../../src/jobs/email.js')
+
+      await expect(processEmailJob(createMockEmailJob(trackedData, {
+        attempts: 3,
+        attemptsMade: 2,
+      }))).rejects.toThrow('permanent provider outage')
+
+      expect(mockDeliveryUpdate).toHaveBeenLastCalledWith({
+        where: { id: 'delivery-1' },
+        data: {
+          failureReason: 'permanent provider outage',
+          status: 'FAILED',
+        },
+      })
+    })
+
+    it('keeps untracked email sends free of delivery database writes', async () => {
+      const { processEmailJob } = await import('../../src/jobs/email.js')
+
+      await processEmailJob(createMockEmailJob({
+        type: 'password-reset',
+        to: 'user@example.com',
+        userName: 'User',
+        resetUrl: 'https://example.com/reset',
+      }))
+
+      expect(mockSend).toHaveBeenCalledWith(expect.any(Object))
+      expect(mockDeliveryFindUnique).not.toHaveBeenCalled()
+      expect(mockDeliveryUpdate).not.toHaveBeenCalled()
     })
   })
 })

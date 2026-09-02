@@ -231,6 +231,7 @@ export function AdminCertificateClient({
               feedbacks={feedbacks}
               events={events}
               currentRevision={certificate.currentRevision}
+              certificateId={certificate.id}
             />
           </div>
         ) : (

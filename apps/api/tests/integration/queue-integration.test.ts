@@ -46,10 +46,7 @@ import {
   createEngineerWithAdmin,
   createTestCertificate,
   createMasterInstrument,
-  createCustomerAccount,
-  createCustomerUser,
   createTestSubscription,
-  TEST_PASSWORD,
 } from './setup/fixtures'
 import { hashPassword } from '@hta/shared/auth'
 
@@ -443,6 +440,7 @@ describe('Queue Integration Tests', () => {
       expect(res.statusCode).toBe(200)
       const body = JSON.parse(res.body)
       expect(body.success).toBe(true)
+      expect(body.emailQueued).toBe(true)
 
       // Wait for async non-blocking queue calls to settle
       await new Promise((r) => setTimeout(r, 200))
@@ -464,6 +462,67 @@ describe('Queue Integration Tests', () => {
           notificationType: 'SUBMITTED_FOR_REVIEW',
         })
       )
+    })
+
+    it('POST /:id/submit preserves submission and warns when reviewer email cannot be queued', async () => {
+      const { engineer, admin } = await createEngineerWithAdmin(prisma, tenantId)
+      const instrument = await createMasterInstrument(prisma, tenantId, admin.id)
+      const certificate = await createTestCertificate(prisma, tenantId, engineer.id, {
+        status: 'DRAFT',
+        customerName: 'Test Customer Ltd',
+      })
+
+      await prisma.certificate.update({
+        where: { id: certificate.id },
+        data: {
+          dateOfCalibration: new Date(),
+          ambientTemperature: '25°C',
+          reviewerId: admin.id,
+        },
+      })
+      await prisma.certificateMasterInstrument.create({
+        data: {
+          certificateId: certificate.id,
+          masterInstrumentId: instrument.id,
+          sopReference: 'SOP-001',
+        },
+      })
+
+      mockQueueCertificateSubmittedEmail.mockRejectedValueOnce(new Error('Redis unavailable'))
+
+      const token = signToken(app, {
+        id: engineer.id,
+        email: engineer.email,
+        name: engineer.name,
+        role: 'ENGINEER',
+        userType: 'STAFF',
+        tenantId,
+      })
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/certificates/${certificate.id}/submit`,
+        headers: {
+          authorization: `Bearer ${token}`,
+          'x-tenant-id': tenantSlug,
+        },
+        payload: {
+          signatureData: 'data:image/png;base64,abc123',
+          signerName: engineer.name,
+        },
+      })
+
+      expect(res.statusCode).toBe(200)
+      expect(JSON.parse(res.body)).toEqual(expect.objectContaining({
+        success: true,
+        emailQueued: false,
+        warning: expect.stringContaining('reviewer email could not be queued'),
+      }))
+
+      const submittedCertificate = await prisma.certificate.findUnique({
+        where: { id: certificate.id },
+      })
+      expect(submittedCertificate?.status).toBe('PENDING_REVIEW')
     })
 
     it('POST /:id/review (approve) → queueCertificateReviewedEmail + enqueueNotification(CERTIFICATE_APPROVED)', async () => {
@@ -498,6 +557,10 @@ describe('Queue Integration Tests', () => {
           action: 'approve',
           signatureData: 'data:image/png;base64,xyz789',
           signerName: admin.name,
+          sendToCustomer: {
+            email: 'approval-contact@example.com',
+            name: 'Approval Contact',
+          },
         },
       })
 
@@ -778,6 +841,10 @@ describe('Queue Integration Tests', () => {
           action: 'approve',
           signatureData: 'data:image/png;base64,sig',
           signerName: admin.name,
+          sendToCustomer: {
+            email: 'critical-action-contact@example.com',
+            name: 'Critical Action Contact',
+          },
         },
       })
 

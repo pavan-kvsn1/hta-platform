@@ -13,4 +13,5 @@ export { renderEmail, getEmailSubject } from './render.js'
 export type { EmailTemplate, RenderEmailOptions } from './render.js'
 
 // Components (for custom templates)
-export { Layout, Button } from './components/index.js'
+export { Layout, Button, UucDetailsSection } from './components/index.js'
+export type { UucDetails } from './components/index.js'

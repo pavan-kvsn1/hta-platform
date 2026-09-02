@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { FormSection } from './FormSection'
 import { useCertificateStore } from '@/lib/stores/certificate-store'
+import { ConclusionStatementText } from '@/components/certificate/ConclusionStatementText'
 
 // Conclusion statements data from the reference document
 const CONCLUSION_STATEMENTS: Record<string, string> = {
@@ -158,7 +159,7 @@ export function ConclusionSection({ feedbackSlot, disabled, accordionStatus, has
                       </span>
                     </div>
                     <p className="text-sm text-slate-600 leading-relaxed">
-                      {CONCLUSION_STATEMENTS[key]}
+                      <ConclusionStatementText text={CONCLUSION_STATEMENTS[key]} />
                     </p>
                   </div>
                 </div>

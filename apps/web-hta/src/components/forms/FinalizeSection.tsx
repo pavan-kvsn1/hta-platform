@@ -64,6 +64,32 @@ interface FinalizeSectionProps {
   reviewerName?: string | null
 }
 
+type SubmissionModalState = {
+  open: boolean
+  title: string
+  message: string
+  type: 'success' | 'warning' | 'error'
+}
+
+export function getSubmissionModalState(result: {
+  emailQueued?: boolean
+  warning?: string
+}): Omit<SubmissionModalState, 'open'> {
+  if (result.emailQueued === false) {
+    return {
+      title: 'Submitted — Email Not Sent',
+      message: result.warning || 'The certificate was submitted, but the reviewer email could not be queued. Please notify the reviewer directly.',
+      type: 'warning',
+    }
+  }
+
+  return {
+    title: 'Submitted!',
+    message: 'Certificate submitted successfully for peer review!',
+    type: 'success',
+  }
+}
+
 export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectionProps) {
   const router = useRouter()
   const { data: session } = useSession()
@@ -74,7 +100,7 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
   const [isFeedbackRefExpanded, setIsFeedbackRefExpanded] = useState(false)
   const [showSignatureModal, setShowSignatureModal] = useState(false)
   const [reviewerError, setReviewerError] = useState<string | null>(null)
-  const [modalState, setModalState] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({ open: false, title: '', message: '', type: 'error' })
+  const [modalState, setModalState] = useState<SubmissionModalState>({ open: false, title: '', message: '', type: 'error' })
 
   // Use store's reviewerId for reviewer selection
   const selectedReviewerId = formData.reviewerId
@@ -302,7 +328,7 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       // Success - clear section responses and redirect to dashboard
       clearSectionResponses()
       setShowSignatureModal(false)
-      setModalState({ open: true, title: 'Submitted!', message: 'Certificate submitted successfully for peer review!', type: 'success' })
+      setModalState({ open: true, ...getSubmissionModalState(data) })
     } catch (error) {
       console.error('Submit error:', error)
       setSubmitError(error instanceof Error ? error.message : 'An error occurred')
@@ -559,7 +585,7 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
           onOpenChange={(open) => {
             if (!open) {
               setModalState(prev => ({ ...prev, open: false }))
-              if (modalState.type === 'success') {
+              if (modalState.type !== 'error') {
                 router.push('/dashboard')
               }
             }
@@ -571,6 +597,10 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
                 {modalState.type === 'success' ? (
                   <div className="p-2 rounded-full bg-green-100">
                     <CheckCircle className="size-5 text-green-600" />
+                  </div>
+                ) : modalState.type === 'warning' ? (
+                  <div className="p-2 rounded-full bg-amber-100">
+                    <AlertTriangle className="size-5 text-amber-600" />
                   </div>
                 ) : (
                   <div className="p-2 rounded-full bg-red-100">
@@ -587,13 +617,17 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
               <Button
                 onClick={() => {
                   setModalState(prev => ({ ...prev, open: false }))
-                  if (modalState.type === 'success') {
+                  if (modalState.type !== 'error') {
                     router.push('/dashboard')
                   }
                 }}
-                className={modalState.type === 'success' ? 'bg-green-600 hover:bg-green-700' : ''}
+                className={modalState.type === 'success'
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : modalState.type === 'warning'
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : ''}
               >
-                {modalState.type === 'success' ? 'Go to Dashboard' : 'OK'}
+                {modalState.type !== 'error' ? 'Go to Dashboard' : 'OK'}
               </Button>
             </DialogFooter>
           </DialogContent>

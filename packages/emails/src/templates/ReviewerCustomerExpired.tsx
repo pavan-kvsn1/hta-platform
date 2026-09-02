@@ -1,12 +1,13 @@
 import { Text, Section } from '@react-email/components'
 import * as React from 'react'
-import { Layout, Button } from '../components/index.js'
+import { Layout, Button, UucDetailsSection, type UucDetails } from '../components/index.js'
 
 interface ReviewerCustomerExpiredProps {
   reviewerName: string
   certificateNumber: string
   customerName: string
   instrumentDescription: string
+  uucDetails?: UucDetails
   dashboardUrl: string
 }
 
@@ -15,6 +16,7 @@ export function ReviewerCustomerExpired({
   certificateNumber,
   customerName,
   instrumentDescription,
+  uucDetails,
   dashboardUrl,
 }: ReviewerCustomerExpiredProps) {
   return (
@@ -52,6 +54,8 @@ export function ReviewerCustomerExpired({
           <span style={statusExpired}>Review Expired</span>
         </Text>
       </Section>
+
+      <UucDetailsSection details={uucDetails} />
 
       <Text style={paragraph}>
         Please resend the review request to the customer, or contact them directly.

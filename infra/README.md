@@ -42,8 +42,15 @@ kubectl create secret generic hta-secrets \
   --from-literal=database-url='postgresql://user:pass@host:5432/db' \
   --from-literal=redis-url='redis://host:6379' \
   --from-literal=jwt-secret='$(openssl rand -base64 32)' \
-  --from-literal=resend-api-key='re_xxxxx'
+  --from-literal=resend-api-key='re_xxxxx' \
+  --from-literal=RESEND_WEBHOOK_SECRET='whsec_xxxxx'
 ```
+
+The API deployment consumes its production environment from `api-secrets`.
+Add `RESEND_WEBHOOK_SECRET` to that existing Secret and roll out the API after
+registering `https://hta-calibration.com/api/webhooks/resend` in Resend. See
+`docs/runbooks/resend-webhook-delivery-tracking.md` for the exact event list and
+verification procedure.
 
 ### Deploy with Kustomize
 

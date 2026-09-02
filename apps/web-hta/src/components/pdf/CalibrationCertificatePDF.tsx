@@ -401,6 +401,10 @@ const styles = StyleSheet.create({
     fontSize: 8,
     textAlign: 'center',
   },
+  failedCalCellText: {
+    color: '#dc2626',
+    fontFamily: 'Helvetica-Bold',
+  },
   calCellTextLeft: {
     fontSize: 8,
     textAlign: 'left',
@@ -496,6 +500,10 @@ const styles = StyleSheet.create({
   conclusionText: {
     fontSize: 9.5,
     flex: 1,
+  },
+  conclusionMarker: {
+    color: '#dc2626',
+    fontFamily: 'Helvetica-Bold',
   },
 
   // Section J: Validity Statement
@@ -1059,7 +1067,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                             borderBottomColor: '#000',
                           }]}
                         >
-                          <Text style={styles.calCellText}>{padSerialNumber(result.pointNumber)}</Text>
+                          <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>{padSerialNumber(result.pointNumber)}</Text>
                         </View>
                       )
                     })}
@@ -1088,27 +1096,27 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                           }}
                         >
                           <View style={[styles.calCell, { width: '25%' }]}>
-                            <Text style={styles.calCellText}>
-                              {formatWithPrecision(result.standardReading, precision)}{result.isOutOfLimit ? '*' : ''}
+                            <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>
+                              {formatWithPrecision(result.standardReading, precision)}
                             </Text>
                           </View>
                           <View style={[styles.calCell, { width: '25%' }]}>
-                            <Text style={styles.calCellText}>
-                              {formatWithPrecision(result.beforeAdjustment, precision)}{result.isOutOfLimit ? '*' : ''}
+                            <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>
+                              {formatWithPrecision(result.beforeAdjustment, precision)}
                             </Text>
                           </View>
                           <View style={[styles.calCell, { width: '25%' }]}>
-                            <Text style={styles.calCellText}>
+                            <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>
                               {result.errorObserved !== null
-                                ? `${formatWithPrecision(result.errorObserved, precision)}${result.isOutOfLimit ? '*' : ''}`
+                                ? formatWithPrecision(result.errorObserved, precision)
                                 : '-'}
                             </Text>
                           </View>
                           <View style={[styles.calCellLast, { width: '25%' }]}>
-                            <Text style={styles.calCellText}>
-                              {result.errorObserved !== null
-                                ? (result.isOutOfLimit ? 'Fail' : 'Pass')
-                                : '-'}
+                            <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>
+                              {result.isOutOfLimit
+                                ? 'Fail*'
+                                : result.errorObserved !== null ? 'Pass' : '-'}
                             </Text>
                           </View>
                         </View>
@@ -1192,10 +1200,12 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
             ))}
         </View>
 
-        {/* ================================================================ */}
-        {/* SECTION I: CONCLUSION (normal flow) */}
-        {/* ================================================================ */}
-        {(data.selectedConclusionStatements.length > 0 || data.additionalConclusionStatement) && (
+        {/* Keep the entire conclusion/signature group on the same PDF page. */}
+        <View wrap={false} break={shouldBreakBefore('group-e', layoutPlan)}>
+          {/* ================================================================ */}
+          {/* SECTION I: CONCLUSION (normal flow) */}
+          {/* ================================================================ */}
+          {(data.selectedConclusionStatements.length > 0 || data.additionalConclusionStatement) && (
           <View style={[styles.conclusionSection, { marginTop: dynamicMargin(8), marginBottom: dynamicMargin(8) }]} wrap={false}>
             {data.selectedConclusionStatements.map((statementKey, idx) => (
               <View key={idx} style={[styles.conclusionItem, { marginBottom: dynamicMargin(2) }]}>
@@ -1206,7 +1216,14 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                 )}
                 <Text style={styles.conclusionColon}>:</Text>
                 <Text style={styles.conclusionNumber}>{idx + 1}.</Text>
-                <Text style={styles.conclusionText}>{getConclusionText(statementKey)}</Text>
+                <Text style={styles.conclusionText}>
+                  {statementKey === 'out_of_accuracy' ? (
+                    <>
+                      <Text style={styles.conclusionMarker}>{'"*"'}</Text>
+                      {getConclusionText(statementKey).slice(3)}
+                    </>
+                  ) : getConclusionText(statementKey)}
+                </Text>
               </View>
             ))}
             {/* Additional custom conclusion statement */}
@@ -1223,19 +1240,19 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
               </View>
             )}
           </View>
-        )}
+          )}
 
-        {/* ================================================================ */}
-        {/* SECTION J: VALIDITY STATEMENT (normal flow) */}
-        {/* ================================================================ */}
-        <View style={[styles.validitySection, { marginBottom: dynamicMargin(4) }]} wrap={false}>
-          <Text style={styles.validityText}>{VALIDITY_STATEMENT}</Text>
-        </View>
+          {/* ================================================================ */}
+          {/* SECTION J: VALIDITY STATEMENT (normal flow) */}
+          {/* ================================================================ */}
+          <View style={[styles.validitySection, { marginBottom: dynamicMargin(4) }]} wrap={false}>
+            <Text style={styles.validityText}>{VALIDITY_STATEMENT}</Text>
+          </View>
 
-        {/* ================================================================ */}
-        {/* SECTION K: SIGNATURE BLOCK - 3 columns: Engineer, Reviewer, Admin */}
-        {/* ================================================================ */}
-        <View style={[styles.signatureSection, { marginTop: dynamicMargin(4) }]} wrap={false}>
+          {/* ================================================================ */}
+          {/* SECTION K: SIGNATURE BLOCK - 3 columns: Engineer, Reviewer, Admin */}
+          {/* ================================================================ */}
+          <View style={[styles.signatureSection, { marginTop: dynamicMargin(4) }]} wrap={false}>
           <View style={styles.signatureRow}>
             {/* Column 1: Calibrated By (Engineer) */}
             <View style={styles.signatureColumn}>
@@ -1357,13 +1374,13 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
               )}
             </View>
           </View>
-        </View>
+          </View>
 
-        {/* ================================================================ */}
-        {/* SECTION M: CUSTOMER ACKNOWLEDGMENT (conditional) */}
-        {/* ================================================================ */}
-        {signatures?.customer && (
-          <View style={styles.customerAckSection} wrap={false}>
+          {/* ================================================================ */}
+          {/* SECTION M: CUSTOMER ACKNOWLEDGMENT (conditional) */}
+          {/* ================================================================ */}
+          {signatures?.customer && (
+            <View style={styles.customerAckSection} wrap={false}>
             <Text style={styles.customerAckTitle}>CUSTOMER ACKNOWLEDGMENT</Text>
             <Text style={styles.customerAckText}>{CUSTOMER_ACKNOWLEDGMENT_TEXT}</Text>
             <View style={styles.customerAckBody}>
@@ -1411,8 +1428,10 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
               <Text style={styles.customerAckDetailLabel}>Signature ID: </Text>
               {signatures.customer.signatureId}
             </Text>
-          </View>
-        )}
+            </View>
+          )}
+
+        </View>
 
         {/* ================================================================ */}
         {/* SECTION L: FOOTER NOTES */}

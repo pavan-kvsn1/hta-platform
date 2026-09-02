@@ -7,12 +7,31 @@
 
 import { Queue } from 'bullmq'
 import { Redis } from 'ioredis'
+import type {
+  CustomerRequestDecisionProps,
+  InternalRequestDecisionProps,
+  UucDetails,
+} from '@hta/emails'
+import type { TrackedEmailJobFields } from '@hta/shared'
+import { enqueueTrackedCertificateEmail } from './tracked-email.js'
 
 // =============================================================================
 // TYPES (mirror worker/src/types.ts — keep in sync)
 // =============================================================================
 
-export type EmailJobData =
+export type InternalRequestDecisionEmailJob = InternalRequestDecisionProps & {
+  type: 'internal-request-decision'
+  to: string
+  tenantName?: string
+}
+
+export type CustomerRequestDecisionEmailJob = CustomerRequestDecisionProps & {
+  type: 'customer-request-decision'
+  to: string
+  tenantName?: string
+}
+
+export type EmailJobData = (
   | {
       type: 'password-reset'
       to: string
@@ -36,6 +55,7 @@ export type EmailJobData =
       certificateNumber: string
       assigneeName: string
       customerName?: string
+      uucDetails?: UucDetails
       dashboardUrl: string
     }
   | {
@@ -47,6 +67,7 @@ export type EmailJobData =
       reviewerName: string
       approved: boolean
       revisionNote?: string
+      uucDetails?: UucDetails
       dashboardUrl: string
     }
   | {
@@ -59,6 +80,7 @@ export type EmailJobData =
       approverName: string
       status: 'approved' | 'rejected'
       rejectionNote?: string
+      uucDetails?: UucDetails
       dashboardUrl: string
     }
   | {
@@ -68,6 +90,7 @@ export type EmailJobData =
       customerName: string
       certificateNumber: string
       instrumentDescription: string
+      uucDetails?: UucDetails
       reviewUrl: string
     }
   | {
@@ -77,6 +100,7 @@ export type EmailJobData =
       customerName: string
       certificateNumber: string
       instrumentDescription: string
+      uucDetails?: UucDetails
       loginUrl: string
     }
   | {
@@ -86,6 +110,7 @@ export type EmailJobData =
       customerName: string
       certificateNumber: string
       instrumentDescription: string
+      uucDetails?: UucDetails
       loginUrl: string
     }
   | {
@@ -95,6 +120,7 @@ export type EmailJobData =
       customerName: string
       certificateNumber: string
       instrumentDescription: string
+      uucDetails?: UucDetails
       downloadUrl: string
       maxDownloads?: number
       expiresInDays?: number
@@ -107,6 +133,7 @@ export type EmailJobData =
       certificateNumber: string
       customerName: string
       instrumentDescription: string
+      uucDetails?: UucDetails
       dashboardUrl: string
     }
   | {
@@ -116,6 +143,9 @@ export type EmailJobData =
       engineerName: string
       loginUrl: string
     }
+  | InternalRequestDecisionEmailJob
+  | CustomerRequestDecisionEmailJob
+) & Partial<TrackedEmailJobFields>
 
 export interface NotificationJobData {
   type: 'create-notification'
@@ -200,19 +230,20 @@ const TENANT_NAME = () => process.env.TENANT_NAME || 'HTA Calibration'
 export async function enqueueEmail(
   data: EmailJobData,
   options: { required?: boolean } = {},
-): Promise<void> {
+): Promise<string | null> {
   const queue = getEmailQueue()
   if (!queue) {
     const message = `[Queue] Email not queued (no REDIS_URL): ${data.type} -> ${data.to}`
     if (options.required) throw new Error(message)
     console.warn(message)
-    return
+    return null
   }
-  await queue.add(data.type, data, {
+  const job = await queue.add(data.type, data, {
     attempts: 3,
     backoff: { type: 'exponential', delay: 5000 },
   })
   console.log(`[Queue] Email queued: ${data.type} -> ${data.to}`)
+  return job.id ?? null
 }
 
 /**
@@ -248,6 +279,32 @@ export async function enqueueImageProcessing(data: ImageProcessingJobData): Prom
 // CONVENIENCE HELPERS
 // =============================================================================
 
+interface CertificateEmailContext {
+  tenantId: string
+  certificateId: string
+  uucDetails: UucDetails
+}
+
+export function buildCertificateUucDetails(certificate: {
+  uucDescription?: string | null
+  uucMake?: string | null
+  uucModel?: string | null
+  uucSerialNumber?: string | null
+  uucInstrumentId?: string | null
+  uucLocationName?: string | null
+  uucMachineName?: string | null
+}): UucDetails {
+  return {
+    description: certificate.uucDescription,
+    make: certificate.uucMake,
+    model: certificate.uucModel,
+    serialNumber: certificate.uucSerialNumber,
+    instrumentId: certificate.uucInstrumentId,
+    location: certificate.uucLocationName,
+    machineName: certificate.uucMachineName,
+  }
+}
+
 export async function queuePasswordResetEmail(opts: {
   to: string
   userName: string
@@ -279,26 +336,35 @@ export async function queueStaffActivationEmail(opts: {
   })
 }
 
-export async function queueCertificateSubmittedEmail(opts: {
+export async function queueCertificateSubmittedEmail(opts: CertificateEmailContext & {
   reviewerEmail: string
   reviewerName: string
   certificateNumber: string
   assigneeName: string
   customerName?: string
 }): Promise<void> {
-  await enqueueEmail({
-    type: 'certificate-submitted',
-    to: opts.reviewerEmail,
-    tenantName: TENANT_NAME(),
-    reviewerName: opts.reviewerName,
-    certificateNumber: opts.certificateNumber,
-    assigneeName: opts.assigneeName,
-    customerName: opts.customerName,
-    dashboardUrl: `${APP_URL()}/dashboard/certificates`,
-  })
+  await enqueueTrackedCertificateEmail({
+    tenantId: opts.tenantId,
+    certificateId: opts.certificateId,
+    emailType: 'CERTIFICATE_SUBMITTED',
+    recipientEmail: opts.reviewerEmail,
+    recipientName: opts.reviewerName,
+    required: true,
+    data: {
+      type: 'certificate-submitted',
+      to: opts.reviewerEmail,
+      tenantName: TENANT_NAME(),
+      reviewerName: opts.reviewerName,
+      certificateNumber: opts.certificateNumber,
+      assigneeName: opts.assigneeName,
+      customerName: opts.customerName,
+      uucDetails: opts.uucDetails,
+      dashboardUrl: `${APP_URL()}/dashboard/certificates`,
+    },
+  }, enqueueEmail)
 }
 
-export async function queueCertificateReviewedEmail(opts: {
+export async function queueCertificateReviewedEmail(opts: CertificateEmailContext & {
   assigneeEmail: string
   assigneeName: string
   certificateNumber: string
@@ -306,72 +372,107 @@ export async function queueCertificateReviewedEmail(opts: {
   approved: boolean
   revisionNote?: string
 }): Promise<void> {
-  await enqueueEmail({
-    type: 'certificate-reviewed',
-    to: opts.assigneeEmail,
-    tenantName: TENANT_NAME(),
-    assigneeName: opts.assigneeName,
-    certificateNumber: opts.certificateNumber,
-    reviewerName: opts.reviewerName,
-    approved: opts.approved,
-    revisionNote: opts.revisionNote,
-    dashboardUrl: `${APP_URL()}/dashboard/certificates`,
-  })
+  await enqueueTrackedCertificateEmail({
+    tenantId: opts.tenantId,
+    certificateId: opts.certificateId,
+    emailType: 'CERTIFICATE_REVIEWED',
+    recipientEmail: opts.assigneeEmail,
+    recipientName: opts.assigneeName,
+    data: {
+      type: 'certificate-reviewed',
+      to: opts.assigneeEmail,
+      tenantName: TENANT_NAME(),
+      assigneeName: opts.assigneeName,
+      certificateNumber: opts.certificateNumber,
+      reviewerName: opts.reviewerName,
+      approved: opts.approved,
+      revisionNote: opts.revisionNote,
+      uucDetails: opts.uucDetails,
+      dashboardUrl: `${APP_URL()}/dashboard/certificates`,
+    },
+  }, enqueueEmail)
 }
 
-export async function queueCustomerReviewEmail(opts: {
+export async function queueCustomerReviewEmail(opts: CertificateEmailContext & {
   customerEmail: string
   customerName: string
   certificateNumber: string
   instrumentDescription: string
   token: string
 }): Promise<void> {
-  await enqueueEmail({
-    type: 'customer-review',
-    to: opts.customerEmail,
-    tenantName: TENANT_NAME(),
-    customerName: opts.customerName,
-    certificateNumber: opts.certificateNumber,
-    instrumentDescription: opts.instrumentDescription,
-    reviewUrl: `${APP_URL()}/customer/review/${opts.token}`,
-  }, { required: true })
+  await enqueueTrackedCertificateEmail({
+    tenantId: opts.tenantId,
+    certificateId: opts.certificateId,
+    emailType: 'CUSTOMER_REVIEW',
+    recipientEmail: opts.customerEmail,
+    recipientName: opts.customerName,
+    required: true,
+    data: {
+      type: 'customer-review',
+      to: opts.customerEmail,
+      tenantName: TENANT_NAME(),
+      customerName: opts.customerName,
+      certificateNumber: opts.certificateNumber,
+      instrumentDescription: opts.instrumentDescription,
+      uucDetails: opts.uucDetails,
+      reviewUrl: `${APP_URL()}/customer/review/${opts.token}`,
+    },
+  }, enqueueEmail)
 }
 
-export async function queueCustomerReviewRegisteredEmail(opts: {
+export async function queueCustomerReviewRegisteredEmail(opts: CertificateEmailContext & {
   customerEmail: string
   customerName: string
   certificateNumber: string
   instrumentDescription: string
 }): Promise<void> {
-  await enqueueEmail({
-    type: 'customer-review-registered',
-    to: opts.customerEmail,
-    tenantName: TENANT_NAME(),
-    customerName: opts.customerName,
-    certificateNumber: opts.certificateNumber,
-    instrumentDescription: opts.instrumentDescription,
-    loginUrl: `${APP_URL()}/customer/login`,
-  }, { required: true })
+  await enqueueTrackedCertificateEmail({
+    tenantId: opts.tenantId,
+    certificateId: opts.certificateId,
+    emailType: 'CUSTOMER_REVIEW_REGISTERED',
+    recipientEmail: opts.customerEmail,
+    recipientName: opts.customerName,
+    required: true,
+    data: {
+      type: 'customer-review-registered',
+      to: opts.customerEmail,
+      tenantName: TENANT_NAME(),
+      customerName: opts.customerName,
+      certificateNumber: opts.certificateNumber,
+      instrumentDescription: opts.instrumentDescription,
+      uucDetails: opts.uucDetails,
+      loginUrl: `${APP_URL()}/customer/login`,
+    },
+  }, enqueueEmail)
 }
 
-export async function queueCustomerAuthorizedRegisteredEmail(opts: {
+export async function queueCustomerAuthorizedRegisteredEmail(opts: CertificateEmailContext & {
   customerEmail: string
   customerName: string
   certificateNumber: string
   instrumentDescription: string
 }): Promise<void> {
-  await enqueueEmail({
-    type: 'customer-authorized-registered',
-    to: opts.customerEmail,
-    tenantName: TENANT_NAME(),
-    customerName: opts.customerName,
-    certificateNumber: opts.certificateNumber,
-    instrumentDescription: opts.instrumentDescription,
-    loginUrl: `${APP_URL()}/customer/login`,
-  }, { required: true })
+  await enqueueTrackedCertificateEmail({
+    tenantId: opts.tenantId,
+    certificateId: opts.certificateId,
+    emailType: 'CUSTOMER_AUTHORIZED_REGISTERED',
+    recipientEmail: opts.customerEmail,
+    recipientName: opts.customerName,
+    required: true,
+    data: {
+      type: 'customer-authorized-registered',
+      to: opts.customerEmail,
+      tenantName: TENANT_NAME(),
+      customerName: opts.customerName,
+      certificateNumber: opts.certificateNumber,
+      instrumentDescription: opts.instrumentDescription,
+      uucDetails: opts.uucDetails,
+      loginUrl: `${APP_URL()}/customer/login`,
+    },
+  }, enqueueEmail)
 }
 
-export async function queueCustomerAuthorizedTokenEmail(opts: {
+export async function queueCustomerAuthorizedTokenEmail(opts: CertificateEmailContext & {
   customerEmail: string
   customerName: string
   certificateNumber: string
@@ -380,20 +481,29 @@ export async function queueCustomerAuthorizedTokenEmail(opts: {
   maxDownloads?: number
   expiresInDays?: number
 }): Promise<void> {
-  await enqueueEmail({
-    type: 'customer-authorized-token',
-    to: opts.customerEmail,
-    tenantName: TENANT_NAME(),
-    customerName: opts.customerName,
-    certificateNumber: opts.certificateNumber,
-    instrumentDescription: opts.instrumentDescription,
-    downloadUrl: `${APP_URL()}/customer/download/${opts.token}`,
-    maxDownloads: opts.maxDownloads ?? 10,
-    expiresInDays: opts.expiresInDays ?? 30,
-  }, { required: true })
+  await enqueueTrackedCertificateEmail({
+    tenantId: opts.tenantId,
+    certificateId: opts.certificateId,
+    emailType: 'CUSTOMER_AUTHORIZED_TOKEN',
+    recipientEmail: opts.customerEmail,
+    recipientName: opts.customerName,
+    required: true,
+    data: {
+      type: 'customer-authorized-token',
+      to: opts.customerEmail,
+      tenantName: TENANT_NAME(),
+      customerName: opts.customerName,
+      certificateNumber: opts.certificateNumber,
+      instrumentDescription: opts.instrumentDescription,
+      uucDetails: opts.uucDetails,
+      downloadUrl: `${APP_URL()}/customer/download/${opts.token}`,
+      maxDownloads: opts.maxDownloads ?? 10,
+      expiresInDays: opts.expiresInDays ?? 30,
+    },
+  }, enqueueEmail)
 }
 
-export async function queueCustomerApprovalNotificationEmail(opts: {
+export async function queueCustomerApprovalNotificationEmail(opts: CertificateEmailContext & {
   staffEmail: string
   staffName: string
   certificateNumber: string
@@ -401,37 +511,53 @@ export async function queueCustomerApprovalNotificationEmail(opts: {
   approved: boolean
   rejectionNote?: string
 }): Promise<void> {
-  await enqueueEmail({
-    type: 'customer-approval',
-    to: opts.staffEmail,
-    tenantName: TENANT_NAME(),
+  await enqueueTrackedCertificateEmail({
+    tenantId: opts.tenantId,
+    certificateId: opts.certificateId,
+    emailType: 'CUSTOMER_APPROVAL',
+    recipientEmail: opts.staffEmail,
     recipientName: opts.staffName,
-    certificateNumber: opts.certificateNumber,
-    customerName: opts.customerName,
-    approverName: opts.customerName,
-    status: opts.approved ? 'approved' : 'rejected',
-    rejectionNote: opts.rejectionNote,
-    dashboardUrl: `${APP_URL()}/dashboard/certificates`,
-  })
+    data: {
+      type: 'customer-approval',
+      to: opts.staffEmail,
+      tenantName: TENANT_NAME(),
+      recipientName: opts.staffName,
+      certificateNumber: opts.certificateNumber,
+      customerName: opts.customerName,
+      approverName: opts.customerName,
+      status: opts.approved ? 'approved' : 'rejected',
+      rejectionNote: opts.rejectionNote,
+      uucDetails: opts.uucDetails,
+      dashboardUrl: `${APP_URL()}/dashboard/certificates`,
+    },
+  }, enqueueEmail)
 }
 
-export async function queueReviewerCustomerExpiredEmail(opts: {
+export async function queueReviewerCustomerExpiredEmail(opts: CertificateEmailContext & {
   reviewerEmail: string
   reviewerName: string
   certificateNumber: string
   customerName: string
   instrumentDescription: string
 }): Promise<void> {
-  await enqueueEmail({
-    type: 'reviewer-customer-expired',
-    to: opts.reviewerEmail,
-    tenantName: TENANT_NAME(),
-    reviewerName: opts.reviewerName,
-    certificateNumber: opts.certificateNumber,
-    customerName: opts.customerName,
-    instrumentDescription: opts.instrumentDescription,
-    dashboardUrl: `${APP_URL()}/dashboard/certificates`,
-  })
+  await enqueueTrackedCertificateEmail({
+    tenantId: opts.tenantId,
+    certificateId: opts.certificateId,
+    emailType: 'CUSTOMER_REVIEW_EXPIRED',
+    recipientEmail: opts.reviewerEmail,
+    recipientName: opts.reviewerName,
+    data: {
+      type: 'reviewer-customer-expired',
+      to: opts.reviewerEmail,
+      tenantName: TENANT_NAME(),
+      reviewerName: opts.reviewerName,
+      certificateNumber: opts.certificateNumber,
+      customerName: opts.customerName,
+      instrumentDescription: opts.instrumentDescription,
+      uucDetails: opts.uucDetails,
+      dashboardUrl: `${APP_URL()}/dashboard/certificates`,
+    },
+  }, enqueueEmail)
 }
 
 export async function queueOfflineCodesExpiryEmail(opts: {
@@ -445,6 +571,38 @@ export async function queueOfflineCodesExpiryEmail(opts: {
     engineerName: opts.engineerName,
     loginUrl: `${APP_URL()}/dashboard/offline-codes`,
   })
+}
+
+type WithoutPortalUrl<T> = T extends unknown ? Omit<T, 'portalUrl'> : never
+
+export type QueueInternalRequestDecisionEmailOptions =
+  WithoutPortalUrl<InternalRequestDecisionProps> & { to: string }
+
+export type QueueCustomerRequestDecisionEmailOptions =
+  WithoutPortalUrl<CustomerRequestDecisionProps> & { to: string }
+
+export async function queueInternalRequestDecisionEmail(
+  opts: QueueInternalRequestDecisionEmailOptions,
+): Promise<void> {
+  const data = {
+    ...opts,
+    type: 'internal-request-decision' as const,
+    tenantName: TENANT_NAME(),
+    portalUrl: APP_URL(),
+  } as InternalRequestDecisionEmailJob
+  await enqueueEmail(data, { required: true })
+}
+
+export async function queueCustomerRequestDecisionEmail(
+  opts: QueueCustomerRequestDecisionEmailOptions,
+): Promise<void> {
+  const data = {
+    ...opts,
+    type: 'customer-request-decision' as const,
+    tenantName: TENANT_NAME(),
+    portalUrl: APP_URL(),
+  } as CustomerRequestDecisionEmailJob
+  await enqueueEmail(data, { required: true })
 }
 
 /**

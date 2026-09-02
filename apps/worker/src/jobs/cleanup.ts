@@ -5,6 +5,7 @@
  * old notifications, and orphaned files.
  */
 
+import { randomUUID } from 'node:crypto'
 import { Job, Queue } from 'bullmq'
 import { prisma } from '@hta/database'
 import type { CleanupJobData, EmailJobData } from '../types.js'
@@ -235,19 +236,63 @@ export async function cleanupExpiredReviews(): Promise<{ deleted: number }> {
       const certNum = cert.certificateNumber || `CERT-${cert.id.substring(0, 8)}`
 
       if (notifyUser && emailQueueRef) {
-        await emailQueueRef.add('reviewer-customer-expired', {
-          type: 'reviewer-customer-expired' as const,
-          to: notifyUser.email,
-          tenantName: TENANT_NAME,
-          reviewerName: notifyUser.name,
-          certificateNumber: certNum,
-          customerName,
-          instrumentDescription: cert.uucDescription || 'Calibration Certificate',
-          dashboardUrl: `${APP_URL}/dashboard/certificates`,
-        }, {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 5000 },
+        const deliveryId = randomUUID()
+        const idempotencyKey = `email-delivery/${deliveryId}`
+
+        await prisma.emailDelivery.create({
+          data: {
+            id: deliveryId,
+            tenantId: cert.tenantId,
+            certificateId: cert.id,
+            emailType: 'CUSTOMER_REVIEW_EXPIRED',
+            recipientEmail: notifyUser.email,
+            recipientName: notifyUser.name,
+            status: 'QUEUED',
+            idempotencyKey,
+          },
         })
+
+        try {
+          const emailJob = await emailQueueRef.add('reviewer-customer-expired', {
+            type: 'reviewer-customer-expired' as const,
+            to: notifyUser.email,
+            tenantName: TENANT_NAME,
+            reviewerName: notifyUser.name,
+            certificateNumber: certNum,
+            customerName,
+            instrumentDescription: cert.uucDescription || 'Calibration Certificate',
+            uucDetails: {
+              description: cert.uucDescription,
+              make: cert.uucMake,
+              model: cert.uucModel,
+              serialNumber: cert.uucSerialNumber,
+              instrumentId: cert.uucInstrumentId,
+              location: cert.uucLocationName,
+              machineName: cert.uucMachineName,
+            },
+            dashboardUrl: `${APP_URL}/dashboard/certificates`,
+            deliveryId,
+            certificateId: cert.id,
+            idempotencyKey,
+          }, {
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 5000 },
+          })
+
+          await prisma.emailDelivery.update({
+            where: { id: deliveryId },
+            data: { bullJobId: String(emailJob.id) },
+          })
+        } catch (error) {
+          await prisma.emailDelivery.update({
+            where: { id: deliveryId },
+            data: {
+              status: 'FAILED',
+              failureReason: (error instanceof Error ? error.message : String(error)).slice(0, 500),
+            },
+          })
+          console.error(`[Cleanup] Failed to queue expiry email for cert ${cert.id}:`, error)
+        }
       }
 
       expired++

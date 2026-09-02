@@ -1,12 +1,13 @@
 import { Text, Section } from '@react-email/components'
 import * as React from 'react'
-import { Layout, Button } from '../components/index.js'
+import { Layout, Button, UucDetailsSection, type UucDetails } from '../components/index.js'
 
 interface CertificateSubmittedProps {
   reviewerName: string
   certificateNumber: string
   assigneeName: string
   customerName?: string
+  uucDetails?: UucDetails
   dashboardUrl: string
 }
 
@@ -15,6 +16,7 @@ export function CertificateSubmitted({
   certificateNumber,
   assigneeName,
   customerName,
+  uucDetails,
   dashboardUrl,
 }: CertificateSubmittedProps) {
   return (
@@ -45,6 +47,8 @@ export function CertificateSubmitted({
           </Text>
         )}
       </Section>
+
+      <UucDetailsSection details={uucDetails} />
 
       <Text style={paragraph}>
         Please review the certificate details and approve or request revisions as needed.

@@ -6,6 +6,8 @@ import {
   Img,
   Link,
   Preview,
+  Row,
+  Column,
   Section,
   Text,
   Hr,
@@ -39,13 +41,26 @@ export function Layout({ preview, children }: LayoutProps) {
         <Container style={container}>
           {/* Header with Logo */}
           <Section style={header}>
-            <Img
-              src={`${baseUrl}/logo.png`}
-              width="180"
-              height="50"
-              alt="HTA Instrumentation"
-              style={logo}
-            />
+            <Row style={{ width: 'auto', margin: '0 auto' }}>
+              <Column style={{ width: '32px', verticalAlign: 'middle' }}>
+                <Img
+                  src={`${baseUrl}/logo.png`}
+                  width="32"
+                  height="32"
+                  alt="HTA logo"
+                />
+              </Column>
+              <Column style={{ paddingLeft: '10px', verticalAlign: 'middle' }}>
+                <Text style={{
+                  color: colors.primary,
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  margin: '0',
+                }}>
+                  HTA Instrumentation Pvt. Ltd.
+                </Text>
+              </Column>
+            </Row>
           </Section>
 
           {/* Main Content */}
@@ -57,7 +72,7 @@ export function Layout({ preview, children }: LayoutProps) {
           <Hr style={divider} />
           <Section style={footer}>
             <Text style={footerText}>
-              HTA Instrumentation (P) Ltd.
+              HTA Instrumentation Pvt. Ltd.
             </Text>
             <Text style={footerAddress}>
               Calibration & Testing Services
@@ -72,7 +87,7 @@ export function Layout({ preview, children }: LayoutProps) {
               </Link>
             </Text>
             <Text style={copyright}>
-              © {new Date().getFullYear()} HTA Instrumentation (P) Ltd. All rights reserved.
+              © {new Date().getFullYear()} HTA Instrumentation Pvt. Ltd. All rights reserved.
             </Text>
           </Section>
         </Container>
@@ -99,10 +114,6 @@ const header: React.CSSProperties = {
   borderBottom: `3px solid ${colors.primary}`,
   padding: '24px 32px',
   textAlign: 'center' as const,
-}
-
-const logo: React.CSSProperties = {
-  margin: '0 auto',
 }
 
 const content: React.CSSProperties = {

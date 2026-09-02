@@ -1,6 +1,7 @@
 'use client'
 
 import { apiFetch } from '@/lib/api-client'
+import { EmailDeliveryPanel } from '@/components/email-delivery/EmailDeliveryPanel'
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -15,7 +16,6 @@ import {
   Building2,
   MapPin,
   AlertCircle,
-  CheckCircle,
   MessageSquare,
   Image as ImageIcon,
   Clock,
@@ -25,10 +25,11 @@ import { Badge } from '@/components/ui/badge'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { cn } from '@/lib/utils'
 import { safeJsonParse } from '@/lib/utils/safe-json'
-import { getConclusionText } from '@/components/pdf/pdf-utils'
 import { CALIBRATION_STATUS_OPTIONS } from '@/components/forms/RemarksSection'
 import { FeedbackTimeline, type InternalRequestItem } from '@/components/feedback/shared'
 import {
+  CalibrationResultsTable,
+  ConclusionStatementText,
   ImageGalleryModal,
   ReadingImagesViewModal,
   ViewToggleButton,
@@ -644,83 +645,7 @@ export default function CertificateViewPage() {
                   ) : undefined
                 }
               >
-                {certificate.parameters.length === 0 ? (
-                  <p className="text-slate-500 text-xs">No results recorded.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {certificate.parameters.map((param) => (
-                      <div key={param.id} className="border border-slate-200 rounded-lg overflow-hidden">
-                        <div className="bg-primary/10 px-4 py-2 border-b border-slate-200">
-                          <span className="font-medium text-primary text-sm">
-                            {param.parameterName}
-                            {param.parameterUnit && (
-                              <span className="text-primary/70 font-normal ml-1 text-sm">
-                                ({param.parameterUnit})
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-section-inner">
-                              <tr>
-                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700">
-                                  Point
-                                </th>
-                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700">
-                                  Standard Reading
-                                </th>
-                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700">
-                                  UUC Reading
-                                </th>
-                                {param.showAfterAdjustment && (
-                                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700">
-                                    After Adjustment
-                                  </th>
-                                )}
-                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700">
-                                  Error
-                                </th>
-                                <th className="px-4 py-2 text-center text-xs font-semibold text-slate-700">
-                                  Status
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {param.results.map((result) => (
-                                <tr
-                                  key={result.id}
-                                  className={cn(result.isOutOfLimit && 'bg-red-50')}
-                                >
-                                  <td className="px-4 py-2 text-slate-900 text-xs">{result.pointNumber}</td>
-                                  <td className="px-4 py-2 text-slate-700 text-xs">{result.standardReading || '-'}</td>
-                                  <td className="px-4 py-2 text-slate-700 text-xs">{result.beforeAdjustment || '-'}</td>
-                                  {param.showAfterAdjustment && (
-                                    <td className="px-4 py-2 text-slate-700 text-xs">{result.afterAdjustment || '-'}</td>
-                                  )}
-                                  <td className="px-4 py-2 text-slate-700 text-xs">{result.errorObserved ?? '-'}</td>
-                                  <td className="px-4 py-2 text-center">
-                                    {result.isOutOfLimit ? (
-                                      <span className="inline-flex items-center gap-1 text-red-600">
-                                        <AlertCircle className="h-3 w-3" />
-                                        <span className="text-xs">Out of Limit</span>
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1 text-green-600">
-                                        <CheckCircle className="h-3 w-3" />
-                                        <span className="text-xs">OK</span>
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <CalibrationResultsTable parameters={certificate.parameters} />
               </CollapsibleSection>
 
               {/* Section 6: Remarks */}
@@ -770,7 +695,7 @@ export default function CertificateViewPage() {
                       <ul className="list-disc list-inside space-y-2 text-slate-700">
                         {conclusionStatements.map((statementKey: string, i: number) => (
                           <li key={i} className="text-xs">
-                            {getConclusionText(statementKey)}
+                            <ConclusionStatementText statementKey={statementKey} />
                           </li>
                         ))}
                       </ul>
@@ -806,6 +731,11 @@ export default function CertificateViewPage() {
                   internalRequests={internalRequests}
                 />
               )}
+              <EmailDeliveryPanel
+                certificateId={certificate.id}
+                purpose={['CERTIFICATE_SUBMITTED', 'CERTIFICATE_REVIEWED', 'CUSTOMER_REVIEW', 'CUSTOMER_REVIEW_REGISTERED']}
+                title="Workflow email delivery"
+              />
             </div>
             ) : (
               <InlinePDFViewer

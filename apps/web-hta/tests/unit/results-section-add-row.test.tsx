@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ResultsSection } from '@/components/forms/ResultsSection'
@@ -48,5 +48,46 @@ describe('ResultsSection add-row action', () => {
     render(<ResultsSection disabled />)
 
     expect(screen.queryByRole('button', { name: 'Add measurement row' })).not.toBeInTheDocument()
+  })
+
+  it('renders a failed calibration point in red and bold with a Fail* status', () => {
+    const store = useCertificateStore.getState()
+    const parameter = store.formData.parameters[0]
+    store.setParameter(0, {
+      ...parameter,
+      results: [{
+        ...parameter.results[0],
+        standardReading: '10',
+        beforeAdjustment: '12',
+        errorObserved: -2,
+        isOutOfLimit: true,
+      }],
+    })
+
+    render(<ResultsSection />)
+
+    const failedStatus = screen.getByText('Fail*')
+    const failedRow = failedStatus.closest('tr')
+    expect(failedRow).toHaveClass('text-red-700', 'font-bold')
+    for (const input of within(failedRow!).getAllByRole('spinbutton')) {
+      expect(input).toHaveClass('text-red-700', 'font-bold')
+    }
+  })
+
+  it('keeps Fail* visible when a failed point has no calculated error', () => {
+    const store = useCertificateStore.getState()
+    const parameter = store.formData.parameters[0]
+    store.setParameter(0, {
+      ...parameter,
+      results: [{
+        ...parameter.results[0],
+        isOutOfLimit: true,
+        errorObserved: null,
+      }],
+    })
+
+    render(<ResultsSection />)
+
+    expect(screen.getByText('Fail*')).toBeInTheDocument()
   })
 })

@@ -1,11 +1,12 @@
 import { Text, Section } from '@react-email/components'
 import * as React from 'react'
-import { Layout, Button } from '../components/index.js'
+import { Layout, Button, UucDetailsSection, type UucDetails } from '../components/index.js'
 
 interface CustomerAuthorizedRegisteredProps {
   customerName: string
   certificateNumber: string
   instrumentDescription: string
+  uucDetails?: UucDetails
   loginUrl: string
 }
 
@@ -13,6 +14,7 @@ export function CustomerAuthorizedRegistered({
   customerName,
   certificateNumber,
   instrumentDescription,
+  uucDetails,
   loginUrl,
 }: CustomerAuthorizedRegisteredProps) {
   return (
@@ -37,6 +39,8 @@ export function CustomerAuthorizedRegistered({
           <span style={detailValue}>{instrumentDescription}</span>
         </Text>
       </Section>
+
+      <UucDetailsSection details={uucDetails} />
 
       <Text style={paragraph}>
         Log in to your dashboard to view and download the certificate PDF.

@@ -579,7 +579,7 @@ describe('CustomerAuthorizedToken template', () => {
 
   it('shows 30-day expiry notice', async () => {
     const html = await renderHtml(<CustomerAuthorizedToken {...baseProps} />)
-    expect(html).toContain('30 days')
+    expect(html.replace(/<!-- -->/g, '')).toContain('30 days')
   })
 })
 
