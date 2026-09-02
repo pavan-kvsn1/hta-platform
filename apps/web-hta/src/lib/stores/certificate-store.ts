@@ -1,6 +1,16 @@
 import { create } from 'zustand'
 import { apiFetch } from '@/lib/api-client'
 import { resolveCalibrationPrecision, roundToCalibrationPrecision } from '@/lib/utils/calibration-precision'
+import {
+  createDefaultErrorConfig,
+  createDefaultFieldDefinitions,
+  createRow,
+  migrateLegacyResults,
+  toLegacyResults,
+  type CalibrationResultRow,
+  type ErrorConfig,
+  type FieldDefinition,
+} from '@/lib/certificate-fields'
 
 // Accuracy calculation types
 export type AccuracyType = 'PERCENT_READING' | 'ABSOLUTE' | 'PERCENT_SCALE'
@@ -56,6 +66,18 @@ export interface Parameter {
   errorFormula: string
   results: CalibrationResult[]
   showAfterAdjustment: boolean
+
+  // Section 05 dynamic field declarations.
+  //
+  // Added alongside `results` rather than replacing it: the legacy shape is still read
+  // by ResultsSection, the PDF generator and the API mapping, so both must be valid
+  // until those move over. `resultRows` is the source of truth once a parameter has
+  // been migrated; `results` is kept in step via toLegacyResults for the old readers.
+  // See docs/todos/section05-dynamic-fields-revamp.md.
+  tableName: string
+  fieldDefinitions: FieldDefinition[]
+  errorConfig: ErrorConfig
+  resultRows: CalibrationResultRow[]
   // Master instrument reference for this parameter
   masterInstrumentId: number | null
   // SOP reference for this parameter's calibration procedure
@@ -199,7 +221,12 @@ const _createDefaultBin = (): ParameterBin => ({
   accuracy: '',
 })
 
-const createDefaultParameter = (): Parameter => ({
+const createDefaultParameter = (): Parameter => {
+  // A new parameter starts with one master and one UUC numeric field, which renders
+  // exactly like the old fixed layout. Nothing changes for a user who never opens
+  // Column Setup.
+  const fieldDefinitions = createDefaultFieldDefinitions('')
+  return {
   id: generateId(),
   parameterName: '',
   parameterUnit: '', // Selected via dropdown based on parameter type
@@ -221,7 +248,59 @@ const createDefaultParameter = (): Parameter => ({
   showAfterAdjustment: false,
   masterInstrumentId: null,
   sopReference: '',
-})
+  tableName: '',
+  fieldDefinitions,
+  errorConfig: createDefaultErrorConfig(fieldDefinitions, ''),
+  resultRows: [createRow(1)],
+  }
+}
+
+/**
+ * Fill in the dynamic-field shape for a parameter that arrived without one.
+ *
+ * Certificates saved before Section 05 was reworked have `results` but no
+ * `fieldDefinitions`, so the edit page must derive them on load. Idempotent: a
+ * parameter that already carries a schema is returned untouched, so re-running it over
+ * an already-migrated form cannot clobber a user's column setup.
+ */
+export const ensureParameterFields = (parameter: Parameter): Parameter => {
+  if (parameter.fieldDefinitions?.length) return parameter
+
+  const { fieldDefinitions, errorConfig, rows } = migrateLegacyResults(
+    parameter.results ?? [],
+    {
+      unit: parameter.parameterUnit || '',
+      showAfterAdjustment: parameter.showAfterAdjustment,
+    },
+  )
+
+  return {
+    ...parameter,
+    tableName: parameter.tableName || '',
+    fieldDefinitions,
+    errorConfig: { ...errorConfig, formula: parameter.errorFormula === 'B-A' ? 'B-A' : 'A-B' },
+    resultRows: rows.length > 0 ? rows : [createRow(1)],
+  }
+}
+
+/**
+ * Project the dynamic rows back onto `results` so the PDF generator and the API
+ * mapping, which still read the legacy shape, stay correct.
+ *
+ * Lossy by nature - only the two error-config fields and one extra UUC field survive -
+ * so this is a compatibility bridge, not a save format.
+ */
+export const syncLegacyResults = (parameter: Parameter): Parameter => {
+  if (!parameter.fieldDefinitions?.length) return parameter
+  return {
+    ...parameter,
+    results: toLegacyResults(
+      parameter.resultRows ?? [],
+      parameter.fieldDefinitions,
+      parameter.errorConfig,
+    ),
+  }
+}
 
 const createDefaultResult = (pointNumber: number): CalibrationResult => ({
   id: generateId(),

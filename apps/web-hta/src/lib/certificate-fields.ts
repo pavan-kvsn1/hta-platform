@@ -11,7 +11,22 @@
 // off the legacy shape, and the expression evaluator are all pure so they can be tested
 // and reused by the PDF generator.
 
-import type { CalibrationResult } from './stores/certificate-store'
+/**
+ * The legacy fixed-column row, declared structurally rather than imported.
+ *
+ * certificate-store imports the helpers below, so importing its types back would make
+ * the two modules mutually dependent. This shape is identical to the store's
+ * CalibrationResult and assignable in both directions.
+ */
+export interface LegacyCalibrationResult {
+  id: string
+  pointNumber: number
+  standardReading: string
+  beforeAdjustment: string
+  afterAdjustment: string
+  errorObserved: number | null
+  isOutOfLimit: boolean
+}
 
 export type FieldGroup = 'master' | 'uuc'
 export type FieldType = 'numeric' | 'expression' | 'text'
@@ -418,7 +433,7 @@ export interface MigratedParameterFields {
  * shape we are leaving.
  */
 export function migrateLegacyResults(
-  legacy: CalibrationResult[],
+  legacy: LegacyCalibrationResult[],
   options: { unit: string; showAfterAdjustment?: boolean },
 ): MigratedParameterFields {
   const usesAfter =
@@ -491,7 +506,7 @@ export function toLegacyResults(
   rows: CalibrationResultRow[],
   fields: FieldDefinition[],
   errorConfig: ErrorConfig,
-): CalibrationResult[] {
+): LegacyCalibrationResult[] {
   const afterField = fields.find(
     (f) =>
       f.group === 'uuc' &&

@@ -299,3 +299,56 @@ describe('legacy migration', () => {
     expect(back).toEqual(legacy)
   })
 })
+
+describe('ensureParameterFields (store integration)', () => {
+  it('derives a schema for a legacy parameter and leaves a migrated one alone', async () => {
+    const { ensureParameterFields, syncLegacyResults } = await import(
+      '@/lib/stores/certificate-store'
+    )
+
+    const legacyParameter = {
+      parameterUnit: 'bar',
+      errorFormula: 'B-A',
+      showAfterAdjustment: false,
+      tableName: '',
+      fieldDefinitions: [],
+      errorConfig: { masterFieldId: '', uucFieldId: '', formula: 'A-B' as const, unit: '' },
+      resultRows: [],
+      results: [
+        {
+          id: 'r1',
+          pointNumber: 1,
+          standardReading: '6.02',
+          beforeAdjustment: '6.00',
+          afterAdjustment: '',
+          errorObserved: 0.02,
+          isOutOfLimit: false,
+        },
+      ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
+
+    const migrated = ensureParameterFields(legacyParameter)
+    expect(migrated.fieldDefinitions).toHaveLength(2)
+    expect(migrated.resultRows).toHaveLength(1)
+    // errorFormula on the parameter wins over the migration default
+    expect(migrated.errorConfig.formula).toBe('B-A')
+
+    // Idempotent - re-running must not clobber a user's column setup
+    const again = ensureParameterFields(migrated)
+    expect(again).toBe(migrated)
+
+    // And the legacy shape can be projected back for the PDF and API paths
+    const synced = syncLegacyResults(migrated)
+    expect(synced.results[0].standardReading).toBe('6.02')
+    expect(synced.results[0].beforeAdjustment).toBe('6.00')
+  })
+
+  it('gives a parameter with no results at least one blank row', async () => {
+    const { ensureParameterFields } = await import('@/lib/stores/certificate-store')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const empty = ensureParameterFields({ parameterUnit: '°C', results: [] } as any)
+    expect(empty.resultRows).toHaveLength(1)
+    expect(empty.fieldDefinitions).toHaveLength(2)
+  })
+})

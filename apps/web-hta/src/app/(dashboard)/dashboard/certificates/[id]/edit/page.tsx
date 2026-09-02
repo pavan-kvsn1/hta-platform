@@ -17,7 +17,7 @@ import {
   SectionFeedback,
 } from '@/components/forms'
 import { FeedbackTimeline, type InternalRequestItem } from '@/components/feedback/shared'
-import { useCertificateStore, CertificateFormData, Parameter, CalibrationResult } from '@/lib/stores/certificate-store'
+import { useCertificateStore, CertificateFormData, Parameter, CalibrationResult, ensureParameterFields } from '@/lib/stores/certificate-store'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -426,7 +426,10 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     return []
   }
 
-  const parameters: Parameter[] = apiData.parameters.map((param) => ({
+  // Certificates saved before Section 05 was reworked carry `results` but no field
+  // schema. ensureParameterFields derives one from the legacy columns on load, so an
+  // existing certificate opens with the same table it was saved with.
+  const parameters: Parameter[] = apiData.parameters.map((param) => ensureParameterFields({
     id: generateId(),
     parameterName: param.parameterName || '',
     parameterUnit: param.parameterUnit || '',
@@ -456,10 +459,14 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
       errorObserved: result.errorObserved,
       isOutOfLimit: result.isOutOfLimit || false,
     })),
+    tableName: '',
+    fieldDefinitions: [],
+    errorConfig: { masterFieldId: '', uucFieldId: '', formula: 'A-B', unit: '' },
+    resultRows: [],
   }))
 
   if (parameters.length === 0) {
-    parameters.push({
+    parameters.push(ensureParameterFields({
       id: generateId(),
       parameterName: '',
       parameterUnit: '',
@@ -489,7 +496,11 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
         errorObserved: null,
         isOutOfLimit: false,
       }],
-    })
+      tableName: '',
+      fieldDefinitions: [],
+      errorConfig: { masterFieldId: '', uucFieldId: '', formula: 'A-B', unit: '' },
+      resultRows: [],
+    }))
   }
 
   let calibrationStatus: string[] = []
