@@ -1,0 +1,1517 @@
+{
+  "source": {
+    "schema_version": "1.0",
+    "asset_count": 204,
+    "profile_count": 563
+  },
+  "parameterCount": 61,
+  "parameters": [
+    {
+      "standardName": "AC Current",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "A",
+        "mA"
+      ],
+      "defaultUnit": "A",
+      "subtypes": [],
+      "profileCount": 6,
+      "assetCount": 5,
+      "bucketCount": 20,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 1000.0
+      }
+    },
+    {
+      "standardName": "AC Voltage",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "V"
+      ],
+      "defaultUnit": "V",
+      "subtypes": [],
+      "profileCount": 4,
+      "assetCount": 4,
+      "bucketCount": 19,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 1020.0
+      }
+    },
+    {
+      "standardName": "Acceleration",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "m/s²"
+      ],
+      "defaultUnit": "m/s²",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [],
+      "observedRange": {
+        "min": 0.1,
+        "max": 400.0
+      }
+    },
+    {
+      "standardName": "Air Flow",
+      "categories": [
+        "Others"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [],
+      "defaultUnit": null,
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 0,
+      "accuracyTypes": [],
+      "observedRange": null
+    },
+    {
+      "standardName": "Air Velocity",
+      "categories": [
+        "Others"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "m/s"
+      ],
+      "defaultUnit": "m/s",
+      "subtypes": [],
+      "profileCount": 5,
+      "assetCount": 5,
+      "bucketCount": 3,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 45.0
+      }
+    },
+    {
+      "standardName": "Angle",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "°"
+      ],
+      "defaultUnit": "°",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [],
+      "observedRange": {
+        "min": 0.0,
+        "max": 360.0
+      }
+    },
+    {
+      "standardName": "CO2",
+      "categories": [
+        "Others"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "ppm"
+      ],
+      "defaultUnit": "ppm",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100000.0
+      }
+    },
+    {
+      "standardName": "Capacitance",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "nF"
+      ],
+      "defaultUnit": "nF",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 15,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.35,
+        "max": 330.0
+      }
+    },
+    {
+      "standardName": "Compressed Air Flow",
+      "categories": [
+        "Others"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "Nm3/hr"
+      ],
+      "defaultUnit": "Nm3/hr",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.25,
+        "max": 75.0
+      }
+    },
+    {
+      "standardName": "Compression Force",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "kgf"
+      ],
+      "defaultUnit": "kgf",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 20.0
+      }
+    },
+    {
+      "standardName": "Conductivity",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "uS/cm"
+      ],
+      "defaultUnit": "uS/cm",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 1.0,
+        "max": 10000.0
+      }
+    },
+    {
+      "standardName": "DC Current",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "A",
+        "mA"
+      ],
+      "defaultUnit": "A",
+      "subtypes": [],
+      "profileCount": 23,
+      "assetCount": 16,
+      "bucketCount": 36,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 540.0
+      }
+    },
+    {
+      "standardName": "DC Voltage",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "V"
+      ],
+      "defaultUnit": "V",
+      "subtypes": [],
+      "profileCount": 25,
+      "assetCount": 18,
+      "bucketCount": 58,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -0.01,
+        "max": 1020.0
+      }
+    },
+    {
+      "standardName": "Dew Point Temperature",
+      "categories": [
+        "Thermal"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 4,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -40.0,
+        "max": 60.0
+      }
+    },
+    {
+      "standardName": "Differential Pressure",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "bar",
+        "mbar",
+        "mbar g"
+      ],
+      "defaultUnit": "bar",
+      "subtypes": [],
+      "profileCount": 11,
+      "assetCount": 11,
+      "bucketCount": 11,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": -25.0,
+        "max": 25.0
+      }
+    },
+    {
+      "standardName": "Displacement",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "mm"
+      ],
+      "defaultUnit": "mm",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [],
+      "observedRange": {
+        "min": 0.001,
+        "max": 4.0
+      }
+    },
+    {
+      "standardName": "Flatness",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "um",
+        "µm"
+      ],
+      "defaultUnit": "um",
+      "subtypes": [
+        "24.00mm",
+        "24.12mm",
+        "24.25mm",
+        "24.37mm"
+      ],
+      "profileCount": 5,
+      "assetCount": 2,
+      "bucketCount": 4,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 24.0,
+        "max": 24.37
+      }
+    },
+    {
+      "standardName": "Flow",
+      "categories": [
+        "Others"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "SLPM"
+      ],
+      "defaultUnit": "SLPM",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 2.0,
+        "max": 30.0
+      }
+    },
+    {
+      "standardName": "Force - pull mode",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "kgf"
+      ],
+      "defaultUnit": "kgf",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100.0
+      }
+    },
+    {
+      "standardName": "Force - push mode",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "kgf"
+      ],
+      "defaultUnit": "kgf",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100.0
+      }
+    },
+    {
+      "standardName": "Frequency",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "MHz",
+        "kHz"
+      ],
+      "defaultUnit": "MHz",
+      "subtypes": [],
+      "profileCount": 6,
+      "assetCount": 6,
+      "bucketCount": 7,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 2.0,
+        "max": 200.0
+      }
+    },
+    {
+      "standardName": "Gauge Pressure",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "bar g"
+      ],
+      "defaultUnit": "bar g",
+      "subtypes": [],
+      "profileCount": 7,
+      "assetCount": 7,
+      "bucketCount": 7,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": -1.0,
+        "max": 1000.0
+      }
+    },
+    {
+      "standardName": "Hardness",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "HD"
+      ],
+      "defaultUnit": "HD",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100.0
+      }
+    },
+    {
+      "standardName": "Length",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "mm"
+      ],
+      "defaultUnit": "mm",
+      "subtypes": [],
+      "profileCount": 6,
+      "assetCount": 5,
+      "bucketCount": 4,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 1000.0
+      }
+    },
+    {
+      "standardName": "Level / Inclination",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [],
+      "defaultUnit": null,
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 0,
+      "accuracyTypes": [],
+      "observedRange": null
+    },
+    {
+      "standardName": "Light Intensity",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "lux"
+      ],
+      "defaultUnit": "lux",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 7,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 199999.0
+      }
+    },
+    {
+      "standardName": "Liquid Flow",
+      "categories": [
+        "Others"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "m3/hr"
+      ],
+      "defaultUnit": "m3/hr",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 200.0
+      }
+    },
+    {
+      "standardName": "Mass",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "g",
+        "kg"
+      ],
+      "defaultUnit": "g",
+      "subtypes": [],
+      "profileCount": 10,
+      "assetCount": 10,
+      "bucketCount": 12,
+      "accuracyTypes": [
+        "class",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 200.0
+      }
+    },
+    {
+      "standardName": "Moisture Content",
+      "categories": [
+        "Others"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "%mc"
+      ],
+      "defaultUnit": "%mc",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 20.0
+      }
+    },
+    {
+      "standardName": "Parallelness",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "um"
+      ],
+      "defaultUnit": "um",
+      "subtypes": [
+        "24.00mm",
+        "24.12mm",
+        "24.25mm",
+        "24.37mm"
+      ],
+      "profileCount": 4,
+      "assetCount": 1,
+      "bucketCount": 4,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 24.0,
+        "max": 24.37
+      }
+    },
+    {
+      "standardName": "Particle Count",
+      "categories": [
+        "Others"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "μm"
+      ],
+      "defaultUnit": "μm",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 0,
+      "accuracyTypes": [],
+      "observedRange": {
+        "min": 0.5,
+        "max": 10.0
+      }
+    },
+    {
+      "standardName": "Pressure",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "Pa",
+        "bar",
+        "hPa",
+        "mbar"
+      ],
+      "defaultUnit": "Pa",
+      "subtypes": [],
+      "profileCount": 28,
+      "assetCount": 27,
+      "bucketCount": 28,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -20.0,
+        "max": 700.0
+      }
+    },
+    {
+      "standardName": "RTD",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [
+        "Cu-53",
+        "Ni-100",
+        "Ni-120",
+        "Pt-100",
+        "Pt-200",
+        "Pt-46"
+      ],
+      "profileCount": 61,
+      "assetCount": 13,
+      "bucketCount": 319,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -200,
+        "max": 850
+      }
+    },
+    {
+      "standardName": "Relative Humidity",
+      "categories": [
+        "Thermal"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "% RH",
+        "% r.h",
+        "%RH"
+      ],
+      "defaultUnit": "% RH",
+      "subtypes": [],
+      "profileCount": 20,
+      "assetCount": 20,
+      "bucketCount": 17,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100.0
+      }
+    },
+    {
+      "standardName": "Relative Humidity Generation",
+      "categories": [
+        "Thermal"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "%RH"
+      ],
+      "defaultUnit": "%RH",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [],
+      "observedRange": {
+        "min": 20.0,
+        "max": 95.0
+      }
+    },
+    {
+      "standardName": "Resistance",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "Mohm",
+        "kohm",
+        "ohm"
+      ],
+      "defaultUnit": "Mohm",
+      "subtypes": [],
+      "profileCount": 25,
+      "assetCount": 18,
+      "bucketCount": 53,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0,
+        "max": 4000.0
+      }
+    },
+    {
+      "standardName": "Sound Pressure Level",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "dB"
+      ],
+      "defaultUnit": "dB",
+      "subtypes": [],
+      "profileCount": 3,
+      "assetCount": 3,
+      "bucketCount": 3,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 30.0,
+        "max": 130.0
+      }
+    },
+    {
+      "standardName": "Speed",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "RPM"
+      ],
+      "defaultUnit": "RPM",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100000.0
+      }
+    },
+    {
+      "standardName": "Speed (Contact)",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "RPM",
+        "rpm"
+      ],
+      "defaultUnit": "RPM",
+      "subtypes": [],
+      "profileCount": 9,
+      "assetCount": 9,
+      "bucketCount": 18,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100000.0
+      }
+    },
+    {
+      "standardName": "Speed (Non-Contact)",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "RPM",
+        "rpm"
+      ],
+      "defaultUnit": "RPM",
+      "subtypes": [],
+      "profileCount": 9,
+      "assetCount": 9,
+      "bucketCount": 20,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100000.0
+      }
+    },
+    {
+      "standardName": "Temperature",
+      "categories": [
+        "Mechanical",
+        "Others",
+        "Source",
+        "Thermal"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 53,
+      "assetCount": 53,
+      "bucketCount": 68,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -100.0,
+        "max": 1200.0
+      }
+    },
+    {
+      "standardName": "Temperature - Type K sensor",
+      "categories": [
+        "Thermal"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -50.0,
+        "max": 250.0
+      }
+    },
+    {
+      "standardName": "Temperature Generation",
+      "categories": [
+        "Thermal"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [],
+      "observedRange": {
+        "min": 5.0,
+        "max": 50.0
+      }
+    },
+    {
+      "standardName": "Temperature indicator",
+      "categories": [
+        "Thermal"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 6,
+      "assetCount": 6,
+      "bucketCount": 6,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -100.0,
+        "max": 1000.0
+      }
+    },
+    {
+      "standardName": "Temperature sensor",
+      "categories": [
+        "Thermal"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 6,
+      "assetCount": 6,
+      "bucketCount": 11,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -100.0,
+        "max": 1000.0
+      }
+    },
+    {
+      "standardName": "Tension Force",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "kgf"
+      ],
+      "defaultUnit": "kgf",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 20.0
+      }
+    },
+    {
+      "standardName": "Thermocouple",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [
+        "Type B",
+        "Type E",
+        "Type J",
+        "Type K",
+        "Type L",
+        "Type N",
+        "Type R",
+        "Type S",
+        "Type T",
+        "Type U"
+      ],
+      "profileCount": 165,
+      "assetCount": 13,
+      "bucketCount": 735,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -250.0,
+        "max": 2300.0
+      }
+    },
+    {
+      "standardName": "Thickness",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "units": [
+        "mm"
+      ],
+      "defaultUnit": "mm",
+      "subtypes": [],
+      "profileCount": 5,
+      "assetCount": 5,
+      "bucketCount": 6,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 25.0
+      }
+    },
+    {
+      "standardName": "Three-phase AC Power",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "W"
+      ],
+      "defaultUnit": "W",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 12.0,
+        "max": 2400.0
+      }
+    },
+    {
+      "standardName": "Time",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [],
+      "defaultUnit": null,
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 0,
+      "accuracyTypes": [],
+      "observedRange": null
+    },
+    {
+      "standardName": "Time Interval",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "hours",
+        "min",
+        "s"
+      ],
+      "defaultUnit": "hours",
+      "subtypes": [],
+      "profileCount": 6,
+      "assetCount": 6,
+      "bucketCount": 11,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 86400.0
+      }
+    },
+    {
+      "standardName": "Time interval",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "h",
+        "s"
+      ],
+      "defaultUnit": "h",
+      "subtypes": [],
+      "profileCount": 4,
+      "assetCount": 4,
+      "bucketCount": 4,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 35999.999
+      }
+    },
+    {
+      "standardName": "Type-J thermocouple simulation",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "source"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -200.0,
+        "max": 1200.0
+      }
+    },
+    {
+      "standardName": "Type-K thermocouple simulation",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "source"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -200.0,
+        "max": 1350.0
+      }
+    },
+    {
+      "standardName": "Type-N thermocouple simulation",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "source"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -200.0,
+        "max": 1300.0
+      }
+    },
+    {
+      "standardName": "Type-R thermocouple simulation",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "source"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 1750.0
+      }
+    },
+    {
+      "standardName": "Type-S thermocouple simulation",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "source"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 1750.0
+      }
+    },
+    {
+      "standardName": "Type-T thermocouple simulation",
+      "categories": [
+        "Electro-Technical"
+      ],
+      "roles": [
+        "source"
+      ],
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -200.0,
+        "max": 400.0
+      }
+    },
+    {
+      "standardName": "Ultra Vacuum",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "mbar"
+      ],
+      "defaultUnit": "mbar",
+      "subtypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.001,
+        "max": 1000.0
+      }
+    },
+    {
+      "standardName": "Vacuum",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "Pa",
+        "bar"
+      ],
+      "defaultUnit": "Pa",
+      "subtypes": [],
+      "profileCount": 6,
+      "assetCount": 6,
+      "bucketCount": 6,
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "observedRange": {
+        "min": -1.0,
+        "max": 2000.0
+      }
+    },
+    {
+      "standardName": "Velocity",
+      "categories": [
+        "Mechanical"
+      ],
+      "roles": [
+        "measuring"
+      ],
+      "units": [
+        "mm/s"
+      ],
+      "defaultUnit": "mm/s",
+      "subtypes": [],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "accuracyTypes": [
+        "formula"
+      ],
+      "observedRange": {
+        "min": 0.01,
+        "max": 400.0
+      }
+    }
+  ]
+}

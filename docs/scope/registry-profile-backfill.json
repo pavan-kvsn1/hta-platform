@@ -1,0 +1,493 @@
+{
+  "$comment": [
+    "OVERLAY, not a registry replacement. Synthesized capability profiles for",
+    "assets the extraction left with none, derived from the Range and PARAMETER",
+    "columns of MASTER LIST AS PER SOP & PARAMETER.xlsx.",
+    "",
+    "Every profile here has an EMPTY buckets array: the spreadsheet carries no",
+    "accuracy or least-count data. These assets can therefore participate in",
+    "RANGE filtering but not ACCURACY filtering, and the UI must say so rather",
+    "than implying full capability.",
+    "",
+    "'registryParserCorrections' lists places where the registry's own",
+    "range_parsed is wrong versus a clean read of the same source text. Those",
+    "should be fixed in the upstream extraction, not patched here."
+  ],
+  "source": {
+    "registry": "master_instrment_registry.json",
+    "spreadsheet": "MASTER LIST AS PER SOP & PARAMETER.xlsx",
+    "mapVersion": "0.1-draft"
+  },
+  "zeroProfileAssetCount": 16,
+  "readyCount": 9,
+  "registryParserCorrections": [
+    {
+      "assetNo": "742 HTAIPL/L",
+      "description": "Digital Hi.Pr. Pirani Gauge",
+      "rangeText": "103 to 10-3",
+      "registryParsed": {
+        "min": 103.0,
+        "max": 10.0,
+        "unit": "-3"
+      },
+      "spreadsheetRead": {
+        "min": 0.001,
+        "max": 1000.0,
+        "unit": null
+      },
+      "note": "'103 to 10-3' read as 10^3 to 10^-3; superscripts were lost in the spreadsheet. Unit is NOT stated - must be supplied manually."
+    },
+    {
+      "assetNo": "755 HTAIPL/L",
+      "description": "CO2 Transmitter",
+      "rangeText": "0 to 1,00,000 ppm",
+      "registryParsed": {
+        "min": 0.0,
+        "max": 1.0,
+        "unit": ",00,000"
+      },
+      "spreadsheetRead": {
+        "min": 0.0,
+        "max": 100000.0,
+        "unit": "ppm"
+      },
+      "note": "registry range_parsed disagrees with a clean read of the same text"
+    }
+  ],
+  "assets": [
+    {
+      "assetNo": "165 HTAIPL/L",
+      "description": "6 ½ Digit Precision Multimeter",
+      "excelRange": "Refer Doc. No:-NLAB/DOC/MSD/49/20/002",
+      "excelParameter": "MEASURING (AC/DC VOLTAGE &AC/DC CURRENT) (FREQUENCY ,RESISTANCE & CAPACITANCE )",
+      "rangeConfidence": "none",
+      "rangeNote": "Range points at an external document: 'Refer Doc. No:-NLAB/DOC/MSD/49/20/002'",
+      "status": "unresolvable",
+      "autoApplicable": false,
+      "profiles": [
+        {
+          "sourceParameter": "AC/DC Voltage",
+          "standardName": "AC Voltage",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "buckets": []
+        },
+        {
+          "sourceParameter": "AC/DC Voltage",
+          "standardName": "DC Voltage",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "buckets": []
+        },
+        {
+          "sourceParameter": "AC/DC Current",
+          "standardName": "AC Current",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "buckets": []
+        },
+        {
+          "sourceParameter": "AC/DC Current",
+          "standardName": "DC Current",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "buckets": []
+        },
+        {
+          "sourceParameter": "Frequency",
+          "standardName": "Frequency",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "buckets": []
+        },
+        {
+          "sourceParameter": "Resistance",
+          "standardName": "Resistance",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "buckets": []
+        },
+        {
+          "sourceParameter": "Capacitance",
+          "standardName": "Capacitance",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "237 HTAIPL/L",
+      "description": "Slip Gauges",
+      "excelRange": "NA",
+      "excelParameter": "Thickness",
+      "rangeConfidence": "none",
+      "rangeNote": "Range is 'NA' - no numeric range declared",
+      "status": "unresolvable",
+      "autoApplicable": false,
+      "profiles": [
+        {
+          "sourceParameter": "Thickness",
+          "standardName": "Thickness",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "30 HTAIPL/L",
+      "description": "Slip Gauges",
+      "excelRange": "NA",
+      "excelParameter": "Thickness",
+      "rangeConfidence": "none",
+      "rangeNote": "Range is 'NA' - no numeric range declared",
+      "status": "unresolvable",
+      "autoApplicable": false,
+      "profiles": [
+        {
+          "sourceParameter": "Thickness",
+          "standardName": "Thickness",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "783 HTAIPL/L",
+      "description": "Slip Gauge M10. Grade 0",
+      "excelRange": "2.5 to 25 mm",
+      "excelParameter": "Thickness",
+      "rangeConfidence": "high",
+      "rangeNote": null,
+      "status": "ready",
+      "autoApplicable": true,
+      "profiles": [
+        {
+          "sourceParameter": "Thickness",
+          "standardName": "Thickness",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "mm",
+          "min": 2.5,
+          "max": 25.0,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "782 HTAIPL/L",
+      "description": "Steel Caliper Checker",
+      "excelRange": "300 mm",
+      "excelParameter": "Length",
+      "rangeConfidence": "medium",
+      "rangeNote": "'300 mm' states only an upper bound; lower bound assumed to be 0",
+      "status": "ready",
+      "autoApplicable": true,
+      "profiles": [
+        {
+          "sourceParameter": "Length",
+          "standardName": "Length",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "mm",
+          "min": 0.0,
+          "max": 300.0,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "35 HTAIPL/L",
+      "description": "Granite Surface Plate",
+      "excelRange": "400*400 mm",
+      "excelParameter": "Level",
+      "rangeConfidence": "none",
+      "rangeNote": "Range '400*400 mm' is an artifact dimension, not a measurement span",
+      "status": "unresolvable",
+      "autoApplicable": false,
+      "profiles": [
+        {
+          "sourceParameter": "Level",
+          "standardName": "Level / Inclination",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "1003 HTAIPL/L",
+      "description": "Micrometer",
+      "excelRange": "0 to 25 mm",
+      "excelParameter": "Thickness",
+      "rangeConfidence": "high",
+      "rangeNote": null,
+      "status": "ready",
+      "autoApplicable": true,
+      "profiles": [
+        {
+          "sourceParameter": "Thickness",
+          "standardName": "Thickness",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "mm",
+          "min": 0.0,
+          "max": 25.0,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "44 HTAIPL/L",
+      "description": "Lever Type Dial Gauge",
+      "excelRange": "0 to 0.14 mm",
+      "excelParameter": "Thickness",
+      "rangeConfidence": "high",
+      "rangeNote": null,
+      "status": "ready",
+      "autoApplicable": true,
+      "profiles": [
+        {
+          "sourceParameter": "Thickness",
+          "standardName": "Thickness",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "mm",
+          "min": 0.0,
+          "max": 0.14,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "45 HTAIPL/L",
+      "description": "Dial Gauge",
+      "excelRange": "0 to 10mm",
+      "excelParameter": "Thickness",
+      "rangeConfidence": "high",
+      "rangeNote": null,
+      "status": "ready",
+      "autoApplicable": true,
+      "profiles": [
+        {
+          "sourceParameter": "Thickness",
+          "standardName": "Thickness",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "mm",
+          "min": 0.0,
+          "max": 10.0,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "600 HTAIPL/L",
+      "description": "Vibration Meter",
+      "excelRange": "5.5 mm/s to 135mm/s",
+      "excelParameter": "Velocity",
+      "rangeConfidence": "high",
+      "rangeNote": null,
+      "status": "ready",
+      "autoApplicable": true,
+      "profiles": [
+        {
+          "sourceParameter": "Vibration Velocity",
+          "standardName": "Velocity",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "mm/s",
+          "min": 5.5,
+          "max": 135.0,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "909 HTAIPL/L",
+      "description": "Tachometer calibrator",
+      "excelRange": "0 to 100000 rpm",
+      "excelParameter": "Speed                                                                                       (Contact & Non Contact)",
+      "rangeConfidence": "high",
+      "rangeNote": null,
+      "status": "needs-range-split",
+      "autoApplicable": false,
+      "profiles": [
+        {
+          "sourceParameter": "Speed (Contact)",
+          "standardName": "Speed (Contact)",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "rpm",
+          "min": 0.0,
+          "max": 100000.0,
+          "buckets": []
+        },
+        {
+          "sourceParameter": "Speed (Non-Contact)",
+          "standardName": "Speed (Non-Contact)",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "rpm",
+          "min": 0.0,
+          "max": 100000.0,
+          "buckets": []
+        }
+      ],
+      "rangeSplitWarning": "The single Range '0 to 100000 rpm' was applied to all 2 declared parameters. This overstates each of them and must be split manually before use."
+    },
+    {
+      "assetNo": "853 HTAIPL/L",
+      "description": "Digital Manometer",
+      "excelRange": "0 to 2 hPa",
+      "excelParameter": "Diff pressure",
+      "rangeConfidence": "high",
+      "rangeNote": null,
+      "status": "ready",
+      "autoApplicable": true,
+      "profiles": [
+        {
+          "sourceParameter": "Differential Pressure",
+          "standardName": "Differential Pressure",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "hPa",
+          "min": 0.0,
+          "max": 2.0,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "738 HTAIPL/L",
+      "description": "Digital Pressure Gauge",
+      "excelRange": "-1 to 6 bar",
+      "excelParameter": "Pressure , Vacuum",
+      "rangeConfidence": "high",
+      "rangeNote": null,
+      "status": "needs-range-split",
+      "autoApplicable": false,
+      "profiles": [
+        {
+          "sourceParameter": "Pressure",
+          "standardName": "Pressure",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "bar",
+          "min": -1.0,
+          "max": 6.0,
+          "buckets": []
+        },
+        {
+          "sourceParameter": "Vacuum",
+          "standardName": "Vacuum",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "bar",
+          "min": -1.0,
+          "max": 6.0,
+          "buckets": []
+        }
+      ],
+      "rangeSplitWarning": "The single Range '-1 to 6 bar' was applied to all 2 declared parameters. This overstates each of them and must be split manually before use."
+    },
+    {
+      "assetNo": "742 HTAIPL/L",
+      "description": "Digital Hi.Pr. Pirani Gauge",
+      "excelRange": "103 to 10-3",
+      "excelParameter": "Ultra vacuum",
+      "rangeConfidence": "medium",
+      "rangeNote": "'103 to 10-3' read as 10^3 to 10^-3; superscripts were lost in the spreadsheet. Unit is NOT stated - must be supplied manually.",
+      "status": "needs-unit",
+      "autoApplicable": false,
+      "profiles": [
+        {
+          "sourceParameter": "Ultra Vacuum",
+          "standardName": "Ultra Vacuum",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": null,
+          "min": 0.001,
+          "max": 1000.0,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "227 HTAIPL/L",
+      "description": "Digital Lux Meter",
+      "excelRange": "100 to 10000 Lux",
+      "excelParameter": "Light Intensity",
+      "rangeConfidence": "high",
+      "rangeNote": null,
+      "status": "ready",
+      "autoApplicable": true,
+      "profiles": [
+        {
+          "sourceParameter": "Light Intensity",
+          "standardName": "Light Intensity",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "Lux",
+          "min": 100.0,
+          "max": 10000.0,
+          "buckets": []
+        }
+      ]
+    },
+    {
+      "assetNo": "755 HTAIPL/L",
+      "description": "CO2 Transmitter",
+      "excelRange": "0 to 1,00,000 ppm",
+      "excelParameter": "CO2",
+      "rangeConfidence": "high",
+      "rangeNote": null,
+      "status": "ready",
+      "autoApplicable": true,
+      "profiles": [
+        {
+          "sourceParameter": "CO2",
+          "standardName": "CO2",
+          "resolvable": true,
+          "role": "measuring",
+          "unit": "ppm",
+          "min": 0.0,
+          "max": 100000.0,
+          "buckets": []
+        }
+      ]
+    }
+  ]
+}

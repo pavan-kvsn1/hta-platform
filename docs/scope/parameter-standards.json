@@ -1,0 +1,1663 @@
+{
+  "mapVersion": "0.1-draft",
+  "registrySchemaVersion": "1.0",
+  "standardCount": 47,
+  "reviewRequiredCount": 17,
+  "standards": [
+    {
+      "standardName": "AC Current",
+      "category": "Electro-Technical",
+      "units": [
+        "A",
+        "mA"
+      ],
+      "defaultUnit": "A",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 1000.0
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 6,
+      "assetCount": 5,
+      "bucketCount": 20,
+      "sourceNames": [
+        "AC Current"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "A",
+        "mA"
+      ]
+    },
+    {
+      "standardName": "AC Voltage",
+      "category": "Electro-Technical",
+      "units": [
+        "V"
+      ],
+      "defaultUnit": "V",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 1020.0
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 4,
+      "assetCount": 4,
+      "bucketCount": 19,
+      "sourceNames": [
+        "AC Voltage"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "V"
+      ]
+    },
+    {
+      "standardName": "Acceleration",
+      "category": "Mechanical",
+      "units": [
+        "m/s²"
+      ],
+      "defaultUnit": "m/s²",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.1,
+        "max": 400.0
+      },
+      "accuracyTypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "Acceleration"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "m/s²"
+      ]
+    },
+    {
+      "standardName": "Air Flow",
+      "category": "Others",
+      "units": [],
+      "defaultUnit": null,
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": null,
+      "accuracyTypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 0,
+      "sourceNames": [
+        "Air Flow"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Air Flow: No unit and no buckets in the registry. Cannot participate in accuracy filtering. Confirm whether this is a real capability or an extraction gap."
+      ],
+      "rawUnitsSeen": []
+    },
+    {
+      "standardName": "Air Velocity",
+      "category": "Others",
+      "units": [
+        "m/s"
+      ],
+      "defaultUnit": "m/s",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 45.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 5,
+      "assetCount": 5,
+      "bucketCount": 3,
+      "sourceNames": [
+        "Air Velocity"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "m/s"
+      ]
+    },
+    {
+      "standardName": "Angle",
+      "category": "Mechanical",
+      "units": [
+        "°"
+      ],
+      "defaultUnit": "°",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 360.0
+      },
+      "accuracyTypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "Angle"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "°"
+      ]
+    },
+    {
+      "standardName": "CO2",
+      "category": "Others",
+      "units": [
+        "ppm"
+      ],
+      "defaultUnit": "ppm",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100000.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "CO2"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "ppm"
+      ]
+    },
+    {
+      "standardName": "Capacitance",
+      "category": "Electro-Technical",
+      "units": [
+        "nF"
+      ],
+      "defaultUnit": "nF",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 0.35,
+        "max": 330.0
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 15,
+      "sourceNames": [
+        "Capacitance"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "nF"
+      ]
+    },
+    {
+      "standardName": "Compressed Air Flow",
+      "category": "Others",
+      "units": [
+        "Nm3/hr"
+      ],
+      "defaultUnit": "Nm3/hr",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.25,
+        "max": 75.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "Compressed Air Flow"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "Nm3/hr"
+      ]
+    },
+    {
+      "standardName": "Conductivity",
+      "category": "Electro-Technical",
+      "units": [
+        "µS/cm"
+      ],
+      "defaultUnit": "µS/cm",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 1.0,
+        "max": 10000.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "Conductivity"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "uS/cm"
+      ]
+    },
+    {
+      "standardName": "DC Current",
+      "category": "Electro-Technical",
+      "units": [
+        "A",
+        "mA"
+      ],
+      "defaultUnit": "A",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 540.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 23,
+      "assetCount": 16,
+      "bucketCount": 36,
+      "sourceNames": [
+        "DC Current"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "A",
+        "mA"
+      ]
+    },
+    {
+      "standardName": "DC Voltage",
+      "category": "Electro-Technical",
+      "units": [
+        "V"
+      ],
+      "defaultUnit": "V",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": -0.01,
+        "max": 1020.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 25,
+      "assetCount": 18,
+      "bucketCount": 58,
+      "sourceNames": [
+        "DC Voltage"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "V"
+      ]
+    },
+    {
+      "standardName": "Dew Point Temperature",
+      "category": "Thermal",
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": -40.0,
+        "max": 60.0
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 4,
+      "sourceNames": [
+        "Dew Point Temperature"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "°C"
+      ]
+    },
+    {
+      "standardName": "Differential Pressure",
+      "category": "Mechanical",
+      "units": [
+        "bar",
+        "mbar",
+        "mbar g"
+      ],
+      "defaultUnit": "bar",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": -25.0,
+        "max": 25.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 11,
+      "assetCount": 11,
+      "bucketCount": 11,
+      "sourceNames": [
+        "Differential Pressure"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "bar",
+        "mbar",
+        "mbar g"
+      ]
+    },
+    {
+      "standardName": "Displacement",
+      "category": "Mechanical",
+      "units": [
+        "mm"
+      ],
+      "defaultUnit": "mm",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.001,
+        "max": 4.0
+      },
+      "accuracyTypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "Displacement"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Displacement: Added from asset 600's certificate (vibration displacement, peak-to-peak, 0.001-4.000 mm). Note that assets 44 and 45 also carry 'Displacement'/'Length' as their CERTIFICATE parameter while their profile parameter is 'Thickness' - confirm whether dial-gauge displacement and vibration displacement are the same standard."
+      ],
+      "rawUnitsSeen": [
+        "mm"
+      ]
+    },
+    {
+      "standardName": "Flatness",
+      "category": "Mechanical",
+      "units": [
+        "µm"
+      ],
+      "defaultUnit": "µm",
+      "subtypes": [
+        "24.00mm",
+        "24.12mm",
+        "24.25mm",
+        "24.37mm"
+      ],
+      "subtypeKind": "gauge_dimension",
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 24.0,
+        "max": 24.37
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 5,
+      "assetCount": 2,
+      "bucketCount": 4,
+      "sourceNames": [
+        "Flatness"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Flatness: subtype holds gauge-block sizes (24.00mm...), not an element type. The subtype selector must be labelled per subtypeKind or this renders nonsensically.",
+        "Flatness: subtype holds gauge-block sizes (24.00mm...), not an element type. The subtype selector must be labelled per subtypeKind or this renders nonsensically.",
+        "Flatness: subtype holds gauge-block sizes (24.00mm...), not an element type. The subtype selector must be labelled per subtypeKind or this renders nonsensically.",
+        "Flatness: subtype holds gauge-block sizes (24.00mm...), not an element type. The subtype selector must be labelled per subtypeKind or this renders nonsensically.",
+        "Flatness: subtype holds gauge-block sizes (24.00mm...), not an element type. The subtype selector must be labelled per subtypeKind or this renders nonsensically."
+      ],
+      "rawUnitsSeen": [
+        "um",
+        "µm"
+      ]
+    },
+    {
+      "standardName": "Flow",
+      "category": "Others",
+      "units": [
+        "SLPM"
+      ],
+      "defaultUnit": "SLPM",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 2.0,
+        "max": 30.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "Flow"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Flow: Generic 'Flow' (SLPM) alongside three medium-specific flow parameters. Confirm whether it should fold into one of them."
+      ],
+      "rawUnitsSeen": [
+        "SLPM"
+      ]
+    },
+    {
+      "standardName": "Force (Compression)",
+      "category": "Mechanical",
+      "units": [
+        "kgf"
+      ],
+      "defaultUnit": "kgf",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "sourceNames": [
+        "Compression Force",
+        "Force - push mode"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Force - push mode: See Compression Force. Note ranges differ (0-20 vs 0-100 kgf) - merging widens the standard's observed range, which affects pre-filtering eligibility.",
+        "Compression Force: EVIDENCE-BACKED, not a guess: assets 219 and 746 are both Digital Force Gauges declaring asset-level 'Force', but 219's profiles are [Force - pull mode, Force - push mode] while 746's are [Compression Force, Tension Force]. The registry describes the same instrument type both ways, so push == compression. Review is a formality unless the lab reports them separately on certificates."
+      ],
+      "rawUnitsSeen": [
+        "kgf"
+      ]
+    },
+    {
+      "standardName": "Force (Tension)",
+      "category": "Mechanical",
+      "units": [
+        "kgf"
+      ],
+      "defaultUnit": "kgf",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "sourceNames": [
+        "Force - pull mode",
+        "Tension Force"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Force - pull mode: See Tension Force. Ranges differ (0-100 vs 0-20 kgf).",
+        "Tension Force: EVIDENCE-BACKED by the same asset 219/746 comparison: pull == tension. See Compression Force."
+      ],
+      "rawUnitsSeen": [
+        "kgf"
+      ]
+    },
+    {
+      "standardName": "Frequency",
+      "category": "Electro-Technical",
+      "units": [
+        "MHz",
+        "kHz"
+      ],
+      "defaultUnit": "MHz",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 2.0,
+        "max": 200.0
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 6,
+      "assetCount": 6,
+      "bucketCount": 7,
+      "sourceNames": [
+        "Frequency"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "MHz",
+        "kHz"
+      ]
+    },
+    {
+      "standardName": "Gauge Pressure",
+      "category": "Mechanical",
+      "units": [
+        "bar g"
+      ],
+      "defaultUnit": "bar g",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": -1.0,
+        "max": 1000.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 7,
+      "assetCount": 7,
+      "bucketCount": 7,
+      "sourceNames": [
+        "Gauge Pressure"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Gauge Pressure: Not anticipated by the scope doc. Kept distinct because 'bar g' is gauge-referenced. Confirm the lab treats it as its own parameter rather than Pressure with a reference flag.",
+        "Gauge Pressure: Not anticipated by the scope doc. Kept distinct because 'bar g' is gauge-referenced. Confirm the lab treats it as its own parameter rather than Pressure with a reference flag.",
+        "Gauge Pressure: Not anticipated by the scope doc. Kept distinct because 'bar g' is gauge-referenced. Confirm the lab treats it as its own parameter rather than Pressure with a reference flag.",
+        "Gauge Pressure: Not anticipated by the scope doc. Kept distinct because 'bar g' is gauge-referenced. Confirm the lab treats it as its own parameter rather than Pressure with a reference flag.",
+        "Gauge Pressure: Not anticipated by the scope doc. Kept distinct because 'bar g' is gauge-referenced. Confirm the lab treats it as its own parameter rather than Pressure with a reference flag.",
+        "Gauge Pressure: Not anticipated by the scope doc. Kept distinct because 'bar g' is gauge-referenced. Confirm the lab treats it as its own parameter rather than Pressure with a reference flag.",
+        "Gauge Pressure: Not anticipated by the scope doc. Kept distinct because 'bar g' is gauge-referenced. Confirm the lab treats it as its own parameter rather than Pressure with a reference flag."
+      ],
+      "rawUnitsSeen": [
+        "bar g"
+      ]
+    },
+    {
+      "standardName": "Hardness",
+      "category": "Mechanical",
+      "units": [
+        "HD"
+      ],
+      "defaultUnit": "HD",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "Hardness"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "HD"
+      ]
+    },
+    {
+      "standardName": "Length",
+      "category": "Mechanical",
+      "units": [
+        "mm"
+      ],
+      "defaultUnit": "mm",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 1000.0
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 6,
+      "assetCount": 5,
+      "bucketCount": 4,
+      "sourceNames": [
+        "Length"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "mm"
+      ]
+    },
+    {
+      "standardName": "Level / Inclination",
+      "category": "Mechanical",
+      "units": [],
+      "defaultUnit": null,
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": null,
+      "accuracyTypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 0,
+      "sourceNames": [
+        "Level / Inclination"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Level / Inclination: No unit, no buckets. Sole owner is a Granite Surface Plate."
+      ],
+      "rawUnitsSeen": []
+    },
+    {
+      "standardName": "Light Intensity",
+      "category": "Mechanical",
+      "units": [
+        "lux"
+      ],
+      "defaultUnit": "lux",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 199999.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 7,
+      "sourceNames": [
+        "Light Intensity"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Light Intensity: Categorised Mechanical in the registry; lux is photometric. Category likely wrong.",
+        "Light Intensity: Categorised Mechanical in the registry; lux is photometric. Category likely wrong."
+      ],
+      "rawUnitsSeen": [
+        "lux"
+      ]
+    },
+    {
+      "standardName": "Liquid Flow",
+      "category": "Others",
+      "units": [
+        "m3/hr"
+      ],
+      "defaultUnit": "m3/hr",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 200.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "Liquid Flow"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "m3/hr"
+      ]
+    },
+    {
+      "standardName": "Mass",
+      "category": "Mechanical",
+      "units": [
+        "g",
+        "kg"
+      ],
+      "defaultUnit": "g",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 200.0
+      },
+      "accuracyTypes": [
+        "class",
+        "symmetric"
+      ],
+      "profileCount": 10,
+      "assetCount": 10,
+      "bucketCount": 12,
+      "sourceNames": [
+        "Mass"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "g",
+        "kg"
+      ]
+    },
+    {
+      "standardName": "Moisture Content",
+      "category": "Others",
+      "units": [
+        "%mc"
+      ],
+      "defaultUnit": "%mc",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 20.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "sourceNames": [
+        "Moisture Content"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "%mc"
+      ]
+    },
+    {
+      "standardName": "Parallelness",
+      "category": "Mechanical",
+      "units": [
+        "µm"
+      ],
+      "defaultUnit": "µm",
+      "subtypes": [
+        "24.00mm",
+        "24.12mm",
+        "24.25mm",
+        "24.37mm"
+      ],
+      "subtypeKind": "gauge_dimension",
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 24.0,
+        "max": 24.37
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 4,
+      "assetCount": 1,
+      "bucketCount": 4,
+      "sourceNames": [
+        "Parallelness"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Parallelness: See Flatness.",
+        "Parallelness: See Flatness.",
+        "Parallelness: See Flatness.",
+        "Parallelness: See Flatness."
+      ],
+      "rawUnitsSeen": [
+        "um"
+      ]
+    },
+    {
+      "standardName": "Particle Count",
+      "category": "Others",
+      "units": [
+        "µm"
+      ],
+      "defaultUnit": "µm",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.5,
+        "max": 10.0
+      },
+      "accuracyTypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 0,
+      "sourceNames": [
+        "Particle Count"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Particle Count: Unit is µm (a size threshold), not a count. No buckets. Unit semantics need confirming."
+      ],
+      "rawUnitsSeen": [
+        "μm"
+      ]
+    },
+    {
+      "standardName": "Pressure",
+      "category": "Mechanical",
+      "units": [
+        "Pa",
+        "bar",
+        "hPa",
+        "mbar"
+      ],
+      "defaultUnit": "Pa",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": -20.0,
+        "max": 700.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 28,
+      "assetCount": 27,
+      "bucketCount": 28,
+      "sourceNames": [
+        "Pressure"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "Pa",
+        "bar",
+        "hPa",
+        "mbar"
+      ]
+    },
+    {
+      "standardName": "RTD",
+      "category": "Electro-Technical",
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [
+        "Cu-53",
+        "Ni-100",
+        "Ni-120",
+        "Pt-100",
+        "Pt-200",
+        "Pt-46"
+      ],
+      "subtypeKind": "rtd_curve",
+      "subtypeRequired": true,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": -200,
+        "max": 850
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 61,
+      "assetCount": 13,
+      "bucketCount": 319,
+      "sourceNames": [
+        "RTD"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "°C"
+      ]
+    },
+    {
+      "standardName": "Relative Humidity",
+      "category": "Thermal",
+      "units": [
+        "%RH"
+      ],
+      "defaultUnit": "%RH",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 21,
+      "assetCount": 21,
+      "bucketCount": 18,
+      "sourceNames": [
+        "Relative Humidity",
+        "Relative Humidity Generation"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Relative Humidity Generation: Same 'Generation' role-leak pattern as Temperature Generation."
+      ],
+      "rawUnitsSeen": [
+        "% RH",
+        "% r.h",
+        "%RH"
+      ]
+    },
+    {
+      "standardName": "Resistance",
+      "category": "Electro-Technical",
+      "units": [
+        "MΩ",
+        "kΩ",
+        "Ω"
+      ],
+      "defaultUnit": "MΩ",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 0,
+        "max": 4000.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 25,
+      "assetCount": 18,
+      "bucketCount": 53,
+      "sourceNames": [
+        "Resistance"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "Mohm",
+        "kohm",
+        "ohm"
+      ]
+    },
+    {
+      "standardName": "Sound Pressure Level",
+      "category": "Mechanical",
+      "units": [
+        "dB"
+      ],
+      "defaultUnit": "dB",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 30.0,
+        "max": 130.0
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 3,
+      "assetCount": 3,
+      "bucketCount": 3,
+      "sourceNames": [
+        "Sound Pressure Level"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "dB"
+      ]
+    },
+    {
+      "standardName": "Speed",
+      "category": "Mechanical",
+      "units": [
+        "RPM"
+      ],
+      "defaultUnit": "RPM",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100000.0
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "sourceNames": [
+        "Speed"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Speed: Bare 'Speed' cannot be assigned to Contact or Non-Contact from the registry alone. Left as its own standard pending inspection of the 2 owning assets; do not auto-merge.",
+        "Speed: Bare 'Speed' cannot be assigned to Contact or Non-Contact from the registry alone. Left as its own standard pending inspection of the 2 owning assets; do not auto-merge."
+      ],
+      "rawUnitsSeen": [
+        "RPM"
+      ]
+    },
+    {
+      "standardName": "Speed (Contact)",
+      "category": "Mechanical",
+      "units": [
+        "RPM",
+        "rpm"
+      ],
+      "defaultUnit": "RPM",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100000.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 9,
+      "assetCount": 9,
+      "bucketCount": 18,
+      "sourceNames": [
+        "Speed (Contact)"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "RPM",
+        "rpm"
+      ]
+    },
+    {
+      "standardName": "Speed (Non-Contact)",
+      "category": "Mechanical",
+      "units": [
+        "RPM",
+        "rpm"
+      ],
+      "defaultUnit": "RPM",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 100000.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 9,
+      "assetCount": 9,
+      "bucketCount": 20,
+      "sourceNames": [
+        "Speed (Non-Contact)"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "RPM",
+        "rpm"
+      ]
+    },
+    {
+      "standardName": "Temperature",
+      "category": "Thermal",
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": -100.0,
+        "max": 1200.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 66,
+      "assetCount": 60,
+      "bucketCount": 86,
+      "sourceNames": [
+        "Temperature",
+        "Temperature Generation",
+        "Temperature indicator",
+        "Temperature sensor"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Temperature Generation: 'Generation' implies source role, but the registry tags it measuring. Likely a role-inference bug upstream - confirm before folding.",
+        "Temperature indicator: Describes the instrument's function (indicator), not a distinct measured quantity. Same unit and overlapping range as Temperature.",
+        "Temperature sensor: As above. If the lab reports indicator and sensor separately on certificates, keep them split instead.",
+        "Temperature indicator: Describes the instrument's function (indicator), not a distinct measured quantity. Same unit and overlapping range as Temperature.",
+        "Temperature sensor: As above. If the lab reports indicator and sensor separately on certificates, keep them split instead.",
+        "Temperature indicator: Describes the instrument's function (indicator), not a distinct measured quantity. Same unit and overlapping range as Temperature.",
+        "Temperature sensor: As above. If the lab reports indicator and sensor separately on certificates, keep them split instead.",
+        "Temperature indicator: Describes the instrument's function (indicator), not a distinct measured quantity. Same unit and overlapping range as Temperature.",
+        "Temperature sensor: As above. If the lab reports indicator and sensor separately on certificates, keep them split instead.",
+        "Temperature indicator: Describes the instrument's function (indicator), not a distinct measured quantity. Same unit and overlapping range as Temperature.",
+        "Temperature sensor: As above. If the lab reports indicator and sensor separately on certificates, keep them split instead.",
+        "Temperature indicator: Describes the instrument's function (indicator), not a distinct measured quantity. Same unit and overlapping range as Temperature.",
+        "Temperature sensor: As above. If the lab reports indicator and sensor separately on certificates, keep them split instead."
+      ],
+      "rawUnitsSeen": [
+        "°C"
+      ]
+    },
+    {
+      "standardName": "Thermocouple",
+      "category": "Electro-Technical",
+      "units": [
+        "°C"
+      ],
+      "defaultUnit": "°C",
+      "subtypes": [
+        "Type B",
+        "Type E",
+        "Type J",
+        "Type K",
+        "Type L",
+        "Type N",
+        "Type R",
+        "Type S",
+        "Type T",
+        "Type U"
+      ],
+      "subtypeKind": "thermocouple_type",
+      "subtypeRequired": true,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": -250.0,
+        "max": 2300.0
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 178,
+      "assetCount": 16,
+      "bucketCount": 748,
+      "sourceNames": [
+        "Temperature - Type K sensor",
+        "Thermocouple",
+        "Type-J thermocouple simulation",
+        "Type-K thermocouple simulation",
+        "Type-N thermocouple simulation",
+        "Type-R thermocouple simulation",
+        "Type-S thermocouple simulation",
+        "Type-T thermocouple simulation"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Type-K thermocouple simulation: See Type-J.",
+        "Type-T thermocouple simulation: See Type-J.",
+        "Type-J thermocouple simulation: Duplicates Thermocouple+subtype for source-role instruments. Folding removes 6 redundant standards. Confirm the simulation ranges are equivalent to the element ranges.",
+        "Type-N thermocouple simulation: See Type-J.",
+        "Type-R thermocouple simulation: See Type-J.",
+        "Type-S thermocouple simulation: See Type-J.",
+        "Type-K thermocouple simulation: See Type-J.",
+        "Type-T thermocouple simulation: See Type-J.",
+        "Type-J thermocouple simulation: Duplicates Thermocouple+subtype for source-role instruments. Folding removes 6 redundant standards. Confirm the simulation ranges are equivalent to the element ranges.",
+        "Type-N thermocouple simulation: See Type-J.",
+        "Type-R thermocouple simulation: See Type-J.",
+        "Type-S thermocouple simulation: See Type-J.",
+        "Temperature - Type K sensor: Ambiguous: could be Thermocouple/Type K, or a Temperature measurement that merely happens to use a Type K probe. Range -50..250 is narrow for a Type K element."
+      ],
+      "rawUnitsSeen": [
+        "°C"
+      ]
+    },
+    {
+      "standardName": "Thickness",
+      "category": "Mechanical",
+      "units": [
+        "mm"
+      ],
+      "defaultUnit": "mm",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring",
+        "source"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 25.0
+      },
+      "accuracyTypes": [
+        "symmetric"
+      ],
+      "profileCount": 5,
+      "assetCount": 5,
+      "bucketCount": 6,
+      "sourceNames": [
+        "Thickness"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "mm"
+      ]
+    },
+    {
+      "standardName": "Three-phase AC Power",
+      "category": "Electro-Technical",
+      "units": [
+        "W"
+      ],
+      "defaultUnit": "W",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 12.0,
+        "max": 2400.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "Three-phase AC Power"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "W"
+      ]
+    },
+    {
+      "standardName": "Time",
+      "category": "Electro-Technical",
+      "units": [],
+      "defaultUnit": null,
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": null,
+      "accuracyTypes": [],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 0,
+      "sourceNames": [
+        "Time"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Time: No unit, no buckets. Likely should fold into Time Interval - confirm against the owning asset."
+      ],
+      "rawUnitsSeen": []
+    },
+    {
+      "standardName": "Time Interval",
+      "category": "Electro-Technical",
+      "units": [
+        "h",
+        "min",
+        "s"
+      ],
+      "defaultUnit": "h",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.0,
+        "max": 86400.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 10,
+      "assetCount": 10,
+      "bucketCount": 15,
+      "sourceNames": [
+        "Time Interval",
+        "Time interval"
+      ],
+      "needsReview": false,
+      "reviewNotes": [
+        "Time interval: Case-only duplicate. Mechanical merge.",
+        "Time interval: Case-only duplicate. Mechanical merge.",
+        "Time interval: Case-only duplicate. Mechanical merge.",
+        "Time interval: Case-only duplicate. Mechanical merge."
+      ],
+      "rawUnitsSeen": [
+        "h",
+        "hours",
+        "min",
+        "s"
+      ]
+    },
+    {
+      "standardName": "Ultra Vacuum",
+      "category": "Mechanical",
+      "units": [
+        "mbar"
+      ],
+      "defaultUnit": "mbar",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.001,
+        "max": 1000.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 1,
+      "assetCount": 1,
+      "bucketCount": 1,
+      "sourceNames": [
+        "Ultra Vacuum"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "mbar"
+      ]
+    },
+    {
+      "standardName": "Vacuum",
+      "category": "Mechanical",
+      "units": [
+        "Pa",
+        "bar"
+      ],
+      "defaultUnit": "Pa",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": -1.0,
+        "max": 2000.0
+      },
+      "accuracyTypes": [
+        "formula",
+        "symmetric"
+      ],
+      "profileCount": 6,
+      "assetCount": 6,
+      "bucketCount": 6,
+      "sourceNames": [
+        "Vacuum"
+      ],
+      "needsReview": false,
+      "reviewNotes": [],
+      "rawUnitsSeen": [
+        "Pa",
+        "bar"
+      ]
+    },
+    {
+      "standardName": "Velocity",
+      "category": "Mechanical",
+      "units": [
+        "mm/s"
+      ],
+      "defaultUnit": "mm/s",
+      "subtypes": [],
+      "subtypeKind": null,
+      "subtypeRequired": false,
+      "roles": [
+        "measuring"
+      ],
+      "observedRange": {
+        "min": 0.01,
+        "max": 400.0
+      },
+      "accuracyTypes": [
+        "formula"
+      ],
+      "profileCount": 2,
+      "assetCount": 2,
+      "bucketCount": 2,
+      "sourceNames": [
+        "Velocity"
+      ],
+      "needsReview": true,
+      "reviewNotes": [
+        "Velocity: KEEP AS 'Velocity'. An earlier draft proposed renaming this to 'Vibration Velocity'; the source spreadsheet overrules that. 'MASTER LIST AS PER SOP & PARAMETER.xlsx' records PARAMETER='Velocity' for BOTH vibration meters (374, 600) - 'Vibration Velocity' appears only in the registry's asset-level parameters[], where the parser enriched the lab's term. Renaming would depart from the lab's own SOP document. If the lab prefers the longer name, that belongs in the per-org customName, not the standard.",
+        "Velocity: KEEP AS 'Velocity'. An earlier draft proposed renaming this to 'Vibration Velocity'; the source spreadsheet overrules that. 'MASTER LIST AS PER SOP & PARAMETER.xlsx' records PARAMETER='Velocity' for BOTH vibration meters (374, 600) - 'Vibration Velocity' appears only in the registry's asset-level parameters[], where the parser enriched the lab's term. Renaming would depart from the lab's own SOP document. If the lab prefers the longer name, that belongs in the per-org customName, not the standard."
+      ],
+      "rawUnitsSeen": [
+        "mm/s"
+      ]
+    }
+  ]
+}

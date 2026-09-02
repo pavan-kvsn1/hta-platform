@@ -1,0 +1,414 @@
+{
+  "$comment": [
+    "Curated map from raw registry parameter names (capability_profile.parameter)",
+    "to the standard parameters seeded into CalibrationParameterStandards.",
+    "",
+    "This file is REVIEWED INPUT, not generated output. scripts/build_parameter_standards.py",
+    "consumes it and fails if any raw name in the registry is unmapped, so new registry",
+    "versions cannot silently introduce unseeded parameters.",
+    "",
+    "Every entry carries 'review': entries marked true are metrology judgment calls that",
+    "need engineer sign-off before seeding. Entries marked false are mechanical",
+    "(case duplicates, unit spellings) and safe as-is.",
+    "",
+    "subtypeKind distinguishes the three unrelated things the registry stores in",
+    "capability_profile.subtype, so the UI can label the selector correctly."
+  ],
+
+  "version": "0.1-draft",
+  "registrySchemaVersion": "1.0",
+
+  "unitAliases": {
+    "$comment": "raw unit -> canonical unit. Applied to profile units before seeding.",
+    "% RH": "%RH",
+    "% r.h": "%RH",
+    "%RH": "%RH",
+    "hours": "h",
+    "h": "h",
+    "min": "min",
+    "s": "s",
+    "um": "µm",
+    "μm": "µm",
+    "ohm": "Ω",
+    "kohm": "kΩ",
+    "Mohm": "MΩ",
+    "uS/cm": "µS/cm"
+  },
+
+  "unitsNeedingReview": {
+    "$comment": [
+      "Unit pairs that look like duplicates but may be metrologically distinct.",
+      "Not merged automatically - a gauge-referenced unit is not the same quantity",
+      "as its absolute counterpart."
+    ],
+    "mbar g vs mbar": "'g' suffix denotes gauge reference, not a spelling variant. Kept distinct.",
+    "bar g vs bar": "Same. 'Gauge Pressure' is modelled as its own parameter."
+  },
+
+  "subtypeKinds": {
+    "thermocouple_type": "Type B/E/J/K/L/N/R/S/T/U - thermocouple element type",
+    "rtd_curve": "Pt-100/Pt-200/Pt-46/Cu-53/Ni-100/Ni-120 - RTD resistance curve",
+    "gauge_dimension": "24.00mm/24.12mm/... - physical size of the gauge artifact, NOT an element type"
+  },
+
+  "parameters": {
+    "$comment": "raw registry name -> standard definition. 'merged' entries fold into another standardName.",
+
+    "AC Current":        { "standardName": "AC Current", "category": "Electro-Technical", "review": false },
+    "AC Voltage":        { "standardName": "AC Voltage", "category": "Electro-Technical", "review": false },
+    "DC Current":        { "standardName": "DC Current", "category": "Electro-Technical", "review": false },
+    "DC Voltage":        { "standardName": "DC Voltage", "category": "Electro-Technical", "review": false },
+    "Capacitance":       { "standardName": "Capacitance", "category": "Electro-Technical", "review": false },
+    "Frequency":         { "standardName": "Frequency", "category": "Electro-Technical", "review": false },
+    "Resistance":        { "standardName": "Resistance", "category": "Electro-Technical", "review": false },
+    "Conductivity":      { "standardName": "Conductivity", "category": "Electro-Technical", "review": false },
+    "Three-phase AC Power": { "standardName": "Three-phase AC Power", "category": "Electro-Technical", "review": false },
+
+    "RTD": {
+      "standardName": "RTD", "category": "Electro-Technical",
+      "subtypeKind": "rtd_curve", "subtypeRequired": true, "review": false
+    },
+    "Thermocouple": {
+      "standardName": "Thermocouple", "category": "Electro-Technical",
+      "subtypeKind": "thermocouple_type", "subtypeRequired": true, "review": false
+    },
+
+    "Type-J thermocouple simulation": {
+      "standardName": "Thermocouple", "category": "Electro-Technical",
+      "subtypeKind": "thermocouple_type", "forceSubtype": "Type J", "forceRole": "source",
+      "review": true,
+      "rationale": "Duplicates Thermocouple+subtype for source-role instruments. Folding removes 6 redundant standards. Confirm the simulation ranges are equivalent to the element ranges."
+    },
+    "Type-K thermocouple simulation": {
+      "standardName": "Thermocouple", "category": "Electro-Technical",
+      "subtypeKind": "thermocouple_type", "forceSubtype": "Type K", "forceRole": "source",
+      "review": true, "rationale": "See Type-J."
+    },
+    "Type-N thermocouple simulation": {
+      "standardName": "Thermocouple", "category": "Electro-Technical",
+      "subtypeKind": "thermocouple_type", "forceSubtype": "Type N", "forceRole": "source",
+      "review": true, "rationale": "See Type-J."
+    },
+    "Type-R thermocouple simulation": {
+      "standardName": "Thermocouple", "category": "Electro-Technical",
+      "subtypeKind": "thermocouple_type", "forceSubtype": "Type R", "forceRole": "source",
+      "review": true, "rationale": "See Type-J."
+    },
+    "Type-S thermocouple simulation": {
+      "standardName": "Thermocouple", "category": "Electro-Technical",
+      "subtypeKind": "thermocouple_type", "forceSubtype": "Type S", "forceRole": "source",
+      "review": true, "rationale": "See Type-J."
+    },
+    "Type-T thermocouple simulation": {
+      "standardName": "Thermocouple", "category": "Electro-Technical",
+      "subtypeKind": "thermocouple_type", "forceSubtype": "Type T", "forceRole": "source",
+      "review": true, "rationale": "See Type-J."
+    },
+
+    "Temperature": {
+      "standardName": "Temperature", "category": "Thermal", "review": false,
+      "note": "Registry category is ['Mechanical','Source','Thermal'] - 'Source' is a role value leaking into the category field. Normalized to Thermal."
+    },
+    "Temperature indicator": {
+      "standardName": "Temperature", "category": "Thermal", "review": true,
+      "rationale": "Describes the instrument's function (indicator), not a distinct measured quantity. Same unit and overlapping range as Temperature."
+    },
+    "Temperature sensor": {
+      "standardName": "Temperature", "category": "Thermal", "review": true,
+      "rationale": "As above. If the lab reports indicator and sensor separately on certificates, keep them split instead."
+    },
+    "Temperature Generation": {
+      "standardName": "Temperature", "category": "Thermal", "forceRole": "source",
+      "review": true,
+      "rationale": "'Generation' implies source role, but the registry tags it measuring. Likely a role-inference bug upstream - confirm before folding."
+    },
+    "Temperature - Type K sensor": {
+      "standardName": "Thermocouple", "category": "Electro-Technical",
+      "subtypeKind": "thermocouple_type", "forceSubtype": "Type K",
+      "review": true,
+      "rationale": "Ambiguous: could be Thermocouple/Type K, or a Temperature measurement that merely happens to use a Type K probe. Range -50..250 is narrow for a Type K element."
+    },
+    "Dew Point Temperature": {
+      "standardName": "Dew Point Temperature", "category": "Thermal", "review": false,
+      "note": "Distinct derived quantity - not folded into Temperature."
+    },
+
+    "Relative Humidity": { "standardName": "Relative Humidity", "category": "Thermal", "review": false },
+    "Relative Humidity Generation": {
+      "standardName": "Relative Humidity", "category": "Thermal", "forceRole": "source",
+      "review": true, "rationale": "Same 'Generation' role-leak pattern as Temperature Generation."
+    },
+
+    "Pressure":             { "standardName": "Pressure", "category": "Mechanical", "review": false },
+    "Differential Pressure":{ "standardName": "Differential Pressure", "category": "Mechanical", "review": false },
+    "Gauge Pressure": {
+      "standardName": "Gauge Pressure", "category": "Mechanical", "review": true,
+      "rationale": "Not anticipated by the scope doc. Kept distinct because 'bar g' is gauge-referenced. Confirm the lab treats it as its own parameter rather than Pressure with a reference flag."
+    },
+    "Vacuum":               { "standardName": "Vacuum", "category": "Mechanical", "review": false },
+
+    "Compression Force": {
+      "standardName": "Force (Compression)", "category": "Mechanical", "review": true,
+      "rationale": "EVIDENCE-BACKED, not a guess: assets 219 and 746 are both Digital Force Gauges declaring asset-level 'Force', but 219's profiles are [Force - pull mode, Force - push mode] while 746's are [Compression Force, Tension Force]. The registry describes the same instrument type both ways, so push == compression. Review is a formality unless the lab reports them separately on certificates."
+    },
+    "Force - push mode": {
+      "standardName": "Force (Compression)", "category": "Mechanical", "review": true,
+      "rationale": "See Compression Force. Note ranges differ (0-20 vs 0-100 kgf) - merging widens the standard's observed range, which affects pre-filtering eligibility."
+    },
+    "Tension Force": {
+      "standardName": "Force (Tension)", "category": "Mechanical", "review": true,
+      "rationale": "EVIDENCE-BACKED by the same asset 219/746 comparison: pull == tension. See Compression Force."
+    },
+    "Force - pull mode": {
+      "standardName": "Force (Tension)", "category": "Mechanical", "review": true,
+      "rationale": "See Tension Force. Ranges differ (0-100 vs 0-20 kgf)."
+    },
+
+    "Speed (Contact)": {
+      "standardName": "Speed (Contact)", "category": "Mechanical", "review": false,
+      "note": "Scope doc explicitly requires Contact/Non-Contact to stay separate."
+    },
+    "Speed (Non-Contact)": {
+      "standardName": "Speed (Non-Contact)", "category": "Mechanical", "review": false,
+      "note": "As above."
+    },
+    "Speed": {
+      "standardName": "Speed", "category": "Mechanical", "review": true,
+      "rationale": "Bare 'Speed' cannot be assigned to Contact or Non-Contact from the registry alone. Left as its own standard pending inspection of the 2 owning assets; do not auto-merge."
+    },
+
+    "Air Flow": {
+      "standardName": "Air Flow", "category": "Others", "review": true,
+      "rationale": "No unit and no buckets in the registry. Cannot participate in accuracy filtering. Confirm whether this is a real capability or an extraction gap."
+    },
+    "Compressed Air Flow": { "standardName": "Compressed Air Flow", "category": "Others", "review": false },
+    "Liquid Flow":         { "standardName": "Liquid Flow", "category": "Others", "review": false },
+    "Flow": {
+      "standardName": "Flow", "category": "Others", "review": true,
+      "rationale": "Generic 'Flow' (SLPM) alongside three medium-specific flow parameters. Confirm whether it should fold into one of them."
+    },
+
+    "Acceleration": {
+      "standardName": "Acceleration", "category": "Mechanical", "review": false,
+      "note": "Added by scripts/apply_certificate_findings.py from asset 600's certificate (Vibration Meter, acceleration mode 0.1-400 m/s²). Not present in the original registry extraction."
+    },
+    "Displacement": {
+      "standardName": "Displacement", "category": "Mechanical", "review": true,
+      "rationale": "Added from asset 600's certificate (vibration displacement, peak-to-peak, 0.001-4.000 mm). Note that assets 44 and 45 also carry 'Displacement'/'Length' as their CERTIFICATE parameter while their profile parameter is 'Thickness' - confirm whether dial-gauge displacement and vibration displacement are the same standard."
+    },
+    "CO2": {
+      "standardName": "CO2", "category": "Others", "review": false,
+      "note": "Promoted from proposedNewStandards once asset 755's certificate supplied range (0-100000 ppm) and accuracy (±1%)."
+    },
+    "Ultra Vacuum": {
+      "standardName": "Ultra Vacuum", "category": "Mechanical", "review": false,
+      "note": "Promoted from proposedNewStandards once asset 742's certificate supplied the unit (mbar) and the ±10% acceptance criterion."
+    },
+
+    "Air Velocity": { "standardName": "Air Velocity", "category": "Others", "review": false },
+    "Velocity": {
+      "standardName": "Velocity", "category": "Mechanical", "review": true,
+      "rationale": "KEEP AS 'Velocity'. An earlier draft proposed renaming this to 'Vibration Velocity'; the source spreadsheet overrules that. 'MASTER LIST AS PER SOP & PARAMETER.xlsx' records PARAMETER='Velocity' for BOTH vibration meters (374, 600) - 'Vibration Velocity' appears only in the registry's asset-level parameters[], where the parser enriched the lab's term. Renaming would depart from the lab's own SOP document. If the lab prefers the longer name, that belongs in the per-org customName, not the standard."
+    },
+
+    "Time Interval": {
+      "standardName": "Time Interval", "category": "Electro-Technical", "review": false,
+      "note": "Absorbs the case-variant 'Time interval'."
+    },
+    "Time interval": {
+      "standardName": "Time Interval", "category": "Electro-Technical", "review": false,
+      "rationale": "Case-only duplicate. Mechanical merge."
+    },
+    "Time": {
+      "standardName": "Time", "category": "Electro-Technical", "review": true,
+      "rationale": "No unit, no buckets. Likely should fold into Time Interval - confirm against the owning asset."
+    },
+
+    "Length":    { "standardName": "Length", "category": "Mechanical", "review": false },
+    "Thickness": { "standardName": "Thickness", "category": "Mechanical", "review": false },
+    "Angle":     { "standardName": "Angle", "category": "Mechanical", "review": false },
+    "Mass":      { "standardName": "Mass", "category": "Mechanical", "review": false,
+                   "note": "Asset-level vocabulary calls this 'Weight' (10 assets). Alias recorded in assetLevelAliases." },
+    "Hardness":  { "standardName": "Hardness", "category": "Mechanical", "review": false },
+    "Sound Pressure Level": { "standardName": "Sound Pressure Level", "category": "Mechanical", "review": false,
+                   "note": "Asset-level vocabulary calls this 'Sound Intensity' - metrologically NOT the same quantity, but they refer to the same instruments here." },
+    "Light Intensity": { "standardName": "Light Intensity", "category": "Mechanical", "review": true,
+                   "rationale": "Categorised Mechanical in the registry; lux is photometric. Category likely wrong." },
+    "Moisture Content": { "standardName": "Moisture Content", "category": "Others", "review": false },
+    "Particle Count": { "standardName": "Particle Count", "category": "Others", "review": true,
+                   "rationale": "Unit is µm (a size threshold), not a count. No buckets. Unit semantics need confirming." },
+    "Level / Inclination": { "standardName": "Level / Inclination", "category": "Mechanical", "review": true,
+                   "rationale": "No unit, no buckets. Sole owner is a Granite Surface Plate." },
+
+    "Flatness": {
+      "standardName": "Flatness", "category": "Mechanical",
+      "subtypeKind": "gauge_dimension", "subtypeRequired": false, "review": true,
+      "rationale": "subtype holds gauge-block sizes (24.00mm...), not an element type. The subtype selector must be labelled per subtypeKind or this renders nonsensically."
+    },
+    "Parallelness": {
+      "standardName": "Parallelness", "category": "Mechanical",
+      "subtypeKind": "gauge_dimension", "subtypeRequired": false, "review": true,
+      "rationale": "See Flatness."
+    }
+  },
+
+  "assetLevelAliases": {
+    "$comment": [
+      "asset.parameters[] names with no profile-level counterpart, so legacy",
+      "certificates and asset-level labels still resolve to a seeded standard.",
+      "",
+      "Each entry was verified by locating every asset declaring the name and",
+      "inspecting that same asset's capability profiles. 'evidence' records that",
+      "check as (records supporting the mapping)/(records declaring the name).",
+      "",
+      "resolvesTo is a LIST: some asset-level names legitimately expand to more",
+      "than one standard. An empty list means no profile coverage exists.",
+      "",
+      "confidence: high   - every owning record agrees",
+      "            medium - agrees where profiles exist, but coverage is partial",
+      "            low    - owning records disagree; do not rely on this alias"
+    ],
+
+    "Weight": {
+      "resolvesTo": ["Mass"], "confidence": "high", "evidence": "10/10",
+      "note": "Every one of the 10 declaring records has exactly one profile, 'Mass'."
+    },
+    "Dew Point": {
+      "resolvesTo": ["Dew Point Temperature"], "confidence": "high", "evidence": "1/1",
+      "note": "Asset 564 (Dew Point Transmitter), sole parameter to sole profile."
+    },
+    "Sound Intensity": {
+      "resolvesTo": ["Sound Pressure Level"], "confidence": "high", "evidence": "3/3",
+      "excelTerm": "Sound Intensity",
+      "note": "3/3 in the registry AND all 3 spreadsheet rows say 'Sound Intensity'. The profile-level name is the INFERRED correction - physically, a dB sound level meter measures sound pressure level, not sound intensity (W/m^2). So the standard should be 'Sound Pressure Level' and this lab's customName should default to 'Sound Intensity'."
+    },
+    "Power": {
+      "resolvesTo": ["Three-phase AC Power"], "confidence": "high", "evidence": "1/1",
+      "excelTerm": "POWER",
+      "note": "Asset 153 (Digital Power Meter). The spreadsheet says only 'POWER'; 'Three-phase' was inferred by the capability matrix, not declared by the lab. Narrows generic->specific, so adding a single-phase power meter later would silently break this alias. Verify the three-phase claim against the instrument before seeding."
+    },
+    "Vibration Velocity": {
+      "resolvesTo": ["Velocity"], "confidence": "high", "evidence": "2/2 in spreadsheet",
+      "excelTerm": "Velocity",
+      "note": "CORRECTED against the spreadsheet. Both vibration meters (374, 600) record PARAMETER='Velocity' there; 'Vibration Velocity' exists only in the registry's asset-level parameters[], added by the parser. The alias holds, but do NOT rename the standard - see the 'Velocity' entry under parameters."
+    },
+
+    "Force": {
+      "resolvesTo": ["Force (Compression)", "Force (Tension)"],
+      "confidence": "high", "evidence": "2/2",
+      "note": "Expands to both directions. The two declaring assets are both Digital Force Gauges but are described differently: 219 has [Force - pull mode, Force - push mode] while 746 has [Compression Force, Tension Force]. This is direct evidence that push == compression and pull == tension, and independently supports the Force merges in 'parameters' above."
+    },
+    "AC/DC Voltage": {
+      "resolvesTo": ["AC Voltage", "DC Voltage"],
+      "confidence": "medium", "evidence": "5/6",
+      "note": "Expands to both, but per-asset coverage varies and the label overstates it: asset 63 (True RMS Multimeter) has only AC profiles, asset 149 only DC Voltage. Asset 165 has no profiles at all. Resolving to both will over-report capability for those assets - prefer the profile-level name whenever one exists."
+    },
+    "AC/DC Current": {
+      "resolvesTo": ["AC Current", "DC Current"],
+      "confidence": "medium", "evidence": "5/6",
+      "note": "Same pattern and the same caveat as AC/DC Voltage."
+    },
+
+    "Level": {
+      "resolvesTo": ["Level / Inclination"],
+      "confidence": "low", "evidence": "1/3",
+      "note": "DO NOT RELY ON THIS. Only asset 46 (Spirit Level) maps cleanly. Asset 35 (Granite Surface Plate) has zero profiles. Asset 266 (Bevel Protractor) declares [Level, Angle] but its only profile is Angle, so 'Level' there resolves to nothing.",
+      "rootCause": "The spreadsheet uses inconsistent separators in the PARAMETER column: asset 46 reads 'Level , Angle' (comma) while asset 266 reads 'Level / Angle' (slash). The parser treated both as two parameters, but a slash may well denote one combined 'Level/Angle' capability - which is also how the profile name 'Level / Inclination' is spelled. Resolve the separator semantics in the source data rather than patching it downstream."
+    },
+
+    "CO2": {
+      "resolvesTo": ["CO2"], "confidence": "high", "evidence": "1/1",
+      "excelTerm": "CO2",
+      "createsNewStandard": true,
+      "note": "RESOLVED from the spreadsheet. Asset 755 (CO2 Transmitter) has zero capability profiles, but its Range cell reads '0 to 1,00,000 ppm' - a complete, unambiguous range once Indian digit grouping is handled. See proposedNewStandards.CO2."
+    },
+    "Volume": {
+      "resolvesTo": [], "confidence": "high", "evidence": "1/1",
+      "createsNewStandard": false,
+      "note": "RESOLVED as spurious - do NOT create a Volume standard. Asset 602 (Standard Weight box) lists PARAMETER 'Weight, Volume', but its Range cell reads '1mg to 200g', which is purely a mass span. There is no volume range anywhere in the source. The registry giving 602 only a Mass profile was correct; 'Volume' looks like a data-entry artifact in the spreadsheet (possibly noted because weights displace volume for buoyancy correction). Recommend removing it from the source spreadsheet."
+    },
+    "Ultra Vacuum": {
+      "resolvesTo": ["Ultra Vacuum"], "confidence": "medium", "evidence": "1/1",
+      "excelTerm": "Ultra vacuum",
+      "createsNewStandard": true,
+      "note": "PARTIALLY RESOLVED from the spreadsheet. Asset 742 (Digital Hi.Pr. Pirani Gauge) has zero profiles; its Range cell reads '103 to 10-3', which is 10^3 to 10^-3 with the superscripts lost in the spreadsheet - so 0.001 to 1000. The UNIT is not stated anywhere and cannot be inferred safely; a Pirani gauge is typically mbar or Torr, and those differ by a factor of ~1.33. The unit must come from the lab or from SOP NLAB/CAL/ML14/R01 before this is seeded. See proposedNewStandards['Ultra Vacuum']."
+    }
+  },
+
+  "proposedNewStandards": {
+    "$comment": [
+      "Standards that do NOT exist in capability_profiles but are justified by the",
+      "source spreadsheet. Without these, the owning assets can never appear as",
+      "eligible masters for their declared parameter.",
+      "",
+      "Both are range-only: the spreadsheet has no accuracy or least-count column, so",
+      "they participate in RANGE filtering but not ACCURACY filtering until a",
+      "calibration certificate supplies bucket data."
+    ],
+
+    "CO2": {
+      "category": "Others",
+      "units": ["ppm"],
+      "defaultUnit": "ppm",
+      "roles": ["measuring"],
+      "observedRange": { "min": 0.0, "max": 100000.0 },
+      "calibratedRange": { "min": 0.0, "max": 25000.0 },
+      "evidence": {
+        "asset": "755 HTAIPL/L",
+        "description": "CO2 Transmitter",
+        "excelRange": "0 to 1,00,000 ppm",
+        "excelParameter": "CO2",
+        "sop": "NLAB/CAL/EL6/R01",
+        "certificateAppendix": "capability_appendix entry 'CO2 concentration capability' reads '0 to 100000 ppm (10%) CO2' - independently confirms the spreadsheet range."
+      },
+      "accuracy": { "type": "formula", "percent_of": "reading", "percent_value": 0.01, "polarity": "±" },
+      "leastCount": null,
+      "verifiedAgainstCertificate": {
+        "certificateNo": "HTA-004/24-25 (Tritech, 21.03.25, valid till 20.03.26)",
+        "instrument": "Sense Air 045-7-0032-01, Sr. 03127F72",
+        "statedRange": "CO2: 100,000 PPM (10%)",
+        "calibrationAccuracy": "+/- 1% at every point (zero + 3 span points)",
+        "spanPoints": ["0 (99.99% N2 zero gas)", "4,000 ppm (0.4%)", "9,000 ppm (0.9%)", "25,000 ppm (2.5%)"],
+        "observedError": "0.0% at all points"
+      },
+      "blockers": [],
+      "warnings": [
+        "The certificate also covers a SECOND parameter the registry did not record: Temp 0 to 50 deg C. The transmitter measures temperature as well as CO2. Added as profile P2 by apply_certificate_findings.py.",
+        "This asset is OVERDUE (valid till 20.03.26; 166 days overdue at the registry snapshot)."
+      ],
+      "rangeSemanticsNote": "An earlier draft of this file treated the 25,000 ppm top span-gas point as a cap on usable range and flagged the declared 100,000 ppm as a traceability problem. That was WRONG. Per the lab: the DECLARED range is the capability, and calibration points are samples within it - the accuracy established at the outermost points extends to the declared limits. So the capability is the full 0-100,000 ppm at ±1%. calibratedRange below is retained for reference only, not as a filter bound.",
+      "note": "Certificate-verified. Accuracy is +/-1% of reading - note the capability_appendix recorded '0.0% error', which is the OBSERVED error, not the accuracy limit. The registry's range_parsed is WRONG ({min:0, max:1.0, unit:',00,000'}) - the extractor split on the first comma of the Indian-grouped number, which its own merge_issues already flags."
+    },
+
+    "Ultra Vacuum": {
+      "category": "Mechanical",
+      "units": ["mbar"],
+      "defaultUnit": "mbar",
+      "roles": ["measuring"],
+      "observedRange": { "min": 0.001, "max": 1000.0 },
+      "evidence": {
+        "asset": "742 HTAIPL/L",
+        "description": "Digital Hi.Pr. Pirani Gauge (HHV, DHPG-222 / HPS-2)",
+        "excelRange": "103 to 10-3",
+        "excelParameter": "Ultra vacuum",
+        "sop": "NLAB/CAL/ML14/R01 (procedure_scope: 'Vacuum calibration')",
+        "certificateAppendix": "capability_appendix entry 'Vacuum pressure' reads 'Approximately 1 x 10^-3 to 1 x 10^3 mbar (as printed)'."
+      },
+      "accuracy": { "type": "formula", "percent_of": "master gauge reading", "percent_value": 0.10, "polarity": "±" },
+      "leastCount": null,
+      "verifiedAgainstCertificate": {
+        "certificateNo": "1421112K25 (HHV Thermal, 11/11/2025, valid till 10/11/2026)",
+        "instrument": "DIG HI PRE PIRANI, model DHPG-222 with gauge head HPS-2, Sl.No 525/61",
+        "statedRange": "1 x 10^3 To 1x10^-3 m.bar",
+        "acceptanceCriteria": "Pirani gauge +/-10% of the Master gauge - ACCEPTED",
+        "points": "10 points from 1.0x10^-3 to 1.0x10^3 mbar",
+        "traceability": "NPL Standard, master cert 25060382/D1.06/C-075, valid 29/07/2026"
+      },
+      "blockers": [],
+      "warnings": [
+        "The +/-10% figure is an ACCEPTANCE CRITERION (the tolerance used for the pass/fail decision), not a manufacturer accuracy specification. It is also very coarse: a master with +/-10% gives a poor test uncertainty ratio for calibrating other vacuum gauges. Confirm before relying on it for pre-filtering."
+      ],
+      "note": "UNIT CONFIRMED FROM THE CERTIFICATE FACE - 'Range: 1 x 10^3 To 1x10^-3 m.bar'. Not inferred. The certificate also confirms the 10^-3..10^3 reading of the spreadsheet's mangled '103 to 10-3'. IMPORTANT: this is NOT range-only as previously recorded - capability_appendix says accuracy NOT_STATED, but the certificate carries a +/-10% acceptance criterion. The registry's range_parsed remains wrong ({min:103, max:10, unit:'-3'}); its own merge_issues already identifies this as an upstream scientific-notation parsing failure."
+    }
+  }
+}
