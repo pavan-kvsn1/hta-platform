@@ -10,19 +10,25 @@
   "assets": [
     {
       "id": "149",
-      "asset_no": "149",
+      "asset_no": "149 HTAIPL/L",
       "asset_type": "composite",
-      "category": null,
-      "instrument_desc": null,
-      "make": null,
-      "model": null,
-      "serial_no": null,
-      "usage": null,
-      "calibrated_at": null,
-      "report_no": null,
-      "next_due_on": null,
-      "calibration_status": null,
-      "sop_references": [],
+      "category": "Electro-Technical",
+      "instrument_desc": "Multi Function Calibrator",
+      "make": "Fluke",
+      "model": "5500A",
+      "serial_no": "9585024",
+      "usage": "For Lab",
+      "calibrated_at": "ETDC, Bangalore",
+      "report_no": "CR/PCAL/53053",
+      "next_due_on": "2026-01-30",
+      "calibration_status": "overdue",
+      "sop_references": [
+        "NLAB/CAL/ET1/R01",
+        "NLAB/CAL/ET2/R01",
+        "NLAB/CAL/ET3/R01",
+        "NLAB/CAL/ET5/R01",
+        "NLAB/CAL/ET7/R01"
+      ],
       "certificate_file": null,
       "capability_profiles": [
         {
@@ -1982,7 +1988,9 @@
           "make": "Fluke",
           "model": "5500A",
           "serial_no": "9585024",
-          "asset_no": "149 HTAIPL/L"
+          "asset_no": "149 HTAIPL/L",
+          "certificate_file": "149 HTAIPL L.pdf",
+          "has_master_record": true
         },
         {
           "id": "C2",
@@ -1990,7 +1998,9 @@
           "make": "Fluke",
           "model": "5500A",
           "serial_no": "94870103",
-          "asset_no": "149 HTAIPL/L"
+          "asset_no": "149 HTAIPL/L",
+          "certificate_file": "149  HTAIPL L.pdf",
+          "has_master_record": true
         }
       ]
     },
@@ -31343,19 +31353,21 @@
     },
     {
       "id": "580",
-      "asset_no": "580",
+      "asset_no": "580 HTAIPL/L",
       "asset_type": "composite",
-      "category": null,
-      "instrument_desc": null,
-      "make": null,
-      "model": null,
-      "serial_no": null,
-      "usage": null,
-      "calibrated_at": null,
-      "report_no": null,
-      "next_due_on": null,
-      "calibration_status": null,
-      "sop_references": [],
+      "category": "Thermal",
+      "instrument_desc": "Digital Paperless recorder with RTD sensor",
+      "make": "Brainchild",
+      "model": "PR2012-0A011000",
+      "serial_no": "166280021",
+      "usage": "For On Site",
+      "calibrated_at": "HTAIPL, Bangalore",
+      "report_no": "HTA/C50519/14/26",
+      "next_due_on": "2027-02-17",
+      "calibration_status": "valid",
+      "sop_references": [
+        "NLAB/CAL/VL2/R01"
+      ],
       "certificate_file": null,
       "capability_profiles": [
         {
@@ -31428,23 +31440,29 @@
           "make": "Brainchild",
           "model": "PR2012-0A011000",
           "serial_no": "166280021",
-          "asset_no": "580 HTAIPL/L"
+          "asset_no": "580 HTAIPL/L",
+          "certificate_file": "580A HTAIPL L.pdf",
+          "has_master_record": true
         },
         {
           "id": "C2",
-          "instrument_desc": null,
+          "instrument_desc": "Paperless Recorder",
           "make": null,
           "model": null,
           "serial_no": null,
-          "asset_no": null
+          "asset_no": null,
+          "certificate_file": "580B HTAIPL L.pdf",
+          "has_master_record": false
         },
         {
           "id": "C3",
-          "instrument_desc": null,
+          "instrument_desc": "Digital Paperless Recorder for Type-T Thermocouple (24-channel)",
           "make": null,
           "model": null,
           "serial_no": null,
-          "asset_no": null
+          "asset_no": null,
+          "certificate_file": "580C HTAIPL L.pdf",
+          "has_master_record": false
         }
       ]
     },
@@ -33377,19 +33395,22 @@
     },
     {
       "id": "188",
-      "asset_no": "188",
+      "asset_no": "188 HTAIPL/L",
       "asset_type": "composite",
-      "category": null,
-      "instrument_desc": null,
-      "make": null,
-      "model": null,
-      "serial_no": null,
-      "usage": null,
-      "calibrated_at": null,
-      "report_no": null,
-      "next_due_on": null,
-      "calibration_status": null,
-      "sop_references": [],
+      "category": "Mechanical",
+      "instrument_desc": "Digital Pressure Calibrator",
+      "make": "Druck",
+      "model": "DPI 610",
+      "serial_no": "61056430",
+      "usage": "For Lab",
+      "calibrated_at": "HTAIPL, Bangalore",
+      "report_no": "HTA/C50458/01/25",
+      "next_due_on": "2026-11-25",
+      "calibration_status": "valid",
+      "sop_references": [
+        "NLAB/CAL/ML1/R01",
+        "NLAB/CAL/ML2/R01"
+      ],
       "certificate_file": null,
       "capability_profiles": [
         {
@@ -33468,7 +33489,9 @@
           "make": "Druck",
           "model": "DPI 610",
           "serial_no": "61056430",
-          "asset_no": "188 HTAIPL/L"
+          "asset_no": "188 HTAIPL/L",
+          "certificate_file": "188A HTAIPL L.pdf",
+          "has_master_record": true
         },
         {
           "id": "C2",
@@ -33476,15 +33499,19 @@
           "make": "Druck",
           "model": "DPI 610",
           "serial_no": "2899734",
-          "asset_no": "188 HTAIPL/L"
+          "asset_no": "188 HTAIPL/L",
+          "certificate_file": "188B HTAIPL L.pdf",
+          "has_master_record": true
         },
         {
           "id": "C3",
-          "instrument_desc": null,
+          "instrument_desc": "Low Pressure External Transducer with Calibrator",
           "make": null,
           "model": null,
           "serial_no": null,
-          "asset_no": null
+          "asset_no": null,
+          "certificate_file": "188C HTAIPL L.pdf",
+          "has_master_record": false
         }
       ]
     },

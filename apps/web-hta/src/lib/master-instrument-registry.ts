@@ -140,6 +140,14 @@ export interface CapabilityProfile {
   component_id?: string
 }
 
+/**
+ * A physical sub-instrument of a composite asset.
+ *
+ * Some components exist only because a certificate was found for them - the lab's
+ * master list has no entry (e.g. asset 580 has certificates 580A/580B/580C but only
+ * 580A is in the master list). Those have `has_master_record: false`, no serial and no
+ * attributable calibration dates, so they must not be presented as fully tracked.
+ */
 export interface RegistryComponent {
   id: string
   instrument_desc: string | null
@@ -147,6 +155,9 @@ export interface RegistryComponent {
   model: string | null
   serial_no: string | null
   asset_no: string | null
+  certificate_file: string | null
+  /** false when this component is known only from a certificate. */
+  has_master_record: boolean
 }
 
 export interface RegistryAsset {

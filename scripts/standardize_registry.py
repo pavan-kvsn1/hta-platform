@@ -142,14 +142,22 @@ def build(registry, mapping):
         for component in asset.get("components") or []:
             record = component.get("master_record") or {}
             cid = component.get("id")
+            # A component may be certificate-derived with no master-list entry. Those
+            # still carry an instrument_desc at the component level and their own
+            # certificate, so identity must fall back rather than emit nulls.
             components_out.append(
                 {
                     "id": cid,
-                    "instrument_desc": record.get("instrument_desc"),
+                    "instrument_desc": (
+                        record.get("instrument_desc")
+                        or component.get("instrument_desc")
+                    ),
                     "make": record.get("make"),
                     "model": record.get("model"),
                     "serial_no": record.get("serial_no"),
                     "asset_no": record.get("asset_no"),
+                    "certificate_file": component.get("certificate_file"),
+                    "has_master_record": bool(record),
                 }
             )
             for p in (component.get("capability_profiles") or []):
@@ -247,23 +255,41 @@ def build(registry, mapping):
         if not normalized_id and asset_no:
             normalized_id = str(asset_no).split()[0]
 
-        status = asset.get("calibration_status") or {}
+        # Composite assets carry no identity of their own: description, make, category,
+        # due date and so on live on the components' master records. Promote from the
+        # first component that has one, so a composite never renders as a blank row.
+        primary = asset
+        primary_status = asset.get("calibration_status") or {}
+        if asset.get("asset_type") == "composite":
+            for component in asset.get("components") or []:
+                record = component.get("master_record")
+                if record:
+                    primary = record
+                    primary_status = (
+                        component.get("calibration_status")
+                        or record.get("calibration_status")
+                        or {}
+                    )
+                    break
+
+        status = primary_status if primary_status else (asset.get("calibration_status") or {})
         out = {
             "id": str(normalized_id or "").strip(),
-            "asset_no": asset_no,
+            "asset_no": primary.get("asset_no") or asset_no,
             "asset_type": asset.get("asset_type"),
-            "category": asset.get("category"),
-            "instrument_desc": asset.get("instrument_desc"),
-            "make": asset.get("make"),
-            "model": asset.get("model"),
-            "serial_no": asset.get("serial_no"),
-            "usage": asset.get("usage"),
-            "calibrated_at": asset.get("calibrated_at"),
-            "report_no": asset.get("report_no"),
-            "next_due_on": asset.get("next_due_on"),
+            "category": primary.get("category"),
+            "instrument_desc": primary.get("instrument_desc"),
+            "make": primary.get("make"),
+            "model": primary.get("model"),
+            "serial_no": primary.get("serial_no"),
+            "usage": primary.get("usage"),
+            "calibrated_at": primary.get("calibrated_at"),
+            "report_no": primary.get("report_no"),
+            "next_due_on": primary.get("next_due_on"),
             "calibration_status": status.get("status"),
-            "sop_references": asset.get("sop_references") or [],
-            "certificate_file": asset.get("certificate_file"),
+            "sop_references": primary.get("sop_references") or [],
+            "certificate_file": primary.get("certificate_file")
+            or asset.get("certificate_file"),
             "capability_profiles": profiles_out,
         }
         if components_out:
@@ -322,6 +348,33 @@ def build(registry, mapping):
                     "A range with no unit cannot be compared against a UUC range. These"
                     " profiles must be excluded from range filtering until a unit is"
                     " supplied."
+                ),
+            }
+        )
+
+    orphans = [
+        {
+            "asset_id": a["id"],
+            "component_id": c["id"],
+            "instrument_desc": c["instrument_desc"],
+            "certificate_file": c["certificate_file"],
+        }
+        for a in assets_out
+        for c in (a.get("components") or [])
+        if not c["has_master_record"]
+    ]
+    if orphans:
+        integrity.append(
+            {
+                "issue": "component_without_master_record",
+                "count": len(orphans),
+                "components": orphans,
+                "resolution": (
+                    "These sub-instruments exist only because a certificate was found for"
+                    " them; the lab's master list has no entry. They have no serial number"
+                    " and no attributable calibration dates, so their due status cannot be"
+                    " tracked. Either add them to the master list or confirm they are"
+                    " retired."
                 ),
             }
         )
@@ -390,6 +443,9 @@ def main():
                 f"{i['instrument_desc']} ({i['serial_no']})" for i in issue["instruments"]
             )
             print(f"  INTEGRITY  asset_no {issue['id']} reused by: {names}")
+        elif issue["issue"] == "component_without_master_record":
+            print(f"  INTEGRITY  {issue['count']} components exist only from a certificate "
+                  f"- no master-list entry, due status untrackable")
         elif issue["issue"] == "profile_without_unit":
             print(f"  INTEGRITY  {issue['count']} profiles have no unit "
                   f"- excluded from range filtering")

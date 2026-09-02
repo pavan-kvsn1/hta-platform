@@ -249,6 +249,31 @@
         }
       ],
       "resolution": "A range with no unit cannot be compared against a UUC range. These profiles must be excluded from range filtering until a unit is supplied."
+    },
+    {
+      "issue": "component_without_master_record",
+      "count": 3,
+      "components": [
+        {
+          "asset_id": "580",
+          "component_id": "C2",
+          "instrument_desc": "Paperless Recorder",
+          "certificate_file": "580B HTAIPL L.pdf"
+        },
+        {
+          "asset_id": "580",
+          "component_id": "C3",
+          "instrument_desc": "Digital Paperless Recorder for Type-T Thermocouple (24-channel)",
+          "certificate_file": "580C HTAIPL L.pdf"
+        },
+        {
+          "asset_id": "188",
+          "component_id": "C3",
+          "instrument_desc": "Low Pressure External Transducer with Calibrator",
+          "certificate_file": "188C HTAIPL L.pdf"
+        }
+      ],
+      "resolution": "These sub-instruments exist only because a certificate was found for them; the lab's master list has no entry. They have no serial number and no attributable calibration dates, so their due status cannot be tracked. Either add them to the master list or confirm they are retired."
     }
   ]
 }
