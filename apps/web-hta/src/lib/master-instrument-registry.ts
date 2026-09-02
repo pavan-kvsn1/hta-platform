@@ -136,36 +136,25 @@ export interface CapabilityProfile {
   mode?: string
   /** Present when kind === 'artifact'. */
   artifact?: ArtifactCapability
-  /** Set when the profile came from a component of a composite asset. */
-  component_id?: string
 }
 
 /**
- * A physical sub-instrument of a composite asset.
+ * One physical instrument.
  *
- * Some components exist only because a certificate was found for them - the lab's
- * master list has no entry (e.g. asset 580 has certificates 580A/580B/580C but only
- * 580A is in the master list). Those have `has_master_record: false`, no serial and no
- * attributable calibration dates, so they must not be presented as fully tracked.
+ * Every asset has this shape - there is no separate composite form. Where several
+ * instruments share an asset number (a calibrator and its current coil, three paperless
+ * recorders filed under one number), each is its own asset with a suffixed `id` and
+ * `duplicate_asset_no: true`.
  */
-export interface RegistryComponent {
-  id: string
-  instrument_desc: string | null
-  make: string | null
-  model: string | null
-  serial_no: string | null
-  asset_no: string | null
-  certificate_file: string | null
-  /** false when this component is known only from a certificate. */
-  has_master_record: boolean
-}
-
 export interface RegistryAsset {
-  /** Normalized asset number, e.g. "149". */
+  /**
+   * Unique key. Normally the normalized asset number ("227"). Where an asset number is
+   * shared by several instruments it is suffixed ("149-1", "149-2") - see
+   * `duplicate_asset_no`.
+   */
   id: string
-  /** As printed, e.g. "149 HTAIPL/L". */
+  /** As printed, e.g. "149 HTAIPL/L". Not unique when instruments share a number. */
   asset_no: string
-  asset_type: 'single' | 'composite'
   category: string | null
   instrument_desc: string | null
   make: string | null
@@ -179,12 +168,15 @@ export interface RegistryAsset {
   calibration_status: string | null
   sop_references: string[]
   certificate_file: string | null
-  /**
-   * Every profile for this asset, including those from components of a composite,
-   * so callers never have to walk two levels to filter.
-   */
   capability_profiles: CapabilityProfile[]
-  components?: RegistryComponent[]
+  /** Present and true when this asset number is shared with another instrument. */
+  duplicate_asset_no?: boolean
+  /**
+   * Present and false when the instrument is known only from a certificate and has no
+   * entry in the lab's master list - so no serial number and no attributable
+   * calibration dates. Its due status cannot be tracked; do not present it as current.
+   */
+  has_master_record?: boolean
 }
 
 export interface MasterInstrumentRegistry {

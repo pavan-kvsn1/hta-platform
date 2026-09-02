@@ -143,6 +143,59 @@
   "integrity": [
     {
       "issue": "duplicate_asset_number",
+      "id": "149",
+      "instruments": [
+        {
+          "instrument_desc": "Multi Function Calibrator",
+          "serial_no": "9585024"
+        },
+        {
+          "instrument_desc": "Current Coil",
+          "serial_no": "94870103"
+        }
+      ],
+      "resolution": "ids were suffixed -1, -2 ... in generation order so the contract has unique keys, but asset_no remains ambiguous. Fix at source: two physically different instruments must not share an asset number."
+    },
+    {
+      "issue": "duplicate_asset_number",
+      "id": "188",
+      "instruments": [
+        {
+          "instrument_desc": "Digital Pressure Calibrator",
+          "serial_no": "61056430"
+        },
+        {
+          "instrument_desc": "High Pressure External Transducer",
+          "serial_no": "2899734"
+        },
+        {
+          "instrument_desc": "Low Pressure External Transducer with Calibrator",
+          "serial_no": null
+        }
+      ],
+      "resolution": "ids were suffixed -1, -2 ... in generation order so the contract has unique keys, but asset_no remains ambiguous. Fix at source: two physically different instruments must not share an asset number."
+    },
+    {
+      "issue": "duplicate_asset_number",
+      "id": "580",
+      "instruments": [
+        {
+          "instrument_desc": "Digital Paperless recorder with RTD sensor",
+          "serial_no": "166280021"
+        },
+        {
+          "instrument_desc": "Paperless Recorder",
+          "serial_no": null
+        },
+        {
+          "instrument_desc": "Digital Paperless Recorder for Type-T Thermocouple (24-channel)",
+          "serial_no": null
+        }
+      ],
+      "resolution": "ids were suffixed -1, -2 ... in generation order so the contract has unique keys, but asset_no remains ambiguous. Fix at source: two physically different instruments must not share an asset number."
+    },
+    {
+      "issue": "duplicate_asset_number",
       "id": "741",
       "instruments": [
         {
@@ -251,29 +304,29 @@
       "resolution": "A range with no unit cannot be compared against a UUC range. These profiles must be excluded from range filtering until a unit is supplied."
     },
     {
-      "issue": "component_without_master_record",
+      "issue": "asset_without_master_record",
       "count": 3,
-      "components": [
+      "assets": [
         {
-          "asset_id": "580",
-          "component_id": "C2",
+          "asset_id": "580-2",
+          "asset_no": "580 HTAIPL/L",
           "instrument_desc": "Paperless Recorder",
           "certificate_file": "580B HTAIPL L.pdf"
         },
         {
-          "asset_id": "580",
-          "component_id": "C3",
+          "asset_id": "580-3",
+          "asset_no": "580 HTAIPL/L",
           "instrument_desc": "Digital Paperless Recorder for Type-T Thermocouple (24-channel)",
           "certificate_file": "580C HTAIPL L.pdf"
         },
         {
-          "asset_id": "188",
-          "component_id": "C3",
+          "asset_id": "188-3",
+          "asset_no": "188 HTAIPL/L",
           "instrument_desc": "Low Pressure External Transducer with Calibrator",
           "certificate_file": "188C HTAIPL L.pdf"
         }
       ],
-      "resolution": "These sub-instruments exist only because a certificate was found for them; the lab's master list has no entry. They have no serial number and no attributable calibration dates, so their due status cannot be tracked. Either add them to the master list or confirm they are retired."
+      "resolution": "These instruments exist only because a certificate was found for them; the lab's master list has no entry. They have no serial number and no attributable calibration dates, so their due status cannot be tracked. Either add them to the master list or confirm they are retired."
     }
   ]
 }

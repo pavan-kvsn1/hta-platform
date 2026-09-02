@@ -1,17 +1,16 @@
 {
   "schema_version": "2.0",
-  "generated_on": "2026-09-02",
+  "generated_on": "2026-09-03",
   "source": {
     "registry_schema_version": "1.0",
     "normalization_map_version": "0.1-draft"
   },
-  "asset_count": 204,
+  "asset_count": 209,
   "profile_count": 563,
   "assets": [
     {
-      "id": "149",
+      "id": "149-1",
       "asset_no": "149 HTAIPL/L",
-      "asset_type": "composite",
       "category": "Electro-Technical",
       "instrument_desc": "Multi Function Calibrator",
       "make": "Fluke",
@@ -29,7 +28,7 @@
         "NLAB/CAL/ET5/R01",
         "NLAB/CAL/ET7/R01"
       ],
-      "certificate_file": null,
+      "certificate_file": "149 HTAIPL L.pdf",
       "capability_profiles": [
         {
           "id": "P1",
@@ -111,7 +110,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type K",
           "subtype_kind": "thermocouple_type"
         },
@@ -195,7 +193,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type T",
           "subtype_kind": "thermocouple_type"
         },
@@ -279,7 +276,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type R",
           "subtype_kind": "thermocouple_type"
         },
@@ -414,7 +410,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type S",
           "subtype_kind": "thermocouple_type"
         },
@@ -464,7 +459,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type E",
           "subtype_kind": "thermocouple_type"
         },
@@ -548,7 +542,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type B",
           "subtype_kind": "thermocouple_type"
         },
@@ -632,7 +625,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type J",
           "subtype_kind": "thermocouple_type"
         },
@@ -733,7 +725,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type K",
           "subtype_kind": "thermocouple_type"
         },
@@ -800,7 +791,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type T",
           "subtype_kind": "thermocouple_type"
         },
@@ -884,7 +874,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type R",
           "subtype_kind": "thermocouple_type"
         },
@@ -985,7 +974,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type S",
           "subtype_kind": "thermocouple_type"
         },
@@ -1035,7 +1023,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type N",
           "subtype_kind": "thermocouple_type"
         },
@@ -1102,7 +1089,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type E",
           "subtype_kind": "thermocouple_type"
         },
@@ -1186,7 +1172,6 @@
               }
             }
           ],
-          "component_id": "C1",
           "subtype": "Type B",
           "subtype_kind": "thermocouple_type"
         },
@@ -1286,8 +1271,7 @@
                 "polarity": "±"
               }
             }
-          ],
-          "component_id": "C1"
+          ]
         },
         {
           "id": "P16",
@@ -1368,8 +1352,7 @@
                 "polarity": "±"
               }
             }
-          ],
-          "component_id": "C1"
+          ]
         },
         {
           "id": "P17",
@@ -1416,8 +1399,7 @@
                 "polarity": "±"
               }
             }
-          ],
-          "component_id": "C1"
+          ]
         },
         {
           "id": "P18",
@@ -1685,8 +1667,7 @@
                 "polarity": "±"
               }
             }
-          ],
-          "component_id": "C1"
+          ]
         },
         {
           "id": "P19",
@@ -1954,11 +1935,31 @@
                 "polarity": "±"
               }
             }
-          ],
-          "component_id": "C1"
-        },
+          ]
+        }
+      ],
+      "duplicate_asset_no": true
+    },
+    {
+      "id": "149-2",
+      "asset_no": "149 HTAIPL/L",
+      "category": "Electro-Technical",
+      "instrument_desc": "Current Coil",
+      "make": "Fluke",
+      "model": "5500A",
+      "serial_no": "94870103",
+      "usage": "For On Site",
+      "calibrated_at": "ETDC, Bangalore",
+      "report_no": "CR/ECAL/53054",
+      "next_due_on": "2026-01-17",
+      "calibration_status": "overdue",
+      "sop_references": [
+        "AS A SOURCE"
+      ],
+      "certificate_file": "149  HTAIPL L.pdf",
+      "capability_profiles": [
         {
-          "id": "P20",
+          "id": "P1",
           "parameter": "AC Current",
           "role": "source",
           "unit": "A",
@@ -1977,37 +1978,14 @@
               "least_count": null,
               "accuracy": null
             }
-          ],
-          "component_id": "C2"
+          ]
         }
       ],
-      "components": [
-        {
-          "id": "C1",
-          "instrument_desc": "Multi Function Calibrator",
-          "make": "Fluke",
-          "model": "5500A",
-          "serial_no": "9585024",
-          "asset_no": "149 HTAIPL/L",
-          "certificate_file": "149 HTAIPL L.pdf",
-          "has_master_record": true
-        },
-        {
-          "id": "C2",
-          "instrument_desc": "Current Coil",
-          "make": "Fluke",
-          "model": "5500A",
-          "serial_no": "94870103",
-          "asset_no": "149 HTAIPL/L",
-          "certificate_file": "149  HTAIPL L.pdf",
-          "has_master_record": true
-        }
-      ]
+      "duplicate_asset_no": true
     },
     {
       "id": "682",
       "asset_no": "682 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Multi Product Calibrator",
       "make": "Fluke",
@@ -3391,7 +3369,6 @@
     {
       "id": "711",
       "asset_no": "711 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Universal Calibrator",
       "make": "Gipitronix",
@@ -6872,7 +6849,6 @@
     {
       "id": "710",
       "asset_no": "710 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Universal Calibrator",
       "make": "Gipitronix",
@@ -10353,7 +10329,6 @@
     {
       "id": "708",
       "asset_no": "708 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Universal Calibrator",
       "make": "Gipitronix",
@@ -13834,7 +13809,6 @@
     {
       "id": "709",
       "asset_no": "709 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Universal Calibrator",
       "make": "Gipitronix",
@@ -17315,7 +17289,6 @@
     {
       "id": "865",
       "asset_no": "865 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Universal Calibrator",
       "make": "Gipitronix",
@@ -18933,7 +18906,6 @@
     {
       "id": "866",
       "asset_no": "866 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Universal Calibrator",
       "make": "Gipitronix",
@@ -20551,7 +20523,6 @@
     {
       "id": "1017",
       "asset_no": "1017 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Universal Calibrator",
       "make": "Masibus",
@@ -20642,7 +20613,6 @@
     {
       "id": "1018",
       "asset_no": "1018 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Thermocouple RTD Calibrator",
       "make": "Masibus",
@@ -21308,7 +21278,6 @@
     {
       "id": "679",
       "asset_no": "679 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Multifunction Calibrator",
       "make": "LR-CAL",
@@ -22129,7 +22098,6 @@
     {
       "id": "391",
       "asset_no": "391 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Handy calibrator",
       "make": "Yokogawa",
@@ -24346,7 +24314,6 @@
     {
       "id": "228",
       "asset_no": "228 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Multi Function Process Calibrator",
       "make": "Fluke",
@@ -24455,7 +24422,6 @@
     {
       "id": "849",
       "asset_no": "849 HATIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Temperature Calibrator",
       "make": "Kusam-Meco",
@@ -24783,7 +24749,6 @@
     {
       "id": "850",
       "asset_no": "850 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Temperature Calibrator",
       "make": "Kusam-Meco",
@@ -25111,7 +25076,6 @@
     {
       "id": "119",
       "asset_no": "119 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Clamp meter",
       "make": "Center",
@@ -25192,7 +25156,6 @@
     {
       "id": "289",
       "asset_no": "289 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Earth Tester",
       "make": "Smart Sensor",
@@ -25277,7 +25240,6 @@
     {
       "id": "165",
       "asset_no": "165 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "6 ½ Digit Precision Multimeter",
       "make": "Fluke",
@@ -25297,7 +25259,6 @@
     {
       "id": "63",
       "asset_no": "63 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "True RMS Multimeter",
       "make": "UNI-T",
@@ -25406,7 +25367,6 @@
     {
       "id": "211",
       "asset_no": "211 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "CHUB E-4 Thermometer Readout",
       "make": "Fluke",
@@ -25589,7 +25549,6 @@
     {
       "id": "153",
       "asset_no": "153 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Power Meter",
       "make": "BrainChild",
@@ -25640,7 +25599,6 @@
     {
       "id": "695",
       "asset_no": "695 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Conductivity Test Kit",
       "make": "Gipitronix",
@@ -25691,7 +25649,6 @@
     {
       "id": "872",
       "asset_no": "872 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Stop Watch",
       "make": "Racer",
@@ -25742,7 +25699,6 @@
     {
       "id": "873",
       "asset_no": "873 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Stop Watch",
       "make": "Racer",
@@ -25793,7 +25749,6 @@
     {
       "id": "874",
       "asset_no": "874 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Stop Watch",
       "make": "Racer",
@@ -25844,7 +25799,6 @@
     {
       "id": "705",
       "asset_no": "705 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Stop Watch",
       "make": "Racer",
@@ -25892,7 +25846,6 @@
     {
       "id": "582",
       "asset_no": "582 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Stop Watch",
       "make": "Racer",
@@ -25940,7 +25893,6 @@
     {
       "id": "583",
       "asset_no": "583 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Stop Watch",
       "make": "Racer",
@@ -25988,7 +25940,6 @@
     {
       "id": "615",
       "asset_no": "615 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Stop Watch",
       "make": "Racer",
@@ -26021,7 +25972,6 @@
     {
       "id": "587",
       "asset_no": "587 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Stop Watch",
       "make": "Racer",
@@ -26069,7 +26019,6 @@
     {
       "id": "638",
       "asset_no": "638 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Stop Watch",
       "make": "Casio",
@@ -26205,7 +26154,6 @@
     {
       "id": "639",
       "asset_no": "639 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Stop Watch",
       "make": "Casio",
@@ -26256,7 +26204,6 @@
     {
       "id": "891",
       "asset_no": "891 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Time calibrator",
       "make": "Saica",
@@ -26310,7 +26257,6 @@
     {
       "id": "917",
       "asset_no": "917 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "DDS Signal generator / counter",
       "make": "Vartech",
@@ -26353,7 +26299,6 @@
     {
       "id": "1030",
       "asset_no": "1030 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Multimeter",
       "make": "Waco",
@@ -26911,7 +26856,6 @@
     {
       "id": "1031",
       "asset_no": "1031 HTAIPL/L",
-      "asset_type": "single",
       "category": "Electro-Technical",
       "instrument_desc": "Digital Multimeter",
       "make": "Waco",
@@ -27469,7 +27413,6 @@
     {
       "id": "230",
       "asset_no": "230 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "PRT with Thermometer",
       "make": "Fluke",
@@ -27514,7 +27457,6 @@
     {
       "id": "408",
       "asset_no": "408 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Portable Temperature & Humidity Chamber",
       "make": "Indeecon",
@@ -27585,7 +27527,6 @@
     {
       "id": "347",
       "asset_no": "347 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Equinox",
@@ -27669,7 +27610,6 @@
     {
       "id": "639A",
       "asset_no": "639A HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Equinox",
@@ -27717,7 +27657,6 @@
     {
       "id": "784-1",
       "asset_no": "784 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Equinox",
@@ -27802,7 +27741,6 @@
     {
       "id": "784-2",
       "asset_no": "784 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Thermal Anemometer",
       "make": "DeltaOhm",
@@ -27836,7 +27774,6 @@
     {
       "id": "934",
       "asset_no": "934 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Equinox",
@@ -27920,7 +27857,6 @@
     {
       "id": "933",
       "asset_no": "933 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Equinox",
@@ -28004,7 +27940,6 @@
     {
       "id": "935",
       "asset_no": "935 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Equinox",
@@ -28088,7 +28023,6 @@
     {
       "id": "763",
       "asset_no": "763 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Equinox",
@@ -28172,7 +28106,6 @@
     {
       "id": "942",
       "asset_no": "942 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Testo",
@@ -28256,7 +28189,6 @@
     {
       "id": "943",
       "asset_no": "943 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Testo",
@@ -28340,7 +28272,6 @@
     {
       "id": "1026",
       "asset_no": "1026 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Center",
@@ -28385,7 +28316,6 @@
     {
       "id": "1027",
       "asset_no": "1027 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Center",
@@ -28430,7 +28360,6 @@
     {
       "id": "1028",
       "asset_no": "1028 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Center",
@@ -28475,7 +28404,6 @@
     {
       "id": "1029",
       "asset_no": "1029 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Temperature and Humidity meter",
       "make": "Center",
@@ -28559,7 +28487,6 @@
     {
       "id": "189",
       "asset_no": "189 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Thermocouple Thermometer with ‘R’ Type Sensor",
       "make": "Ind: Delta Ohm Sen: Emko",
@@ -28612,7 +28539,6 @@
     {
       "id": "160",
       "asset_no": "160 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Thermocouple Thermometer with ‘S’ Type Sensor",
       "make": "Delta Ohm",
@@ -28665,7 +28591,6 @@
     {
       "id": "715",
       "asset_no": "715 HTAIPL",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Thermocouple Thermometer with ‘N’ Type Sensor",
       "make": "Delta Ohm",
@@ -28715,7 +28640,6 @@
     {
       "id": "430A",
       "asset_no": "430A HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Thermocouple thermometer with k type sensor",
       "make": "Delta Ohm",
@@ -28812,7 +28736,6 @@
     {
       "id": "430B",
       "asset_no": "430B HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Thermocouple thermometer with 'N' type sensor",
       "make": "Delta Ohm",
@@ -28847,7 +28770,6 @@
     {
       "id": "878",
       "asset_no": "878 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Thermocouple thermometer with k type sensor",
       "make": "Delta Ohm",
@@ -28917,7 +28839,6 @@
     {
       "id": "791",
       "asset_no": "791 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Temperature Humidity meter",
       "make": "Rotronic",
@@ -28998,7 +28919,6 @@
     {
       "id": "1014",
       "asset_no": "1014 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Temperature Humidity meter",
       "make": "Rotronic",
@@ -29076,7 +28996,6 @@
     {
       "id": "1015",
       "asset_no": "1015 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Temperature Humidity meter",
       "make": "Rotronic",
@@ -29154,7 +29073,6 @@
     {
       "id": "817A",
       "asset_no": "817A HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Temperature Humidity meter",
       "make": "Rotronic",
@@ -29238,7 +29156,6 @@
     {
       "id": "817",
       "asset_no": "817 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Temperature Humidity meter",
       "make": "Rotronic",
@@ -29322,7 +29239,6 @@
     {
       "id": "818",
       "asset_no": "818 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Temperature Humidity meter",
       "make": "Rotronic",
@@ -29406,7 +29322,6 @@
     {
       "id": "827",
       "asset_no": "827 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Temperature Humidity meter",
       "make": "Rotronic",
@@ -29490,7 +29405,6 @@
     {
       "id": "828",
       "asset_no": "828 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Temperature Humidity meter",
       "make": "Rotronic",
@@ -29574,7 +29488,6 @@
     {
       "id": "781",
       "asset_no": "781 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Thermometer with Sensor",
       "make": "Fluke",
@@ -29627,7 +29540,6 @@
     {
       "id": "252",
       "asset_no": "252 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with sensor",
       "make": "Delta Ohm",
@@ -29680,7 +29592,6 @@
     {
       "id": "352",
       "asset_no": "352 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with sensor",
       "make": "Delta Ohm",
@@ -29733,7 +29644,6 @@
     {
       "id": "354",
       "asset_no": "354 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with sensor",
       "make": "Delta Ohm",
@@ -29786,7 +29696,6 @@
     {
       "id": "351",
       "asset_no": "351 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -29839,7 +29748,6 @@
     {
       "id": "492A",
       "asset_no": "492A HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with PT 100 Sensor (4 Wire)",
       "make": "Delta Ohm",
@@ -29933,7 +29841,6 @@
     {
       "id": "494B",
       "asset_no": "494B HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with PT 100 Sensor (4 Wire)",
       "make": "Delta Ohm",
@@ -30027,7 +29934,6 @@
     {
       "id": "621",
       "asset_no": "621 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -30114,7 +30020,6 @@
     {
       "id": "717",
       "asset_no": "717 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with PT 100 Sensor (4 Wire)",
       "make": "Delta Ohm",
@@ -30208,7 +30113,6 @@
     {
       "id": "620",
       "asset_no": "620 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -30302,7 +30206,6 @@
     {
       "id": "619",
       "asset_no": "619 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -30389,7 +30292,6 @@
     {
       "id": "659",
       "asset_no": "659 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -30476,7 +30378,6 @@
     {
       "id": "718",
       "asset_no": "718 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -30563,7 +30464,6 @@
     {
       "id": "807",
       "asset_no": "807 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -30650,7 +30550,6 @@
     {
       "id": "805",
       "asset_no": "805 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -30737,7 +30636,6 @@
     {
       "id": "806",
       "asset_no": "806 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -30824,7 +30722,6 @@
     {
       "id": "719",
       "asset_no": "719 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -30911,7 +30808,6 @@
     {
       "id": "810",
       "asset_no": "810 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with Sensor",
       "make": "Delta Ohm",
@@ -30998,7 +30894,6 @@
     {
       "id": "966",
       "asset_no": "966 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital RTD Thermometer with PT 100 Sensor (4 Wire)",
       "make": "DeltaOhm / Sanseca",
@@ -31102,7 +30997,6 @@
     {
       "id": "375",
       "asset_no": "375 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital Thermometer With Sensor (2 CH )",
       "make": "Center",
@@ -31155,7 +31049,6 @@
     {
       "id": "564",
       "asset_no": "564 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Dew Point Transmitter",
       "make": "Delta Ohm",
@@ -31252,7 +31145,6 @@
     {
       "id": "335",
       "asset_no": "335 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Digital IR Thermometer",
       "make": "Optris",
@@ -31303,7 +31195,6 @@
     {
       "id": "510A",
       "asset_no": "510A HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "Datalogger with RTD sensor - (9-Channel)",
       "make": "Equinox",
@@ -31352,9 +31243,8 @@
       ]
     },
     {
-      "id": "580",
+      "id": "580-1",
       "asset_no": "580 HTAIPL/L",
-      "asset_type": "composite",
       "category": "Thermal",
       "instrument_desc": "Digital Paperless recorder with RTD sensor",
       "make": "Brainchild",
@@ -31368,7 +31258,7 @@
       "sop_references": [
         "NLAB/CAL/VL2/R01"
       ],
-      "certificate_file": null,
+      "certificate_file": "580A HTAIPL L.pdf",
       "capability_profiles": [
         {
           "id": "P1",
@@ -31398,8 +31288,7 @@
                 "polarity": "±"
               }
             }
-          ],
-          "component_id": "C1"
+          ]
         },
         {
           "id": "P2",
@@ -31429,47 +31318,52 @@
                 "polarity": "±"
               }
             }
-          ],
-          "component_id": "C1"
+          ]
         }
       ],
-      "components": [
-        {
-          "id": "C1",
-          "instrument_desc": "Digital Paperless recorder with RTD sensor",
-          "make": "Brainchild",
-          "model": "PR2012-0A011000",
-          "serial_no": "166280021",
-          "asset_no": "580 HTAIPL/L",
-          "certificate_file": "580A HTAIPL L.pdf",
-          "has_master_record": true
-        },
-        {
-          "id": "C2",
-          "instrument_desc": "Paperless Recorder",
-          "make": null,
-          "model": null,
-          "serial_no": null,
-          "asset_no": null,
-          "certificate_file": "580B HTAIPL L.pdf",
-          "has_master_record": false
-        },
-        {
-          "id": "C3",
-          "instrument_desc": "Digital Paperless Recorder for Type-T Thermocouple (24-channel)",
-          "make": null,
-          "model": null,
-          "serial_no": null,
-          "asset_no": null,
-          "certificate_file": "580C HTAIPL L.pdf",
-          "has_master_record": false
-        }
-      ]
+      "duplicate_asset_no": true
+    },
+    {
+      "id": "580-2",
+      "asset_no": "580 HTAIPL/L",
+      "category": null,
+      "instrument_desc": "Paperless Recorder",
+      "make": null,
+      "model": null,
+      "serial_no": null,
+      "usage": null,
+      "calibrated_at": null,
+      "report_no": null,
+      "next_due_on": null,
+      "calibration_status": "unknown",
+      "sop_references": [],
+      "certificate_file": "580B HTAIPL L.pdf",
+      "capability_profiles": [],
+      "has_master_record": false,
+      "duplicate_asset_no": true
+    },
+    {
+      "id": "580-3",
+      "asset_no": "580 HTAIPL/L",
+      "category": null,
+      "instrument_desc": "Digital Paperless Recorder for Type-T Thermocouple (24-channel)",
+      "make": null,
+      "model": null,
+      "serial_no": null,
+      "usage": null,
+      "calibrated_at": null,
+      "report_no": null,
+      "next_due_on": null,
+      "calibration_status": "unknown",
+      "sop_references": [],
+      "certificate_file": "580C HTAIPL L.pdf",
+      "capability_profiles": [],
+      "has_master_record": false,
+      "duplicate_asset_no": true
     },
     {
       "id": "584",
       "asset_no": "584 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "T type sensor",
       "make": "",
@@ -31502,7 +31396,6 @@
     {
       "id": "585",
       "asset_no": "585 HTAIPL/L",
-      "asset_type": "single",
       "category": "Thermal",
       "instrument_desc": "N type sensor",
       "make": "",
@@ -31535,7 +31428,6 @@
     {
       "id": "219",
       "asset_no": "219 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Force Gauge",
       "make": "Lutron",
@@ -31622,7 +31514,6 @@
     {
       "id": "746",
       "asset_no": "746 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Force Gauge",
       "make": "Lutron",
@@ -31709,7 +31600,6 @@
     {
       "id": "242",
       "asset_no": "242 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Sound Level Calibrator",
       "make": "Delta Ohm",
@@ -31752,7 +31642,6 @@
     {
       "id": "65",
       "asset_no": "65 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Sound Calibrator",
       "make": "Center",
@@ -31800,7 +31689,6 @@
     {
       "id": "338",
       "asset_no": "338 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Sound Level meter",
       "make": "Equinox",
@@ -31851,7 +31739,6 @@
     {
       "id": "46",
       "asset_no": "46 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Spirit Level",
       "make": "fujiseimitsukeiki",
@@ -31884,7 +31771,6 @@
     {
       "id": "237",
       "asset_no": "237 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Slip Gauges",
       "make": "Mitutoyo",
@@ -31904,7 +31790,6 @@
     {
       "id": "30",
       "asset_no": "30 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Slip Gauges",
       "make": "Peacock",
@@ -31924,7 +31809,6 @@
     {
       "id": "268",
       "asset_no": "268 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Optical Parallels",
       "make": "Carl-Zeiss Jena",
@@ -32177,7 +32061,6 @@
     {
       "id": "783",
       "asset_no": "783 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Slip Gauge M10. Grade 0",
       "make": "Mikronix",
@@ -32278,7 +32161,6 @@
     {
       "id": "782",
       "asset_no": "782 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Steel Caliper Checker",
       "make": "Mikronix",
@@ -32352,7 +32234,6 @@
     {
       "id": "284",
       "asset_no": "284 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Standard Weights",
       "make": "",
@@ -32395,7 +32276,6 @@
     {
       "id": "864",
       "asset_no": "864 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Electronic Weighing Machine",
       "make": "Essae",
@@ -32480,7 +32360,6 @@
     {
       "id": "601",
       "asset_no": "601 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Analytical Balance",
       "make": "Radwag",
@@ -32531,7 +32410,6 @@
     {
       "id": "29",
       "asset_no": "29 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Analytical Weight box",
       "make": "",
@@ -32578,7 +32456,6 @@
     {
       "id": "281",
       "asset_no": "281 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Analytical Weight box",
       "make": "",
@@ -32625,7 +32502,6 @@
     {
       "id": "35",
       "asset_no": "35 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Granite Surface Plate",
       "make": "Jafuji",
@@ -32666,7 +32542,6 @@
     {
       "id": "602",
       "asset_no": "602 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Standard Weight box",
       "make": "Wensar",
@@ -32710,7 +32585,6 @@
     {
       "id": "52",
       "asset_no": "52 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Vernier Caliper",
       "make": "Lutron",
@@ -32761,7 +32635,6 @@
     {
       "id": "463A",
       "asset_no": "463A HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Vernier Caliper",
       "make": "Mitutoyo",
@@ -32812,7 +32685,6 @@
     {
       "id": "463",
       "asset_no": "463 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Vernier Caliper",
       "make": "Mitutoyo",
@@ -32863,7 +32735,6 @@
     {
       "id": "1003",
       "asset_no": "1003 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Micrometer",
       "make": "Mitutoyo",
@@ -32914,7 +32785,6 @@
     {
       "id": "465",
       "asset_no": "465 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Feeler Gauge",
       "make": "Mitutoyo",
@@ -32990,7 +32860,6 @@
     {
       "id": "44",
       "asset_no": "44 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Lever Type Dial Gauge",
       "make": "Mitutoyo",
@@ -33036,7 +32905,6 @@
     {
       "id": "45",
       "asset_no": "45 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Dial Gauge",
       "make": "Mitutoyo",
@@ -33087,7 +32955,6 @@
     {
       "id": "266",
       "asset_no": "266 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Universal Bevel Protractor (Digital)",
       "make": "Insize",
@@ -33130,7 +32997,6 @@
     {
       "id": "278",
       "asset_no": "278 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Steel Scale",
       "make": "Kristeel Shinwa",
@@ -33176,7 +33042,6 @@
     {
       "id": "651",
       "asset_no": "651 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Durometer",
       "make": "Equinox",
@@ -33230,7 +33095,6 @@
     {
       "id": "665",
       "asset_no": "665 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Calibrator",
       "make": "Druck",
@@ -33285,7 +33149,6 @@
     {
       "id": "666",
       "asset_no": "666 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Low Pressure External Transducer",
       "make": "GE Druck",
@@ -33340,7 +33203,6 @@
     {
       "id": "667",
       "asset_no": "667 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "High Pressure External Transducer",
       "make": "Druck",
@@ -33394,9 +33256,8 @@
       ]
     },
     {
-      "id": "188",
+      "id": "188-1",
       "asset_no": "188 HTAIPL/L",
-      "asset_type": "composite",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Calibrator",
       "make": "Druck",
@@ -33411,7 +33272,7 @@
         "NLAB/CAL/ML1/R01",
         "NLAB/CAL/ML2/R01"
       ],
-      "certificate_file": null,
+      "certificate_file": "188A HTAIPL L.pdf",
       "capability_profiles": [
         {
           "id": "P1",
@@ -33444,11 +33305,33 @@
                 "polarity": "±"
               }
             }
-          ],
-          "component_id": "C1"
-        },
+          ]
+        }
+      ],
+      "duplicate_asset_no": true
+    },
+    {
+      "id": "188-2",
+      "asset_no": "188 HTAIPL/L",
+      "category": "Mechanical",
+      "instrument_desc": "High Pressure External Transducer",
+      "make": "Druck",
+      "model": "DPI 610",
+      "serial_no": "2899734",
+      "usage": "For Lab",
+      "calibrated_at": "HTAIPL, Bangalore",
+      "report_no": "HTA/C50458/02/25",
+      "next_due_on": "2026-11-25",
+      "calibration_status": "valid",
+      "sop_references": [
+        "NLAB/CAL/ML1/R01",
+        "NLAB/CAL/ML2/R01",
+        "NLAB/CAL/ML8/R01"
+      ],
+      "certificate_file": "188B HTAIPL L.pdf",
+      "capability_profiles": [
         {
-          "id": "P2",
+          "id": "P1",
           "parameter": "Pressure",
           "role": "measuring",
           "unit": "bar",
@@ -33478,47 +33361,33 @@
                 "polarity": "±"
               }
             }
-          ],
-          "component_id": "C2"
+          ]
         }
       ],
-      "components": [
-        {
-          "id": "C1",
-          "instrument_desc": "Digital Pressure Calibrator",
-          "make": "Druck",
-          "model": "DPI 610",
-          "serial_no": "61056430",
-          "asset_no": "188 HTAIPL/L",
-          "certificate_file": "188A HTAIPL L.pdf",
-          "has_master_record": true
-        },
-        {
-          "id": "C2",
-          "instrument_desc": "High Pressure External Transducer",
-          "make": "Druck",
-          "model": "DPI 610",
-          "serial_no": "2899734",
-          "asset_no": "188 HTAIPL/L",
-          "certificate_file": "188B HTAIPL L.pdf",
-          "has_master_record": true
-        },
-        {
-          "id": "C3",
-          "instrument_desc": "Low Pressure External Transducer with Calibrator",
-          "make": null,
-          "model": null,
-          "serial_no": null,
-          "asset_no": null,
-          "certificate_file": "188C HTAIPL L.pdf",
-          "has_master_record": false
-        }
-      ]
+      "duplicate_asset_no": true
+    },
+    {
+      "id": "188-3",
+      "asset_no": "188 HTAIPL/L",
+      "category": null,
+      "instrument_desc": "Low Pressure External Transducer with Calibrator",
+      "make": null,
+      "model": null,
+      "serial_no": null,
+      "usage": null,
+      "calibrated_at": null,
+      "report_no": null,
+      "next_due_on": null,
+      "calibration_status": "unknown",
+      "sop_references": [],
+      "certificate_file": "188C HTAIPL L.pdf",
+      "capability_profiles": [],
+      "has_master_record": false,
+      "duplicate_asset_no": true
     },
     {
       "id": "374",
       "asset_no": "374 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Vibration Meter",
       "make": "Equinox",
@@ -33569,7 +33438,6 @@
     {
       "id": "600",
       "asset_no": "600 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Vibration Meter",
       "make": "Equinox",
@@ -33665,7 +33533,6 @@
     {
       "id": "909",
       "asset_no": "909 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Tachometer calibrator",
       "make": "sansel",
@@ -33746,7 +33613,6 @@
     {
       "id": "261",
       "asset_no": "261 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Tachometer",
       "make": "Check Line",
@@ -33929,7 +33795,6 @@
     {
       "id": "911",
       "asset_no": "911 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Tachometer",
       "make": "Equinox",
@@ -34056,7 +33921,6 @@
     {
       "id": "912",
       "asset_no": "912 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Tachometer",
       "make": "Equinox",
@@ -34183,7 +34047,6 @@
     {
       "id": "913",
       "asset_no": "913 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Tachometer",
       "make": "Equinox",
@@ -34310,7 +34173,6 @@
     {
       "id": "220",
       "asset_no": "220 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Tachometer",
       "make": "Equinox",
@@ -34437,7 +34299,6 @@
     {
       "id": "501",
       "asset_no": "501 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Tachometer",
       "make": "Equinox",
@@ -34564,7 +34425,6 @@
     {
       "id": "214",
       "asset_no": "214 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Tachometer",
       "make": "Equinox",
@@ -34691,7 +34551,6 @@
     {
       "id": "476",
       "asset_no": "476 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Tachometer",
       "make": "Tenmars",
@@ -34742,7 +34601,6 @@
     {
       "id": "767",
       "asset_no": "767 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Tachometer",
       "make": "Tenmars",
@@ -34793,7 +34651,6 @@
     {
       "id": "643",
       "asset_no": "643 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Tachometer",
       "make": "CHECKLINE",
@@ -34896,7 +34753,6 @@
     {
       "id": "152",
       "asset_no": "152 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer with Temperature Sensor",
       "make": "Delta Ohm",
@@ -34982,7 +34838,6 @@
     {
       "id": "317",
       "asset_no": "317 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Delta Ohm",
@@ -35037,7 +34892,6 @@
     {
       "id": "876",
       "asset_no": "876 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Delta Ohm",
@@ -35092,7 +34946,6 @@
     {
       "id": "877",
       "asset_no": "877 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Delta Ohm",
@@ -35147,7 +35000,6 @@
     {
       "id": "469",
       "asset_no": "469 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Delta Ohm",
@@ -35202,7 +35054,6 @@
     {
       "id": "506",
       "asset_no": "506 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Delta Ohm",
@@ -35257,7 +35108,6 @@
     {
       "id": "617",
       "asset_no": "617 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Delta Ohm",
@@ -35312,7 +35162,6 @@
     {
       "id": "618",
       "asset_no": "618 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Delta Ohm",
@@ -35367,7 +35216,6 @@
     {
       "id": "837",
       "asset_no": "837 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Testo",
@@ -35422,7 +35270,6 @@
     {
       "id": "836",
       "asset_no": "836 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Testo",
@@ -35477,7 +35324,6 @@
     {
       "id": "853",
       "asset_no": "853 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Testo",
@@ -35532,7 +35378,6 @@
     {
       "id": "713",
       "asset_no": "713 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Delta Ohm",
@@ -35587,7 +35432,6 @@
     {
       "id": "1008",
       "asset_no": "1008 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Calibrator",
       "make": "Polltech",
@@ -35642,7 +35486,6 @@
     {
       "id": "1007",
       "asset_no": "1007 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Calibrator",
       "make": "Polltech",
@@ -35697,7 +35540,6 @@
     {
       "id": "1006",
       "asset_no": "1006 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Calibrator",
       "make": "Polltech",
@@ -35752,7 +35594,6 @@
     {
       "id": "712",
       "asset_no": "712 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer with Temperature Sensor",
       "make": "Delta Ohm",
@@ -35807,7 +35648,6 @@
     {
       "id": "1000",
       "asset_no": "1000 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Vijay Enterprises",
@@ -35862,7 +35702,6 @@
     {
       "id": "120",
       "asset_no": "120 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Keller",
@@ -35917,7 +35756,6 @@
     {
       "id": "738A",
       "asset_no": "738A HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -35972,7 +35810,6 @@
     {
       "id": "738",
       "asset_no": "738 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -36060,7 +35897,6 @@
     {
       "id": "389",
       "asset_no": "389 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Keller",
@@ -36115,7 +35951,6 @@
     {
       "id": "7",
       "asset_no": "7 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Keller",
@@ -36170,7 +36005,6 @@
     {
       "id": "74",
       "asset_no": "74 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -36225,7 +36059,6 @@
     {
       "id": "520",
       "asset_no": "520 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -36280,7 +36113,6 @@
     {
       "id": "488",
       "asset_no": "488 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -36335,7 +36167,6 @@
     {
       "id": "489",
       "asset_no": "489 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -36390,7 +36221,6 @@
     {
       "id": "607",
       "asset_no": "607 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -36445,7 +36275,6 @@
     {
       "id": "609",
       "asset_no": "609 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -36500,7 +36329,6 @@
     {
       "id": "995",
       "asset_no": "995 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Vijay Enterprises",
@@ -36555,7 +36383,6 @@
     {
       "id": "669",
       "asset_no": "669 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "DRUCK",
@@ -36610,7 +36437,6 @@
     {
       "id": "839",
       "asset_no": "839 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Keller",
@@ -36665,7 +36491,6 @@
     {
       "id": "840",
       "asset_no": "840 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Keller",
@@ -36720,7 +36545,6 @@
     {
       "id": "1021",
       "asset_no": "1021 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -36775,7 +36599,6 @@
     {
       "id": "1019",
       "asset_no": "1019 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -36830,7 +36653,6 @@
     {
       "id": "1020",
       "asset_no": "1020 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Adarsh",
@@ -36885,7 +36707,6 @@
     {
       "id": "742",
       "asset_no": "742 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Hi.Pr. Pirani Gauge",
       "make": "HHV",
@@ -36936,7 +36757,6 @@
     {
       "id": "748",
       "asset_no": "748 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Testo",
@@ -36991,7 +36811,6 @@
     {
       "id": "747",
       "asset_no": "747 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Manometer",
       "make": "Testo",
@@ -37046,7 +36865,6 @@
     {
       "id": "814",
       "asset_no": "814 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Nagman",
@@ -37122,7 +36940,6 @@
     {
       "id": "815",
       "asset_no": "815 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Nagman",
@@ -37198,7 +37015,6 @@
     {
       "id": "816",
       "asset_no": "816 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Nagman",
@@ -37274,7 +37090,6 @@
     {
       "id": "947",
       "asset_no": "947 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Vijay Enterprises",
@@ -37329,7 +37144,6 @@
     {
       "id": "948",
       "asset_no": "948 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Vijay Enterprises",
@@ -37384,7 +37198,6 @@
     {
       "id": "949",
       "asset_no": "949 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Pressure Gauge",
       "make": "Vijay Enterprises",
@@ -37439,7 +37252,6 @@
     {
       "id": "127",
       "asset_no": "127 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Light Meter",
       "make": "Delta Ohm",
@@ -37553,7 +37365,6 @@
     {
       "id": "227",
       "asset_no": "227 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Digital Lux Meter",
       "make": "Delta Ohm",
@@ -37652,7 +37463,6 @@
     {
       "id": "902",
       "asset_no": "902 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Stainless Steel Knob type Cylindrical weights",
       "make": "Weightronics",
@@ -37695,7 +37505,6 @@
     {
       "id": "903",
       "asset_no": "903 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Stainless Steel Knob type Cylindrical weights",
       "make": "Weightronics",
@@ -37738,7 +37547,6 @@
     {
       "id": "907,908",
       "asset_no": "907,908 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Strainless Steel Knob type Cylindrical weights",
       "make": "Weightronics",
@@ -37781,7 +37589,6 @@
     {
       "id": "904,905,906",
       "asset_no": "904,905,906 HTAIPL/L",
-      "asset_type": "single",
       "category": "Mechanical",
       "instrument_desc": "Strainless Steel Knob type Cylindrical weights",
       "make": "Weightronics",
@@ -37824,7 +37631,6 @@
     {
       "id": "674",
       "asset_no": "674 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Compressed Air flow meter",
       "make": "Testo",
@@ -37878,7 +37684,6 @@
     {
       "id": "842",
       "asset_no": "842 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Digital Orifice Flow Calibrator",
       "make": "Polltech",
@@ -37932,7 +37737,6 @@
     {
       "id": "852",
       "asset_no": "852 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Clampon Ultra Sonic Flow Meter",
       "make": "Yantai Auto Instrument Making Co. Ltd",
@@ -37986,7 +37790,6 @@
     {
       "id": "167",
       "asset_no": "167 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Thermal Anemometer",
       "make": "Equinox",
@@ -38040,7 +37843,6 @@
     {
       "id": "854",
       "asset_no": "854 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Digital Hot Wire Anemometer",
       "make": "Lutron",
@@ -38094,7 +37896,6 @@
     {
       "id": "337",
       "asset_no": "337 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Vane Anemometer",
       "make": "Equinox",
@@ -38140,7 +37941,6 @@
     {
       "id": "855",
       "asset_no": "855 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Digital Anemometer",
       "make": "DeltaOhm",
@@ -38173,7 +37973,6 @@
     {
       "id": "428",
       "asset_no": "428 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Moisture Calibrator",
       "make": "Equinox",
@@ -38221,7 +38020,6 @@
     {
       "id": "298",
       "asset_no": "298 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Moisture Meter",
       "make": "Gann",
@@ -38275,7 +38073,6 @@
     {
       "id": "741-1",
       "asset_no": "741 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "TSI Air borne Particle Counter",
       "make": "TSI",
@@ -38309,7 +38106,6 @@
     {
       "id": "741-2",
       "asset_no": "741 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "Aerosol Photometer",
       "make": "TEC",
@@ -38343,7 +38139,6 @@
     {
       "id": "755",
       "asset_no": "755 HTAIPL/L",
-      "asset_type": "single",
       "category": "Others",
       "instrument_desc": "CO2 Transmitter",
       "make": "Sense Air",
@@ -38467,7 +38262,6 @@
     {
       "id": "333",
       "asset_no": "333 HTAIPL/L/285",
-      "asset_type": "single",
       "category": "Source",
       "instrument_desc": "Ultra cool Drywell",
       "make": "Fluke",
@@ -38518,7 +38312,6 @@
     {
       "id": "204",
       "asset_no": "204 HTAIPL/L",
-      "asset_type": "single",
       "category": "Source",
       "instrument_desc": "Metrology Drywell",
       "make": "Fluke",
@@ -38569,7 +38362,6 @@
     {
       "id": "139",
       "asset_no": "139 HTAIPL/L",
-      "asset_type": "single",
       "category": "Source",
       "instrument_desc": "Dryblock Calibrator",
       "make": "LRCAL",
@@ -38620,7 +38412,6 @@
     {
       "id": "197",
       "asset_no": "197 HTAIPL/L",
-      "asset_type": "single",
       "category": "Source",
       "instrument_desc": "Dryblock Calibrator",
       "make": "LRCAL",
@@ -38671,7 +38462,6 @@
     {
       "id": "996",
       "asset_no": "996 HTAIPL/L",
-      "asset_type": "single",
       "category": "Source",
       "instrument_desc": "High Temperature Dryblock Calibrator",
       "make": "LNV",

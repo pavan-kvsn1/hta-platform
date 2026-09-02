@@ -299,8 +299,15 @@ than hand-editing either JSON.
 **Schema 2.0 differs from the scope doc's §1.1 sketch in three ways**, all forced by the
 data: `accuracy` is a discriminated union rather than `{type,value,unit,polarity}`;
 profiles carry `kind: 'range' | 'artifact'` because reference artifacts have no
-continuous range; and composite assets' component profiles are flattened onto the asset
-with a `component_id` tag so filtering never walks two levels.
+continuous range; and composite assets are expanded into one record per sub-instrument
+so every asset has the same shape.
+
+On that last point: the working registry models assets 149, 188 and 580 as composites
+wrapping components, but models the identical situation at 741 and 784 as two plain rows
+sharing an asset number. Two structures for one situation means every consumer must
+handle both, and the composite branch is the one that gets forgotten. The contract
+normalizes on the flat form - 204 working-registry assets become 209 - with siblings
+sharing `asset_no` and disambiguated by a suffixed `id` plus `duplicate_asset_no: true`.
 
 ```bash
 python scripts/extract_parameter_inventory.py
