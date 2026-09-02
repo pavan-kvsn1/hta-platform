@@ -302,12 +302,18 @@ profiles carry `kind: 'range' | 'artifact'` because reference artifacts have no
 continuous range; and composite assets are expanded into one record per sub-instrument
 so every asset has the same shape.
 
-On that last point: the working registry models assets 149, 188 and 580 as composites
-wrapping components, but models the identical situation at 741 and 784 as two plain rows
-sharing an asset number. Two structures for one situation means every consumer must
-handle both, and the composite branch is the one that gets forgotten. The contract
-normalizes on the flat form - 204 working-registry assets become 209 - with siblings
-sharing `asset_no` and disambiguated by a suffixed `id` plus `duplicate_asset_no: true`.
+On that last point: an asset number is an entry in the lab's master list, and several
+physical instruments can sit under one. The working registry records this two different
+ways - as composites for 149, 188 and 580, and as repeated rows sharing a number for 741
+and 784. The contract gives **every** asset a `units[]` array (202 assets, 209 units),
+most with a single entry, so there is one shape and consumers never branch.
+
+Unit ids come from the lab's own lettered certificates where they exist - `188A/188B/188C`
+and `580A/580B/580C` are real files on disk - rather than an invented numbering. Assets
+149, 741 and 784 have no lettering, so their units are ordinals and are flagged as an
+integrity issue: for 741 and 784 the instruments are unrelated (different make, category,
+usage, calibrating lab and due date), which looks like a numbering error rather than a
+deliberate sub-unit.
 
 ```bash
 python scripts/extract_parameter_inventory.py

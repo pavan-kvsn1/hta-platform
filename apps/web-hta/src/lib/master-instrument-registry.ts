@@ -5,8 +5,16 @@
 //
 // This replaces the flat MasterInstrument shape in master-instruments.ts, where an
 // instrument carried `parameter_group` plus a list of capability slugs and a flat
-// `range[]`. Capability is now hierarchical: an asset has profiles, a profile has
-// range buckets, and each bucket carries its own least count and accuracy.
+// `range[]`. The hierarchy is now:
+//
+//   asset (an asset number in the lab's master list)
+//     └── unit (a physical instrument with its own certificate and due date)
+//           └── capability profile (a parameter it can source or measure)
+//                 └── bucket (a sub-range with its own least count and accuracy)
+//
+// Most assets hold exactly one unit. Several hold more - a calibrator and its current
+// coil, three paperless recorders - which the lab distinguishes with lettered
+// certificates (188A, 188B, 188C).
 //
 // Do not edit the JSON by hand - regenerate it.
 
@@ -139,27 +147,25 @@ export interface CapabilityProfile {
 }
 
 /**
- * One physical instrument.
+ * One physical instrument, calibrated and certified in its own right.
  *
- * Every asset has this shape - there is no separate composite form. Where several
- * instruments share an asset number (a calibrator and its current coil, three paperless
- * recorders filed under one number), each is its own asset with a suffixed `id` and
- * `duplicate_asset_no: true`.
+ * This is the entity a certificate is issued against and the entity a user actually
+ * selects as a master - it has its own serial number, calibration date, due date and
+ * capabilities. Several units can live under one asset number.
  */
-export interface RegistryAsset {
+export interface RegistryUnit {
   /**
-   * Unique key. Normally the normalized asset number ("227"). Where an asset number is
-   * shared by several instruments it is suffixed ("149-1", "149-2") - see
-   * `duplicate_asset_no`.
+   * Distinguishes units within an asset. Uses the lab's own certificate letter where
+   * one exists ("A", "B", "C" from 188A/188B/188C); otherwise a 1-based ordinal, which
+   * is arbitrary - see the `shared_asset_number_without_lettering` integrity issue.
+   * Single-unit assets are always "1".
    */
   id: string
-  /** As printed, e.g. "149 HTAIPL/L". Not unique when instruments share a number. */
-  asset_no: string
-  category: string | null
   instrument_desc: string | null
   make: string | null
   model: string | null
   serial_no: string | null
+  category: string | null
   usage: string | null
   calibrated_at: string | null
   report_no: string | null
@@ -169,14 +175,29 @@ export interface RegistryAsset {
   sop_references: string[]
   certificate_file: string | null
   capability_profiles: CapabilityProfile[]
-  /** Present and true when this asset number is shared with another instrument. */
-  duplicate_asset_no?: boolean
   /**
-   * Present and false when the instrument is known only from a certificate and has no
-   * entry in the lab's master list - so no serial number and no attributable
-   * calibration dates. Its due status cannot be tracked; do not present it as current.
+   * Present and false when this unit is known only from a certificate and has no entry
+   * in the lab's master list - so no serial number and no attributable calibration
+   * dates. Its due status cannot be tracked; do not present it as current.
    */
   has_master_record?: boolean
+}
+
+/**
+ * One entry in the lab's master list, identified by its asset number.
+ *
+ * An asset is a grouping, not an instrument. It always has at least one unit, and most
+ * have exactly one. Because `units` is never optional there is a single shape to handle:
+ * code that wants instruments reads `assets.flatMap(a => a.units)` and never branches.
+ */
+export interface RegistryAsset {
+  /** Normalized asset number, e.g. "227". Unique across the registry. */
+  id: string
+  /** As printed, e.g. "227 HTAIPL/L". */
+  asset_no: string
+  unit_count: number
+  /** Always at least one entry. */
+  units: RegistryUnit[]
 }
 
 export interface MasterInstrumentRegistry {
@@ -187,8 +208,14 @@ export interface MasterInstrumentRegistry {
     normalization_map_version: string | null
   }
   asset_count: number
+  unit_count: number
   profile_count: number
   assets: RegistryAsset[]
+}
+
+/** Every instrument in the registry, flattened out of its asset grouping. */
+export function allUnits(registry: MasterInstrumentRegistry): RegistryUnit[] {
+  return registry.assets.flatMap((asset) => asset.units)
 }
 
 // ---------------------------------------------------------------------------------

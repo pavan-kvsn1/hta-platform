@@ -14,10 +14,12 @@ plus a sidecar holding every caveat stripped from it, so nothing is silently los
 
 What the standardization does:
 
-  * flattens composite assets into one record per sub-instrument, so every asset has the
-    same shape and consumers never branch on asset_type. The working registry models
-    149/188/580 as composites while modelling the identical situation at 741/784 as two
-    plain rows sharing an asset number; the flat form wins.
+  * gives every asset a units[] array - one entry per physical instrument - so there is
+    exactly one shape and consumers never branch. The working registry records the same
+    situation two ways: composites for 149/188/580, repeated rows sharing a number for
+    741/784. Both become units. Most assets have a single unit.
+  * takes unit ids from the lab's own lettered certificates where they exist
+    (188A/188B/188C, 580A/580B/580C) rather than inventing a numbering
   * normalizes parameter names through parameter-normalization-map.json, so the app sees
     standard names and never the 57 raw variants
   * canonicalizes units through the same map's unitAliases (µm vs um vs μm, %RH spellings)
@@ -35,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import date
 from pathlib import Path
 
@@ -120,38 +123,33 @@ def normalize_accuracy(acc):
     return {"type": "unknown", "raw": acc}
 
 
-def flatten_composites(assets):
-    """Expand composite assets into one flat record per sub-instrument.
+UNIT_LETTER = re.compile(r"^\s*\d+\s*([A-Z])\b")
 
-    The working registry models three assets (149, 188, 580) as a composite wrapper
-    around components, while assets 741 and 784 model the same situation as two plain
-    rows that happen to share an asset number. Two structures for one situation means
-    every consumer has to handle both, and the composite branch is the one that gets
-    forgotten.
 
-    This normalizes on the flat form: every sub-instrument becomes its own asset,
-    sharing the asset number with its siblings. Uniqueness is restored later by
-    suffixing ids, exactly as it already is for 741 and 784.
+def normalized_asset_no(asset):
+    value = asset.get("asset_no_normalized")
+    if value:
+        return str(value).strip()
+    asset_no = asset.get("asset_no")
+    return str(asset_no).split()[0].strip() if asset_no else ""
+
+
+def unit_records(asset):
+    """Yield one record per physical instrument under this asset entry.
+
+    A composite asset yields its components; anything else yields itself. The two are
+    the same situation recorded two different ways in the working registry.
     """
-    out = []
-    for asset in assets:
-        if asset.get("asset_type") != "composite" or not asset.get("components"):
-            out.append(asset)
-            continue
-
-        shared_asset_no = asset.get("asset_no_normalized")
+    if asset.get("asset_type") == "composite" and asset.get("components"):
         for component in asset["components"]:
             record = dict(component.get("master_record") or {})
-
             # Certificate-derived components have no master record at all; their only
             # identity is the component-level instrument_desc.
             if not record:
-                record = {"instrument_desc": component.get("instrument_desc")}
-                record["_no_master_record"] = True
-
-            record.setdefault("asset_no", f"{shared_asset_no} HTAIPL/L")
-            record["asset_no_normalized"] = shared_asset_no
-            record["asset_type"] = "single"
+                record = {
+                    "instrument_desc": component.get("instrument_desc"),
+                    "_no_master_record": True,
+                }
             record["certificate_file"] = component.get("certificate_file")
             if component.get("calibration_status"):
                 record["calibration_status"] = component["calibration_status"]
@@ -159,8 +157,42 @@ def flatten_composites(assets):
                 list(component.get("capability_profiles") or [])
                 + list((component.get("master_record") or {}).get("capability_profiles") or [])
             )
-            out.append(record)
-    return out
+            yield record
+    else:
+        yield asset
+
+
+def group_by_asset_no(assets):
+    """Group the working registry's rows into one entry per asset number.
+
+    An asset number identifies one entry in the lab's master list. Several physical
+    instruments can sit under it - a calibrator and its current coil, three paperless
+    recorders - and the lab distinguishes them with lettered certificates (188A, 188B,
+    188C). The working registry records this two different ways: as composites for 149,
+    188 and 580, and as repeated rows sharing a number for 741 and 784.
+
+    Both become one asset with a units[] array. Every asset gets units[], most with a
+    single entry, so consumers have exactly one shape to handle.
+    """
+    grouped = {}
+    order = []
+    for asset in assets:
+        key = normalized_asset_no(asset)
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        for record in unit_records(asset):
+            grouped[key].append(record)
+    return [(key, grouped[key]) for key in order]
+
+
+def unit_id(asset_number, record, index):
+    """Prefer the lab's own letter (from '188B HTAIPL L.pdf') over an invented ordinal."""
+    certificate = record.get("certificate_file") or ""
+    match = UNIT_LETTER.match(certificate)
+    if match:
+        return match.group(1)
+    return str(index)
 
 
 def build(registry, mapping):
@@ -178,12 +210,14 @@ def build(registry, mapping):
     unmapped = set()
     assets_out = []
 
-    for asset in flatten_composites(registry["assets"]):
-        asset_no = asset.get("asset_no") or asset.get("asset_no_normalized")
+    for asset_number, records in group_by_asset_no(registry["assets"]):
+      units_out = []
+      notes = []
+      for unit_index, asset in enumerate(records, start=1):
+        asset_no = asset.get("asset_no") or f"{asset_number} HTAIPL/L"
 
         collected = list(asset.get("capability_profiles") or [])
 
-        notes = []
         profiles_out = []
         for index, prof in enumerate(collected, start=1):
             raw_param = prof.get("parameter")
@@ -264,22 +298,14 @@ def build(registry, mapping):
             if prov:
                 notes.extend(prov.get("notes") or [])
 
-        # asset_no_normalized only exists on the 3 composite assets; for the rest the
-        # normalized id is the leading token of asset_no ("227 HTAIPL/L" -> "227",
-        # "907,908 HTAIPL/L" -> "907,908").
-        normalized_id = asset.get("asset_no_normalized")
-        if not normalized_id and asset_no:
-            normalized_id = str(asset_no).split()[0]
-
         status = asset.get("calibration_status") or {}
-        out = {
-            "id": str(normalized_id or "").strip(),
-            "asset_no": asset_no,
-            "category": asset.get("category"),
+        unit_out = {
+            "id": unit_id(asset_number, asset, unit_index),
             "instrument_desc": asset.get("instrument_desc"),
             "make": asset.get("make"),
             "model": asset.get("model"),
             "serial_no": asset.get("serial_no"),
+            "category": asset.get("category"),
             "usage": asset.get("usage"),
             "calibrated_at": asset.get("calibrated_at"),
             "report_no": asset.get("report_no"),
@@ -289,52 +315,67 @@ def build(registry, mapping):
             "certificate_file": asset.get("certificate_file"),
             "capability_profiles": profiles_out,
         }
-        # Sub-instruments known only from a certificate have no master-list entry, so
-        # no serial number and no attributable calibration dates.
+        # Units known only from a certificate have no master-list entry, so no serial
+        # number and no attributable calibration dates.
         if asset.get("_no_master_record"):
-            out["has_master_record"] = False
+            unit_out["has_master_record"] = False
 
-        assets_out.append(out)
+        units_out.append(unit_out)
 
-        if notes:
-            quality["assets"][asset_no] = {
-                "instrument_desc": asset.get("instrument_desc"),
-                "notes": notes,
-            }
+      assets_out.append(
+          {
+              "id": asset_number,
+              "asset_no": records[0].get("asset_no") or f"{asset_number} HTAIPL/L",
+              "unit_count": len(units_out),
+              "units": units_out,
+          }
+      )
 
-    # `id` is the app's lookup key, so it must be unique. The source registry reuses
-    # some asset numbers across physically different instruments, so disambiguate
-    # deterministically (by serial) and report it - the collision is a source defect.
+      if notes:
+          quality["assets"][asset_number] = {
+              "instrument_desc": units_out[0]["instrument_desc"] if units_out else None,
+              "notes": notes,
+          }
+
     integrity = []
-    seen = {}
-    for out in assets_out:
-        seen.setdefault(out["id"], []).append(out)
-    for base, group in sorted(seen.items()):
-        if len(group) < 2:
+
+    # An asset number holding several instruments is normal where the lab issues
+    # lettered certificates (188A/188B/188C). It is a defect where it does not - 741 and
+    # 784 hold unrelated instruments with different makes, labs and due dates, and only
+    # one certificate between them. Report the ones with no lettering.
+    multi = [a for a in assets_out if a["unit_count"] > 1]
+    for a in multi:
+        lettered = all(u["id"].isalpha() for u in a["units"])
+        if lettered:
             continue
         integrity.append(
             {
-                "issue": "duplicate_asset_number",
-                "id": base,
+                "issue": "shared_asset_number_without_lettering",
+                "id": a["id"],
                 "instruments": [
-                    {"instrument_desc": g["instrument_desc"], "serial_no": g["serial_no"]}
-                    for g in group
+                    {
+                        "unit": u["id"],
+                        "instrument_desc": u["instrument_desc"],
+                        "serial_no": u["serial_no"],
+                        "certificate_file": u["certificate_file"],
+                    }
+                    for u in a["units"]
                 ],
                 "resolution": (
-                    "ids were suffixed -1, -2 ... in generation order so the contract has"
-                    " unique keys, but asset_no remains ambiguous. Fix at source: two"
-                    " physically different instruments must not share an asset number."
+                    "Several instruments share this asset number but the lab issues no"
+                    " lettered certificates for them, so there is nothing in the source"
+                    " that distinguishes the units. Units are numbered 1, 2 ... in"
+                    " registry order, which is arbitrary. Confirm at source whether these"
+                    " belong under one number at all."
                 ),
             }
         )
-        for index, g in enumerate(group, start=1):
-            g["id"] = f"{base}-{index}"
-            g["duplicate_asset_no"] = True
 
     unitless = [
-        {"asset_no": a["asset_no"], "parameter": p["parameter"]}
+        {"asset_no": a["asset_no"], "unit": u["id"], "parameter": p["parameter"]}
         for a in assets_out
-        for p in a["capability_profiles"]
+        for u in a["units"]
+        for p in u["capability_profiles"]
         if not p["unit"]
     ]
     if unitless:
@@ -354,19 +395,20 @@ def build(registry, mapping):
     orphans = [
         {
             "asset_id": a["id"],
-            "asset_no": a["asset_no"],
-            "instrument_desc": a["instrument_desc"],
-            "certificate_file": a["certificate_file"],
+            "unit": u["id"],
+            "instrument_desc": u["instrument_desc"],
+            "certificate_file": u["certificate_file"],
         }
         for a in assets_out
-        if a.get("has_master_record") is False
+        for u in a["units"]
+        if u.get("has_master_record") is False
     ]
     if orphans:
         integrity.append(
             {
-                "issue": "asset_without_master_record",
+                "issue": "unit_without_master_record",
                 "count": len(orphans),
-                "assets": orphans,
+                "units": orphans,
                 "resolution": (
                     "These instruments exist only because a certificate was found for"
                     " them; the lab's master list has no entry. They have no serial number"
@@ -387,7 +429,10 @@ def build(registry, mapping):
             "normalization_map_version": mapping.get("version"),
         },
         "asset_count": len(assets_out),
-        "profile_count": sum(len(a["capability_profiles"]) for a in assets_out),
+        "unit_count": sum(a["unit_count"] for a in assets_out),
+        "profile_count": sum(
+            len(u["capability_profiles"]) for a in assets_out for u in a["units"]
+        ),
         "assets": assets_out,
     }
     return standardized, quality, unmapped
@@ -413,36 +458,32 @@ def main():
             print(f"  - {name}")
         return 1
 
-    params = sorted({
-        p["parameter"] for a in standardized["assets"] for p in a["capability_profiles"]
-    })
-    artifacts = [
-        (a["asset_no"], p["parameter"])
-        for a in standardized["assets"]
-        for p in a["capability_profiles"]
-        if p["kind"] == "artifact"
+    all_profiles = [
+        p for a in standardized["assets"] for u in a["units"] for p in u["capability_profiles"]
     ]
+    params = sorted({p["parameter"] for p in all_profiles})
+    artifacts = [p for p in all_profiles if p["kind"] == "artifact"]
     acc_types = {}
-    for a in standardized["assets"]:
-        for p in a["capability_profiles"]:
-            for b in p["buckets"]:
-                t = (b["accuracy"] or {}).get("type", "none")
-                acc_types[t] = acc_types.get(t, 0) + 1
+    for p in all_profiles:
+        for b in p["buckets"]:
+            t = (b["accuracy"] or {}).get("type", "none")
+            acc_types[t] = acc_types.get(t, 0) + 1
 
     print(f"schema {SCHEMA_VERSION}: {standardized['asset_count']} assets, "
-          f"{standardized['profile_count']} profiles, {len(params)} distinct parameters")
+          f"{standardized['unit_count']} units, {standardized['profile_count']} profiles, "
+          f"{len(params)} distinct parameters")
     print(f"  artifact profiles     : {len(artifacts)}")
     print(f"  accuracy by type      : {acc_types}")
     print(f"  assets with caveats   : {len(quality['assets'])}")
 
     for issue in quality.get("integrity", []):
-        if issue["issue"] == "duplicate_asset_number":
+        if issue["issue"] == "shared_asset_number_without_lettering":
             names = " / ".join(
                 f"{i['instrument_desc']} ({i['serial_no']})" for i in issue["instruments"]
             )
-            print(f"  INTEGRITY  asset_no {issue['id']} reused by: {names}")
-        elif issue["issue"] == "asset_without_master_record":
-            print(f"  INTEGRITY  {issue['count']} assets exist only from a certificate "
+            print(f"  INTEGRITY  asset {issue['id']} holds unlettered units: {names}")
+        elif issue["issue"] == "unit_without_master_record":
+            print(f"  INTEGRITY  {issue['count']} units exist only from a certificate "
                   f"- no master-list entry, due status untrackable")
         elif issue["issue"] == "profile_without_unit":
             print(f"  INTEGRITY  {issue['count']} profiles have no unit "
