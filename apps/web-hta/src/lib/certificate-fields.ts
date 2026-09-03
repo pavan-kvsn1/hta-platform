@@ -241,7 +241,11 @@ export function buildSimpleExpression(expression: SimpleExpression): string {
   const right =
     expression.operand.kind === 'value'
       ? expression.operand.value.trim()
-      : `{${expression.operand.fieldId}}`
+      : expression.operand.fieldId
+        ? `{${expression.operand.fieldId}}`
+        : ''
+  // An incomplete expression is stored as empty rather than as a broken formula, so
+  // the cell renders blank. The builder keeps the half-finished state itself.
   if (!expression.sourceId || right === '') return ''
   return `{${expression.sourceId}} ${expression.operator} ${right}`
 }

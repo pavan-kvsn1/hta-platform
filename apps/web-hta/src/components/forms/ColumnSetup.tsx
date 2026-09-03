@@ -28,6 +28,7 @@ import {
   removeField,
   type ErrorConfig,
   type ExpressionOperator,
+  type SimpleExpression,
   type FieldDefinition,
   type FieldGroup,
   type FieldType,
@@ -77,6 +78,7 @@ export function ColumnSetup({
   disabled,
   onChange,
 }: ColumnSetupProps) {
+  const [drafts, setDrafts] = useState<Record<string, SimpleExpression>>({})
   const [expanded, setExpanded] = useState(false)
   const [warning, setWarning] = useState<string | null>(null)
 
@@ -117,6 +119,11 @@ export function ColumnSetup({
    * falls back to a raw input rather than being silently rewritten.
    */
   const renderExpressionBuilder = (fieldDef: FieldDefinition) => {
+    // The builder cannot read its state back out of the stored formula alone: an
+    // incomplete one is stored as '', so picking a source column before entering a
+    // value would round-trip to nothing and the select would snap back to empty.
+    // Half-finished state lives here until it makes a formula.
+    const draft = drafts[fieldDef.id]
     // Same side only. A UUC column derived from a master reading is not a derived
     // column, it is an error calculation, and that is what the Error row is for -
     // offering master fields here invites the two to be confused.
@@ -124,16 +131,18 @@ export function ColumnSetup({
       (f) => f.id !== fieldDef.id && f.type !== 'text' && f.group === fieldDef.group,
     )
     const parsed = parseSimpleExpression(fieldDef.expression)
-    const isRaw = Boolean(fieldDef.expression) && parsed === null
+    const isRaw = !draft && Boolean(fieldDef.expression) && parsed === null
 
-    const current = parsed ?? {
+    const current = draft ?? parsed ?? {
       sourceId: '',
       operator: '*' as ExpressionOperator,
       operand: { kind: 'value' as const, value: '' },
     }
 
-    const emit = (next: typeof current) =>
+    const emit = (next: typeof current) => {
+      setDrafts((d) => ({ ...d, [fieldDef.id]: next }))
       updateField(fieldDef.id, { expression: buildSimpleExpression(next) })
+    }
 
     if (isRaw) {
       return (
@@ -149,7 +158,13 @@ export function ColumnSetup({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => updateField(fieldDef.id, { expression: '' })}
+            onClick={() => {
+              setDrafts((d) => {
+                const { [fieldDef.id]: _dropped, ...rest } = d
+                return rest
+              })
+              updateField(fieldDef.id, { expression: '' })
+            }}
             className="shrink-0 text-[11px] text-slate-500 underline underline-offset-2 hover:text-slate-700"
           >
             Use the builder

@@ -237,6 +237,33 @@ describe('ColumnSetup', () => {
     expect(within(second).queryByText('Std Meter Reading')).not.toBeInTheDocument()
   })
 
+  it('keeps a half-finished expression while it is being built', () => {
+    // A new formula column starts empty. Choosing a source before typing a value used
+    // to round-trip through an empty stored formula, so the choice vanished.
+    const withEmpty: FieldDefinition[] = [
+      ...fields.filter((f) => f.id !== 'u3'),
+      { id: 'u3', name: 'Derived mV', group: 'uuc', type: 'expression', unit: 'mV', order: 2 },
+    ]
+    const { props } = renderSetup({ fields: withEmpty })
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+
+    const source = screen.getByLabelText(/Source column for Derived mV/i)
+    fireEvent.change(source, { target: { value: 'u2' } })
+    expect(source).toHaveValue('u2')
+
+    // Still a builder, not the raw-formula fallback.
+    expect(screen.getByLabelText(/Value for Derived mV/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Formula for Derived mV/i)).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Value for Derived mV/i), {
+      target: { value: '2' },
+    })
+    const [nextFields] = props.onChange.mock.calls.at(-1)!
+    expect(nextFields.find((f: FieldDefinition) => f.id === 'u3')?.expression).toBe(
+      '{u2} * 2',
+    )
+  })
+
   it('adds a field defaulted to the parameter unit', () => {
     const { props } = renderSetup()
     fireEvent.click(screen.getByRole('button', { expanded: false }))
