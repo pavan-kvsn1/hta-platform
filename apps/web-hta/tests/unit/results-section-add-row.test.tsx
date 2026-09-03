@@ -71,7 +71,7 @@ describe('ResultsSection add-row action', () => {
     const failedStatus = screen.getByText('Fail*')
     const failedRow = failedStatus.closest('tr')
     expect(failedRow).toHaveClass('text-red-700', 'font-bold')
-    for (const input of within(failedRow!).getAllByRole('spinbutton')) {
+    for (const input of within(failedRow!).getAllByRole('textbox')) {
       expect(input).toHaveClass('text-red-700', 'font-bold')
     }
   })

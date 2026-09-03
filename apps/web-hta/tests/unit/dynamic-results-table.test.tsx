@@ -64,6 +64,20 @@ describe('DynamicResultsTable', () => {
     expect(uuc).toHaveAttribute('colspan', '3')
   })
 
+  it('puts the UUC columns before the Master ones', () => {
+    renderTable()
+    const [groupRow] = screen.getAllByRole('row')
+    const groups = within(groupRow).getAllByRole('columnheader').map((th) => th.textContent)
+    expect(groups.indexOf('UUC')).toBeLessThan(groups.indexOf('Master Instrument'))
+
+    const headings = screen
+      .getAllByRole('columnheader')
+      .map((th) => th.textContent ?? '')
+    expect(headings.indexOf('UUC Reading (kg/cm²)')).toBeLessThan(
+      headings.indexOf('Std Meter Reading (kg/cm²)'),
+    )
+  })
+
   it('renders a column per field, with the unit on the same line as the name', () => {
     renderTable()
     expect(screen.getByText('Std Meter Reading (kg/cm²)')).toBeInTheDocument()
@@ -77,19 +91,25 @@ describe('DynamicResultsTable', () => {
     expect(screen.getByText('UUC Status')).toBeInTheDocument()
   })
 
-  it('uses a number input for numeric fields and text for text fields', () => {
-    renderTable()
+  it('never gives a reading a stepper - entry is manual only', () => {
+    renderTable({ precision: 3 })
     const numeric = screen.getByLabelText('Std Meter Reading, point 1')
-    const text = screen.getByLabelText('UUC Status, point 1')
-    expect(numeric).toHaveAttribute('type', 'number')
-    expect(text).toHaveAttribute('type', 'text')
+    // type=number would increment on arrow keys and on the scroll wheel, which can
+    // change a recorded measurement without the engineer meaning to.
+    expect(numeric).toHaveAttribute('type', 'text')
+    expect(numeric).not.toHaveAttribute('step')
+    expect(screen.queryAllByRole('spinbutton')).toHaveLength(0)
   })
 
-  it('steps numeric inputs by the parameter precision', () => {
-    renderTable({ precision: 3 })
+  it('hints a decimal keypad for numeric fields but not for text ones', () => {
+    renderTable()
     expect(screen.getByLabelText('Std Meter Reading, point 1')).toHaveAttribute(
-      'step',
-      '0.001',
+      'inputmode',
+      'decimal',
+    )
+    expect(screen.getByLabelText('UUC Status, point 1')).toHaveAttribute(
+      'inputmode',
+      'text',
     )
   })
 
@@ -114,7 +134,7 @@ describe('DynamicResultsTable', () => {
     const fail = screen.getAllByText('Fail*')[0]
     const failedRow = fail.closest('tr')
     expect(failedRow).toHaveClass('text-red-700', 'font-bold')
-    for (const input of within(failedRow!).getAllByRole('spinbutton')) {
+    for (const input of within(failedRow!).getAllByRole('textbox')) {
       expect(input).toHaveClass('text-red-700', 'font-bold')
     }
   })

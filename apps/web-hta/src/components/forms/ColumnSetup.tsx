@@ -1,18 +1,21 @@
 'use client'
 
-// Column Setup panel for Section 05.
+// Parameter setup panel for the Section 05 calibration results table.
 //
 // Lets the engineer declare the column schema for one parameter before entering data:
 // which fields each instrument contributes, their types and units, and which pair of
 // numeric fields the error is computed from.
 //
-// Layout follows docs/todos/section05-dynamic-fields-revamp.md - Master fields and UUC
-// fields side by side, error computation beneath, and a one-line summary when collapsed.
+// Layout follows docs/todos/section05-dynamic-fields-revamp.md - the two field lists
+// side by side, error computation beneath, and a one-line summary when collapsed. UUC
+// comes first, matching the results table: the unit under test is the subject of the
+// certificate, and the master is what it is being compared against.
 //
 // Presentation matches DynamicResultsTable: each field list is a small table with one
 // header rather than a stack of cards, ruled horizontally, with outlined inputs. A card
 // per field put a box around a row of boxes, which is the same mistake the results table
-// had.
+// had. The banner is sized and tinted like that table's Master/UUC band so the two sit
+// at the same level on the page rather than one looking like a footnote of the other.
 
 import { useState } from 'react'
 import { ArrowLeftRight, ChevronDown, ChevronRight, Plus, X, AlertTriangle } from 'lucide-react'
@@ -45,7 +48,7 @@ const OPERATORS: { value: ExpressionOperator; label: string }[] = [
 ]
 
 const CONTROL =
-  'rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 transition-colors hover:border-slate-300 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400'
+  'rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 transition-colors hover:border-slate-300 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400'
 
 interface ColumnSetupProps {
   fields: FieldDefinition[]
@@ -241,9 +244,6 @@ export function ColumnSetup({
   const renderFieldRow = (fieldDef: FieldDefinition, index: number) => (
     <div key={fieldDef.id} className="group px-3 py-2 transition-colors hover:bg-slate-50/70">
       <div className="flex items-center gap-2">
-        <span className="w-3 shrink-0 text-[11px] tabular-nums text-slate-300">
-          {index + 1}
-        </span>
         <input
           type="text"
           value={fieldDef.name}
@@ -293,7 +293,7 @@ export function ColumnSetup({
       </div>
 
       {fieldDef.type === 'expression' && (
-        <div className="mt-2 pl-5">{renderExpressionBuilder(fieldDef)}</div>
+        <div className="mt-2">{renderExpressionBuilder(fieldDef)}</div>
       )}
     </div>
   )
@@ -302,13 +302,12 @@ export function ColumnSetup({
     const groupFields = group === 'master' ? masterFields : uucFields
     return (
       <div>
-        <h4 className="mb-1.5 text-[11px] font-semibold text-slate-600">
+        <h4 className="mb-2 text-sm font-semibold text-slate-700">
           {group === 'master' ? 'Master Instrument Fields' : 'UUC Fields'}
         </h4>
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
           {/* One header for the list rather than a label above every control. */}
-          <div className="flex items-center gap-2 border-b border-slate-200 bg-section-inner px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            <span className="w-3 shrink-0" />
+          <div className="flex items-center gap-2 border-b border-slate-200 bg-section-inner/40 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             <span className="min-w-0 flex-1">Name</span>
             <span className="w-28 shrink-0">Type</span>
             <span className="w-20 shrink-0">Unit</span>
@@ -354,6 +353,7 @@ export function ColumnSetup({
       }
       className={cn(
         CONTROL,
+        'w-44 shrink-0',
         (side === 'master' ? errorConfig.masterFieldId : errorConfig.uucFieldId)
           ? ''
           : 'border-amber-300',
@@ -369,11 +369,11 @@ export function ColumnSetup({
   )
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/60">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left"
+        className="flex w-full items-center gap-2 bg-section-inner px-4 py-3 text-left"
         aria-expanded={expanded}
       >
         {expanded ? (
@@ -381,17 +381,17 @@ export function ColumnSetup({
         ) : (
           <ChevronRight className="h-4 w-4 text-slate-400" />
         )}
-        <span className="text-xs font-semibold text-slate-700">Column Setup</span>
+        <span className="text-sm font-semibold text-slate-700">Calibration Results Table — Parameter Setup</span>
         {!expanded && (
           <span className="ml-2 truncate text-xs text-slate-500">
-            Master: {summarise(fields, 'master')} · UUC: {summarise(fields, 'uuc')} ·
+            UUC: {summarise(fields, 'uuc')} · Master: {summarise(fields, 'master')} ·
             Error: {masterName} − {uucName}
           </span>
         )}
       </button>
 
       {expanded && (
-        <div className="space-y-4 border-t border-slate-200 p-3">
+        <div className="space-y-4 border-t border-slate-200 p-4">
           {warning && (
             <p className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -412,12 +412,12 @@ export function ColumnSetup({
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
-            {renderFieldList('master')}
             {renderFieldList('uuc')}
+            {renderFieldList('master')}
           </div>
 
           <div className="border-t border-slate-200 pt-3">
-            <h4 className="mb-2 text-[11px] font-semibold text-slate-600">
+            <h4 className="mb-2 text-sm font-semibold text-slate-700">
               Error Computation
             </h4>
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
@@ -449,7 +449,7 @@ export function ColumnSetup({
                 placeholder="Unit"
                 aria-label="Error unit"
                 onChange={(e) => onChange(fields, { ...errorConfig, unit: e.target.value })}
-                className={cn(CONTROL, 'w-20')}
+                className={cn(CONTROL, 'w-20 shrink-0')}
               />
             </div>
 

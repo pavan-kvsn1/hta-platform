@@ -74,7 +74,7 @@ function nextId(prefix: string): string {
 /**
  * The schema a newly created parameter starts with: one master numeric field and one
  * UUC numeric field, both in the parameter's unit. That reproduces the old fixed
- * layout, so a user who never opens Column Setup sees what they saw before.
+ * layout, so a user who never opens parameter setup sees what they saw before.
  */
 export function createDefaultFieldDefinitions(unit: string): FieldDefinition[] {
   return [

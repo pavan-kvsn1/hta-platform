@@ -4,15 +4,21 @@
 //
 // Columns come from fieldDefinitions rather than being fixed, so each parameter can
 // have its own layout, per docs/todos/section05-dynamic-fields-revamp.md. Headers are
-// two rows: the Master / UUC group, then the column itself as "Master Reading (deg C)"
+// two rows: the UUC / Master group, then the column itself as "Master Reading (deg C)"
 // - name and unit on one line rather than stacked. The group row is a band of its
 // own: a rule underneath it and enough height to be read as a band rather than a
 // cramped line, since it spans several columns and has to hold them together. The
-// fixed Sl./Error/Limit/Status/Photos columns span both header rows and centre
-// across the pair, rather than dropping to the baseline of the second.
+// fixed Sl./Error/Limit/Status/Photos columns span both header rows, so they are
+// peers of that band rather than of the column headings: same size, centred across
+// the pair rather than dropped to the baseline of the second row.
 //
 // Sl. No is always the first column and Error always the last, regardless of how the
 // engineer arranged the instrument fields between them.
+//
+// Readings are text inputs with inputMode="decimal", not type="number". A number input
+// increments on arrow keys and on the scroll wheel, and a calibration reading that
+// changes because the engineer scrolled the page is a silently falsified measurement.
+// Numeric-ness is enforced downstream, where the value is parsed.
 //
 // Ruling is horizontal only. With no vertical lines the input outline becomes the
 // vertical structure, which also marks out what is editable: entry cells are outlined,
@@ -29,7 +35,10 @@ import { cn } from '@/lib/utils'
 interface DynamicResultsTableProps {
   fields: FieldDefinition[]
   rows: CalibrationResultRow[]
-  /** Decimal places for numeric entry, from the parameter's least count. */
+  /**
+   * Decimal places for numeric entry, from the parameter's least count. Used for the
+   * Limit column; entry itself is unconstrained, see the note on the readings below.
+   */
   precision: number
   disabled?: boolean
   onValueChange: (rowIndex: number, fieldId: string, value: string) => void
@@ -69,14 +78,12 @@ export function DynamicResultsTable({
 }: DynamicResultsTableProps) {
   const masterFields = fields.filter((f) => f.group === 'master').sort(byOrder)
   const uucFields = fields.filter((f) => f.group === 'uuc').sort(byOrder)
-  const ordered = [...masterFields, ...uucFields]
-
-  const step = precision > 0 ? (1 / Math.pow(10, precision)).toString() : '1'
+  const ordered = [...uucFields, ...masterFields]
 
   if (ordered.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-slate-300 px-3 py-8 text-center text-sm text-slate-500">
-        No columns configured. Open Column Setup to add Master and UUC fields.
+        No columns configured. Open Calibration Results Table — Parameter Setup to add Master and UUC fields.
       </p>
     )
   }
@@ -98,18 +105,10 @@ export function DynamicResultsTable({
             <tr>
               <th
                 rowSpan={2}
-                className="w-12 px-4 py-2 text-left align-middle text-xs font-semibold text-slate-700"
+                className="w-12 px-4 py-2 text-left align-middle text-sm font-semibold text-slate-700"
               >
                 Sl.
               </th>
-              {masterFields.length > 0 && (
-                <th
-                  colSpan={masterFields.length}
-                  className="border-b border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
-                >
-                  Master Instrument
-                </th>
-              )}
               {uucFields.length > 0 && (
                 <th
                   colSpan={uucFields.length}
@@ -118,30 +117,38 @@ export function DynamicResultsTable({
                   UUC
                 </th>
               )}
+              {masterFields.length > 0 && (
+                <th
+                  colSpan={masterFields.length}
+                  className="border-b border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
+                >
+                  Master Instrument
+                </th>
+              )}
               <th
                 rowSpan={2}
-                className="w-24 px-4 py-2 text-center align-middle text-xs font-semibold text-slate-700"
+                className="w-24 px-4 py-2 text-center align-middle text-sm font-semibold text-slate-700"
               >
                 Error
               </th>
               {getLimit && (
                 <th
                   rowSpan={2}
-                  className="w-20 px-4 py-2 text-center align-middle text-xs font-semibold text-slate-700"
+                  className="w-20 px-4 py-2 text-center align-middle text-sm font-semibold text-slate-700"
                 >
                   Limit
                 </th>
               )}
               <th
                 rowSpan={2}
-                className="w-20 px-4 py-2 text-center align-middle text-xs font-semibold text-slate-700"
+                className="w-20 px-4 py-2 text-center align-middle text-sm font-semibold text-slate-700"
               >
                 Status
               </th>
               {getReadingImages && (
                 <th
                   rowSpan={2}
-                  className="w-16 px-2 py-2 text-center align-middle text-xs font-semibold text-slate-700"
+                  className="w-16 px-2 py-2 text-center align-middle text-sm font-semibold text-slate-700"
                 >
                   Photos
                 </th>
@@ -155,7 +162,7 @@ export function DynamicResultsTable({
               {ordered.map((field) => (
                 <th
                   key={field.id}
-                  className="px-3 pb-2.5 text-center text-xs font-semibold text-slate-700"
+                  className="bg-white/50 px-3 py-2 text-center align-middle text-xs font-semibold text-slate-700"
                 >
                   {field.name ? (
                     headingFor(field)
@@ -192,10 +199,10 @@ export function DynamicResultsTable({
                         <td key={field.id} className="px-2 py-2">
                           <span
                             className={cn(
-                              'block rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-2.5 py-2 text-sm text-slate-500',
+                              'block rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-2.5 py-2 text-xs text-slate-500',
                               alignFor(field),
                             )}
-                            title="Computed from the formula in Column Setup"
+                            title="Computed from the formula in Calibration Results Table — Parameter Setup"
                           >
                             {value === '' || value === undefined ? '—' : value}
                           </span>
@@ -206,14 +213,14 @@ export function DynamicResultsTable({
                     return (
                       <td key={field.id} className="px-2 py-2">
                         <input
-                          type={field.type === 'numeric' ? 'number' : 'text'}
-                          step={field.type === 'numeric' ? step : undefined}
+                          type="text"
+                          inputMode={field.type === 'numeric' ? 'decimal' : 'text'}
                           value={row.values[field.id] ?? ''}
                           disabled={disabled}
                           aria-label={`${field.name || 'Field'}, point ${row.pointNumber}`}
                           onChange={(e) => onValueChange(rowIndex, field.id, e.target.value)}
                           className={cn(
-                            'w-full rounded-md border border-slate-200 bg-white px-2.5 py-2 text-sm outline-none transition-colors',
+                            'w-full rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs outline-none transition-colors',
                             'hover:border-slate-300',
                             'focus:border-primary/40 focus:ring-2 focus:ring-primary/10',
                             'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
@@ -225,7 +232,7 @@ export function DynamicResultsTable({
                     )
                   })}
 
-                  <td className="px-4 py-2 text-right text-sm tabular-nums">
+                  <td className="px-4 py-2 text-right text-xs tabular-nums">
                     {row.errorObserved === null ? (
                       <span className="text-slate-300">—</span>
                     ) : (

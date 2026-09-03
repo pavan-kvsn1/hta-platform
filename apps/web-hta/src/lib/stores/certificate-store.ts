@@ -243,7 +243,7 @@ const _createDefaultBin = (): ParameterBin => ({
 const createDefaultParameter = (): Parameter => {
   // A new parameter starts with one master and one UUC numeric field, which renders
   // exactly like the old fixed layout. Nothing changes for a user who never opens
-  // Column Setup.
+  // parameter setup.
   const fieldDefinitions = createDefaultFieldDefinitions('')
   return {
   id: generateId(),
