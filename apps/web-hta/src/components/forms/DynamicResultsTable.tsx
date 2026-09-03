@@ -4,7 +4,7 @@
 //
 // Columns come from fieldDefinitions rather than being fixed, so each parameter can
 // have its own layout, per docs/todos/section05-dynamic-fields-revamp.md. Headers are
-// two rows: the UUC / Master group, then the column itself as "Master Reading (deg C)"
+// two rows: the Master / UUC group, then the column itself as "Master Reading (deg C)"
 // - name and unit on one line rather than stacked. The group row is a band of its
 // own: a rule underneath it and enough height to be read as a band rather than a
 // cramped line, since it spans several columns and has to hold them together. The
@@ -78,7 +78,7 @@ export function DynamicResultsTable({
 }: DynamicResultsTableProps) {
   const masterFields = fields.filter((f) => f.group === 'master').sort(byOrder)
   const uucFields = fields.filter((f) => f.group === 'uuc').sort(byOrder)
-  const ordered = [...uucFields, ...masterFields]
+  const ordered = [...masterFields, ...uucFields]
 
   if (ordered.length === 0) {
     return (
@@ -109,20 +109,20 @@ export function DynamicResultsTable({
               >
                 Sl.
               </th>
-              {uucFields.length > 0 && (
-                <th
-                  colSpan={uucFields.length}
-                  className="border-b border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
-                >
-                  UUC
-                </th>
-              )}
               {masterFields.length > 0 && (
                 <th
                   colSpan={masterFields.length}
                   className="border-b border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
                 >
                   Master Instrument
+                </th>
+              )}
+              {uucFields.length > 0 && (
+                <th
+                  colSpan={uucFields.length}
+                  className="border-b border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
+                >
+                  UUC
                 </th>
               )}
               <th

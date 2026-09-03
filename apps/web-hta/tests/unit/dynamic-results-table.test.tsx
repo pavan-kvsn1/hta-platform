@@ -64,17 +64,17 @@ describe('DynamicResultsTable', () => {
     expect(uuc).toHaveAttribute('colspan', '3')
   })
 
-  it('puts the UUC columns before the Master ones', () => {
+  it('puts the Master columns before the UUC ones', () => {
     renderTable()
     const [groupRow] = screen.getAllByRole('row')
     const groups = within(groupRow).getAllByRole('columnheader').map((th) => th.textContent)
-    expect(groups.indexOf('UUC')).toBeLessThan(groups.indexOf('Master Instrument'))
+    expect(groups.indexOf('Master Instrument')).toBeLessThan(groups.indexOf('UUC'))
 
     const headings = screen
       .getAllByRole('columnheader')
       .map((th) => th.textContent ?? '')
-    expect(headings.indexOf('UUC Reading (kg/cm²)')).toBeLessThan(
-      headings.indexOf('Std Meter Reading (kg/cm²)'),
+    expect(headings.indexOf('Std Meter Reading (kg/cm²)')).toBeLessThan(
+      headings.indexOf('UUC Reading (kg/cm²)'),
     )
   })
 

@@ -7,9 +7,9 @@
 // numeric fields the error is computed from.
 //
 // Layout follows docs/todos/section05-dynamic-fields-revamp.md - the two field lists
-// side by side, error computation beneath, and a one-line summary when collapsed. UUC
-// comes first, matching the results table: the unit under test is the subject of the
-// certificate, and the master is what it is being compared against.
+// side by side, error computation beneath, and a one-line summary when collapsed.
+// Master comes first, matching the results table and the certificate itself: the
+// reference is what the reading is being read against.
 //
 // Presentation matches DynamicResultsTable: each field list is a small table with one
 // header rather than a stack of cards, ruled horizontally, with outlined inputs. A card
@@ -404,7 +404,7 @@ export function ColumnSetup({
         <span className="text-sm font-semibold text-slate-700">Calibration Results Table — Parameter Setup</span>
         {!expanded && (
           <span className="ml-2 truncate text-xs text-slate-500">
-            UUC: {summarise(fields, 'uuc')} · Master: {summarise(fields, 'master')} ·
+            Master: {summarise(fields, 'master')} · UUC: {summarise(fields, 'uuc')} ·
             Error: {masterName} − {uucName}
           </span>
         )}
@@ -432,8 +432,8 @@ export function ColumnSetup({
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
-            {renderFieldList('uuc')}
             {renderFieldList('master')}
+            {renderFieldList('uuc')}
           </div>
 
           <div className="border-t border-slate-200 pt-3">
