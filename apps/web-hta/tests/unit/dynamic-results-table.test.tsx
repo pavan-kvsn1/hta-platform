@@ -315,6 +315,51 @@ describe('ColumnSetup expression builder', () => {
       { ...withExpression[2], expression: '({u1} + {m1}) * 2' },
     ])
     expect(screen.getByLabelText('Formula for Derived')).toHaveValue('({u1} + {m1}) * 2')
-    expect(screen.getByRole('button', { name: /Clear and use the builder/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Use the builder/i })).toBeInTheDocument()
+  })
+})
+
+describe('ColumnSetup error computation', () => {
+  const setupFields: FieldDefinition[] = [
+    { id: 'm1', name: 'Actual Temp', group: 'master', type: 'numeric', unit: '°C', order: 0 },
+    { id: 'u1', name: 'UUC Reading', group: 'uuc', type: 'numeric', unit: '°C', order: 0 },
+  ]
+
+  function renderSetup(formula: 'A-B' | 'B-A' = 'A-B') {
+    const onChange = vi.fn()
+    render(
+      <ColumnSetup
+        fields={setupFields}
+        errorConfig={{ masterFieldId: 'm1', uucFieldId: 'u1', formula, unit: '°C' }}
+        parameterUnit="°C"
+        onChange={onChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+    return onChange
+  }
+
+  it('reads as a sentence rather than four labelled dropdowns', () => {
+    renderSetup()
+    expect(screen.getByText('Error')).toBeInTheDocument()
+    expect(screen.getByLabelText('Field A (Master)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Field B (UUC)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Error unit')).toHaveValue('°C')
+  })
+
+  it('swaps operand order instead of offering an A-B / B-A dropdown', () => {
+    const onChange = renderSetup('A-B')
+    fireEvent.click(screen.getByLabelText(/Swap the order of the error operands/i))
+    const [, nextConfig] = onChange.mock.calls.at(-1)!
+    expect(nextConfig).toMatchObject({ formula: 'B-A' })
+  })
+
+  it('lists each field group under a single header', () => {
+    renderSetup()
+    expect(screen.getByText('Master Instrument Fields')).toBeInTheDocument()
+    expect(screen.getByText('UUC Fields')).toBeInTheDocument()
+    // One Name/Type/Unit header per list, not per field.
+    expect(screen.getAllByText('Name')).toHaveLength(2)
+    expect(screen.getAllByText('Type')).toHaveLength(2)
   })
 })
