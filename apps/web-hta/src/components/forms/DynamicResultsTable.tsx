@@ -5,7 +5,9 @@
 // Columns come from fieldDefinitions rather than being fixed, so each parameter can
 // have its own layout, per docs/todos/section05-dynamic-fields-revamp.md. Headers are
 // two rows: the Master / UUC group, then the column itself as "Master Reading (deg C)"
-// - name and unit on one line rather than stacked.
+// - name and unit on one line rather than stacked. Both rows are set at the same size
+// and weight, including the fixed Sl./Error/Status columns, so the header reads as one
+// block rather than a caption sitting above the real headings.
 //
 // Sl. No is always the first column and Error always the last, regardless of how the
 // engineer arranged the instrument fields between them.
@@ -101,7 +103,7 @@ export function DynamicResultsTable({
               {masterFields.length > 0 && (
                 <th
                   colSpan={masterFields.length}
-                  className="px-4 pb-1 pt-2 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                  className="px-4 pb-1 pt-2 text-center text-xs font-semibold text-slate-700"
                 >
                   Master Instrument
                 </th>
@@ -109,7 +111,7 @@ export function DynamicResultsTable({
               {uucFields.length > 0 && (
                 <th
                   colSpan={uucFields.length}
-                  className="px-4 pb-1 pt-2 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                  className="px-4 pb-1 pt-2 text-center text-xs font-semibold text-slate-700"
                 >
                   UUC
                 </th>
