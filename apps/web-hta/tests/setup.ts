@@ -13,12 +13,22 @@
 import '@testing-library/jest-dom'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 import { setupServer } from 'msw/node'
+import { http, HttpResponse } from 'msw'
 
-// MSW server for mocking API requests
-export const server = setupServer()
+// Every authenticated call goes through api-client, which first asks for an access
+// token. Left unhandled, MSW only warns and lets that request through to the real
+// network - in jsdom it resolves against localhost:3000 and the test then sits there
+// until it times out, taking the rest of the file with it because renderHook has
+// already returned. Answering 401 by default matches the unauthenticated next-auth
+// mock below, and any test that wants a real token overrides this with server.use().
+export const server = setupServer(
+  http.post('/api/auth/issue-refresh-token', () =>
+    HttpResponse.json({ error: 'Unauthenticated' }, { status: 401 }),
+  ),
+)
 
 // Start server before all tests
-beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }))
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 
 // Reset handlers after each test
 afterEach(() => server.resetHandlers())

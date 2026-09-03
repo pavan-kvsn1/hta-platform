@@ -8,14 +8,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
-    // The default 5s is a per-test wall clock, and this suite runs 80+ jsdom
-    // environments across parallel workers - environment setup alone costs
-    // ~1200s of CPU cumulatively. Under that contention the MSW-backed tests in
-    // certificate-store.test.ts time out on a round trip that is not itself
-    // slow, and one timeout cascades: the rest of the file then sees
-    // renderHook return null. Raised so a failure here means genuinely stuck,
-    // not merely starved.
-    testTimeout: 20000,
     include: [
       'src/**/*.{test,spec}.{js,ts,jsx,tsx}',
       'tests/unit/**/*.{test,spec}.{js,ts,jsx,tsx}',
