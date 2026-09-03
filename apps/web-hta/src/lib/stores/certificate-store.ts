@@ -4,8 +4,10 @@ import { resolveCalibrationPrecision, roundToCalibrationPrecision } from '@/lib/
 import {
   createDefaultErrorConfig,
   createDefaultFieldDefinitions,
+  computeRowError,
   createRow,
   migrateLegacyResults,
+  resolveRowValues,
   toLegacyResults,
   type CalibrationResultRow,
   type ErrorConfig,
@@ -199,6 +201,23 @@ interface CertificateStore {
   calculateDueDate: () => void
   calculateError: (parameterIndex: number, resultIndex: number) => void
   recalculateAllErrors: (parameterIndex: number) => void
+
+  // Section 05 dynamic fields
+  setTableName: (parameterIndex: number, tableName: string) => void
+  setParameterSchema: (
+    parameterIndex: number,
+    fieldDefinitions: FieldDefinition[],
+    errorConfig: ErrorConfig,
+  ) => void
+  setResultRowValue: (
+    parameterIndex: number,
+    rowIndex: number,
+    fieldId: string,
+    value: string,
+  ) => void
+  addResultRow: (parameterIndex: number) => void
+  removeResultRow: (parameterIndex: number, rowIndex: number) => void
+  setResultRowCount: (parameterIndex: number, count: number) => void
   toggleCalibrationStatus: (status: string) => void
   setIsSaving: (saving: boolean) => void
   setLastSaved: (date: Date) => void
@@ -280,6 +299,36 @@ export const ensureParameterFields = (parameter: Parameter): Parameter => {
     fieldDefinitions,
     errorConfig: { ...errorConfig, formula: parameter.errorFormula === 'B-A' ? 'B-A' : 'A-B' },
     resultRows: rows.length > 0 ? rows : [createRow(1)],
+  }
+}
+
+/**
+ * Recompute a row's error and out-of-limit flag from the current field schema.
+ *
+ * Uses the same accuracy limit and precision rules as the legacy calculateError, so a
+ * migrated parameter flags the same points as before. The reading the limit is
+ * evaluated at is the master field's value, matching the legacy standardReading.
+ */
+export const recomputeResultRow = (
+  parameter: Parameter,
+  row: CalibrationResultRow,
+): CalibrationResultRow => {
+  const error = computeRowError(row, parameter.fieldDefinitions ?? [], parameter.errorConfig)
+  if (error === null) {
+    return { ...row, errorObserved: null, isOutOfLimit: false }
+  }
+
+  const masterRaw = resolveRowValues(row, parameter.fieldDefinitions ?? [])[
+    parameter.errorConfig.masterFieldId
+  ]
+  const masterValue = parseFloat(masterRaw)
+  const { limit } = calculateErrorLimit(parameter, masterValue)
+  const { precision } = resolveCalibrationPrecision(parameter, masterRaw)
+
+  return {
+    ...row,
+    errorObserved: roundToCalibrationPrecision(error, precision),
+    isOutOfLimit: limit !== null && Math.abs(error) > limit,
   }
 }
 
@@ -778,6 +827,91 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
     // Recalculate errors for all results in this parameter
     parameter.results.forEach((_, resultIndex) => {
       get().calculateError(parameterIndex, resultIndex)
+    })
+  },
+
+  setTableName: (parameterIndex, tableName) => {
+    set((state) => {
+      const parameters = [...state.formData.parameters]
+      parameters[parameterIndex] = { ...parameters[parameterIndex], tableName }
+      return { formData: { ...state.formData, parameters }, isDirty: true }
+    })
+  },
+
+  setParameterSchema: (parameterIndex, fieldDefinitions, errorConfig) => {
+    set((state) => {
+      const parameters = [...state.formData.parameters]
+      const parameter = { ...parameters[parameterIndex], fieldDefinitions, errorConfig }
+      // Changing which fields feed the error, or removing a field an expression used,
+      // invalidates every previously computed error on this parameter.
+      parameter.resultRows = (parameter.resultRows ?? []).map((row) =>
+        recomputeResultRow(parameter, row),
+      )
+      parameters[parameterIndex] = syncLegacyResults(parameter)
+      return { formData: { ...state.formData, parameters }, isDirty: true }
+    })
+  },
+
+  setResultRowValue: (parameterIndex, rowIndex, fieldId, value) => {
+    set((state) => {
+      const parameters = [...state.formData.parameters]
+      const parameter = { ...parameters[parameterIndex] }
+      const rows = [...(parameter.resultRows ?? [])]
+      const row = rows[rowIndex]
+      if (!row) return state
+
+      rows[rowIndex] = recomputeResultRow(parameter, {
+        ...row,
+        values: { ...row.values, [fieldId]: value },
+      })
+      parameter.resultRows = rows
+      parameters[parameterIndex] = syncLegacyResults(parameter)
+      return { formData: { ...state.formData, parameters }, isDirty: true }
+    })
+  },
+
+  addResultRow: (parameterIndex) => {
+    set((state) => {
+      const parameters = [...state.formData.parameters]
+      const parameter = { ...parameters[parameterIndex] }
+      const rows = parameter.resultRows ?? []
+      parameter.resultRows = [...rows, createRow(rows.length + 1)]
+      parameters[parameterIndex] = syncLegacyResults(parameter)
+      return { formData: { ...state.formData, parameters }, isDirty: true }
+    })
+  },
+
+  removeResultRow: (parameterIndex, rowIndex) => {
+    set((state) => {
+      const parameters = [...state.formData.parameters]
+      const parameter = { ...parameters[parameterIndex] }
+      const rows = parameter.resultRows ?? []
+      // Always leave one row: an empty table has nowhere to type.
+      if (rows.length <= 1) return state
+      parameter.resultRows = rows
+        .filter((_, i) => i !== rowIndex)
+        .map((row, i) => ({ ...row, pointNumber: i + 1 }))
+      parameters[parameterIndex] = syncLegacyResults(parameter)
+      return { formData: { ...state.formData, parameters }, isDirty: true }
+    })
+  },
+
+  setResultRowCount: (parameterIndex, count) => {
+    set((state) => {
+      const parameters = [...state.formData.parameters]
+      const parameter = { ...parameters[parameterIndex] }
+      const rows = [...(parameter.resultRows ?? [])]
+
+      if (count < rows.length) {
+        // Trimming discards entered data, so only ever drop from the end.
+        parameter.resultRows = rows.slice(0, count)
+      } else {
+        for (let i = rows.length; i < count; i += 1) rows.push(createRow(i + 1))
+        parameter.resultRows = rows
+      }
+
+      parameters[parameterIndex] = syncLegacyResults(parameter)
+      return { formData: { ...state.formData, parameters }, isDirty: true }
     })
   },
 
