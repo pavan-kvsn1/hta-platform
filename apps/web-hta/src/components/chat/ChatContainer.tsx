@@ -33,6 +33,34 @@ interface ChatContainerProps {
   className?: string
 }
 
+/**
+ * Turn a failed response into an error that says what actually happened.
+ *
+ * "Failed to fetch messages" discards the status and the server's own message, so a
+ * 401, a 403 and a 500 are indistinguishable in the console - there is nothing to act
+ * on. The API answers errors as { error: string }, so surface that when it is there.
+ */
+async function describeFailure(res: Response, action: string): Promise<Error> {
+  let detail = ''
+  try {
+    const body = await res.clone().json()
+    if (body && typeof body.error === 'string') detail = body.error
+  } catch {
+    // Not JSON - the status alone still says more than nothing.
+  }
+  return new Error(
+    `${action} failed: ${res.status} ${res.statusText}${detail ? ` - ${detail}` : ''}`,
+  )
+}
+
+/** What to tell the reader, as opposed to what to log. */
+function readableFailure(res: Response): string {
+  if (res.status === 401) return 'Your session has expired. Please sign in again.'
+  if (res.status === 403) return 'You do not have access to this conversation.'
+  if (res.status === 404) return 'This conversation no longer exists.'
+  return 'Failed to load messages'
+}
+
 export function ChatContainer({
   threadId,
   certificateId: _certificateId,
@@ -52,16 +80,21 @@ export function ChatContainer({
   const fetchMessages = useCallback(async () => {
     if (!threadId) return
 
+    let readable: string | null = null
     try {
       const res = await apiFetch(`/api/chat/threads/${threadId}/messages`)
-      if (!res.ok) throw new Error('Failed to fetch messages')
+      if (!res.ok) {
+        readable = readableFailure(res)
+        throw await describeFailure(res, 'Fetch messages')
+      }
 
       const data = await res.json()
       setMessages(data.messages.reverse()) // API returns newest first
       setHasMore(data.hasMore)
       setError(null)
     } catch (err) {
-      setError('Failed to load messages')
+      // Specific when the server answered, generic when the request never landed.
+      setError(readable ?? 'Failed to load messages')
       console.error('Fetch messages error:', err)
     } finally {
       setIsLoading(false)
@@ -115,7 +148,7 @@ export function ChatContainer({
         body: JSON.stringify({ content, attachments }),
       })
 
-      if (!res.ok) throw new Error('Failed to send message')
+      if (!res.ok) throw await describeFailure(res, 'Send message')
 
       const data = await res.json()
 
