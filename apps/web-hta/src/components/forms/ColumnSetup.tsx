@@ -6,8 +6,9 @@
 // which fields each instrument contributes, their types and units, and which pair of
 // numeric fields the error is computed from.
 //
-// Layout follows docs/todos/section05-dynamic-fields-revamp.md - the two field lists
-// side by side, error computation beneath, and a one-line summary when collapsed.
+// Layout follows docs/todos/section05-dynamic-fields-revamp.md - the field lists
+// stacked full width, error computation beneath, and a one-line summary when
+// collapsed.
 // Master comes first, matching the results table and the certificate itself: the
 // reference is what the reading is being read against.
 //
@@ -462,7 +463,10 @@ export function ColumnSetup({
             </p>
           )}
 
-          <div className="grid gap-4 md:grid-cols-2">
+          {/* One column, Master above UUC. Side by side halved the width available to
+              a column name, and a formula row - which is wider than the row it sits
+              under - had nowhere to go. */}
+          <div className="space-y-4">
             {renderFieldList('master')}
             {renderFieldList('uuc')}
           </div>
