@@ -21,21 +21,16 @@
 import { useState } from 'react'
 import { ArrowLeftRight, ChevronDown, ChevronRight, Plus, X, AlertTriangle } from 'lucide-react'
 import {
-  buildSimpleExpression,
   createField,
   detectExpressionCycles,
   errorFieldCandidates,
-  parseSimpleExpression,
   removeField,
   type ErrorConfig,
-  isExpressionFunction,
-  type ExpressionFunction,
-  type ExpressionOperator,
-  type SimpleExpression,
   type FieldDefinition,
   type FieldGroup,
   type FieldType,
 } from '@/lib/certificate-fields'
+import { FormulaEditor } from './FormulaEditor'
 import { cn } from '@/lib/utils'
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
@@ -44,17 +39,6 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'text', label: 'Text' },
 ]
 
-const OPERATORS: { value: ExpressionOperator | ExpressionFunction; label: string }[] = [
-  { value: '+', label: '+' },
-  { value: '-', label: '−' },
-  { value: '*', label: '×' },
-  { value: '/', label: '÷' },
-  { value: '^', label: '^' },
-  // Unary: these take the source column alone, so the operand controls go away.
-  { value: 'log', label: 'log₁₀' },
-  { value: 'ln', label: 'ln' },
-  { value: 'exp', label: 'e^' },
-]
 
 const CONTROL =
   'rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 transition-colors hover:border-slate-300 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400'
@@ -64,6 +48,10 @@ interface ColumnSetupProps {
   errorConfig: ErrorConfig
   parameterUnit: string
   disabled?: boolean
+  /** First row of entered values, so a formula can be previewed against real data. */
+  sampleValues?: Record<string, string>
+  /** Decimal places for that preview. */
+  precision?: number
   onChange: (fields: FieldDefinition[], errorConfig: ErrorConfig) => void
 }
 
@@ -84,9 +72,10 @@ export function ColumnSetup({
   errorConfig,
   parameterUnit,
   disabled,
+  sampleValues,
+  precision,
   onChange,
 }: ColumnSetupProps) {
-  const [drafts, setDrafts] = useState<Record<string, SimpleExpression>>({})
   const [expanded, setExpanded] = useState(false)
   const [warning, setWarning] = useState<string | null>(null)
 
@@ -126,172 +115,16 @@ export function ColumnSetup({
    * column, all drawn from the same instrument. A formula that does not fit that shape
    * falls back to a raw input rather than being silently rewritten.
    */
-  const renderExpressionBuilder = (fieldDef: FieldDefinition) => {
-    // The builder cannot read its state back out of the stored formula alone: an
-    // incomplete one is stored as '', so picking a source column before entering a
-    // value would round-trip to nothing and the select would snap back to empty.
-    // Half-finished state lives here until it makes a formula.
-    const draft = drafts[fieldDef.id]
-    // Same side only. A UUC column derived from a master reading is not a derived
-    // column, it is an error calculation, and that is what the Error row is for -
-    // offering master fields here invites the two to be confused.
-    const others = fields.filter(
-      (f) => f.id !== fieldDef.id && f.type !== 'text' && f.group === fieldDef.group,
-    )
-    const parsed = parseSimpleExpression(fieldDef.expression)
-    const isRaw = !draft && Boolean(fieldDef.expression) && parsed === null
-
-    const current = draft ?? parsed ?? {
-      sourceId: '',
-      operator: '*' as ExpressionOperator,
-      operand: { kind: 'value' as const, value: '' },
-    }
-
-    const emit = (next: typeof current) => {
-      setDrafts((d) => ({ ...d, [fieldDef.id]: next }))
-      updateField(fieldDef.id, { expression: buildSimpleExpression(next) })
-    }
-
-    if (isRaw) {
-      return (
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={fieldDef.expression ?? ''}
-            disabled={disabled}
-            aria-label={`Formula for ${fieldDef.name || 'field'}`}
-            onChange={(e) => updateField(fieldDef.id, { expression: e.target.value })}
-            className={cn(CONTROL, 'min-w-0 flex-1 font-mono text-xs')}
-          />
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => {
-              setDrafts((d) => {
-                const { [fieldDef.id]: _dropped, ...rest } = d
-                return rest
-              })
-              updateField(fieldDef.id, { expression: '' })
-            }}
-            className="shrink-0 text-[11px] text-slate-500 underline underline-offset-2 hover:text-slate-700"
-          >
-            Use the builder
-          </button>
-        </div>
-      )
-    }
-
-    const unary = isExpressionFunction(current.operator)
-
-    const sourceSelect = (
-      <select
-        value={current.sourceId}
-        disabled={disabled}
-        aria-label={`Source column for ${fieldDef.name || 'field'}`}
-        onChange={(e) => emit({ ...current, sourceId: e.target.value })}
-        className={cn(CONTROL, 'min-w-0 flex-1')}
-      >
-        <option value="">Source column…</option>
-        {others.map((f) => (
-          <option key={f.id} value={f.id}>
-            {f.name || 'Untitled'}
-          </option>
-        ))}
-      </select>
-    )
-
-    const operationSelect = (
-      <select
-        value={current.operator}
-        disabled={disabled}
-        aria-label={`Operator for ${fieldDef.name || 'field'}`}
-        onChange={(e) =>
-          emit({
-            ...current,
-            operator: e.target.value as ExpressionOperator | ExpressionFunction,
-          })
-        }
-        className={cn(CONTROL, 'shrink-0 text-center', unary ? 'w-24' : 'w-16')}
-      >
-        {OPERATORS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    )
-
-    // A unary operation reads as log( Reading ) and takes no second operand, so those
-    // controls go rather than sit there inert.
-    return (
-      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-        <span className="shrink-0">=</span>
-        {unary ? (
-          <>
-            {operationSelect}
-            <span>(</span>
-            {sourceSelect}
-            <span>)</span>
-          </>
-        ) : (
-          <>
-            {sourceSelect}
-            {operationSelect}
-            <select
-              value={current.operand.kind}
-              disabled={disabled}
-              aria-label={`Operand type for ${fieldDef.name || 'field'}`}
-              onChange={(e) =>
-                emit({
-                  ...current,
-                  operand:
-                    e.target.value === 'value'
-                      ? { kind: 'value', value: '' }
-                      : { kind: 'field', fieldId: '' },
-                })
-              }
-              className={cn(CONTROL, 'w-36 shrink-0')}
-            >
-              <option value="value">a value</option>
-              <option value="field">another column</option>
-            </select>
-
-            {current.operand.kind === 'value' ? (
-              <input
-                type="text"
-                inputMode="decimal"
-                value={current.operand.value}
-                disabled={disabled}
-                placeholder="0.001"
-                aria-label={`Value for ${fieldDef.name || 'field'}`}
-                onChange={(e) =>
-                  emit({ ...current, operand: { kind: 'value', value: e.target.value } })
-                }
-                className={cn(CONTROL, 'min-w-0 flex-1')}
-              />
-            ) : (
-              <select
-                value={current.operand.fieldId}
-                disabled={disabled}
-                aria-label={`Second column for ${fieldDef.name || 'field'}`}
-                onChange={(e) =>
-                  emit({ ...current, operand: { kind: 'field', fieldId: e.target.value } })
-                }
-                className={cn(CONTROL, 'min-w-0 flex-1')}
-              >
-                <option value="">Column…</option>
-                {others.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name || 'Untitled'}
-                  </option>
-                ))}
-              </select>
-            )}
-          </>
-        )}
-      </div>
-    )
-  }
+  const renderExpressionBuilder = (fieldDef: FieldDefinition) => (
+    <FormulaEditor
+      field={fieldDef}
+      fields={fields}
+      disabled={disabled}
+      sampleValues={sampleValues}
+      precision={precision}
+      onChange={(expression) => updateField(fieldDef.id, { expression })}
+    />
+  )
 
   const renderFieldRow = (fieldDef: FieldDefinition, index: number) => (
     <div key={fieldDef.id} className="group px-3 py-2 transition-colors hover:bg-slate-50/70">

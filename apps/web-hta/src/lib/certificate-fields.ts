@@ -684,3 +684,191 @@ export function toLegacyResults(
     }
   })
 }
+
+// ---------------------------------------------------------------------------------
+// Free-form expression editing
+// ---------------------------------------------------------------------------------
+
+/**
+ * One editable unit in the formula editor.
+ *
+ * The editor works in tokens rather than in characters so a column reference stays
+ * atomic: {u2} is one thing to delete and one thing to render as a name, and renaming
+ * the column it points at changes the label without touching the formula. Storage is
+ * still the expression string - tokens are a view of it, not a second source of truth.
+ */
+export type ExpressionToken =
+  | { kind: 'field'; fieldId: string }
+  | { kind: 'number'; value: string }
+  | { kind: 'operator'; value: '+' | '-' | '*' | '/' | '^' }
+  | { kind: 'function'; value: ExpressionFunction }
+  | { kind: 'open' }
+  | { kind: 'close' }
+
+/** Read an expression into tokens, or null if it contains something unrecognised. */
+export function tokenizeExpression(
+  expression: string | undefined,
+): ExpressionToken[] | null {
+  if (!expression || !expression.trim()) return []
+  const raw = tokenize(expression)
+  if (!raw) return null
+
+  const tokens: ExpressionToken[] = []
+  for (const token of raw) {
+    if (token === '(') tokens.push({ kind: 'open' })
+    else if (token === ')') tokens.push({ kind: 'close' })
+    else if ('+-*/^'.includes(token) && token.length === 1) {
+      tokens.push({ kind: 'operator', value: token as '+' | '-' | '*' | '/' | '^' })
+    } else if (isExpressionFunction(token)) {
+      tokens.push({ kind: 'function', value: token })
+    } else if (token.startsWith('{')) {
+      tokens.push({ kind: 'field', fieldId: token.slice(1, -1).trim() })
+    } else if (Number.isFinite(Number(token))) {
+      tokens.push({ kind: 'number', value: token })
+    } else {
+      return null
+    }
+  }
+  return tokens
+}
+
+/** Render tokens back to the stored form. */
+export function tokensToExpression(tokens: ExpressionToken[]): string {
+  return tokens
+    .map((token) => {
+      switch (token.kind) {
+        case 'field':
+          return `{${token.fieldId}}`
+        case 'number':
+          return token.value
+        case 'operator':
+          return token.value
+        case 'function':
+          return token.value
+        case 'open':
+          return '('
+        case 'close':
+          return ')'
+      }
+    })
+    .join(' ')
+}
+
+export interface ExpressionCheck {
+  ok: boolean
+  /** Why it cannot be used, phrased for the engineer rather than the parser. */
+  problem: string | null
+  /** Ids of the columns this formula reads, in first-seen order. */
+  referenced: string[]
+}
+
+/**
+ * Check a formula against the columns available to it.
+ *
+ * Reports the first thing that would stop it computing, in the order the engineer
+ * would care about: unknown or off-side references before shape, because a formula
+ * that parses but reads the wrong instrument is the more misleading of the two.
+ */
+export function checkExpression(
+  expression: string | undefined,
+  options: { field: FieldDefinition; fields: FieldDefinition[] },
+): ExpressionCheck {
+  const { field, fields } = options
+  const referenced = expressionDependencies(expression)
+
+  if (!expression || !expression.trim()) {
+    return { ok: false, problem: 'No formula yet.', referenced }
+  }
+
+  const tokens = tokenizeExpression(expression)
+  if (tokens === null) {
+    return { ok: false, problem: 'There is something here the formula cannot read.', referenced }
+  }
+
+  const byId = new Map(fields.map((f) => [f.id, f]))
+  for (const id of referenced) {
+    const source = byId.get(id)
+    if (!source) {
+      return { ok: false, problem: 'This formula refers to a column that no longer exists.', referenced }
+    }
+    if (source.id === field.id) {
+      return { ok: false, problem: 'A formula cannot refer to its own column.', referenced }
+    }
+    if (source.group !== field.group) {
+      return {
+        ok: false,
+        problem: `${source.name || 'That column'} belongs to the other instrument. Use the Error row to compare the two.`,
+        referenced,
+      }
+    }
+    if (source.type === 'text') {
+      return {
+        ok: false,
+        problem: `${source.name || 'That column'} holds text, so it cannot be part of a calculation.`,
+        referenced,
+      }
+    }
+  }
+
+  // A cycle through other formula columns, e.g. A = B + 1 and B = A + 1.
+  const withThis = fields.map((f) => (f.id === field.id ? { ...f, expression } : f))
+  if (detectExpressionCycles(withThis).some((cycle) => cycle.includes(field.id))) {
+    return { ok: false, problem: 'This formula ends up depending on itself.', referenced }
+  }
+
+  // Shape: evaluated against 1 for every reference, so only structure can fail. Zero
+  // would make a division report a false error.
+  // Built through a Map: the keys come from the formula, so assigning them onto an
+  // object literal is an injection sink.
+  const probe = Object.fromEntries(referenced.map((id) => [id, '1']))
+  if (evaluateExpression(expression, probe) === null) {
+    return { ok: false, problem: 'The formula is incomplete or unbalanced.', referenced }
+  }
+
+  return { ok: true, problem: null, referenced }
+}
+
+/**
+ * Swap ids for column names so a formula can be read and typed by a person.
+ *
+ * Storage keeps ids: renaming a column must not break the formulas that use it, and
+ * two columns may legitimately share a name. But an id like {fld-mtlg4ufz-10} is
+ * unguessable to type and impossible to check by eye, so the typed editor works in
+ * names and converts at the boundary.
+ */
+export function expressionToDisplay(
+  expression: string | undefined,
+  fields: FieldDefinition[],
+): string {
+  if (!expression) return ''
+  const names = new Map(fields.map((f) => [f.id, f.name]))
+  return expression.replace(REFERENCE, (whole, rawId: string) => {
+    const name = names.get(rawId.trim())
+    return name ? `{${name}}` : whole
+  })
+}
+
+/**
+ * The reverse. A name that matches exactly one column becomes its id; anything else -
+ * unknown, or ambiguous between two columns sharing a name - is left as typed, so
+ * checkExpression reports it rather than this silently binding to the wrong column.
+ */
+export function expressionFromDisplay(
+  display: string,
+  fields: FieldDefinition[],
+): string {
+  const byName = new Map<string, string[]>()
+  for (const field of fields) {
+    const key = field.name.trim().toLowerCase()
+    if (!key) continue
+    byName.set(key, [...(byName.get(key) ?? []), field.id])
+  }
+  const ids = new Set(fields.map((f) => f.id))
+
+  return display.replace(REFERENCE, (whole, rawText: string) => {
+    const text = rawText.trim()
+    if (ids.has(text)) return `{${text}}`
+    const matches = byName.get(text.toLowerCase())
+    return matches && matches.length === 1 ? `{${matches[0]}}` : whole
+  })
+}

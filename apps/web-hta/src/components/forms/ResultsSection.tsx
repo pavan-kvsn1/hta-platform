@@ -472,6 +472,15 @@ function ResultsTable({
           errorConfig={parameter.errorConfig}
           parameterUnit={parameter.parameterUnit}
           disabled={disabled}
+          // First row with anything in it, so a formula previews against real readings
+          // rather than an invented example. Undefined when nothing is entered yet, in
+          // which case the editor omits the preview.
+          sampleValues={
+            parameter.resultRows.find((row) =>
+              Object.values(row.values).some((v) => v !== ''),
+            )?.values
+          }
+          precision={defaultPrecision}
           onChange={onSchemaChange}
         />
       </div>
