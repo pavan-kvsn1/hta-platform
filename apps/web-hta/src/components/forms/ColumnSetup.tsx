@@ -161,7 +161,7 @@ export function ColumnSetup({
             disabled={disabled}
             aria-label={`Formula for ${fieldDef.name || 'field'}`}
             onChange={(e) => updateField(fieldDef.id, { expression: e.target.value })}
-            className={cn(CONTROL, 'flex-1 font-mono text-xs')}
+            className={cn(CONTROL, 'min-w-0 flex-1 font-mono text-xs')}
           />
           <button
             type="button"
@@ -189,7 +189,7 @@ export function ColumnSetup({
         disabled={disabled}
         aria-label={`Source column for ${fieldDef.name || 'field'}`}
         onChange={(e) => emit({ ...current, sourceId: e.target.value })}
-        className={CONTROL}
+        className={cn(CONTROL, 'min-w-0 flex-1')}
       >
         <option value="">Source column…</option>
         {others.map((f) => (
@@ -211,7 +211,7 @@ export function ColumnSetup({
             operator: e.target.value as ExpressionOperator | ExpressionFunction,
           })
         }
-        className={cn(CONTROL, 'text-center', unary ? 'w-20' : 'w-14')}
+        className={cn(CONTROL, 'shrink-0 text-center', unary ? 'w-24' : 'w-16')}
       >
         {OPERATORS.map((o) => (
           <option key={o.value} value={o.value}>
@@ -224,8 +224,8 @@ export function ColumnSetup({
     // A unary operation reads as log( Reading ) and takes no second operand, so those
     // controls go rather than sit there inert.
     return (
-      <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
-        <span>=</span>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+        <span className="shrink-0">=</span>
         {unary ? (
           <>
             {operationSelect}
@@ -250,7 +250,7 @@ export function ColumnSetup({
                       : { kind: 'field', fieldId: '' },
                 })
               }
-              className={CONTROL}
+              className={cn(CONTROL, 'w-36 shrink-0')}
             >
               <option value="value">a value</option>
               <option value="field">another column</option>
@@ -267,7 +267,7 @@ export function ColumnSetup({
                 onChange={(e) =>
                   emit({ ...current, operand: { kind: 'value', value: e.target.value } })
                 }
-                className={cn(CONTROL, 'w-24')}
+                className={cn(CONTROL, 'min-w-0 flex-1')}
               />
             ) : (
               <select
@@ -277,7 +277,7 @@ export function ColumnSetup({
                 onChange={(e) =>
                   emit({ ...current, operand: { kind: 'field', fieldId: e.target.value } })
                 }
-                className={CONTROL}
+                className={cn(CONTROL, 'min-w-0 flex-1')}
               >
                 <option value="">Column…</option>
                 {others.map((f) => (
