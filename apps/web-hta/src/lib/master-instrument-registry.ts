@@ -204,6 +204,14 @@ export interface RegistryUnit {
    * Single-unit assets are always "1".
    */
   id: string
+  /**
+   * The sequential id this unit has in the old master list, which is what a saved
+   * certificate's masterInstrumentId refers to. Carried across so the registry can be
+   * addressed by the same key existing certificates already hold; joined on asset
+   * number and position by scripts/link_legacy_master_ids.py, which fails rather than
+   * emit a null.
+   */
+  legacy_id: number
   instrument_desc: string | null
   /**
    * 'composite' means this one instrument is an indicator plus a sensor, which the

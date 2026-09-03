@@ -14,6 +14,13 @@ import {
 
 // Import the JSON data as fallback
 import masterListData from '@/data/master-instruments.json'
+import registryData from '@/data/master-instrument-registry.json'
+import {
+  allUnits,
+  type CapabilityProfile,
+  type MasterInstrumentRegistry,
+  type RegistryUnit,
+} from '@/lib/master-instrument-registry'
 
 interface MasterInstrumentStore {
   // Data
@@ -51,6 +58,27 @@ interface MasterInstrumentStore {
   getSopReferencesForInstrument: (instrument: MasterInstrument) => string[]
   getDescriptions: (category: InstrumentCategory, parameterGroup?: string) => string[]
 
+
+  // --- Registry (Phase 2) -------------------------------------------------------
+  //
+  // The registry is the new source of capability data: per-parameter profiles with
+  // range buckets carrying their own least count and accuracy. It is addressed by the
+  // same legacy id a saved certificate already holds in masterInstrumentId, so the two
+  // views describe the same instruments and nothing has to be re-keyed.
+  //
+  // It is bundled rather than fetched: it is generated at build time from the lab's
+  // master list and certificates, so there is nothing to load and no failure mode.
+  registry: MasterInstrumentRegistry
+  /** Every unit across every asset, flattened. */
+  getRegistryUnits: () => RegistryUnit[]
+  /** The unit a certificate's masterInstrumentId refers to. */
+  getUnitByLegacyId: (legacyId: number) => RegistryUnit | undefined
+  getUnitByAssetNo: (assetNo: string) => RegistryUnit | undefined
+  /** Capability profiles for one selected master, empty when it has none recorded. */
+  getCapabilityProfiles: (legacyId: number) => CapabilityProfile[]
+  /** Standard parameter names this master can measure or source. */
+  getRegistryParameters: (legacyId: number) => string[]
+
   // Stats
   getStats: () => {
     total: number
@@ -70,6 +98,7 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
   dataSource: null,
   selectedCategory: null,
   searchQuery: '',
+  registry: registryData as unknown as MasterInstrumentRegistry,
 
   loadInstruments: async () => {
     const { isLoaded, isLoading } = get()
@@ -256,6 +285,36 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
     })
 
     return Array.from(descriptions).sort()
+  },
+
+  // --- Registry (Phase 2) -------------------------------------------------------
+
+  getRegistryUnits: () => allUnits(get().registry),
+
+  getUnitByLegacyId: (legacyId) =>
+    allUnits(get().registry).find((unit) => unit.legacy_id === legacyId),
+
+  getUnitByAssetNo: (assetNo) => {
+    // Asset numbers are printed with varying spacing ("935HTAIPL/L" against
+    // "935 HTAIPL/L"), so match on the number rather than the printed string.
+    const wanted = assetNo.replace(/\s+/g, '').toUpperCase()
+    for (const asset of get().registry.assets) {
+      if (asset.asset_no.replace(/\s+/g, '').toUpperCase() === wanted) {
+        return asset.units[0]
+      }
+    }
+    return undefined
+  },
+
+  getCapabilityProfiles: (legacyId) =>
+    get().getUnitByLegacyId(legacyId)?.capability_profiles ?? [],
+
+  getRegistryParameters: (legacyId) => {
+    const seen = new Set<string>()
+    for (const profile of get().getCapabilityProfiles(legacyId)) {
+      seen.add(profile.parameter)
+    }
+    return Array.from(seen).sort()
   },
 
   getStats: () => {
