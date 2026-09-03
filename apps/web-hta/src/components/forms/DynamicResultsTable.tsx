@@ -3,16 +3,16 @@
 // Section 05 results table rendered from a parameter's field schema.
 //
 // Columns come from fieldDefinitions rather than being fixed, so each parameter can
-// have its own layout. Headers are grouped Master / UUC with a field-name row and a
-// unit row beneath, per docs/todos/section05-dynamic-fields-revamp.md.
+// have its own layout, per docs/todos/section05-dynamic-fields-revamp.md. Headers are
+// two rows: the Master / UUC group, then the column itself as "Master Reading (deg C)"
+// - name and unit on one line rather than stacked.
 //
 // Sl. No is always the first column and Error always the last, regardless of how the
 // engineer arranged the instrument fields between them.
 //
-// Styling follows CalibrationResultsTable: section-inner header, divide-y rows, and
-// text-xs semibold headings rather than micro-caps. Inputs are borderless until
-// hovered or focused - a bordered box in every cell turns the grid into a grid of
-// boxes, which is what a data table already is.
+// Ruling is horizontal only. With no vertical lines the input outline becomes the
+// vertical structure, which also marks out what is editable: entry cells are outlined,
+// computed cells are dashed and muted so they read as read-only.
 
 import { AlertTriangle, Camera, CheckCircle, ImageIcon, Plus, Trash2 } from 'lucide-react'
 import {
@@ -77,12 +77,14 @@ export function DynamicResultsTable({
     )
   }
 
-  /** Left edge of each instrument group, so Master and UUC read as blocks. */
-  const groupEdge = (index: number) =>
-    index === 0 || index === masterFields.length ? 'border-l border-slate-200' : ''
-
   const alignFor = (field: FieldDefinition) =>
     field.type === 'text' ? 'text-left' : 'text-right tabular-nums'
+
+  /** Name and unit on one line, e.g. "Master Reading (deg C)". */
+  const headingFor = (field: FieldDefinition) => {
+    const name = field.name || 'Untitled'
+    return field.unit ? name + ' (' + field.unit + ')' : name
+  }
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200">
@@ -91,7 +93,7 @@ export function DynamicResultsTable({
           <thead className="bg-section-inner">
             <tr>
               <th
-                rowSpan={3}
+                rowSpan={2}
                 className="w-12 px-4 py-2 text-left align-bottom text-xs font-semibold text-slate-700"
               >
                 Sl.
@@ -99,7 +101,7 @@ export function DynamicResultsTable({
               {masterFields.length > 0 && (
                 <th
                   colSpan={masterFields.length}
-                  className="border-l border-slate-200 px-4 pb-1 pt-2 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                  className="px-4 pb-1 pt-2 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500"
                 >
                   Master Instrument
                 </th>
@@ -107,73 +109,55 @@ export function DynamicResultsTable({
               {uucFields.length > 0 && (
                 <th
                   colSpan={uucFields.length}
-                  className="border-l border-slate-200 px-4 pb-1 pt-2 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                  className="px-4 pb-1 pt-2 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500"
                 >
                   UUC
                 </th>
               )}
               <th
-                rowSpan={3}
-                className="w-24 border-l border-slate-200 px-4 py-2 text-right align-bottom text-xs font-semibold text-slate-700"
+                rowSpan={2}
+                className="w-24 px-4 py-2 text-center align-bottom text-xs font-semibold text-slate-700"
               >
                 Error
               </th>
               {getLimit && (
                 <th
-                  rowSpan={3}
-                  className="w-20 px-4 py-2 text-right align-bottom text-xs font-semibold text-slate-700"
+                  rowSpan={2}
+                  className="w-20 px-4 py-2 text-center align-bottom text-xs font-semibold text-slate-700"
                 >
                   Limit
                 </th>
               )}
               <th
-                rowSpan={3}
+                rowSpan={2}
                 className="w-20 px-4 py-2 text-center align-bottom text-xs font-semibold text-slate-700"
               >
                 Status
               </th>
               {getReadingImages && (
                 <th
-                  rowSpan={3}
+                  rowSpan={2}
                   className="w-16 px-2 py-2 text-center align-bottom text-xs font-semibold text-slate-700"
                 >
                   Photos
                 </th>
               )}
-              <th rowSpan={3} className="w-10 px-2 py-2">
+              <th rowSpan={2} className="w-10 px-2 py-2">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
 
             <tr>
-              {ordered.map((field, index) => (
+              {ordered.map((field) => (
                 <th
                   key={field.id}
-                  className={cn(
-                    'px-4 text-xs font-semibold text-slate-700',
-                    field.type === 'text' ? 'text-left' : 'text-right',
-                    groupEdge(index),
-                  )}
+                  className="px-3 pb-2.5 text-center text-xs font-semibold text-slate-700"
                 >
-                  {field.name || (
+                  {field.name ? (
+                    headingFor(field)
+                  ) : (
                     <span className="font-normal text-slate-300">Untitled</span>
                   )}
-                </th>
-              ))}
-            </tr>
-
-            {/* Units sit on their own line so a long column name stays readable. */}
-            <tr>
-              {ordered.map((field, index) => (
-                <th
-                  key={field.id}
-                  className={cn(
-                    'px-4 pb-2 text-[10px] font-normal text-slate-400',
-                    field.type === 'text' ? 'text-left' : 'text-right',
-                    groupEdge(index),
-                  )}
-                >
-                  {field.unit || ' '}
                 </th>
               ))}
             </tr>
@@ -193,18 +177,18 @@ export function DynamicResultsTable({
                       : 'hover:bg-slate-50/70',
                   )}
                 >
-                  <td className="px-4 py-1 text-xs tabular-nums text-slate-400">
+                  <td className="px-4 py-2 text-xs tabular-nums text-slate-400">
                     {String(row.pointNumber).padStart(2, '0')}
                   </td>
 
-                  {ordered.map((field, index) => {
+                  {ordered.map((field) => {
                     if (field.type === 'expression') {
                       const value = resolved[field.id]
                       return (
-                        <td key={field.id} className={cn('px-2 py-1', groupEdge(index))}>
+                        <td key={field.id} className="px-2 py-2">
                           <span
                             className={cn(
-                              'block px-2 py-1.5 text-sm text-slate-500',
+                              'block rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-2.5 py-2 text-sm text-slate-500',
                               alignFor(field),
                             )}
                             title="Computed from the formula in Column Setup"
@@ -216,7 +200,7 @@ export function DynamicResultsTable({
                     }
 
                     return (
-                      <td key={field.id} className={cn('px-2 py-1', groupEdge(index))}>
+                      <td key={field.id} className="px-2 py-2">
                         <input
                           type={field.type === 'numeric' ? 'number' : 'text'}
                           step={field.type === 'numeric' ? step : undefined}
@@ -225,10 +209,10 @@ export function DynamicResultsTable({
                           aria-label={`${field.name || 'Field'}, point ${row.pointNumber}`}
                           onChange={(e) => onValueChange(rowIndex, field.id, e.target.value)}
                           className={cn(
-                            'w-full rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm outline-none transition-colors',
-                            'hover:border-slate-200 hover:bg-white',
-                            'focus:border-primary/40 focus:bg-white focus:ring-2 focus:ring-primary/10',
-                            'disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:border-transparent disabled:hover:bg-transparent',
+                            'w-full rounded-md border border-slate-200 bg-white px-2.5 py-2 text-sm outline-none transition-colors',
+                            'hover:border-slate-300',
+                            'focus:border-primary/40 focus:ring-2 focus:ring-primary/10',
+                            'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
                             alignFor(field),
                             row.isOutOfLimit && 'font-bold text-red-700',
                           )}
@@ -237,7 +221,7 @@ export function DynamicResultsTable({
                     )
                   })}
 
-                  <td className="border-l border-slate-200 px-4 py-1 text-right text-sm tabular-nums">
+                  <td className="px-4 py-2 text-right text-sm tabular-nums">
                     {row.errorObserved === null ? (
                       <span className="text-slate-300">—</span>
                     ) : (
@@ -249,7 +233,7 @@ export function DynamicResultsTable({
                     (() => {
                       const { limit, binIndex } = getLimit(row)
                       return (
-                        <td className="px-4 py-1 text-right text-xs tabular-nums text-slate-500">
+                        <td className="px-4 py-2 text-right text-xs tabular-nums text-slate-500">
                           {limit !== null
                             ? `±${limit.toFixed(precision).replace('-', '')}`
                             : '—'}
@@ -262,7 +246,7 @@ export function DynamicResultsTable({
                       )
                     })()}
 
-                  <td className="px-4 py-1 text-center">
+                  <td className="px-4 py-2 text-center">
                     {row.isOutOfLimit ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
                         <AlertTriangle className="size-3" />
@@ -279,7 +263,7 @@ export function DynamicResultsTable({
                   </td>
 
                   {getReadingImages && (
-                    <td className="px-2 py-1 text-center">
+                    <td className="px-2 py-2 text-center">
                       {(() => {
                         // Only presence matters here; the caller owns the image type.
                         const images = getReadingImages(row.pointNumber)
@@ -321,7 +305,7 @@ export function DynamicResultsTable({
                     </td>
                   )}
 
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-2">
                     {/* Revealed on row hover: a delete affordance on every row competes
                         with the data for attention. */}
                     <button

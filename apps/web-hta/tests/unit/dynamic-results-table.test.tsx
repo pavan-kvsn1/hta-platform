@@ -64,13 +64,17 @@ describe('DynamicResultsTable', () => {
     expect(uuc).toHaveAttribute('colspan', '3')
   })
 
-  it('renders a column per field, with its unit beneath', () => {
+  it('renders a column per field, with the unit on the same line as the name', () => {
     renderTable()
-    expect(screen.getByText('Std Meter Reading')).toBeInTheDocument()
+    expect(screen.getByText('Std Meter Reading (kg/cm²)')).toBeInTheDocument()
+    expect(screen.getByText('UUC Reading (kg/cm²)')).toBeInTheDocument()
+    expect(screen.getByText('Derived mV (mV)')).toBeInTheDocument()
+  })
+
+  it('omits the parentheses for a column with no unit', () => {
+    renderTable()
+    // UUC Status is a text field and carries no unit.
     expect(screen.getByText('UUC Status')).toBeInTheDocument()
-    expect(screen.getByText('Derived mV')).toBeInTheDocument()
-    expect(screen.getAllByText('kg/cm²').length).toBeGreaterThanOrEqual(2)
-    expect(screen.getByText('mV')).toBeInTheDocument()
   })
 
   it('uses a number input for numeric fields and text for text fields', () => {
