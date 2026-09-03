@@ -18,6 +18,7 @@ import {
 } from '@/components/forms'
 import { FeedbackTimeline, type InternalRequestItem } from '@/components/feedback/shared'
 import { useCertificateStore, CertificateFormData, Parameter, CalibrationResult, ensureParameterFields } from '@/lib/stores/certificate-store'
+import type { ErrorConfig, FieldDefinition } from '@/lib/certificate-fields'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -237,6 +238,9 @@ interface ApiParameter {
   showAfterAdjustment: boolean
   requiresBinning: boolean
   bins: unknown // JSON field - can be array, string, or null
+  tableName?: string | null
+  fieldDefinitions?: unknown[] | null
+  errorConfig?: Record<string, unknown> | null
   sopReference: string | null
   masterInstrumentId: string | null
   results: ApiResult[]
@@ -361,6 +365,9 @@ function transformDraftToApiShape(draft: any): ApiCertificate {
       showAfterAdjustment: !!p.show_after_adjustment,
       requiresBinning: !!p.requires_binning,
       bins: p.bins || null,
+      tableName: p.table_name ?? p.tableName ?? null,
+      fieldDefinitions: p.field_definitions ?? p.fieldDefinitions ?? null,
+      errorConfig: p.error_config ?? p.errorConfig ?? null,
       sopReference: p.sop_reference || null,
       masterInstrumentId: p.master_instrument_id || null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -372,6 +379,7 @@ function transformDraftToApiShape(draft: any): ApiCertificate {
         afterAdjustment: r.after_adjustment || null,
         errorObserved: r.error_observed ?? null,
         isOutOfLimit: !!r.is_out_of_limit,
+        values: r.values ?? null,
       })),
     })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -459,9 +467,18 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
       errorObserved: result.errorObserved,
       isOutOfLimit: result.isOutOfLimit || false,
     })),
-    tableName: '',
-    fieldDefinitions: [],
-    errorConfig: { masterFieldId: '', uucFieldId: '', formula: 'A-B', unit: '' },
+    // Stored schema wins; ensureParameterFields derives the default Master/UUC pair
+    // from the results only when a parameter has none - which is every parameter
+    // written before the dynamic table existed.
+    tableName: param.tableName || '',
+    fieldDefinitions: (param.fieldDefinitions as FieldDefinition[] | null) || [],
+    errorConfig:
+      (param.errorConfig as ErrorConfig | null) || {
+        masterFieldId: '',
+        uucFieldId: '',
+        formula: 'A-B',
+        unit: '',
+      },
     resultRows: [],
   }))
 

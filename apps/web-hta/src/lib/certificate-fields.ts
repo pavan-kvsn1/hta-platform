@@ -677,6 +677,10 @@ export function toLegacyResults(
       afterAdjustment: afterField ? (values[afterField.id] ?? '') : '',
       errorObserved: row.errorObserved,
       isOutOfLimit: row.isOutOfLimit,
+      // The three fields above are a projection for consumers that predate the dynamic
+      // table; they cannot represent a fourth column. The raw values ride along so a
+      // round trip through storage does not quietly drop one.
+      values: row.values,
     }
   })
 }

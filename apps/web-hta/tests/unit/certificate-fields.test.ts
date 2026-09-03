@@ -298,7 +298,10 @@ describe('legacy migration', () => {
       migrated.fieldDefinitions,
       migrated.errorConfig,
     )
-    expect(back).toEqual(legacy)
+    // The legacy three still project exactly as before...
+    expect(back.map(({ values: _values, ...rest }) => rest)).toEqual(legacy)
+    // ...and the raw values ride along, so a fourth column survives storage.
+    expect(back[0].values).toEqual(migrated.rows[0].values)
   })
 })
 

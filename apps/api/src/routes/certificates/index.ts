@@ -36,6 +36,40 @@ function safeJsonParse<T>(value: unknown, fallback: T): T {
   return fallback
 }
 
+/**
+ * The Section 05 column schema, stored as one JSON column rather than two.
+ *
+ * fieldDefinitions and errorConfig are meaningless apart - the error config names
+ * field ids from the definitions - so keeping them together makes a partial write
+ * impossible. Returns undefined when a parameter declares no columns, which leaves the
+ * column NULL and lets the web app derive the default Master/UUC pair from the results.
+ */
+function buildFieldSchema(param: {
+  fieldDefinitions?: unknown[] | null
+  errorConfig?: Record<string, unknown> | null
+}): Prisma.InputJsonValue | undefined {
+  const fieldDefinitions = param.fieldDefinitions
+  if (!Array.isArray(fieldDefinitions) || fieldDefinitions.length === 0) return undefined
+  return {
+    fieldDefinitions,
+    errorConfig: param.errorConfig ?? null,
+  } as Prisma.InputJsonValue
+}
+
+function readFieldSchema(value: unknown): {
+  fieldDefinitions: unknown[]
+  errorConfig: Record<string, unknown> | null
+} {
+  const parsed = safeJsonParse<{
+    fieldDefinitions?: unknown[]
+    errorConfig?: Record<string, unknown> | null
+  }>(value, {})
+  return {
+    fieldDefinitions: Array.isArray(parsed.fieldDefinitions) ? parsed.fieldDefinitions : [],
+    errorConfig: parsed.errorConfig ?? null,
+  }
+}
+
 // Parse user agent string into a human-readable format
 function parseUserAgentString(userAgent: string): string {
   if (!userAgent || userAgent === 'unknown') return ''
@@ -135,6 +169,12 @@ const createCertificateSchema = z.object({
     showAfterAdjustment: z.boolean().optional().default(false),
     requiresBinning: z.boolean().optional().default(false),
     bins: z.array(z.unknown()).optional().nullable(),
+    // Section 05 dynamic table. Passed through as JSON rather than validated field by
+    // field: the shape is owned by the web app, and rejecting an unrecognised key here
+    // would break older clients for no gain.
+    tableName: z.string().optional().nullable(),
+    fieldDefinitions: z.array(z.unknown()).optional().nullable(),
+    errorConfig: z.record(z.unknown()).optional().nullable(),
     sopReference: z.string().optional().nullable(),
     masterInstrumentId: z.union([z.string(), z.number()]).optional().nullable(),
     results: z.array(z.object({
@@ -144,6 +184,8 @@ const createCertificateSchema = z.object({
       afterAdjustment: z.string().optional().nullable(),
       errorObserved: z.number().optional().nullable(),
       isOutOfLimit: z.boolean().optional().default(false),
+      // Values for columns beyond the fixed three above, keyed by field id.
+      values: z.record(z.string()).optional().nullable(),
     })).optional(),
   })).optional(),
   masterInstruments: z.array(z.object({
@@ -702,6 +744,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               showAfterAdjustment: param.showAfterAdjustment || false,
               requiresBinning: param.requiresBinning || false,
               bins: param.bins && param.bins.length > 0 ? (param.bins as Prisma.InputJsonValue) : undefined,
+              tableName: param.tableName || null,
+              fieldSchema: buildFieldSchema(param),
               sopReference: param.sopReference || null,
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
               sortOrder: i,
@@ -719,6 +763,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
                 afterAdjustment: result.afterAdjustment || null,
                 errorObserved: result.errorObserved ?? null,
                 isOutOfLimit: result.isOutOfLimit || false,
+                values: result.values ?? Prisma.DbNull,
               })),
             })
           }
@@ -1130,6 +1175,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               showAfterAdjustment: param.showAfterAdjustment || false,
               requiresBinning: param.requiresBinning || false,
               bins: param.bins && Array.isArray(param.bins) && param.bins.length > 0 ? param.bins : Prisma.DbNull,
+              tableName: param.tableName || null,
+              fieldSchema: buildFieldSchema(param) ?? Prisma.DbNull,
               sopReference: param.sopReference || null,
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
               sortOrder: i,
@@ -1146,6 +1193,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
                 afterAdjustment: result.afterAdjustment || null,
                 errorObserved: result.errorObserved ?? null,
                 isOutOfLimit: result.isOutOfLimit || false,
+                values: result.values ?? Prisma.DbNull,
               })),
             })
           }
@@ -2698,6 +2746,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         accuracyType: param.accuracyType || 'ABSOLUTE',
         requiresBinning: param.requiresBinning || false,
         bins: safeJsonParse<unknown[]>(param.bins, []),
+        tableName: param.tableName || '',
+        // Null for a parameter written before the dynamic table existed; the web app
+        // then derives the default Master/UUC columns from the results.
+        fieldDefinitions: readFieldSchema(param.fieldSchema).fieldDefinitions,
+        errorConfig: readFieldSchema(param.fieldSchema).errorConfig,
         errorFormula: param.errorFormula || 'A-B',
         showAfterAdjustment: param.showAfterAdjustment || false,
         masterInstrumentId: param.masterInstrumentId ? parseInt(param.masterInstrumentId) : null,
@@ -2710,6 +2763,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           afterAdjustment: result.afterAdjustment || '',
           errorObserved: result.errorObserved,
           isOutOfLimit: result.isOutOfLimit || false,
+          values: (result.values as Record<string, string> | null) ?? undefined,
         })),
       })),
       masterInstruments: certificate.masterInstruments.map((mi: (typeof certificate.masterInstruments)[number]) => ({

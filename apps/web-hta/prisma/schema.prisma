@@ -611,6 +611,11 @@ model Parameter {
   showAfterAdjustment Boolean                       @default(false)
   requiresBinning     Boolean                       @default(false)
   bins                Json?
+  // Section 05 column schema: fieldDefinitions plus errorConfig for this parameter's
+  // results table. Null means the parameter predates the dynamic table, in which case
+  // the default Master/UUC columns are derived from its results on load.
+  fieldSchema         Json?
+  tableName           String?
   sopReference        String?
   masterInstrumentId  String?
   sortOrder           Int                           @default(0)
@@ -630,6 +635,9 @@ model CalibrationResult {
   afterAdjustment  String?
   errorObserved    Float?
   isOutOfLimit     Boolean   @default(false)
+  // Values for this row keyed by field id, for columns beyond the fixed three above.
+  // Null for rows written before the dynamic table.
+  values           Json?
   parameter        Parameter @relation(fields: [parameterId], references: [id], onDelete: Cascade)
 
   @@index([parameterId])

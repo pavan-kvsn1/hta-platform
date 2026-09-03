@@ -94,6 +94,8 @@ export interface CalibrationResult {
   afterAdjustment: string
   errorObserved: number | null
   isOutOfLimit: boolean
+  /** Raw per-column values, for columns the three fields above cannot represent. */
+  values?: Record<string, string>
 }
 
 // Selected master instrument for the certificate (snapshot at time of selection)
@@ -283,7 +285,28 @@ const createDefaultParameter = (): Parameter => {
  * an already-migrated form cannot clobber a user's column setup.
  */
 export const ensureParameterFields = (parameter: Parameter): Parameter => {
-  if (parameter.fieldDefinitions?.length) return parameter
+  if (parameter.fieldDefinitions?.length) {
+    // A stored schema comes back without its rows - those live in the results - so
+    // rebuild them here rather than rendering an empty table. Prefer each result's own
+    // values; fall back to the legacy three for results written before they existed.
+    if (parameter.resultRows?.length) return parameter
+
+    const config = parameter.errorConfig
+    const rows: CalibrationResultRow[] = (parameter.results ?? []).map((result, index) => ({
+      id: result.id || generateId(),
+      pointNumber: result.pointNumber || index + 1,
+      values:
+        result.values ??
+        {
+          ...(config.masterFieldId ? { [config.masterFieldId]: result.standardReading } : {}),
+          ...(config.uucFieldId ? { [config.uucFieldId]: result.beforeAdjustment } : {}),
+        },
+      errorObserved: result.errorObserved,
+      isOutOfLimit: result.isOutOfLimit,
+    }))
+
+    return { ...parameter, resultRows: rows.length > 0 ? rows : [createRow(1)] }
+  }
 
   const { fieldDefinitions, errorConfig, rows } = migrateLegacyResults(
     parameter.results ?? [],
