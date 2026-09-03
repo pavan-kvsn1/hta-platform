@@ -18,6 +18,7 @@ import {
   formatToPrecision,
   readStoredFieldSchema,
   resolveRowValues,
+  resultValues,
   type ErrorConfig,
   type FieldDefinition,
 } from '@/lib/certificate-fields'
@@ -187,8 +188,11 @@ export function CalibrationResultsTable({
                   {param.results.map((result) => {
                     // The reading the least count is judged at: the master field under a
                     // declared schema, the legacy standardReading otherwise.
+                    // A row may predate the schema and hold only the legacy three, so
+                    // map those onto the declared columns rather than print blanks.
+                    const rowValues = dynamic ? resultValues(result, fields, errorConfig) : {}
                     const masterReading = dynamic
-                      ? (result.values?.[errorConfig?.masterFieldId ?? ''] ?? null)
+                      ? (rowValues[errorConfig?.masterFieldId ?? ''] ?? null)
                       : result.standardReading
                     const { precision } = resolveCalibrationPrecision(param, masterReading)
                     const failed = result.isOutOfLimit
@@ -199,7 +203,7 @@ export function CalibrationResultsTable({
                           {
                             id: result.id,
                             pointNumber: result.pointNumber,
-                            values: result.values ?? {},
+                            values: rowValues,
                             errorObserved: result.errorObserved,
                             isOutOfLimit: result.isOutOfLimit,
                           },

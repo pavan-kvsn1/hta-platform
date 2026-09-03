@@ -1176,3 +1176,48 @@ export function readStoredFieldSchema(stored: unknown): {
 
   return { fieldDefinitions, errorConfig }
 }
+
+/**
+ * The per-column values for one result, falling back to the legacy three.
+ *
+ * A parameter can carry a column schema while its stored rows predate it - a
+ * certificate written before Section 05 whose schema was added on a later edit, or one
+ * whose default columns were derived on load. Those rows hold standardReading and
+ * beforeAdjustment and no values map. Rendering them through the schema alone would
+ * print empty columns, which loses readings that are sitting right there.
+ *
+ * The mapping is the inverse of toLegacyResults, so a row projected out and read back
+ * lands on the same columns it came from.
+ */
+export function resultValues(
+  result: {
+    standardReading?: string | null
+    beforeAdjustment?: string | null
+    afterAdjustment?: string | null
+    values?: Record<string, string> | null
+  },
+  fields: FieldDefinition[],
+  errorConfig: ErrorConfig | null,
+): Record<string, string> {
+  const stored = result.values
+  if (stored && Object.keys(stored).length > 0) return stored
+  if (!errorConfig) return {}
+
+  const afterField = fields.find(
+    (f) => f.group === 'uuc' && f.type === 'numeric' && f.id !== errorConfig.uucFieldId,
+  )
+
+  // Built through a Map: the keys are field ids from stored data, so assigning them
+  // onto an object literal is an injection sink.
+  const mapped = new Map<string, string>()
+  if (errorConfig.masterFieldId && result.standardReading) {
+    mapped.set(errorConfig.masterFieldId, result.standardReading)
+  }
+  if (errorConfig.uucFieldId && result.beforeAdjustment) {
+    mapped.set(errorConfig.uucFieldId, result.beforeAdjustment)
+  }
+  if (afterField && result.afterAdjustment) {
+    mapped.set(afterField.id, result.afterAdjustment)
+  }
+  return Object.fromEntries(mapped)
+}

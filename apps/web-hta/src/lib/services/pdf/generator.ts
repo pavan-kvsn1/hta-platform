@@ -10,6 +10,7 @@ import { prisma } from '@/lib/prisma'
 import { CertificateFormData, ParameterBin } from '@/lib/stores/certificate-store'
 import { PDFSignatureData, SigningMetadata, parseUserAgent } from '@/components/pdf/pdf-utils'
 import { safeJsonParse } from '@/lib/utils/safe-json'
+import { readStoredFieldSchema } from '@/lib/certificate-fields'
 
 // Binary search bounds for multiplier
 const _MIN_MULTIPLIER = 0.75
@@ -236,6 +237,11 @@ export async function fetchCertificateForPDF(certificateId: string): Promise<{
       showAfterAdjustment: param.showAfterAdjustment || false,
       masterInstrumentId: param.masterInstrumentId ? parseInt(param.masterInstrumentId) : null,
       sopReference: param.sopReference || '',
+      // Section 05 column schema. Dropped here, the PDF falls back to the fixed three
+      // columns and any column the engineer declared is missing from the document the
+      // customer receives - with nothing on the page to say so.
+      tableName: param.tableName || '',
+      ...readStoredFieldSchema(param.fieldSchema),
       results: param.results.map((result) => ({
         id: result.id,
         pointNumber: result.pointNumber,
@@ -244,6 +250,7 @@ export async function fetchCertificateForPDF(certificateId: string): Promise<{
         afterAdjustment: result.afterAdjustment || '',
         errorObserved: result.errorObserved,
         isOutOfLimit: result.isOutOfLimit || false,
+        values: (result.values as Record<string, string> | null) ?? undefined,
       })),
     })),
 

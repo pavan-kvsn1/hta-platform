@@ -53,6 +53,7 @@ import {
 } from './pdf-utils'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 import { resolveCalibrationPrecision } from '@/lib/utils/calibration-precision'
+import { resolveRowValues, resultValues } from '@/lib/certificate-fields'
 
 // Format ISO date string to readable format: "09 Feb 2026, 14:30 IST"
 function formatSigningDateTime(isoString: string | undefined, timezone?: string): string {
@@ -999,6 +1000,24 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
           const sectionId = `cal-table-${param.id}`
           const needsBreak = shouldBreakBefore(sectionId, layoutPlan)
 
+          // Section 05 lets an engineer declare the columns for this table. When it has,
+          // the certificate prints those columns; a parameter that declared none keeps
+          // the fixed Standard / UUC / Error / Remarks layout, which is every
+          // certificate written before Section 05 existed.
+          const declared = [...(param.fieldDefinitions ?? [])].sort((a, b) => {
+            if (a.group !== b.group) return a.group === 'master' ? -1 : 1
+            return a.order - b.order
+          })
+          const isDynamic = declared.length > 0
+          // Sl. No. and Parameter & Range keep their widths; the rest of the table is
+          // shared evenly by the declared columns plus Error and Remarks.
+          const dataColumnCount = declared.length + 2
+          const dataWidth = `${100 / dataColumnCount}%`
+          const masterColumns = declared.filter((f) => f.group === 'master')
+          const uucColumns = declared.filter((f) => f.group === 'uuc')
+          /** Width of a band spanning n of the data columns. */
+          const groupWidth = (n: number) => `${(100 * n) / dataColumnCount}%`
+
           return (
             <View key={param.id} style={[styles.calibrationSection, { marginBottom: dynamicMargin(12) }]} wrap={false} break={needsBreak}>
               <View style={styles.calibrationTable}>
@@ -1012,21 +1031,60 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                     <Text style={styles.calHeaderText}>Parameter &</Text>
                     <Text style={styles.calHeaderText}>Range</Text>
                   </View>
-                  <View style={[styles.calCell, { width: '18%' }]}>
-                    <Text style={styles.calHeaderText}>Standard Meter</Text>
-                    <Text style={styles.calHeaderText}>Reading (y)</Text>
-                  </View>
-                  <View style={[styles.calCell, { width: '18%' }]}>
-                    <Text style={styles.calHeaderText}>UUC Reading</Text>
-                    <Text style={styles.calHeaderText}>(x)</Text>
-                  </View>
-                  <View style={[styles.calCell, { width: '18%' }]}>
-                    <Text style={styles.calHeaderText}>Error Observed</Text>
-                    <Text style={styles.calHeaderText}>(±) z = (x-y)</Text>
-                  </View>
-                  <View style={[styles.calCellLast, { width: '18%' }]}>
-                    <Text style={styles.calHeaderText}>Remarks</Text>
-                  </View>
+                  {isDynamic ? (
+                    // Two tiers, as the results table has: which instrument the columns
+                    // belong to, then the columns themselves. Reading a column heading
+                    // without knowing whose reading it is tells you very little.
+                    <View style={{ width: '72%' }}>
+                      <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#000' }}>
+                        {masterColumns.length > 0 && (
+                          <View style={[styles.calCell, { width: groupWidth(masterColumns.length) }]}>
+                            <Text style={styles.calHeaderText}>Master Instrument</Text>
+                          </View>
+                        )}
+                        {uucColumns.length > 0 && (
+                          <View style={[styles.calCell, { width: groupWidth(uucColumns.length) }]}>
+                            <Text style={styles.calHeaderText}>UUC</Text>
+                          </View>
+                        )}
+                        <View style={[styles.calCellLast, { width: groupWidth(2) }]}>
+                          <Text style={styles.calHeaderText}> </Text>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row' }}>
+                        {declared.map((field) => (
+                          <View key={field.id} style={[styles.calCell, { width: dataWidth }]}>
+                            <Text style={styles.calHeaderText}>{field.name || 'Untitled'}</Text>
+                          </View>
+                        ))}
+                        <View style={[styles.calCell, { width: dataWidth }]}>
+                          <Text style={styles.calHeaderText}>Error Observed</Text>
+                          <Text style={styles.calHeaderText}>(±)</Text>
+                        </View>
+                        <View style={[styles.calCellLast, { width: dataWidth }]}>
+                          <Text style={styles.calHeaderText}>Remarks</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={{ width: '72%', flexDirection: 'row' }}>
+                      <View style={[styles.calCell, { width: '25%' }]}>
+                        <Text style={styles.calHeaderText}>Standard Meter</Text>
+                        <Text style={styles.calHeaderText}>Reading (y)</Text>
+                      </View>
+                      <View style={[styles.calCell, { width: '25%' }]}>
+                        <Text style={styles.calHeaderText}>UUC Reading</Text>
+                        <Text style={styles.calHeaderText}>(x)</Text>
+                      </View>
+                      <View style={[styles.calCell, { width: '25%' }]}>
+                        <Text style={styles.calHeaderText}>Error Observed</Text>
+                        <Text style={styles.calHeaderText}>(±) z = (x-y)</Text>
+                      </View>
+                      <View style={[styles.calCellLast, { width: '25%' }]}>
+                        <Text style={styles.calHeaderText}>Remarks</Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
 
                 {/* Sub-header Row (units) */}
@@ -1035,20 +1093,44 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                     <Text style={styles.calSubHeaderText}></Text>
                   </View>
                   <View style={[styles.calCell, { width: '20%' }]}>
-                    <Text style={styles.calSubHeaderText}>{param.parameterName?.toUpperCase() || ''}</Text>
+                    {/* The engineer's own name for this table, which is what it is
+                        called on the certificate. Falls back to the parameter. */}
+                    <Text style={styles.calSubHeaderText}>
+                      {param.tableName?.trim() || param.parameterName?.toUpperCase() || ''}
+                    </Text>
                   </View>
-                  <View style={[styles.calCell, { width: '18%' }]}>
-                    <Text style={styles.calSubHeaderText}>{param.parameterUnit}</Text>
-                  </View>
-                  <View style={[styles.calCell, { width: '18%' }]}>
-                    <Text style={styles.calSubHeaderText}>{param.parameterUnit}</Text>
-                  </View>
-                  <View style={[styles.calCell, { width: '18%' }]}>
-                    <Text style={styles.calSubHeaderText}>{param.parameterUnit}</Text>
-                  </View>
-                  <View style={[styles.calCellLast, { width: '18%' }]}>
-                    <Text style={styles.calSubHeaderText}></Text>
-                  </View>
+                  {isDynamic ? (
+                    <View style={{ width: '72%', flexDirection: 'row' }}>
+                      {declared.map((field) => (
+                        <View key={field.id} style={[styles.calCell, { width: dataWidth }]}>
+                          <Text style={styles.calSubHeaderText}>{field.unit || ''}</Text>
+                        </View>
+                      ))}
+                      <View style={[styles.calCell, { width: dataWidth }]}>
+                        <Text style={styles.calSubHeaderText}>
+                          {param.errorConfig?.unit || param.parameterUnit}
+                        </Text>
+                      </View>
+                      <View style={[styles.calCellLast, { width: dataWidth }]}>
+                        <Text style={styles.calSubHeaderText}></Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={{ width: '72%', flexDirection: 'row' }}>
+                      <View style={[styles.calCell, { width: '25%' }]}>
+                        <Text style={styles.calSubHeaderText}>{param.parameterUnit}</Text>
+                      </View>
+                      <View style={[styles.calCell, { width: '25%' }]}>
+                        <Text style={styles.calSubHeaderText}>{param.parameterUnit}</Text>
+                      </View>
+                      <View style={[styles.calCell, { width: '25%' }]}>
+                        <Text style={styles.calSubHeaderText}>{param.parameterUnit}</Text>
+                      </View>
+                      <View style={[styles.calCellLast, { width: '25%' }]}>
+                        <Text style={styles.calSubHeaderText}></Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
 
                 {/* Data section with merged Parameter & Range column */}
@@ -1082,7 +1164,32 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                   <View style={{ width: '72%' }}>
                     {param.results.map((result, resultIdx) => {
                       const isLastRow = resultIdx === param.results.length - 1
-                      const { precision } = resolveCalibrationPrecision(param, result.standardReading)
+                      // The reading the least count is judged at: the declared master
+                      // field where there is one, the legacy standardReading otherwise.
+                      // A row may predate the schema and hold only the legacy three,
+                      // so map those onto the declared columns rather than print blanks.
+                      const rowValues = isDynamic
+                        ? resultValues(result, declared, param.errorConfig ?? null)
+                        : {}
+                      const masterReading = isDynamic
+                        ? (rowValues[param.errorConfig?.masterFieldId ?? ''] ?? null)
+                        : result.standardReading
+                      const { precision } = resolveCalibrationPrecision(param, masterReading)
+                      const failedText = result.isOutOfLimit ? styles.failedCalCellText : {}
+                      // Expression columns are computed here rather than stored, so the
+                      // certificate shows the same value the engineer saw.
+                      const resolved = isDynamic
+                        ? resolveRowValues(
+                            {
+                              id: result.id,
+                              pointNumber: result.pointNumber,
+                              values: rowValues,
+                              errorObserved: result.errorObserved,
+                              isOutOfLimit: result.isOutOfLimit,
+                            },
+                            declared,
+                          )
+                        : {}
 
                       return (
                         <View
@@ -1095,25 +1202,42 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                             borderBottomColor: '#000',
                           }}
                         >
-                          <View style={[styles.calCell, { width: '25%' }]}>
-                            <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>
-                              {formatWithPrecision(result.standardReading, precision)}
-                            </Text>
-                          </View>
-                          <View style={[styles.calCell, { width: '25%' }]}>
-                            <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>
-                              {formatWithPrecision(result.beforeAdjustment, precision)}
-                            </Text>
-                          </View>
-                          <View style={[styles.calCell, { width: '25%' }]}>
-                            <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>
+                          {isDynamic ? (
+                            declared.map((field) => {
+                              const raw = resolved[field.id] ?? ''
+                              const numeric =
+                                field.type !== 'text' && raw !== '' && Number.isFinite(Number(raw))
+                              return (
+                                <View key={field.id} style={[styles.calCell, { width: dataWidth }]}>
+                                  <Text style={[styles.calCellText, failedText]}>
+                                    {numeric ? formatWithPrecision(Number(raw), precision) : raw || '-'}
+                                  </Text>
+                                </View>
+                              )
+                            })
+                          ) : (
+                            <>
+                              <View style={[styles.calCell, { width: '25%' }]}>
+                                <Text style={[styles.calCellText, failedText]}>
+                                  {formatWithPrecision(result.standardReading, precision)}
+                                </Text>
+                              </View>
+                              <View style={[styles.calCell, { width: '25%' }]}>
+                                <Text style={[styles.calCellText, failedText]}>
+                                  {formatWithPrecision(result.beforeAdjustment, precision)}
+                                </Text>
+                              </View>
+                            </>
+                          )}
+                          <View style={[styles.calCell, { width: isDynamic ? dataWidth : '25%' }]}>
+                            <Text style={[styles.calCellText, failedText]}>
                               {result.errorObserved !== null
                                 ? formatWithPrecision(result.errorObserved, precision)
                                 : '-'}
                             </Text>
                           </View>
-                          <View style={[styles.calCellLast, { width: '25%' }]}>
-                            <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>
+                          <View style={[styles.calCellLast, { width: isDynamic ? dataWidth : '25%' }]}>
+                            <Text style={[styles.calCellText, failedText]}>
                               {result.isOutOfLimit
                                 ? 'Fail*'
                                 : result.errorObserved !== null ? 'Pass' : '-'}
