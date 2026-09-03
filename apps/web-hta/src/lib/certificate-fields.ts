@@ -732,27 +732,6 @@ export function tokenizeExpression(
   return tokens
 }
 
-/** Render tokens back to the stored form. */
-export function tokensToExpression(tokens: ExpressionToken[]): string {
-  return tokens
-    .map((token) => {
-      switch (token.kind) {
-        case 'field':
-          return `{${token.fieldId}}`
-        case 'number':
-          return token.value
-        case 'operator':
-          return token.value
-        case 'function':
-          return token.value
-        case 'open':
-          return '('
-        case 'close':
-          return ')'
-      }
-    })
-    .join(' ')
-}
 
 export interface ExpressionCheck {
   ok: boolean
@@ -871,4 +850,329 @@ export function expressionFromDisplay(
     const matches = byName.get(text.toLowerCase())
     return matches && matches.length === 1 ? `{${matches[0]}}` : whole
   })
+}
+
+// ---------------------------------------------------------------------------------
+// Formula breakdown
+// ---------------------------------------------------------------------------------
+
+/**
+ * Parsed formula. evaluateExpression computes a number and discards the structure, so
+ * showing the working needs a tree that can be reduced one step at a time.
+ */
+export type ExpressionAst =
+  | { k: 'num'; value: number }
+  | { k: 'ref'; id: string }
+  | { k: 'neg'; inner: ExpressionAst }
+  | { k: 'fn'; name: ExpressionFunction; inner: ExpressionAst }
+  | { k: 'bin'; op: '+' | '-' | '*' | '/' | '^'; left: ExpressionAst; right: ExpressionAst }
+
+/** Parse to a tree, or null when malformed. Same grammar as the evaluator. */
+export function parseExpressionAst(expression: string | undefined): ExpressionAst | null {
+  if (!expression || !expression.trim()) return null
+  const tokens = tokenize(expression)
+  if (!tokens) return null
+
+  let position = 0
+  const peek = () => tokens[position]
+  const take = () => tokens[position++]
+
+  function parseSum(): ExpressionAst {
+    let left = parseProduct()
+    while (peek() === '+' || peek() === '-') {
+      const op = take() as '+' | '-'
+      left = { k: 'bin', op, left, right: parseProduct() }
+    }
+    return left
+  }
+
+  function parseProduct(): ExpressionAst {
+    let left = parsePow()
+    while (peek() === '*' || peek() === '/') {
+      const op = take() as '*' | '/'
+      left = { k: 'bin', op, left, right: parsePow() }
+    }
+    return left
+  }
+
+  function parsePow(): ExpressionAst {
+    const base = parseUnary()
+    if (peek() !== '^') return base
+    take()
+    return { k: 'bin', op: '^', left: base, right: parsePow() }
+  }
+
+  function parseUnary(): ExpressionAst {
+    const token = peek()
+    if (token === undefined) throw new ExpressionError('unexpected end')
+    if (token === '-') {
+      take()
+      return { k: 'neg', inner: parseUnary() }
+    }
+    if (token === '+') {
+      take()
+      return parseUnary()
+    }
+    if (token === '(') {
+      take()
+      const inner = parseSum()
+      if (take() !== ')') throw new ExpressionError('unbalanced parentheses')
+      return inner
+    }
+    if (isExpressionFunction(token)) {
+      take()
+      if (take() !== '(') throw new ExpressionError('function needs parentheses')
+      const inner = parseSum()
+      if (take() !== ')') throw new ExpressionError('unbalanced parentheses')
+      return { k: 'fn', name: token, inner }
+    }
+    if (token.startsWith('{')) {
+      take()
+      return { k: 'ref', id: token.slice(1, -1).trim() }
+    }
+    const value = Number(take())
+    if (!Number.isFinite(value)) throw new ExpressionError('bad literal')
+    return { k: 'num', value }
+  }
+
+  try {
+    const ast = parseSum()
+    return position === tokens.length ? ast : null
+  } catch {
+    return null
+  }
+}
+
+const PRECEDENCE = { '+': 1, '-': 1, '*': 2, '/': 2, '^': 3 } as const
+const SYMBOL = { '+': '+', '-': '−', '*': '×', '/': '÷', '^': '^' } as const
+
+/** Trim a computed value so an intermediate step reads cleanly without lying about it. */
+function showNumber(value: number): string {
+  if (Number.isInteger(value)) return String(value)
+  return String(Number(value.toFixed(6)))
+}
+
+/**
+ * Render a tree back to a readable line.
+ *
+ * Brackets are reinstated only where precedence needs them, so the working keeps the
+ * shape the engineer typed rather than becoming fully parenthesised.
+ */
+export function renderAst(
+  node: ExpressionAst,
+  nameOf: (id: string) => string,
+  parent?: { op: '+' | '-' | '*' | '/' | '^'; side: 'left' | 'right' },
+): string {
+  switch (node.k) {
+    case 'num': {
+      const text = showNumber(node.value)
+      // A negative literal needs brackets only where the sign would otherwise attach
+      // to the wrong thing: -5 ^ 3 reads as -(5 ^ 3), and a − -5 needs them to be
+      // legible at all. As a left operand of + − × ÷ it does not.
+      const ambiguous = parent && (parent.op === '^' || parent.side === 'right')
+      return ambiguous && node.value < 0 ? `( ${text} )` : text
+    }
+    case 'ref':
+      return nameOf(node.id)
+    case 'neg': {
+      const text = '−' + renderAst(node.inner, nameOf, { op: '^', side: 'left' })
+      return parent ? '( ' + text + ' )' : text
+    }
+    case 'fn': {
+      const label = node.name === 'exp' ? 'e^' : node.name
+      return label + '( ' + renderAst(node.inner, nameOf) + ' )'
+    }
+    case 'bin': {
+      const text =
+        renderAst(node.left, nameOf, { op: node.op, side: 'left' }) +
+        ' ' +
+        SYMBOL[node.op] +
+        ' ' +
+        renderAst(node.right, nameOf, { op: node.op, side: 'right' })
+
+      if (!parent) return text
+
+      const precedence = PRECEDENCE[node.op]
+      const parentPrecedence = PRECEDENCE[parent.op]
+
+      // Whether brackets are needed turns on the PARENT operator, not this one:
+      // a / (b * c) needs them because the parent divides, regardless of what the
+      // child does. Getting this backwards renders a formula that is not the one
+      // being computed, which is worse than no working at all.
+      const needs =
+        precedence < parentPrecedence ||
+        (precedence === parentPrecedence &&
+          ((parent.side === 'right' && (parent.op === '-' || parent.op === '/')) ||
+            // ^ is right-associative, so (a ^ b) ^ c has to keep its brackets.
+            (parent.side === 'left' && parent.op === '^')))
+
+      return needs ? '( ' + text + ' )' : text
+    }
+  }
+}
+
+/** Replace every column reference with the value entered for it. */
+function substituteValues(
+  node: ExpressionAst,
+  values: Map<string, string>,
+): ExpressionAst | null {
+  switch (node.k) {
+    case 'num':
+      return node
+    case 'ref': {
+      const raw = values.get(node.id)
+      if (raw === undefined || raw.trim() === '') return null
+      const value = Number(raw)
+      return Number.isFinite(value) ? { k: 'num', value } : null
+    }
+    case 'neg': {
+      const inner = substituteValues(node.inner, values)
+      return inner && { k: 'neg', inner }
+    }
+    case 'fn': {
+      const inner = substituteValues(node.inner, values)
+      return inner && { k: 'fn', name: node.name, inner }
+    }
+    case 'bin': {
+      const left = substituteValues(node.left, values)
+      const right = substituteValues(node.right, values)
+      return left && right ? { k: 'bin', op: node.op, left, right } : null
+    }
+  }
+}
+
+/** Compute one node whose operands are already numbers, innermost and leftmost first. */
+function reduceOnce(node: ExpressionAst): ExpressionAst | null {
+  if (node.k === 'num' || node.k === 'ref') return null
+
+  if (node.k === 'neg') {
+    if (node.inner.k === 'num') return { k: 'num', value: -node.inner.value }
+    const inner = reduceOnce(node.inner)
+    return inner && { k: 'neg', inner }
+  }
+
+  if (node.k === 'fn') {
+    if (node.inner.k === 'num') {
+      try {
+        return { k: 'num', value: FUNCTIONS[node.name](node.inner.value) }
+      } catch {
+        return null
+      }
+    }
+    const inner = reduceOnce(node.inner)
+    return inner && { k: 'fn', name: node.name, inner }
+  }
+
+  const left = reduceOnce(node.left)
+  if (left) return { k: 'bin', op: node.op, left, right: node.right }
+  const right = reduceOnce(node.right)
+  if (right) return { k: 'bin', op: node.op, left: node.left, right }
+
+  if (node.left.k === 'num' && node.right.k === 'num') {
+    const a = node.left.value
+    const b = node.right.value
+    if (node.op === '+') return { k: 'num', value: a + b }
+    if (node.op === '-') return { k: 'num', value: a - b }
+    if (node.op === '*') return { k: 'num', value: a * b }
+    if (node.op === '/') return b === 0 ? null : { k: 'num', value: a / b }
+    const value = Math.pow(a, b)
+    return Number.isNaN(value) ? null : { k: 'num', value }
+  }
+  return null
+}
+
+export interface FormulaBreakdown {
+  /** The formula in column names, then with the readings in, then each step. */
+  steps: string[]
+  /** Columns the formula reads, with the value used for each. */
+  columns: { id: string; name: string; value: string }[]
+  /** The final value, or null when it could not be computed. */
+  result: number | null
+}
+
+/**
+ * The working, as it would be shown on paper: the formula, the same formula with the
+ * readings substituted, then one line per operation until a single number remains.
+ *
+ * Written for checking a certificate rather than for debugging a parser - when a
+ * result looks wrong, the line where it goes wrong is the thing worth seeing.
+ */
+export function formulaBreakdown(
+  expression: string | undefined,
+  options: {
+    fields: FieldDefinition[]
+    values?: Record<string, string>
+    maxSteps?: number
+  },
+): FormulaBreakdown | null {
+  const ast = parseExpressionAst(expression)
+  if (!ast) return null
+
+  const names = new Map(options.fields.map((f) => [f.id, f.name || 'Untitled']))
+  const nameOf = (id: string) => names.get(id) ?? id
+  const values = new Map(Object.entries(options.values ?? {}))
+
+  const columns = expressionDependencies(expression).map((id) => ({
+    id,
+    name: nameOf(id),
+    value: values.get(id) ?? '',
+  }))
+
+  const steps = [renderAst(ast, nameOf)]
+
+  const substituted = substituteValues(ast, values)
+  if (!substituted) return { steps, columns, result: null }
+
+  let current = substituted
+  const numeric = renderAst(current, nameOf)
+  if (numeric !== steps[0]) steps.push(numeric)
+
+  const limit = options.maxSteps ?? 24
+  for (let i = 0; i < limit; i += 1) {
+    const next = reduceOnce(current)
+    if (!next) break
+    current = next
+    const line = renderAst(current, nameOf)
+    // A step that changes nothing on screen is not worth a line.
+    if (line !== steps[steps.length - 1]) steps.push(line)
+  }
+
+  return {
+    steps,
+    columns,
+    result: current.k === 'num' && Number.isFinite(current.value) ? current.value : null,
+  }
+}
+
+/**
+ * Read a parameter's stored column schema back into form state.
+ *
+ * The API returns the Prisma row as it stands, so the schema arrives as one JSON
+ * column - fieldSchema - rather than as two top-level keys. Reading the wrong key
+ * silently yields no columns, which looks exactly like a parameter that never had any,
+ * so ensureParameterFields then rebuilds the default pair and the engineer's own
+ * columns appear to have been discarded.
+ *
+ * Null or unrecognised content returns empty definitions, which is the signal to
+ * derive the defaults from the legacy results.
+ */
+export function readStoredFieldSchema(stored: unknown): {
+  fieldDefinitions: FieldDefinition[]
+  errorConfig: ErrorConfig
+} {
+  const parsed =
+    stored && typeof stored === 'object'
+      ? (stored as { fieldDefinitions?: unknown; errorConfig?: unknown })
+      : {}
+
+  const fieldDefinitions = Array.isArray(parsed.fieldDefinitions)
+    ? (parsed.fieldDefinitions as FieldDefinition[])
+    : []
+
+  const errorConfig =
+    parsed.errorConfig && typeof parsed.errorConfig === 'object'
+      ? (parsed.errorConfig as ErrorConfig)
+      : createDefaultErrorConfig(fieldDefinitions, '')
+
+  return { fieldDefinitions, errorConfig }
 }

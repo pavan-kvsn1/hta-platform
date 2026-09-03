@@ -19,6 +19,7 @@ import {
   createRow,
   migrateLegacyResults,
   toLegacyResults,
+  readStoredFieldSchema,
   buildSimpleExpression,
   parseSimpleExpression,
   type FieldDefinition,
@@ -533,5 +534,86 @@ describe('simple expression round-trip with functions', () => {
   it('leaves a formula the builder cannot express as raw', () => {
     expect(parseSimpleExpression('log({a} + {b})')).toBeNull()
     expect(parseSimpleExpression('log({a}) * 2')).toBeNull()
+  })
+})
+
+describe('readStoredFieldSchema', () => {
+  // Shaped exactly as the API returns it: the raw Prisma row, so the schema is one
+  // JSON column named fieldSchema rather than two top-level keys. Reading the wrong
+  // key returns no columns, which is indistinguishable from a parameter that never
+  // had any - so the defaults get rebuilt and the engineer's columns look discarded.
+  const stored = {
+    fieldDefinitions: [
+      { id: 'm1', name: 'Master Reading', group: 'master', type: 'numeric', unit: '°C', order: 0 },
+      { id: 'u1', name: 'UUC Reading', group: 'uuc', type: 'numeric', unit: '°C', order: 0 },
+      {
+        id: 'x1',
+        name: 'Adjusted Reading',
+        group: 'uuc',
+        type: 'expression',
+        unit: '°C',
+        order: 1,
+        expression: '{u1} + 0.1',
+      },
+    ],
+    errorConfig: { masterFieldId: 'm1', uucFieldId: 'u1', formula: 'B-A', unit: '°C' },
+  }
+
+  it('reads back every stored column, custom ones included', () => {
+    const result = readStoredFieldSchema(stored)
+    expect(result.fieldDefinitions.map((f) => f.name)).toEqual([
+      'Master Reading',
+      'UUC Reading',
+      'Adjusted Reading',
+    ])
+    expect(result.errorConfig).toEqual(stored.errorConfig)
+  })
+
+  it('returns no columns for a parameter that never had a schema', () => {
+    // The signal for "derive the default pair from the legacy results".
+    expect(readStoredFieldSchema(null).fieldDefinitions).toEqual([])
+    expect(readStoredFieldSchema(undefined).fieldDefinitions).toEqual([])
+  })
+
+  it('does not throw on content it does not recognise', () => {
+    expect(readStoredFieldSchema('nonsense').fieldDefinitions).toEqual([])
+    expect(readStoredFieldSchema({ fieldDefinitions: 'not an array' }).fieldDefinitions).toEqual([])
+  })
+
+  it('falls back to a derived error config when only the columns were stored', () => {
+    const result = readStoredFieldSchema({ fieldDefinitions: stored.fieldDefinitions })
+    expect(result.errorConfig.masterFieldId).toBe('m1')
+    expect(result.errorConfig.uucFieldId).toBe('u1')
+  })
+
+  it('survives the round trip a save and reload performs', async () => {
+    const { ensureParameterFields } = await import('@/lib/stores/certificate-store')
+    const loaded = ensureParameterFields({
+      parameterUnit: '°C',
+      errorFormula: 'B-A',
+      showAfterAdjustment: false,
+      tableName: 'Observations',
+      ...readStoredFieldSchema(stored),
+      resultRows: [],
+      results: [
+        {
+          id: 'r1',
+          pointNumber: 1,
+          standardReading: '-5.0',
+          beforeAdjustment: '-4.9',
+          afterAdjustment: '',
+          errorObserved: 0.1,
+          isOutOfLimit: false,
+          values: { m1: '-5.0', u1: '-4.9', x1: '' },
+        },
+      ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
+
+    // The stored columns are kept rather than replaced by the default pair...
+    expect(loaded.fieldDefinitions.map((f) => f.name)).toContain('Adjusted Reading')
+    // ...and the rows come back with them, since rows live on the results.
+    expect(loaded.resultRows).toHaveLength(1)
+    expect(loaded.resultRows[0].values.u1).toBe('-4.9')
   })
 })

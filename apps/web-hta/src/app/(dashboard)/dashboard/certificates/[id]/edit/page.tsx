@@ -18,7 +18,7 @@ import {
 } from '@/components/forms'
 import { FeedbackTimeline, type InternalRequestItem } from '@/components/feedback/shared'
 import { useCertificateStore, CertificateFormData, Parameter, CalibrationResult, ensureParameterFields } from '@/lib/stores/certificate-store'
-import type { ErrorConfig, FieldDefinition } from '@/lib/certificate-fields'
+import { readStoredFieldSchema } from '@/lib/certificate-fields'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -239,8 +239,8 @@ interface ApiParameter {
   requiresBinning: boolean
   bins: unknown // JSON field - can be array, string, or null
   tableName?: string | null
-  fieldDefinitions?: unknown[] | null
-  errorConfig?: Record<string, unknown> | null
+  /** One JSON column holding fieldDefinitions and errorConfig together. */
+  fieldSchema?: { fieldDefinitions?: unknown[]; errorConfig?: Record<string, unknown> | null } | null
   sopReference: string | null
   masterInstrumentId: string | null
   results: ApiResult[]
@@ -366,8 +366,8 @@ function transformDraftToApiShape(draft: any): ApiCertificate {
       requiresBinning: !!p.requires_binning,
       bins: p.bins || null,
       tableName: p.table_name ?? p.tableName ?? null,
-      fieldDefinitions: p.field_definitions ?? p.fieldDefinitions ?? null,
-      errorConfig: p.error_config ?? p.errorConfig ?? null,
+      // Camel from the API (raw Prisma), snake from the offline draft store.
+      fieldSchema: p.field_schema ?? p.fieldSchema ?? null,
       sopReference: p.sop_reference || null,
       masterInstrumentId: p.master_instrument_id || null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -471,14 +471,7 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     // from the results only when a parameter has none - which is every parameter
     // written before the dynamic table existed.
     tableName: param.tableName || '',
-    fieldDefinitions: (param.fieldDefinitions as FieldDefinition[] | null) || [],
-    errorConfig:
-      (param.errorConfig as ErrorConfig | null) || {
-        masterFieldId: '',
-        uucFieldId: '',
-        formula: 'A-B',
-        unit: '',
-      },
+    ...readStoredFieldSchema(param.fieldSchema),
     resultRows: [],
   }))
 

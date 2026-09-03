@@ -6,10 +6,10 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import { FormulaEditor } from '@/components/forms/FormulaEditor'
 import {
   checkExpression,
+  formulaBreakdown,
   expressionFromDisplay,
   expressionToDisplay,
   tokenizeExpression,
-  tokensToExpression,
   type FieldDefinition,
 } from '@/lib/certificate-fields'
 
@@ -40,88 +40,27 @@ function renderEditor(overrides: Partial<Parameters<typeof FormulaEditor>[0]> = 
 }
 
 describe('FormulaEditor', () => {
-  it('renders each reference as its column name, not its id', () => {
+  it('shows the formula in column names, not stored ids', () => {
     renderEditor()
-    // Each referenced column appears twice: once as a chip in the formula, once as a
-    // palette button. The chip is the span.
-    const chips = screen
-      .getAllByText(/UUC Reading|Cold Junction/)
-      .filter((el) => el.tagName === 'SPAN')
-    expect(chips.map((el) => el.textContent)).toEqual(['UUC Reading', 'Cold Junction'])
-    expect(screen.queryByText(/\{u1\}/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Formula for Corrected mV/i)).toHaveValue(
+      '{UUC Reading} + {Cold Junction}',
+    )
   })
 
-  it('offers only same-side numeric columns to insert', () => {
+  it('lists the columns that can be referenced', () => {
     renderEditor()
-    // Palette buttons carry the column names. The master column is absent, and so are
-    // the text column and the formula's own row.
-    expect(screen.getAllByRole('button', { name: 'UUC Reading' })).toHaveLength(1)
-    expect(screen.queryByRole('button', { name: 'Std Reading' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'UUC Status' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Corrected mV' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '{UUC Reading}' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '{Cold Junction}' })).toBeInTheDocument()
+    // The master column, the text column and the formula's own column are not offered.
+    expect(screen.queryByRole('button', { name: '{Std Reading}' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '{UUC Status}' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '{Corrected mV}' })).not.toBeInTheDocument()
   })
 
-  it('appends a column reference by id', () => {
-    const { props } = renderEditor()
-    fireEvent.click(screen.getByRole('button', { name: 'Cold Junction' }))
-    expect(props.onChange).toHaveBeenCalledWith('{u1} + {u2} {u2}')
-  })
-
-  it('inserts a function together with its opening bracket', () => {
+  it('appends a column when its name is clicked, storing the id', () => {
     const { props } = renderEditor({ field: { ...fields[4], expression: '' } })
-    fireEvent.click(screen.getByRole('button', { name: 'log₁₀' }))
-    expect(props.onChange).toHaveBeenCalledWith('log (')
-  })
-
-  it('deletes a whole reference in one step, not one character', () => {
-    const { props } = renderEditor()
-    fireEvent.click(screen.getByLabelText('Delete last item'))
-    expect(props.onChange).toHaveBeenCalledWith('{u1} +')
-  })
-
-  it('will not delete from an empty formula', () => {
-    renderEditor({ field: { ...fields[4], expression: '' } })
-    expect(screen.getByLabelText('Delete last item')).toBeDisabled()
-  })
-
-  it('lets a number be typed straight into the formula', () => {
-    const { props } = renderEditor()
-    const input = screen.getByLabelText(/Formula for Corrected mV/i)
-    fireEvent.change(input, { target: { value: '2.5' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(props.onChange).toHaveBeenCalledWith('{u1} + {u2} 2.5')
-  })
-
-  it('commits what is typed when an operator is pressed', () => {
-    const { props } = renderEditor({ field: { ...fields[4], expression: '' } })
-    const input = screen.getByLabelText(/Formula for Corrected mV/i)
-    fireEvent.change(input, { target: { value: '3' } })
-    fireEvent.keyDown(input, { key: '*' })
-    expect(props.onChange).toHaveBeenLastCalledWith('3 *')
-  })
-
-  it('reads a typed function name as a function', () => {
-    const { props } = renderEditor({ field: { ...fields[4], expression: '' } })
-    const input = screen.getByLabelText(/Formula for Corrected mV/i)
-    fireEvent.change(input, { target: { value: 'log' } })
-    fireEvent.keyDown(input, { key: '(' })
-    expect(props.onChange).toHaveBeenLastCalledWith('log (')
-  })
-
-  it('backspaces a whole token once what was typed is cleared', () => {
-    const { props } = renderEditor()
-    const input = screen.getByLabelText(/Formula for Corrected mV/i)
-    fireEvent.keyDown(input, { key: 'Backspace' })
-    expect(props.onChange).toHaveBeenCalledWith('{u1} +')
-  })
-
-  it('keeps an entry it cannot read rather than discarding it', () => {
-    const { props } = renderEditor()
-    const input = screen.getByLabelText(/Formula for Corrected mV/i)
-    fireEvent.change(input, { target: { value: 'abc' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(props.onChange).not.toHaveBeenCalled()
-    expect(input).toHaveValue('abc')
+    fireEvent.click(screen.getByRole('button', { name: '{Cold Junction}' }))
+    expect(props.onChange).toHaveBeenCalledWith('{u2}')
   })
 
   it('reports a valid formula with the number of columns it reads', () => {
@@ -134,43 +73,55 @@ describe('FormulaEditor', () => {
     expect(screen.getByText(/incomplete or unbalanced/i)).toBeInTheDocument()
   })
 
-  it('previews against the entered row', () => {
-    renderEditor({ sampleValues: { u1: '12.40', u2: '0.35' }, precision: 2 })
-    expect(screen.getByText(/Corrected mV = 12.75/)).toBeInTheDocument()
+  it('shows the working one operation at a time', () => {
+    renderEditor({
+      field: { ...fields[4], expression: '( {u1} + {u2} ) * 2' },
+      sampleValues: { u1: '12.40', u2: '0.35' },
+    })
+    // Each line after the first is prefixed with "=" in the markup.
+    const steps = screen
+      .getAllByRole('listitem')
+      .map((li) => (li.textContent ?? '').replace(/^=/, ''))
+    expect(steps).toEqual([
+      '( UUC Reading + Cold Junction ) × 2',
+      '( 12.4 + 0.35 ) × 2',
+      '12.75 × 2',
+      '25.5 mV',
+    ])
   })
 
-  it('omits the preview when nothing has been entered', () => {
+  it('shows only the formula until a row is entered', () => {
     renderEditor()
-    expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByText(/Enter a row to see this worked through/i)).toBeInTheDocument()
   })
 
-  it('opens in the typed fallback for a formula the builder cannot show', () => {
-    // A stray identifier is not something the token model can represent.
-    renderEditor({ field: { ...fields[4], expression: '{u1} @@ 2' } })
-    expect(screen.getByLabelText(/Formula for Corrected mV/i)).toHaveValue(
-      '{UUC Reading} @@ 2',
-    )
-    expect(screen.getByRole('button', { name: /Use the builder/i })).toBeDisabled()
-    // No palette in the fallback - it is a raw text field.
-    expect(screen.queryByRole('button', { name: 'UUC Reading' })).not.toBeInTheDocument()
+  it('lists the columns used with the values they took', () => {
+    renderEditor({ sampleValues: { u1: '12.40', u2: '0.35' } })
+    const used = screen.getByText('Columns used').parentElement
+    expect(used?.textContent).toContain('UUC Reading 12.40')
+    expect(used?.textContent).toContain('Cold Junction 0.35')
   })
 
-  it('can switch to typing and back', () => {
-    renderEditor()
-    fireEvent.click(screen.getByRole('button', { name: /Type it instead/i }))
-    // Names, not the stored ids.
-    expect(screen.getByLabelText(/Formula for Corrected mV/i)).toHaveValue(
-      '{UUC Reading} + {Cold Junction}',
-    )
-    fireEvent.click(screen.getByRole('button', { name: /Use the builder/i }))
-    expect(screen.getByRole('button', { name: 'UUC Reading' })).toBeInTheDocument()
+  it('states the result at the column resolution, separate from the working', () => {
+    renderEditor({ sampleValues: { u1: '12.404', u2: '0.35' }, precision: 2 })
+    // The working keeps the full value; the recorded line rounds it.
+    expect(screen.getByText(/Recorded at this column/)).toHaveTextContent('12.75 mV')
+  })
+
+  it('omits the working when the formula is not usable', () => {
+    renderEditor({
+      field: { ...fields[4], expression: '{m1} * 2' },
+      sampleValues: { m1: '10' },
+    })
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
+    expect(screen.getByText(/other instrument/i)).toBeInTheDocument()
   })
 })
 
 describe('typed formulas are written in names, stored as ids', () => {
   it('stores a typed column name as its id', () => {
     const { props } = renderEditor()
-    fireEvent.click(screen.getByRole('button', { name: /Type it instead/i }))
     fireEvent.change(screen.getByLabelText(/Formula for Corrected mV/i), {
       target: { value: '{UUC Reading} * 2' },
     })
@@ -253,17 +204,165 @@ describe('checkExpression', () => {
 })
 
 describe('token round-trip', () => {
-  it('survives a trip through tokens unchanged in meaning', () => {
-    const tokens = tokenizeExpression('( {u1} + {u2} ) * 2 ^ 3')
-    expect(tokens).not.toBeNull()
-    expect(tokensToExpression(tokens!)).toBe('( {u1} + {u2} ) * 2 ^ 3')
-  })
-
   it('returns null for something it cannot represent', () => {
     expect(tokenizeExpression('{u1} @@ 2')).toBeNull()
   })
 
   it('treats an empty formula as no tokens rather than an error', () => {
     expect(tokenizeExpression('')).toEqual([])
+  })
+})
+
+describe('formulaBreakdown', () => {
+  const uuc: FieldDefinition[] = [
+    { id: 'a', name: 'A', group: 'uuc', type: 'numeric', unit: 'mV', order: 0 },
+    { id: 'b', name: 'B', group: 'uuc', type: 'numeric', unit: 'mV', order: 1 },
+    { id: 'c', name: 'Gain', group: 'uuc', type: 'numeric', unit: '', order: 2 },
+  ]
+  const steps = (expression: string, values?: Record<string, string>) =>
+    formulaBreakdown(expression, { fields: uuc, values })?.steps
+
+  it('works through one operation per line', () => {
+    expect(steps('( {a} + {b} ) * {c}', { a: '12.4', b: '0.35', c: '1.02' })).toEqual([
+      '( A + B ) × Gain',
+      '( 12.4 + 0.35 ) × 1.02',
+      '12.75 × 1.02',
+      '13.005',
+    ])
+  })
+
+  it('respects precedence rather than going left to right', () => {
+    // 2 + 3 * 4 multiplies first.
+    expect(steps('{a} + {b} * {c}', { a: '2', b: '3', c: '4' })).toEqual([
+      'A + B × Gain',
+      '2 + 3 × 4',
+      '2 + 12',
+      '14',
+    ])
+  })
+
+  it('keeps brackets only where they change the meaning', () => {
+    expect(steps('( {a} + {b} ) * {c}')).toEqual(['( A + B ) × Gain'])
+    expect(steps('{a} + {b} * {c}')).toEqual(['A + B × Gain'])
+    // Subtraction and division are not associative, so the right operand keeps its
+    // brackets even though the precedence is equal.
+    expect(steps('{a} - ( {b} - {c} )')).toEqual(['A − ( B − Gain )'])
+    expect(steps('{a} / ( {b} / {c} )')).toEqual(['A ÷ ( B ÷ Gain )'])
+  })
+
+  it('shows a function collapsing to its value', () => {
+    expect(steps('log( {a} ) + 1', { a: '100' })).toEqual([
+      'log( A ) + 1',
+      'log( 100 ) + 1',
+      '2 + 1',
+      '3',
+    ])
+  })
+
+  it('shows the formula alone when no readings are given', () => {
+    expect(steps('{a} + {b}')).toEqual(['A + B'])
+  })
+
+  it('shows the formula alone when a referenced column is empty', () => {
+    // Substituting a blank would invent a reading.
+    expect(steps('{a} + {b}', { a: '1', b: '' })).toEqual(['A + B'])
+  })
+
+  it('reports the result and the columns it used', () => {
+    const result = formulaBreakdown('{a} * {c}', {
+      fields: uuc,
+      values: { a: '2.5', c: '4' },
+    })
+    expect(result?.result).toBe(10)
+    expect(result?.columns).toEqual([
+      { id: 'a', name: 'A', value: '2.5' },
+      { id: 'c', name: 'Gain', value: '4' },
+    ])
+  })
+
+  it('stops without a result rather than dividing by zero', () => {
+    const result = formulaBreakdown('{a} / {b}', { fields: uuc, values: { a: '1', b: '0' } })
+    expect(result?.result).toBeNull()
+    expect(result?.steps.at(-1)).toBe('1 ÷ 0')
+  })
+
+  it('stops where a function leaves its domain', () => {
+    const result = formulaBreakdown('log( {a} )', { fields: uuc, values: { a: '0' } })
+    expect(result?.result).toBeNull()
+    expect(result?.steps.at(-1)).toBe('log( 0 )')
+  })
+
+  it('does not let floating point noise into the working', () => {
+    // 0.1 + 0.2 is 0.30000000000000004 in binary floating point.
+    expect(steps('{a} + {b}', { a: '0.1', b: '0.2' })?.at(-1)).toBe('0.3')
+  })
+
+  it('returns null for a formula it cannot parse', () => {
+    expect(formulaBreakdown('{a} +', { fields: uuc })).toBeNull()
+    expect(formulaBreakdown('', { fields: uuc })).toBeNull()
+  })
+
+  it('names a column that no longer exists by its id rather than crashing', () => {
+    expect(steps('{gone} + 1')).toEqual(['gone + 1'])
+  })
+
+  it('cannot be made to loop forever by a long formula', () => {
+    const long = Array.from({ length: 40 }, () => '1').join(' + ')
+    const result = formulaBreakdown(long, { fields: uuc, maxSteps: 5 })
+    expect(result?.steps.length).toBeLessThanOrEqual(6)
+  })
+})
+
+describe('the working shows the formula that is actually computed', () => {
+  const uuc: FieldDefinition[] = [
+    { id: 'a', name: 'A', group: 'uuc', type: 'numeric', unit: 'mV', order: 0 },
+    { id: 'b', name: 'B', group: 'uuc', type: 'numeric', unit: 'mV', order: 1 },
+    { id: 'c', name: 'C', group: 'uuc', type: 'numeric', unit: 'mV', order: 2 },
+  ]
+  const line = (expression: string) =>
+    formulaBreakdown(expression, { fields: uuc })?.steps[0]
+
+  it('keeps the brackets around a product used as a divisor', () => {
+    // Dropping these renders (x / a) * a, which is a different formula entirely.
+    expect(line('({a} ^ 3 + 1) / ({b} * {c})')).toBe('( A ^ 3 + 1 ) ÷ ( B × C )')
+  })
+
+  it('keeps brackets on the right of a subtraction and a division', () => {
+    expect(line('{a} - ({b} - {c})')).toBe('A − ( B − C )')
+    expect(line('{a} - ({b} + {c})')).toBe('A − ( B + C )')
+    expect(line('{a} / ({b} / {c})')).toBe('A ÷ ( B ÷ C )')
+  })
+
+  it('drops brackets that change nothing', () => {
+    expect(line('({a} - {b}) - {c}')).toBe('A − B − C')
+    expect(line('({a} + {b}) + {c}')).toBe('A + B + C')
+    expect(line('({a} * {b}) / {c}')).toBe('A × B ÷ C')
+    expect(line('{a} + ({b} * {c})')).toBe('A + B × C')
+  })
+
+  it('keeps brackets on the left of a power, which is right-associative', () => {
+    expect(line('({a} ^ {b}) ^ {c}')).toBe('( A ^ B ) ^ C')
+    expect(line('{a} ^ {b} ^ {c}')).toBe('A ^ B ^ C')
+  })
+
+  it('brackets a negative value next to an operator', () => {
+    // -5 ^ 3 would read as -(5 ^ 3), a different formula even where the answer agrees.
+    const steps = formulaBreakdown('{a} ^ 3', { fields: uuc, values: { a: '-5' } })?.steps
+    expect(steps).toEqual(['A ^ 3', '( -5 ) ^ 3', '-125'])
+  })
+
+  it('renders the reported formula correctly through every step', () => {
+    const steps = formulaBreakdown('({a} ^ 3 + 0.0001) / ({a} * {a})', {
+      fields: uuc,
+      values: { a: '-5' },
+    })?.steps
+    expect(steps).toEqual([
+      '( A ^ 3 + 0.0001 ) ÷ ( A × A )',
+      '( ( -5 ) ^ 3 + 0.0001 ) ÷ ( -5 × ( -5 ) )',
+      '( -125 + 0.0001 ) ÷ ( -5 × ( -5 ) )',
+      '-124.9999 ÷ ( -5 × ( -5 ) )',
+      '-124.9999 ÷ 25',
+      '-4.999996',
+    ])
   })
 })
