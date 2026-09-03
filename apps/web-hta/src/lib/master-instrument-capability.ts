@@ -353,3 +353,63 @@ export function coverageByParameter(
 
   return byUnit
 }
+
+// ---------------------------------------------------------------------------------
+// Adapters for the certificate's master selection
+// ---------------------------------------------------------------------------------
+//
+// evaluateUnit is the strict form used for eligibility: it rejects expired
+// calibrations, insists the units match, and reports why. The selection UI asks two
+// smaller questions and has always answered them permissively - an instrument with
+// nothing recorded is allowed rather than hidden - so these mirror that, reading
+// capability profiles instead of the old flat range list.
+
+/** Every profile on a unit, including those nested under a subtype. */
+function profilesFor(unit: RegistryUnit, parameter: string): CapabilityProfile[] {
+  const wanted = parameter.trim().toLowerCase()
+  if (!wanted) return []
+  return unit.capability_profiles.filter((profile) =>
+    profile.parameter.toLowerCase().includes(wanted),
+  )
+}
+
+/**
+ * Whether this instrument records the parameter at all.
+ *
+ * A unit with no profiles recorded is allowed through: three assets in the registry
+ * still have none, and hiding them would remove instruments the lab actually uses.
+ */
+export function unitCanMeasure(unit: RegistryUnit, parameter: string): boolean {
+  if (unit.capability_profiles.length === 0) return true
+  if (!parameter.trim()) return true
+  return profilesFor(unit, parameter).length > 0
+}
+
+/**
+ * Whether the instrument's span for the parameter covers what is being calibrated.
+ *
+ * Takes the widest span the profile offers, subtypes included: a thermocouple
+ * calibrator's overall range is the union of its types, and the type is chosen
+ * separately.
+ */
+export function unitCoversRange(
+  unit: RegistryUnit,
+  parameter: string,
+  requiredMin: number,
+  requiredMax: number,
+): boolean {
+  const profiles = profilesFor(unit, parameter)
+  if (profiles.length === 0) return true
+
+  for (const profile of profiles) {
+    const spans: Array<{ min: number | null; max: number | null }> = [
+      { min: profile.min, max: profile.max },
+      ...(profile.subtypes ?? []).map((s) => ({ min: s.min, max: s.max })),
+    ]
+    for (const span of spans) {
+      if (span.min == null || span.max == null) return true // nothing recorded to fail against
+      if (span.min <= requiredMin && span.max >= requiredMax) return true
+    }
+  }
+  return false
+}

@@ -28,6 +28,7 @@ import {
   coversRange,
   getSopReferences,
 } from '@/lib/master-instruments'
+import { unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
 import { cn } from '@/lib/utils'
 
 interface MasterInstrumentCardProps {
@@ -93,7 +94,8 @@ function MasterInstrumentCard({
   onImageDelete,
   disabled = false,
 }: MasterInstrumentCardProps) {
-  const { instruments, isLoaded, loadInstruments } = useMasterInstrumentStore()
+  const { instruments, isLoaded, loadInstruments, getUnitByLegacyId } =
+    useMasterInstrumentStore()
 
   // Load instruments if not loaded
   useEffect(() => {
@@ -301,6 +303,17 @@ function MasterInstrumentCard({
     if (!instrument.masterInstrumentId) return null
     return instruments.find(inst => inst.id === instrument.masterInstrumentId)
   }, [instruments, instrument.masterInstrumentId])
+
+  // The same instrument in the registry, addressed by the id the certificate already
+  // holds. Undefined only if the registry does not know it, in which case the checks
+  // below fall back to the old flat range list.
+  const registryUnit = useMemo(
+    () =>
+      instrument.masterInstrumentId
+        ? getUnitByLegacyId(instrument.masterInstrumentId)
+        : undefined,
+    [getUnitByLegacyId, instrument.masterInstrumentId],
+  )
 
   return (
     <div className="bg-section-inner rounded-xl p-5 border border-slate-300">
@@ -530,17 +543,25 @@ function MasterInstrumentCard({
               const isAssigned = param.masterInstrumentId === instrument.masterInstrumentId
               const isAssignedToOther = param.masterInstrumentId !== null && param.masterInstrumentId !== instrument.masterInstrumentId
 
-              // Check if this instrument supports this parameter type
-              const isCompatible = param.parameterName
-                ? canMeasureParameter(selectedInstrumentData, param.parameterName)
-                : true // If no parameter name set, allow selection
+              // Capability comes from the registry's profiles where the instrument has
+              // them, falling back to the old flat range list otherwise. The registry
+              // records what each instrument can do per parameter with its own span,
+              // which the flat list cannot express.
+              const isCompatible = !param.parameterName
+                ? true
+                : registryUnit
+                  ? unitCanMeasure(registryUnit, param.parameterName)
+                  : canMeasureParameter(selectedInstrumentData, param.parameterName)
 
               // Check if parameter range is within instrument's range
               const rangeMin = param.rangeMin ? parseFloat(param.rangeMin) : null
               const rangeMax = param.rangeMax ? parseFloat(param.rangeMax) : null
-              const isRangeCovered = (rangeMin === null || rangeMax === null || !param.parameterName)
-                ? true
-                : coversRange(selectedInstrumentData, param.parameterName, rangeMin, rangeMax)
+              const isRangeCovered =
+                rangeMin === null || rangeMax === null || !param.parameterName
+                  ? true
+                  : registryUnit
+                    ? unitCoversRange(registryUnit, param.parameterName, rangeMin, rangeMax)
+                    : coversRange(selectedInstrumentData, param.parameterName, rangeMin, rangeMax)
 
               const rangeStr = param.rangeMin && param.rangeMax
                 ? `${param.rangeMin} to ${param.rangeMax} ${param.parameterUnit}`
