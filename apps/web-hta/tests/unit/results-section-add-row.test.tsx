@@ -53,12 +53,14 @@ describe('ResultsSection add-row action', () => {
   it('renders a failed calibration point in red and bold with a Fail* status', () => {
     const store = useCertificateStore.getState()
     const parameter = store.formData.parameters[0]
+    // Section 05 now renders from resultRows against the parameter's field schema;
+    // `results` is a projection kept for the PDF and API paths.
+    const [masterField, uucField] = parameter.fieldDefinitions
     store.setParameter(0, {
       ...parameter,
-      results: [{
-        ...parameter.results[0],
-        standardReading: '10',
-        beforeAdjustment: '12',
+      resultRows: [{
+        ...parameter.resultRows[0],
+        values: { [masterField.id]: '10', [uucField.id]: '12' },
         errorObserved: -2,
         isOutOfLimit: true,
       }],
@@ -79,8 +81,8 @@ describe('ResultsSection add-row action', () => {
     const parameter = store.formData.parameters[0]
     store.setParameter(0, {
       ...parameter,
-      results: [{
-        ...parameter.results[0],
+      resultRows: [{
+        ...parameter.resultRows[0],
         isOutOfLimit: true,
         errorObserved: null,
       }],

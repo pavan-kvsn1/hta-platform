@@ -352,3 +352,82 @@ describe('ensureParameterFields (store integration)', () => {
     expect(empty.fieldDefinitions).toHaveLength(2)
   })
 })
+
+describe('simple expression builder', () => {
+  it('composes a formula from source, operator and a value', async () => {
+    const { buildSimpleExpression } = await import('@/lib/certificate-fields')
+    expect(
+      buildSimpleExpression({
+        sourceId: 'u1',
+        operator: '*',
+        operand: { kind: 'value', value: '0.001' },
+      }),
+    ).toBe('{u1} * 0.001')
+  })
+
+  it('composes a formula from two columns', async () => {
+    const { buildSimpleExpression } = await import('@/lib/certificate-fields')
+    expect(
+      buildSimpleExpression({
+        sourceId: 'm1',
+        operator: '-',
+        operand: { kind: 'field', fieldId: 'u1' },
+      }),
+    ).toBe('{m1} - {u1}')
+  })
+
+  it('produces nothing until both sides are chosen', async () => {
+    const { buildSimpleExpression } = await import('@/lib/certificate-fields')
+    expect(
+      buildSimpleExpression({ sourceId: '', operator: '*', operand: { kind: 'value', value: '2' } }),
+    ).toBe('')
+    expect(
+      buildSimpleExpression({ sourceId: 'u1', operator: '*', operand: { kind: 'value', value: '' } }),
+    ).toBe('')
+  })
+
+  it('reads a formula back into builder form', async () => {
+    const { parseSimpleExpression } = await import('@/lib/certificate-fields')
+    expect(parseSimpleExpression('{u1} * 0.001')).toEqual({
+      sourceId: 'u1',
+      operator: '*',
+      operand: { kind: 'value', value: '0.001' },
+    })
+    expect(parseSimpleExpression('{m1} - {u1}')).toEqual({
+      sourceId: 'm1',
+      operator: '-',
+      operand: { kind: 'field', fieldId: 'u1' },
+    })
+  })
+
+  it('round-trips', async () => {
+    const { buildSimpleExpression, parseSimpleExpression } = await import(
+      '@/lib/certificate-fields'
+    )
+    for (const formula of ['{a} + 1', '{a} - 2.5', '{a} * {b}', '{a} / 100']) {
+      const parsed = parseSimpleExpression(formula)
+      expect(parsed).not.toBeNull()
+      expect(buildSimpleExpression(parsed!)).toBe(formula)
+    }
+  })
+
+  it('declines anything the builder cannot represent, so it is not silently rewritten', async () => {
+    const { parseSimpleExpression } = await import('@/lib/certificate-fields')
+    expect(parseSimpleExpression('({a} + {b}) * 2')).toBeNull()
+    expect(parseSimpleExpression('{a} + {b} + {c}')).toBeNull()
+    expect(parseSimpleExpression('')).toBeNull()
+    expect(parseSimpleExpression(undefined)).toBeNull()
+  })
+
+  it('builds formulas the evaluator accepts', async () => {
+    const { buildSimpleExpression, evaluateExpression } = await import(
+      '@/lib/certificate-fields'
+    )
+    const formula = buildSimpleExpression({
+      sourceId: 'u1',
+      operator: '*',
+      operand: { kind: 'value', value: '0.001' },
+    })
+    expect(evaluateExpression(formula, { u1: '2000' })).toBeCloseTo(2)
+  })
+})

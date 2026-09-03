@@ -12,11 +12,14 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Plus, X, AlertTriangle } from 'lucide-react'
 import {
+  buildSimpleExpression,
   createField,
   detectExpressionCycles,
   errorFieldCandidates,
+  parseSimpleExpression,
   removeField,
   type ErrorConfig,
+  type ExpressionOperator,
   type FieldDefinition,
   type FieldGroup,
   type FieldType,
@@ -28,6 +31,18 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'expression', label: 'Expression' },
   { value: 'text', label: 'Text' },
 ]
+
+const OPERATORS: { value: ExpressionOperator; label: string }[] = [
+  { value: '+', label: '+' },
+  { value: '-', label: '−' },
+  { value: '*', label: '×' },
+  { value: '/', label: '÷' },
+]
+
+const SELECT_CLASS =
+  'rounded border border-slate-200 px-2 py-1 text-sm text-slate-900 disabled:bg-slate-50'
+const INPUT_CLASS =
+  'rounded border border-slate-200 px-2 py-1 text-sm text-slate-900 disabled:bg-slate-50'
 
 interface ColumnSetupProps {
   fields: FieldDefinition[]
@@ -88,13 +103,150 @@ export function ColumnSetup({
     setWarning(result.warning)
   }
 
+  /**
+   * Structured editor for an expression column.
+   *
+   * The raw formula references fields by internal id, which nobody should have to type.
+   * This composes it from a source column, an operator and either a number or a second
+   * column. A formula that does not fit that shape falls back to a raw input rather than
+   * being silently rewritten.
+   */
+  const renderExpressionBuilder = (fieldDef: FieldDefinition) => {
+    const others = fields.filter((f) => f.id !== fieldDef.id && f.type !== 'text')
+    const parsed = parseSimpleExpression(fieldDef.expression)
+    const isRaw = Boolean(fieldDef.expression) && parsed === null
+
+    const current =
+      parsed ??
+      ({
+        sourceId: '',
+        operator: '*' as ExpressionOperator,
+        operand: { kind: 'value' as const, value: '' },
+      })
+
+    const emit = (next: typeof current) =>
+      updateField(fieldDef.id, { expression: buildSimpleExpression(next) })
+
+    if (isRaw) {
+      return (
+        <div className="space-y-1">
+          <input
+            type="text"
+            value={fieldDef.expression ?? ''}
+            disabled={disabled}
+            aria-label={`Formula for ${fieldDef.name || 'field'}`}
+            onChange={(e) => updateField(fieldDef.id, { expression: e.target.value })}
+            className={cn(INPUT_CLASS, 'w-full font-mono text-xs')}
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => updateField(fieldDef.id, { expression: '' })}
+            className="text-[10px] text-slate-500 underline hover:text-slate-700"
+          >
+            Clear and use the builder
+          </button>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        <select
+          value={current.sourceId}
+          disabled={disabled}
+          aria-label={`Source column for ${fieldDef.name || 'field'}`}
+          onChange={(e) => emit({ ...current, sourceId: e.target.value })}
+          className={SELECT_CLASS}
+        >
+          <option value="">Source column…</option>
+          {others.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name || 'Untitled'}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={current.operator}
+          disabled={disabled}
+          aria-label={`Operator for ${fieldDef.name || 'field'}`}
+          onChange={(e) =>
+            emit({ ...current, operator: e.target.value as ExpressionOperator })
+          }
+          className={cn(SELECT_CLASS, 'w-14 text-center')}
+        >
+          {OPERATORS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={current.operand.kind}
+          disabled={disabled}
+          aria-label={`Operand type for ${fieldDef.name || 'field'}`}
+          onChange={(e) =>
+            emit({
+              ...current,
+              operand:
+                e.target.value === 'value'
+                  ? { kind: 'value', value: '' }
+                  : { kind: 'field', fieldId: '' },
+            })
+          }
+          className={SELECT_CLASS}
+        >
+          <option value="value">a value</option>
+          <option value="field">another column</option>
+        </select>
+
+        {current.operand.kind === 'value' ? (
+          <input
+            type="number"
+            step="any"
+            value={current.operand.value}
+            disabled={disabled}
+            placeholder="0.001"
+            aria-label={`Value for ${fieldDef.name || 'field'}`}
+            onChange={(e) =>
+              emit({ ...current, operand: { kind: 'value', value: e.target.value } })
+            }
+            className={cn(INPUT_CLASS, 'w-24')}
+          />
+        ) : (
+          <select
+            value={current.operand.fieldId}
+            disabled={disabled}
+            aria-label={`Second column for ${fieldDef.name || 'field'}`}
+            onChange={(e) =>
+              emit({ ...current, operand: { kind: 'field', fieldId: e.target.value } })
+            }
+            className={SELECT_CLASS}
+          >
+            <option value="">Column…</option>
+            {others.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name || 'Untitled'}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+    )
+  }
+
   const renderFieldCard = (fieldDef: FieldDefinition, index: number) => (
     <div
       key={fieldDef.id}
-      className="rounded-md border border-slate-200 bg-white p-3 space-y-2"
+      className="rounded-md border border-slate-200 bg-white px-2 py-1.5"
     >
-      <div className="flex items-start gap-2">
-        <span className="mt-2 text-[10px] font-semibold text-slate-400">{index + 1}</span>
+      {/* One row per field: number, name, type, unit, remove. */}
+      <div className="flex items-center gap-1.5">
+        <span className="w-4 shrink-0 text-[10px] font-semibold text-slate-400">
+          {index + 1}
+        </span>
         <input
           type="text"
           value={fieldDef.name}
@@ -102,68 +254,47 @@ export function ColumnSetup({
           placeholder="Column name"
           aria-label={`${fieldDef.group === 'master' ? 'Master' : 'UUC'} field ${index + 1} name`}
           onChange={(e) => updateField(fieldDef.id, { name: e.target.value })}
-          className="flex-1 rounded border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-50"
+          className={cn(INPUT_CLASS, 'min-w-0 flex-1')}
         />
+        <select
+          value={fieldDef.type}
+          disabled={disabled}
+          aria-label={`Type for ${fieldDef.name || `field ${index + 1}`}`}
+          onChange={(e) => updateField(fieldDef.id, { type: e.target.value as FieldType })}
+          className={cn(SELECT_CLASS, 'w-28 shrink-0')}
+        >
+          {FIELD_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        {fieldDef.type !== 'text' ? (
+          <input
+            type="text"
+            value={fieldDef.unit}
+            disabled={disabled}
+            placeholder="Unit"
+            aria-label={`Unit for ${fieldDef.name || `field ${index + 1}`}`}
+            onChange={(e) => updateField(fieldDef.id, { unit: e.target.value })}
+            className={cn(INPUT_CLASS, 'w-20 shrink-0')}
+          />
+        ) : (
+          <span className="w-20 shrink-0" />
+        )}
         <button
           type="button"
           disabled={disabled}
           aria-label={`Remove ${fieldDef.name || 'field'}`}
           onClick={() => deleteField(fieldDef.id)}
-          className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+          className="shrink-0 rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      <div className="flex gap-2 pl-5">
-        <label className="flex-1 text-[10px] uppercase tracking-wide text-slate-400">
-          Type
-          <select
-            value={fieldDef.type}
-            disabled={disabled}
-            onChange={(e) => updateField(fieldDef.id, { type: e.target.value as FieldType })}
-            className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-sm normal-case tracking-normal text-slate-900 disabled:bg-slate-50"
-          >
-            {FIELD_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {fieldDef.type !== 'text' && (
-          <label className="flex-1 text-[10px] uppercase tracking-wide text-slate-400">
-            Unit
-            <input
-              type="text"
-              value={fieldDef.unit}
-              disabled={disabled}
-              onChange={(e) => updateField(fieldDef.id, { unit: e.target.value })}
-              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-sm normal-case tracking-normal text-slate-900 disabled:bg-slate-50"
-            />
-          </label>
-        )}
-      </div>
-
       {fieldDef.type === 'expression' && (
-        <div className="pl-5">
-          <label className="text-[10px] uppercase tracking-wide text-slate-400">
-            Formula
-            <input
-              type="text"
-              value={fieldDef.expression ?? ''}
-              disabled={disabled}
-              placeholder="e.g. {fieldId} * 0.001"
-              onChange={(e) => updateField(fieldDef.id, { expression: e.target.value })}
-              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 font-mono text-xs normal-case tracking-normal text-slate-900 disabled:bg-slate-50"
-            />
-          </label>
-          <p className="mt-1 text-[10px] text-slate-400">
-            Reference other columns as {'{'}id{'}'}. Computed automatically; read-only in
-            the table.
-          </p>
-        </div>
+        <div className="mt-1.5 pl-5">{renderExpressionBuilder(fieldDef)}</div>
       )}
     </div>
   )

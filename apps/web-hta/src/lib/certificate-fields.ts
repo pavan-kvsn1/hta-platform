@@ -219,6 +219,58 @@ export function detectExpressionCycles(fields: FieldDefinition[]): string[][] {
   return cycles
 }
 
+export type ExpressionOperator = '+' | '-' | '*' | '/'
+
+/**
+ * An expression in the form the builder UI edits: one source column, one operator, and
+ * either a literal or a second column.
+ *
+ * Most derived columns on a certificate are this shape - "sensor mV × 0.001", "reading
+ * − offset". Asking an engineer to hand-write {fld-abc123} * 0.001 means knowing
+ * internal field ids, so the UI composes the formula instead and only falls back to raw
+ * text for anything more complex.
+ */
+export interface SimpleExpression {
+  sourceId: string
+  operator: ExpressionOperator
+  /** A literal number, or another field's id. */
+  operand: { kind: 'value'; value: string } | { kind: 'field'; fieldId: string }
+}
+
+export function buildSimpleExpression(expression: SimpleExpression): string {
+  const right =
+    expression.operand.kind === 'value'
+      ? expression.operand.value.trim()
+      : `{${expression.operand.fieldId}}`
+  if (!expression.sourceId || right === '') return ''
+  return `{${expression.sourceId}} ${expression.operator} ${right}`
+}
+
+const SIMPLE_FORM = /^\s*\{([^}]+)\}\s*([+\-*/])\s*(?:\{([^}]+)\}|(-?\d*\.?\d+))\s*$/
+
+/**
+ * Read an expression back into builder form, or null when it is more complex.
+ *
+ * Round-tripping matters because a formula saved before the builder existed, or typed
+ * into the raw fallback, still has to open in a sensible editor rather than being
+ * silently rewritten.
+ */
+export function parseSimpleExpression(
+  expression: string | undefined,
+): SimpleExpression | null {
+  if (!expression) return null
+  const match = SIMPLE_FORM.exec(expression)
+  if (!match) return null
+  const [, sourceId, operator, fieldOperand, literalOperand] = match
+  return {
+    sourceId,
+    operator: operator as ExpressionOperator,
+    operand: fieldOperand
+      ? { kind: 'field', fieldId: fieldOperand }
+      : { kind: 'value', value: literalOperand },
+  }
+}
+
 class ExpressionError extends Error {}
 
 /**

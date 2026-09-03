@@ -1,9 +1,10 @@
 'use client'
 
 import { useMemo, useState, useCallback } from 'react'
-import { CheckCircle, AlertTriangle, Info, Camera, ImageIcon, Plus } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
+import { CheckCircle, AlertTriangle, Info } from 'lucide-react'
+import { ColumnSetup } from '@/components/forms/ColumnSetup'
+import { DynamicResultsTable } from '@/components/forms/DynamicResultsTable'
+import type { ErrorConfig, FieldDefinition } from '@/lib/certificate-fields'
 import {
   Select,
   SelectContent,
@@ -15,18 +16,12 @@ import { FormSection } from './FormSection'
 import {
   useCertificateStore,
   Parameter,
-  CalibrationResult,
   ACCURACY_TYPE_CONFIG,
   AccuracyType as _AccuracyType,
 } from '@/lib/stores/certificate-store'
 import { cn } from '@/lib/utils'
 import { useCertificateImages } from '@/lib/hooks/useCertificateImages'
 import { ReadingImageModal, ReadingImage } from './ReadingImageModal'
-
-const FORMULA_OPTIONS = [
-  { value: 'A-B', label: 'A - B' },
-  { value: 'B-A', label: 'B - A' },
-]
 
 const POINT_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20]
 
@@ -63,10 +58,6 @@ function getStepFromPrecision(precision: number): string {
 }
 
 // Format a number with specified precision
-function formatWithPrecision(value: number | null, precision: number): string {
-  if (value === null) return '—'
-  return value.toFixed(precision)
-}
 
 // Get least count and precision for a reading (considering binning)
 function getLeastCountInfo(
@@ -142,69 +133,6 @@ function validatePrecision(value: string, requiredPrecision: number): boolean {
 }
 
 // Get precision violation info for a value
-function getPrecisionViolation(
-  value: string,
-  requiredPrecision: number
-): { isViolation: boolean; actualDecimals: number; message: string; type: 'too_few' | 'too_many' | 'none' } {
-  if (!value || value.trim() === '') {
-    return { isViolation: false, actualDecimals: 0, message: '', type: 'none' }
-  }
-
-  const numValue = parseFloat(value)
-  if (isNaN(numValue)) {
-    return { isViolation: false, actualDecimals: 0, message: '', type: 'none' }
-  }
-
-  const decimalIndex = value.indexOf('.')
-
-  // Case 1: No decimals required but value has decimals
-  if (requiredPrecision === 0) {
-    if (decimalIndex !== -1) {
-      const actualDecimals = value.substring(decimalIndex + 1).length
-      return {
-        isViolation: true,
-        actualDecimals,
-        message: `Value should be a whole number (no decimals), but has ${actualDecimals}`,
-        type: 'too_many'
-      }
-    }
-    return { isViolation: false, actualDecimals: 0, message: '', type: 'none' }
-  }
-
-  // Case 2: Decimals required but value has none
-  if (decimalIndex === -1) {
-    return {
-      isViolation: true,
-      actualDecimals: 0,
-      message: `Value needs ${requiredPrecision} decimal${requiredPrecision > 1 ? 's' : ''} (e.g., ${numValue.toFixed(requiredPrecision)})`,
-      type: 'too_few'
-    }
-  }
-
-  const actualDecimals = value.substring(decimalIndex + 1).length
-
-  // Case 3: Too few decimals
-  if (actualDecimals < requiredPrecision) {
-    return {
-      isViolation: true,
-      actualDecimals,
-      message: `Value has ${actualDecimals} decimal${actualDecimals !== 1 ? 's' : ''}, but needs ${requiredPrecision} (e.g., ${numValue.toFixed(requiredPrecision)})`,
-      type: 'too_few'
-    }
-  }
-
-  // Case 4: Too many decimals
-  if (actualDecimals > requiredPrecision) {
-    return {
-      isViolation: true,
-      actualDecimals,
-      message: `Value has ${actualDecimals} decimals, but least count allows only ${requiredPrecision}`,
-      type: 'too_many'
-    }
-  }
-
-  return { isViolation: false, actualDecimals, message: '', type: 'none' }
-}
 
 // Calculate error limit based on accuracy type (client-side helper for display)
 function calculateDisplayLimit(
@@ -291,9 +219,7 @@ function _formatLimit(limit: number | null, _unit: string): string {
 interface ResultsTableProps {
   parameter: Parameter
   parameterIndex: number
-  onResultChange: (resultIndex: number, result: CalibrationResult) => void
   onPointCountChange: (count: number) => void
-  onParameterUpdate: (parameter: Parameter) => void
   certificateId: string | null
   getReadingImages: (parameterIndex: number, pointNumber: number) => {
     uuc: ReadingImage | null
@@ -301,49 +227,40 @@ interface ResultsTableProps {
   }
   onOpenImageModal: (parameterIndex: number, pointNumber: number) => void
   disabled?: boolean
+
+  // Section 05 dynamic fields
+  onTableNameChange: (tableName: string) => void
+  onSchemaChange: (fields: FieldDefinition[], errorConfig: ErrorConfig) => void
+  onRowValueChange: (rowIndex: number, fieldId: string, value: string) => void
+  onAddRow: () => void
+  onRemoveRow: (rowIndex: number) => void
 }
 
 function ResultsTable({
   parameter,
   parameterIndex,
-  onResultChange,
   onPointCountChange,
-  onParameterUpdate,
   certificateId: _certificateId,
   getReadingImages,
   onOpenImageModal,
   disabled = false,
+  onTableNameChange,
+  onSchemaChange,
+  onRowValueChange,
+  onAddRow,
+  onRemoveRow,
 }: ResultsTableProps) {
   // Count out-of-limit points
-  const outOfLimitCount = parameter.results.filter((r) => r.isOutOfLimit).length
-  const allWithinLimits = outOfLimitCount === 0 && parameter.results.some(r => r.errorObserved !== null)
+  // Counts come from resultRows, which is the source of truth once a parameter has a
+  // field schema. `results` is a projection kept in step for the PDF and API paths.
+  const outOfLimitCount = parameter.resultRows.filter((r) => r.isOutOfLimit).length
+  const allWithinLimits =
+    outOfLimitCount === 0 && parameter.resultRows.some((r) => r.errorObserved !== null)
 
   // Get accuracy type config
   const accuracyTypeConfig = ACCURACY_TYPE_CONFIG[parameter.accuracyType]
 
   // Validate if standard reading is within operating range
-  const validateOperatingRange = (value: string): { isValid: boolean; message: string | null } => {
-    if (!value || value.trim() === '') return { isValid: true, message: null }
-
-    const numValue = parseFloat(value)
-    if (isNaN(numValue)) return { isValid: true, message: null }
-
-    const opMin = parseFloat(parameter.operatingMin)
-    const opMax = parseFloat(parameter.operatingMax)
-
-    // If operating range is not defined, skip validation
-    if (isNaN(opMin) && isNaN(opMax)) return { isValid: true, message: null }
-
-    if (!isNaN(opMin) && numValue < opMin) {
-      return { isValid: false, message: `Below operating min (${parameter.operatingMin} ${parameter.parameterUnit})` }
-    }
-
-    if (!isNaN(opMax) && numValue > opMax) {
-      return { isValid: false, message: `Exceeds operating max (${parameter.operatingMax} ${parameter.parameterUnit})` }
-    }
-
-    return { isValid: true, message: null }
-  }
 
   // Count operating range violations
   const operatingRangeViolations = useMemo(() => {
@@ -370,19 +287,20 @@ function ResultsTable({
 
   // Count precision violations
   const precisionViolations = useMemo(() => {
+    // Covers every numeric column, not just the two the legacy shape had, so an extra
+    // Master or UUC field the engineer adds is checked too.
+    const numericFields = parameter.fieldDefinitions.filter((f) => f.type === 'numeric')
     let count = 0
-    parameter.results.forEach(result => {
-      const standardReading = parseFloat(result.standardReading)
-      const { precision } = !isNaN(standardReading)
-        ? getLeastCountInfo(parameter, standardReading)
+    parameter.resultRows.forEach((row) => {
+      const masterRaw = row.values[parameter.errorConfig.masterFieldId] ?? ''
+      const masterReading = parseFloat(masterRaw)
+      const { precision } = !isNaN(masterReading)
+        ? getLeastCountInfo(parameter, masterReading)
         : { precision: getDefaultPrecision(parameter) }
 
-      // Check standard reading
-      if (!validatePrecision(result.standardReading, precision)) count++
-      // Check UUC reading
-      if (!validatePrecision(result.beforeAdjustment, precision)) count++
-      // Check after adjustment if shown
-      if (parameter.showAfterAdjustment && !validatePrecision(result.afterAdjustment, precision)) count++
+      numericFields.forEach((field) => {
+        if (!validatePrecision(row.values[field.id] ?? '', precision)) count++
+      })
     })
     return count
   }, [parameter])
@@ -410,14 +328,6 @@ function ResultsTable({
   const defaultPrecision = useMemo(() => getDefaultPrecision(parameter), [parameter])
   const _defaultStep = getStepFromPrecision(defaultPrecision)
 
-  const handleInputChange = (
-    resultIndex: number,
-    field: keyof CalibrationResult,
-    value: string
-  ) => {
-    const result = parameter.results[resultIndex]
-    onResultChange(resultIndex, { ...result, [field]: value })
-  }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-300 overflow-hidden">
@@ -472,28 +382,6 @@ function ResultsTable({
           </div>
 
           <div className="flex items-center gap-6 text-xs">
-            {/* Formula Select */}
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-500 uppercase text-[10px]">Formula:</span>
-              <Select
-                value={parameter.errorFormula}
-                onValueChange={(value) =>
-                  onParameterUpdate({ ...parameter, errorFormula: value })
-                }
-              >
-                <SelectTrigger className="text-[10px] rounded-lg border-slate-300 py-1 font-bold w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FORMULA_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Points Select */}
             <div className="flex items-center gap-2">
               <span className="font-bold text-slate-500 uppercase text-[10px]">Points:</span>
@@ -514,19 +402,6 @@ function ResultsTable({
               </Select>
             </div>
 
-            {/* Show After Adjustment Toggle */}
-            <label className="flex items-center gap-2 cursor-pointer">
-              <Checkbox
-                checked={parameter.showAfterAdjustment}
-                onCheckedChange={(checked) =>
-                  onParameterUpdate({ ...parameter, showAfterAdjustment: !!checked })
-                }
-                className="size-4"
-              />
-              <span className="font-bold text-slate-500 uppercase text-[10px]">
-                Show After Adjustment
-              </span>
-            </label>
           </div>
         </div>
 
@@ -574,237 +449,49 @@ function ResultsTable({
       </div>
 
       {/* Results Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50/50 border-b border-slate-300 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            <tr>
-              <th className="px-6 py-3 text-left w-16">Sl.</th>
-              <th className="px-6 py-3 text-left">Std. Reading (A)</th>
-              <th className="px-6 py-3 text-left">UUC Reading (B)</th>
-              {parameter.showAfterAdjustment && (
-                <th className="px-6 py-3 text-left">After Adj. (C)</th>
-              )}
-              <th className="px-6 py-3 text-left">Error Observed</th>
-              <th className="px-6 py-3 text-left">Limit</th>
-              <th className="px-6 py-3 text-center w-20">Status</th>
-              <th className="px-3 py-3 text-center w-12">Photo</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {parameter.results.map((result, resultIndex) => {
-              const standardReading = parseFloat(result.standardReading)
-              const hasStandardReading = !isNaN(standardReading)
+      {/* Table name + column schema (Section 05 dynamic fields) */}
+      <div className="space-y-2 border-b border-slate-200 px-5 py-3">
+        {/* Table name sits inline; it is one short field and does not warrant a block. */}
+        <label className="flex items-center gap-3">
+          <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            Table Name
+          </span>
+          <input
+            type="text"
+            value={parameter.tableName}
+            disabled={disabled}
+            placeholder={`Calibration of ${parameter.parameterName || 'Parameter'}`}
+            title="Heading for this table on the certificate PDF"
+            onChange={(e) => onTableNameChange(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-50"
+          />
+        </label>
 
-              // Get limit info
-              const { limit, binIndex } = hasStandardReading
-                ? calculateDisplayLimit(parameter, standardReading)
-                : { limit: null, binIndex: null }
-
-              // Get precision info based on standard reading (for binned) or default
-              const { precision, binIndex: precisionBinIndex } = hasStandardReading
-                ? getLeastCountInfo(parameter, standardReading)
-                : { precision: defaultPrecision, binIndex: null }
-
-              const step = getStepFromPrecision(precision)
-
-              // Determine which bin index to show (use limit's bin if available, otherwise precision's)
-              const displayBinIndex = binIndex !== null ? binIndex : precisionBinIndex
-
-              // Check precision violations for each field
-              const stdViolation = getPrecisionViolation(result.standardReading, precision)
-              const uucViolation = getPrecisionViolation(result.beforeAdjustment, precision)
-              const afterViolation = getPrecisionViolation(result.afterAdjustment, precision)
-
-              // Check operating range violation for standard reading
-              const operatingRangeViolation = validateOperatingRange(result.standardReading)
-
-              return (
-                <tr
-                  key={result.id}
-                  className={cn(result.isOutOfLimit && 'bg-red-50 text-red-700 font-bold')}
-                >
-                  <td className={cn('px-6 py-4 font-bold', result.isOutOfLimit ? 'text-red-700' : 'text-slate-400')}>
-                    {String(result.pointNumber).padStart(2, '0')}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        step={step}
-                        value={result.standardReading}
-                        onChange={(e) =>
-                          handleInputChange(resultIndex, 'standardReading', e.target.value)
-                        }
-                        placeholder={`0.${'0'.repeat(precision)}`}
-                        className={cn(
-                          "w-full max-w-[140px] rounded-lg",
-                          result.isOutOfLimit ? "text-red-700 font-bold" : "font-semibold",
-                          !operatingRangeViolation.isValid
-                            ? "border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200"
-                            : stdViolation.isViolation
-                            ? "border-amber-400 bg-amber-50 focus:border-amber-500 focus:ring-amber-200"
-                            : "border-slate-300"
-                        )}
-                        title={!operatingRangeViolation.isValid ? operatingRangeViolation.message ?? undefined : stdViolation.isViolation ? stdViolation.message : undefined}
-                      />
-                      {!operatingRangeViolation.isValid ? (
-                        <div className="absolute -top-1 -right-1">
-                          <span className="flex size-4 items-center justify-center rounded-full bg-red-500 text-white text-[8px] font-bold">
-                            !
-                          </span>
-                        </div>
-                      ) : stdViolation.isViolation && (
-                        <div className="absolute -top-1 -right-1">
-                          <span className="flex size-4 items-center justify-center rounded-full bg-amber-400 text-white text-[8px] font-bold">
-                            !
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        step={step}
-                        value={result.beforeAdjustment}
-                        onChange={(e) =>
-                          handleInputChange(resultIndex, 'beforeAdjustment', e.target.value)
-                        }
-                        placeholder={`0.${'0'.repeat(precision)}`}
-                        className={cn(
-                          "w-full max-w-[140px] rounded-lg",
-                          result.isOutOfLimit ? "text-red-700 font-bold" : "font-semibold",
-                          uucViolation.isViolation
-                            ? "border-amber-400 bg-amber-50 focus:border-amber-500 focus:ring-amber-200"
-                            : "border-slate-300"
-                        )}
-                        title={uucViolation.isViolation ? uucViolation.message : undefined}
-                      />
-                      {uucViolation.isViolation && (
-                        <div className="absolute -top-1 -right-1">
-                          <span className="flex size-4 items-center justify-center rounded-full bg-amber-400 text-white text-[8px] font-bold">
-                            !
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  {parameter.showAfterAdjustment && (
-                    <td className="px-6 py-4">
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          step={step}
-                          value={result.afterAdjustment}
-                          onChange={(e) =>
-                            handleInputChange(resultIndex, 'afterAdjustment', e.target.value)
-                          }
-                          placeholder={`0.${'0'.repeat(precision)}`}
-                          className={cn(
-                            "w-full max-w-[140px] rounded-lg",
-                            result.isOutOfLimit ? "text-red-700 font-bold" : "font-semibold",
-                            afterViolation.isViolation
-                              ? "border-amber-400 bg-amber-50 focus:border-amber-500 focus:ring-amber-200"
-                              : "border-slate-300"
-                          )}
-                          title={afterViolation.isViolation ? afterViolation.message : undefined}
-                        />
-                        {afterViolation.isViolation && (
-                          <div className="absolute -top-1 -right-1">
-                            <span className="flex size-4 items-center justify-center rounded-full bg-amber-400 text-white text-[8px] font-bold">
-                              !
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                  <td className="px-6 py-4">
-                    <span
-                      className={cn(
-                        'font-black',
-                        result.isOutOfLimit ? 'text-red-600' : 'text-slate-700'
-                      )}
-                    >
-                      {result.errorObserved !== null
-                        ? formatWithPrecision(result.errorObserved, precision)
-                        : '—'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={cn('text-xs', result.isOutOfLimit ? 'text-red-700 font-bold' : 'text-slate-500 font-medium')}>
-                      {limit !== null ? `±${formatWithPrecision(limit, precision).replace('-', '')}` : '—'}
-                      {displayBinIndex !== null && (
-                        <span className="text-[9px] text-slate-400 ml-1">(Bin {displayBinIndex + 1})</span>
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    {result.isOutOfLimit ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-bold uppercase">
-                        <AlertTriangle className="size-3" />
-                        Fail*
-                      </span>
-                    ) : result.errorObserved !== null ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-bold uppercase">
-                          <CheckCircle className="size-3" />
-                          Pass
-                        </span>
-                    ) : (
-                      <span className="text-slate-300 text-[10px]">—</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-4 text-center">
-                    {(() => {
-                      const readingImages = getReadingImages(parameterIndex, result.pointNumber)
-                      const hasUuc = readingImages.uuc !== null
-                      const hasMaster = readingImages.master !== null
-                      const hasBoth = hasUuc && hasMaster
-                      const hasOne = (hasUuc || hasMaster) && !hasBoth
-                      const hasNone = !hasUuc && !hasMaster
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => onOpenImageModal(parameterIndex, result.pointNumber)}
-                          disabled={disabled}
-                          className={cn(
-                            "p-1.5 rounded-lg transition-colors",
-                            hasBoth
-                              ? "bg-green-100 text-green-600 hover:bg-green-200"
-                              : hasOne
-                              ? "bg-red-100 text-red-500 hover:bg-red-200"
-                              : "bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600",
-                            disabled && "opacity-50 cursor-not-allowed"
-                          )}
-                          title={hasBoth ? "View/edit photos" : hasOne ? "Missing one photo" : "Add photos"}
-                        >
-                          {hasNone ? (
-                            <Camera className="size-4" />
-                          ) : (
-                            <ImageIcon className="size-4" />
-                          )}
-                        </button>
-                      )
-                    })()}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <ColumnSetup
+          fields={parameter.fieldDefinitions}
+          errorConfig={parameter.errorConfig}
+          parameterUnit={parameter.parameterUnit}
+          disabled={disabled}
+          onChange={onSchemaChange}
+        />
       </div>
 
-      <div className="border-t border-slate-200 bg-slate-50/60 p-3">
-        <button
-          type="button"
-          onClick={() => onPointCountChange(parameter.results.length + 1)}
+      <div className="p-3">
+        <DynamicResultsTable
+          fields={parameter.fieldDefinitions}
+          rows={parameter.resultRows}
+          precision={defaultPrecision}
           disabled={disabled}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Plus className="size-4" />
-          Add measurement row
-        </button>
+          onValueChange={onRowValueChange}
+          onAddRow={onAddRow}
+          onRemoveRow={onRemoveRow}
+          getLimit={(row) => {
+            const master = Number(row.values[parameter.errorConfig.masterFieldId])
+            return calculateDisplayLimit(parameter, master)
+          }}
+          getReadingImages={(pointNumber) => getReadingImages(parameterIndex, pointNumber)}
+          onOpenImages={(pointNumber) => onOpenImageModal(parameterIndex, pointNumber)}
+        />
       </div>
 
       {/* Status Footer */}
@@ -851,7 +538,17 @@ interface ImageModalState {
 }
 
 export function ResultsSection({ feedbackSlot, disabled, accordionStatus, hasFeedback }: ResultsSectionProps = {}) {
-  const { formData, certificateId, setResult, setPointCount, setParameter, saveDraft } = useCertificateStore()
+  const {
+    formData,
+    certificateId,
+    saveDraft,
+    setTableName,
+    setParameterSchema,
+    setResultRowValue,
+    addResultRow,
+    removeResultRow,
+    setResultRowCount,
+  } = useCertificateStore()
 
   // Image modal state
   const [imageModal, setImageModal] = useState<ImageModalState>({
@@ -994,11 +691,16 @@ export function ResultsSection({ feedbackSlot, disabled, accordionStatus, hasFee
             key={parameter.id}
             parameter={parameter}
             parameterIndex={parameterIndex}
-            onResultChange={(resultIndex, result) =>
-              setResult(parameterIndex, resultIndex, result)
+            onPointCountChange={(count) => setResultRowCount(parameterIndex, count)}
+            onTableNameChange={(name) => setTableName(parameterIndex, name)}
+            onSchemaChange={(fields, errorConfig) =>
+              setParameterSchema(parameterIndex, fields, errorConfig)
             }
-            onPointCountChange={(count) => setPointCount(parameterIndex, count)}
-            onParameterUpdate={(param) => setParameter(parameterIndex, param)}
+            onRowValueChange={(rowIndex, fieldId, value) =>
+              setResultRowValue(parameterIndex, rowIndex, fieldId, value)
+            }
+            onAddRow={() => addResultRow(parameterIndex)}
+            onRemoveRow={(rowIndex) => removeResultRow(parameterIndex, rowIndex)}
             certificateId={certificateId}
             getReadingImages={getReadingImagesForModal}
             onOpenImageModal={handleOpenImageModal}

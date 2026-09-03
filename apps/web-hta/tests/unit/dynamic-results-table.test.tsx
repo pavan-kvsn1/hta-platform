@@ -45,7 +45,6 @@ const rows: CalibrationResultRow[] = [
 function renderTable(overrides: Partial<Parameters<typeof DynamicResultsTable>[0]> = {}) {
   const props = {
     fields,
-    errorConfig,
     rows,
     precision: 2,
     onValueChange: vi.fn(),
@@ -106,14 +105,19 @@ describe('DynamicResultsTable', () => {
     expect(props.onValueChange).toHaveBeenCalledWith(0, 'm1', '6.05')
   })
 
-  it('marks out-of-limit rows and summarises them', () => {
+  it('marks a failed point red and bold, on the row and its inputs', () => {
     renderTable()
-    expect(screen.getByText(/1 of 2 point is outside the accuracy limit/i)).toBeInTheDocument()
+    const fail = screen.getAllByText('Fail*')[0]
+    const failedRow = fail.closest('tr')
+    expect(failedRow).toHaveClass('text-red-700', 'font-bold')
+    for (const input of within(failedRow!).getAllByRole('spinbutton')) {
+      expect(input).toHaveClass('text-red-700', 'font-bold')
+    }
   })
 
-  it('confirms all points pass when none are out of limit', () => {
+  it('shows Pass for a point inside the limit', () => {
     renderTable({ rows: [rows[0]] })
-    expect(screen.getByText(/All 1 point within accuracy limits/i)).toBeInTheDocument()
+    expect(screen.getByText('Pass')).toBeInTheDocument()
   })
 
   it('shows a dash rather than a number when the error cannot be computed', () => {
@@ -122,13 +126,6 @@ describe('DynamicResultsTable', () => {
     })
     const table = screen.getByRole('table')
     expect(within(table).getAllByText('—').length).toBeGreaterThan(0)
-  })
-
-  it('warns instead of silently blanking when error fields are unset', () => {
-    renderTable({ errorConfig: { ...errorConfig, uucFieldId: '' } })
-    expect(
-      screen.getByText(/Error column is blank until both error fields are selected/i),
-    ).toBeInTheDocument()
   })
 
   it('will not remove the last remaining row', () => {
@@ -237,5 +234,83 @@ describe('ColumnSetup', () => {
     })
     fireEvent.click(screen.getByRole('button', { expanded: false }))
     expect(screen.getByText(/refers back to itself/i)).toBeInTheDocument()
+  })
+})
+
+describe('ColumnSetup expression builder', () => {
+  const withExpression: FieldDefinition[] = [
+    { id: 'm1', name: 'Actual Temp', group: 'master', type: 'numeric', unit: '°C', order: 0 },
+    { id: 'u1', name: 'Sensor mV', group: 'uuc', type: 'numeric', unit: 'mV', order: 0 },
+    { id: 'u2', name: 'Derived', group: 'uuc', type: 'expression', unit: '°C', order: 1 },
+  ]
+
+  function renderSetup(fieldList = withExpression) {
+    const onChange = vi.fn()
+    render(
+      <ColumnSetup
+        fields={fieldList}
+        errorConfig={{ masterFieldId: 'm1', uucFieldId: 'u1', formula: 'A-B', unit: '°C' }}
+        parameterUnit="°C"
+        onChange={onChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+    return onChange
+  }
+
+  it('offers a source column and operator instead of asking for a raw formula', () => {
+    renderSetup()
+    expect(screen.getByLabelText('Source column for Derived')).toBeInTheDocument()
+    expect(screen.getByLabelText('Operator for Derived')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Formula for Derived')).not.toBeInTheDocument()
+  })
+
+  it('does not offer the field itself as its own source', () => {
+    renderSetup()
+    const source = screen.getByLabelText('Source column for Derived')
+    expect(within(source).queryByText('Derived')).not.toBeInTheDocument()
+    expect(within(source).getByText('Sensor mV')).toBeInTheDocument()
+  })
+
+  it('recomposes the formula when the operator changes', () => {
+    const onChange = renderSetup([
+      ...withExpression.slice(0, 2),
+      { ...withExpression[2], expression: '{u1} * 0.001' },
+    ])
+    fireEvent.change(screen.getByLabelText('Operator for Derived'), {
+      target: { value: '+' },
+    })
+    const [nextFields] = onChange.mock.calls.at(-1)!
+    expect((nextFields as FieldDefinition[]).find((f) => f.id === 'u2')?.expression).toBe(
+      '{u1} + 0.001',
+    )
+  })
+
+  it('emits nothing usable until both sides are chosen', () => {
+    // Picking a source with no operand yet must not produce a half-written formula
+    // that the evaluator would reject on every keystroke.
+    const onChange = renderSetup()
+    fireEvent.change(screen.getByLabelText('Source column for Derived'), {
+      target: { value: 'u1' },
+    })
+    const [nextFields] = onChange.mock.calls.at(-1)!
+    expect((nextFields as FieldDefinition[]).find((f) => f.id === 'u2')?.expression).toBe('')
+  })
+
+  it('switches the operand between a value and another column', () => {
+    const onChange = renderSetup()
+    fireEvent.change(screen.getByLabelText('Operand type for Derived'), {
+      target: { value: 'field' },
+    })
+    expect(onChange).toHaveBeenCalled()
+  })
+
+  it('falls back to a raw input for a formula the builder cannot represent', () => {
+    renderSetup([
+      ...withExpression.slice(0, 2),
+      { ...withExpression[2], expression: '({u1} + {m1}) * 2' },
+    ])
+    expect(screen.getByLabelText('Formula for Derived')).toHaveValue('({u1} + {m1}) * 2')
+    expect(screen.getByRole('button', { name: /Clear and use the builder/i })).toBeInTheDocument()
   })
 })
