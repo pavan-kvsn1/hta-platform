@@ -27,6 +27,8 @@ import {
   parseSimpleExpression,
   removeField,
   type ErrorConfig,
+  isExpressionFunction,
+  type ExpressionFunction,
   type ExpressionOperator,
   type SimpleExpression,
   type FieldDefinition,
@@ -41,11 +43,16 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'text', label: 'Text' },
 ]
 
-const OPERATORS: { value: ExpressionOperator; label: string }[] = [
+const OPERATORS: { value: ExpressionOperator | ExpressionFunction; label: string }[] = [
   { value: '+', label: '+' },
   { value: '-', label: '−' },
   { value: '*', label: '×' },
   { value: '/', label: '÷' },
+  { value: '^', label: '^' },
+  // Unary: these take the source column alone, so the operand controls go away.
+  { value: 'log', label: 'log₁₀' },
+  { value: 'ln', label: 'ln' },
+  { value: 'exp', label: 'e^' },
 ]
 
 const CONTROL =
@@ -173,89 +180,113 @@ export function ColumnSetup({
       )
     }
 
+    const unary = isExpressionFunction(current.operator)
+
+    const sourceSelect = (
+      <select
+        value={current.sourceId}
+        disabled={disabled}
+        aria-label={`Source column for ${fieldDef.name || 'field'}`}
+        onChange={(e) => emit({ ...current, sourceId: e.target.value })}
+        className={CONTROL}
+      >
+        <option value="">Source column…</option>
+        {others.map((f) => (
+          <option key={f.id} value={f.id}>
+            {f.name || 'Untitled'}
+          </option>
+        ))}
+      </select>
+    )
+
+    const operationSelect = (
+      <select
+        value={current.operator}
+        disabled={disabled}
+        aria-label={`Operator for ${fieldDef.name || 'field'}`}
+        onChange={(e) =>
+          emit({
+            ...current,
+            operator: e.target.value as ExpressionOperator | ExpressionFunction,
+          })
+        }
+        className={cn(CONTROL, 'text-center', unary ? 'w-20' : 'w-14')}
+      >
+        {OPERATORS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    )
+
+    // A unary operation reads as log( Reading ) and takes no second operand, so those
+    // controls go rather than sit there inert.
     return (
       <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
         <span>=</span>
-        <select
-          value={current.sourceId}
-          disabled={disabled}
-          aria-label={`Source column for ${fieldDef.name || 'field'}`}
-          onChange={(e) => emit({ ...current, sourceId: e.target.value })}
-          className={CONTROL}
-        >
-          <option value="">Source column…</option>
-          {others.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name || 'Untitled'}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={current.operator}
-          disabled={disabled}
-          aria-label={`Operator for ${fieldDef.name || 'field'}`}
-          onChange={(e) =>
-            emit({ ...current, operator: e.target.value as ExpressionOperator })
-          }
-          className={cn(CONTROL, 'w-14 text-center')}
-        >
-          {OPERATORS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={current.operand.kind}
-          disabled={disabled}
-          aria-label={`Operand type for ${fieldDef.name || 'field'}`}
-          onChange={(e) =>
-            emit({
-              ...current,
-              operand:
-                e.target.value === 'value'
-                  ? { kind: 'value', value: '' }
-                  : { kind: 'field', fieldId: '' },
-            })
-          }
-          className={CONTROL}
-        >
-          <option value="value">a value</option>
-          <option value="field">another column</option>
-        </select>
-
-        {current.operand.kind === 'value' ? (
-          <input
-            type="number"
-            step="any"
-            value={current.operand.value}
-            disabled={disabled}
-            placeholder="0.001"
-            aria-label={`Value for ${fieldDef.name || 'field'}`}
-            onChange={(e) =>
-              emit({ ...current, operand: { kind: 'value', value: e.target.value } })
-            }
-            className={cn(CONTROL, 'w-24')}
-          />
+        {unary ? (
+          <>
+            {operationSelect}
+            <span>(</span>
+            {sourceSelect}
+            <span>)</span>
+          </>
         ) : (
-          <select
-            value={current.operand.fieldId}
-            disabled={disabled}
-            aria-label={`Second column for ${fieldDef.name || 'field'}`}
-            onChange={(e) =>
-              emit({ ...current, operand: { kind: 'field', fieldId: e.target.value } })
-            }
-            className={CONTROL}
-          >
-            <option value="">Column…</option>
-            {others.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name || 'Untitled'}
-              </option>
-            ))}
-          </select>
+          <>
+            {sourceSelect}
+            {operationSelect}
+            <select
+              value={current.operand.kind}
+              disabled={disabled}
+              aria-label={`Operand type for ${fieldDef.name || 'field'}`}
+              onChange={(e) =>
+                emit({
+                  ...current,
+                  operand:
+                    e.target.value === 'value'
+                      ? { kind: 'value', value: '' }
+                      : { kind: 'field', fieldId: '' },
+                })
+              }
+              className={CONTROL}
+            >
+              <option value="value">a value</option>
+              <option value="field">another column</option>
+            </select>
+
+            {current.operand.kind === 'value' ? (
+              <input
+                type="text"
+                inputMode="decimal"
+                value={current.operand.value}
+                disabled={disabled}
+                placeholder="0.001"
+                aria-label={`Value for ${fieldDef.name || 'field'}`}
+                onChange={(e) =>
+                  emit({ ...current, operand: { kind: 'value', value: e.target.value } })
+                }
+                className={cn(CONTROL, 'w-24')}
+              />
+            ) : (
+              <select
+                value={current.operand.fieldId}
+                disabled={disabled}
+                aria-label={`Second column for ${fieldDef.name || 'field'}`}
+                onChange={(e) =>
+                  emit({ ...current, operand: { kind: 'field', fieldId: e.target.value } })
+                }
+                className={CONTROL}
+              >
+                <option value="">Column…</option>
+                {others.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name || 'Untitled'}
+                  </option>
+                ))}
+              </select>
+            )}
+          </>
         )}
       </div>
     )

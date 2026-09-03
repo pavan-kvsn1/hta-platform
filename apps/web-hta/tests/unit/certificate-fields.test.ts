@@ -19,6 +19,8 @@ import {
   createRow,
   migrateLegacyResults,
   toLegacyResults,
+  buildSimpleExpression,
+  parseSimpleExpression,
   type FieldDefinition,
   type CalibrationResultRow,
 } from '@/lib/certificate-fields'
@@ -429,5 +431,104 @@ describe('simple expression builder', () => {
       operand: { kind: 'value', value: '0.001' },
     })
     expect(evaluateExpression(formula, { u1: '2000' })).toBeCloseTo(2)
+  })
+})
+
+describe('evaluateExpression - power, log and exp', () => {
+  const v = { a: '2', b: '3', c: '100', neg: '-8', zero: '0' }
+
+  it('raises to a power', () => {
+    expect(evaluateExpression('{a} ^ {b}', v)).toBe(8)
+  })
+
+  it('treats ^ as right-associative', () => {
+    // 2^(3^2) = 512, not (2^3)^2 = 64.
+    expect(evaluateExpression('2 ^ 3 ^ 2', v)).toBe(512)
+  })
+
+  it('binds ^ tighter than unary minus, as written arithmetic does', () => {
+    expect(evaluateExpression('-2 ^ 2', v)).toBe(-4)
+  })
+
+  it('binds ^ tighter than multiplication', () => {
+    expect(evaluateExpression('3 * 2 ^ 2', v)).toBe(12)
+  })
+
+  it('allows a negative exponent', () => {
+    expect(evaluateExpression('2 ^ -1', v)).toBe(0.5)
+  })
+
+  it('takes log base 10 and ln separately', () => {
+    expect(evaluateExpression('log({c})', v)).toBe(2)
+    expect(evaluateExpression('ln(1)', v)).toBe(0)
+  })
+
+  it('computes e to the power x', () => {
+    expect(evaluateExpression('exp(0)', v)).toBe(1)
+    expect(evaluateExpression('exp(1)', v)).toBeCloseTo(Math.E, 10)
+  })
+
+  it('nests functions and arithmetic', () => {
+    expect(evaluateExpression('log({c}) * {b} + 1', v)).toBe(7)
+    expect(evaluateExpression('ln(exp({b}))', v)).toBeCloseTo(3, 10)
+  })
+
+  it('returns null outside a function domain rather than NaN', () => {
+    expect(evaluateExpression('log({zero})', v)).toBeNull()
+    expect(evaluateExpression('log(-1)', v)).toBeNull()
+    expect(evaluateExpression('ln({zero})', v)).toBeNull()
+    expect(evaluateExpression('ln({neg})', v)).toBeNull()
+  })
+
+  it('returns null for a complex-valued power', () => {
+    expect(evaluateExpression('{neg} ^ 0.5', v)).toBeNull()
+  })
+
+  it('returns null when a function is missing its parentheses', () => {
+    expect(evaluateExpression('log {c}', v)).toBeNull()
+  })
+
+  it('does not treat a field whose id starts with a function name as a function', () => {
+    expect(evaluateExpression('{logger} + 1', { logger: '4' })).toBe(5)
+  })
+})
+
+describe('simple expression round-trip with functions', () => {
+  it('builds a unary operation, ignoring the unused operand', () => {
+    expect(
+      buildSimpleExpression({
+        sourceId: 'a',
+        operator: 'log',
+        operand: { kind: 'value', value: '' },
+      }),
+    ).toBe('log({a})')
+  })
+
+  it('builds a power', () => {
+    expect(
+      buildSimpleExpression({
+        sourceId: 'a',
+        operator: '^',
+        operand: { kind: 'value', value: '2' },
+      }),
+    ).toBe('{a} ^ 2')
+  })
+
+  it('reads both back into builder form', () => {
+    expect(parseSimpleExpression('log({a})')).toEqual({
+      sourceId: 'a',
+      operator: 'log',
+      operand: { kind: 'value', value: '' },
+    })
+    expect(parseSimpleExpression('{a} ^ {b}')).toEqual({
+      sourceId: 'a',
+      operator: '^',
+      operand: { kind: 'field', fieldId: 'b' },
+    })
+  })
+
+  it('leaves a formula the builder cannot express as raw', () => {
+    expect(parseSimpleExpression('log({a} + {b})')).toBeNull()
+    expect(parseSimpleExpression('log({a}) * 2')).toBeNull()
   })
 })

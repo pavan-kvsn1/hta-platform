@@ -219,7 +219,7 @@ export function detectExpressionCycles(fields: FieldDefinition[]): string[][] {
   return cycles
 }
 
-export type ExpressionOperator = '+' | '-' | '*' | '/'
+export type ExpressionOperator = '+' | '-' | '*' | '/' | '^'
 
 /**
  * An expression in the form the builder UI edits: one source column, one operator, and
@@ -230,27 +230,45 @@ export type ExpressionOperator = '+' | '-' | '*' | '/'
  * internal field ids, so the UI composes the formula instead and only falls back to raw
  * text for anything more complex.
  */
+/** Unary operations. They take the source column and nothing else. */
+export type ExpressionFunction = 'log' | 'ln' | 'exp'
+
+export function isExpressionFunction(
+  operator: string,
+): operator is ExpressionFunction {
+  return operator === 'log' || operator === 'ln' || operator === 'exp'
+}
+
 export interface SimpleExpression {
   sourceId: string
-  operator: ExpressionOperator
+  /** Binary (+ - * / ^) or unary (log ln exp); the operand is unused for unary. */
+  operator: ExpressionOperator | ExpressionFunction
   /** A literal number, or another field's id. */
   operand: { kind: 'value'; value: string } | { kind: 'field'; fieldId: string }
 }
 
 export function buildSimpleExpression(expression: SimpleExpression): string {
+  // An incomplete expression is stored as empty rather than as a broken formula, so
+  // the cell renders blank. The builder keeps the half-finished state itself.
+  if (!expression.sourceId) return ''
+
+  if (isExpressionFunction(expression.operator)) {
+    return `${expression.operator}({${expression.sourceId}})`
+  }
+
   const right =
     expression.operand.kind === 'value'
       ? expression.operand.value.trim()
       : expression.operand.fieldId
         ? `{${expression.operand.fieldId}}`
         : ''
-  // An incomplete expression is stored as empty rather than as a broken formula, so
-  // the cell renders blank. The builder keeps the half-finished state itself.
-  if (!expression.sourceId || right === '') return ''
+  if (right === '') return ''
   return `{${expression.sourceId}} ${expression.operator} ${right}`
 }
 
-const SIMPLE_FORM = /^\s*\{([^}]+)\}\s*([+\-*/])\s*(?:\{([^}]+)\}|(-?\d*\.?\d+))\s*$/
+const SIMPLE_FORM =
+  /^\s*\{([^}]+)\}\s*([+\-*/^])\s*(?:\{([^}]+)\}|(-?\d*\.?\d+))\s*$/
+const SIMPLE_UNARY_FORM = /^\s*(log|ln|exp)\s*\(\s*\{([^}]+)\}\s*\)\s*$/
 
 /**
  * Read an expression back into builder form, or null when it is more complex.
@@ -263,6 +281,18 @@ export function parseSimpleExpression(
   expression: string | undefined,
 ): SimpleExpression | null {
   if (!expression) return null
+
+  const unary = SIMPLE_UNARY_FORM.exec(expression)
+  if (unary) {
+    const [, operator, sourceId] = unary
+    return {
+      sourceId,
+      operator: operator as ExpressionFunction,
+      // Carried so switching back to a binary operator has somewhere to start.
+      operand: { kind: 'value', value: '' },
+    }
+  }
+
   const match = SIMPLE_FORM.exec(expression)
   if (!match) return null
   const [, sourceId, operator, fieldOperand, literalOperand] = match
@@ -278,15 +308,41 @@ export function parseSimpleExpression(
 class ExpressionError extends Error {}
 
 /**
+ * log is base 10, which is what a calibration certificate means by "log" - decibels,
+ * pH and sensor characterisations are all decadic. ln is spelled out separately so
+ * neither has to be guessed at.
+ */
+const FUNCTIONS: Record<string, (x: number) => number> = {
+  log: (x) => {
+    if (x <= 0) throw new ExpressionError('log of a non-positive number')
+    return Math.log10(x)
+  },
+  ln: (x) => {
+    if (x <= 0) throw new ExpressionError('ln of a non-positive number')
+    return Math.log(x)
+  },
+  /** e to the power x. */
+  exp: (x) => Math.exp(x),
+}
+
+/** Function names, longest first, so a prefix never shadows a longer name. */
+const FUNCTION_NAMES = Object.keys(FUNCTIONS).sort((a, b) => b.length - a.length)
+
+/**
  * Evaluate an arithmetic expression over the row's values.
  *
- * Supports + - * / parentheses, unary minus, decimal literals and {fieldId}
- * references. Deliberately a small recursive-descent parser rather than eval() or
- * `new Function()`: expressions are authored in the UI and stored on the certificate,
- * so they are untrusted input that must never reach a JavaScript interpreter.
+ * Supports + - * / ^ parentheses, unary minus, decimal literals, {fieldId} references
+ * and the functions log (base 10), ln and exp (e to the power x). Deliberately a small
+ * recursive-descent parser rather than eval() or `new Function()`: expressions are
+ * authored in the UI and stored on the certificate, so they are untrusted input that
+ * must never reach a JavaScript interpreter.
+ *
+ * ^ is right-associative and binds tighter than unary minus, so -2^2 is -4 and
+ * 2^3^2 is 512 - the conventions from written arithmetic rather than from JS.
  *
  * Returns null when the expression is malformed, references a missing or non-numeric
- * field, or divides by zero - the cell renders blank rather than NaN.
+ * field, divides by zero, or leaves a function's domain (log or ln of a non-positive
+ * number) - the cell renders blank rather than NaN.
  */
 export function evaluateExpression(
   expression: string | undefined,
@@ -314,10 +370,10 @@ export function evaluateExpression(
   }
 
   function parseTerm(depth: number): number {
-    let left = parseFactor(depth)
+    let left = parsePower(depth)
     while (peek() === '*' || peek() === '/') {
       const operator = take()
-      const right = parseFactor(depth)
+      const right = parsePower(depth)
       if (operator === '/') {
         if (right === 0) throw new ExpressionError('divide by zero')
         left = left / right
@@ -328,17 +384,39 @@ export function evaluateExpression(
     return left
   }
 
+  /**
+   * Right-associative, and its right operand is a power in turn so 2^-1 parses. Unary
+   * minus is handled in parseFactor and therefore binds looser: -2^2 is -(2^2).
+   */
+  function parsePower(depth: number): number {
+    const base = parseFactor(depth)
+    if (peek() !== '^') return base
+    take()
+    const exponent = parsePower(depth)
+    const result = Math.pow(base, exponent)
+    // e.g. (-8) ^ 0.5 - real-valued only, so a complex result is an error.
+    if (Number.isNaN(result)) throw new ExpressionError('undefined power')
+    return result
+  }
+
   function parseFactor(depth: number): number {
     const token = peek()
     if (token === undefined) throw new ExpressionError('unexpected end')
 
     if (token === '-') {
       take()
-      return -parseFactor(depth)
+      return -parsePower(depth)
     }
     if (token === '+') {
       take()
-      return parseFactor(depth)
+      return parsePower(depth)
+    }
+    if (FUNCTIONS[token]) {
+      take()
+      if (take() !== '(') throw new ExpressionError('function needs parentheses')
+      const argument = parseExpression(depth + 1)
+      if (take() !== ')') throw new ExpressionError('unbalanced parentheses')
+      return FUNCTIONS[token](argument)
     }
     if (token === '(') {
       take()
@@ -381,7 +459,7 @@ function tokenize(input: string): string[] | null {
       index += 1
       continue
     }
-    if ('+-*/()'.includes(char)) {
+    if ('+-*/^()'.includes(char)) {
       tokens.push(char)
       index += 1
       continue
@@ -391,6 +469,12 @@ function tokenize(input: string): string[] | null {
       if (close === -1) return null
       tokens.push(input.slice(index, close + 1))
       index = close + 1
+      continue
+    }
+    const name = FUNCTION_NAMES.find((fn) => input.startsWith(fn, index))
+    if (name) {
+      tokens.push(name)
+      index += name.length
       continue
     }
     const number = /^\d*\.?\d+(?:[eE][-+]?\d+)?/.exec(input.slice(index))
