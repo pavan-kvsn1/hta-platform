@@ -406,13 +406,13 @@ function ResultsTable({
         </div>
 
         {/* Accuracy type explanation */}
-        <div className="flex items-start gap-2 p-3 bg-slate-100/50 rounded-lg text-[11px] text-slate-600">
-          <Info className="size-4 text-slate-400 flex-shrink-0 mt-0.5" />
+        <div className="flex items-center gap-1.5 rounded-md bg-slate-100/60 px-2.5 py-1.5 text-[11px] text-slate-600">
+          <Info className="size-3.5 shrink-0 text-slate-400" />
           <div>
             <span className="font-bold">{accuracyTypeConfig.label}:</span>{' '}
             {accuracyTypeConfig.description}
             {baseLimit !== null && (
-              <span className="font-bold text-primary ml-2">
+              <span className="ml-1 font-bold text-primary">
                 (Limit: ±{Math.round(baseLimit * 1000) / 1000} {parameter.parameterUnit})
               </span>
             )}
@@ -421,8 +421,8 @@ function ResultsTable({
 
         {/* Operating range violation alert */}
         {operatingRangeViolations > 0 && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-[11px] text-red-800">
-            <AlertTriangle className="size-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] text-red-800">
+            <AlertTriangle className="size-3.5 shrink-0 text-red-500" />
             <div>
               <span className="font-bold">Operating Range Error:</span>{' '}
               {operatingRangeViolations} standard reading{operatingRangeViolations !== 1 ? 's are' : ' is'} outside the operating range.
@@ -435,8 +435,8 @@ function ResultsTable({
 
         {/* Precision violation alert */}
         {precisionViolations > 0 && (
-          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800">
-            <AlertTriangle className="size-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800">
+            <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
             <div>
               <span className="font-bold">Precision Warning:</span>{' '}
               {precisionViolations} reading{precisionViolations !== 1 ? 's have' : ' has'} more decimal places than the least count allows.
@@ -448,9 +448,11 @@ function ResultsTable({
         )}
       </div>
 
-      {/* Results Table */}
-      {/* Table name + column schema (Section 05 dynamic fields) */}
-      <div className="space-y-2 border-b border-slate-200 px-5 py-3">
+      {/* Section 05: table name, column schema and the results table itself. One
+          container so the gap between the three is one gap, rather than each block's
+          own padding meeting the next one's and reading as three different sizes.
+          They are three separate things, so the gap is wide enough to say so. */}
+      <div className="space-y-4 p-3">
         {/* Table name sits inline; it is one short field and does not warrant a block. */}
         <label className="flex items-center gap-3">
           <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -463,7 +465,7 @@ function ResultsTable({
             placeholder={`Calibration of ${parameter.parameterName || 'Parameter'}`}
             title="Heading for this table on the certificate PDF"
             onChange={(e) => onTableNameChange(e.target.value)}
-            className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-50"
+            className="min-w-0 flex-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs disabled:bg-slate-50"
           />
         </label>
 
@@ -483,9 +485,7 @@ function ResultsTable({
           precision={defaultPrecision}
           onChange={onSchemaChange}
         />
-      </div>
 
-      <div className="p-3">
         <DynamicResultsTable
           fields={parameter.fieldDefinitions}
           rows={parameter.resultRows}

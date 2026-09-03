@@ -211,10 +211,13 @@ describe('ColumnSetup', () => {
     return { ...render(<ColumnSetup {...props} />), props }
   }
 
-  it('summarises the schema on one line while collapsed', () => {
+  it('shows only its heading while collapsed', () => {
     renderSetup()
-    expect(screen.getByText(/Master: Std Meter Reading \(numeric, kg\/cm²\)/)).toBeInTheDocument()
+    expect(
+      screen.getByText('Calibration Results Table — Parameter Setup'),
+    ).toBeInTheDocument()
     expect(screen.queryByText('Error Computation')).not.toBeInTheDocument()
+    expect(screen.queryByText('Master Instrument Fields')).not.toBeInTheDocument()
   })
 
   it('reveals the editor when expanded', () => {

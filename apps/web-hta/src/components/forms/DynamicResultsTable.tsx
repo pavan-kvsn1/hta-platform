@@ -113,14 +113,14 @@ export function DynamicResultsTable({
             <tr>
               <th
                 rowSpan={2}
-                className="w-12 px-4 py-2 text-left align-middle text-sm font-semibold text-slate-700"
+                className="w-12 px-4 py-1.5 text-left align-middle text-xs font-semibold text-slate-700"
               >
                 Sl.
               </th>
               {masterFields.length > 0 && (
                 <th
                   colSpan={masterFields.length}
-                  className="border-b border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
+                  className="border-b border-slate-200 px-4 py-1.5 text-center text-xs font-semibold text-slate-700"
                 >
                   Master Instrument
                 </th>
@@ -128,40 +128,40 @@ export function DynamicResultsTable({
               {uucFields.length > 0 && (
                 <th
                   colSpan={uucFields.length}
-                  className="border-b border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
+                  className="border-b border-slate-200 px-4 py-1.5 text-center text-xs font-semibold text-slate-700"
                 >
                   UUC
                 </th>
               )}
               <th
                 rowSpan={2}
-                className="w-24 px-4 py-2 text-center align-middle text-sm font-semibold text-slate-700"
+                className="w-24 px-4 py-1.5 text-center align-middle text-xs font-semibold text-slate-700"
               >
                 Error
               </th>
               {getLimit && (
                 <th
                   rowSpan={2}
-                  className="w-20 px-4 py-2 text-center align-middle text-sm font-semibold text-slate-700"
+                  className="w-20 px-4 py-1.5 text-center align-middle text-xs font-semibold text-slate-700"
                 >
                   Limit
                 </th>
               )}
               <th
                 rowSpan={2}
-                className="w-20 px-4 py-2 text-center align-middle text-sm font-semibold text-slate-700"
+                className="w-20 px-4 py-1.5 text-center align-middle text-xs font-semibold text-slate-700"
               >
                 Status
               </th>
               {getReadingImages && (
                 <th
                   rowSpan={2}
-                  className="w-16 px-2 py-2 text-center align-middle text-sm font-semibold text-slate-700"
+                  className="w-12 px-1 py-1.5 text-center align-middle text-xs font-semibold text-slate-700"
                 >
                   Photos
                 </th>
               )}
-              <th rowSpan={2} className="w-10 px-2 py-2">
+              <th rowSpan={2} className="w-8 px-1 py-1.5">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
@@ -170,7 +170,7 @@ export function DynamicResultsTable({
               {ordered.map((field) => (
                 <th
                   key={field.id}
-                  className="bg-white/50 px-3 py-2 text-center align-middle text-xs font-semibold text-slate-700"
+                  className="bg-white/50 px-3 py-1.5 text-center align-middle text-xs font-semibold text-slate-700"
                 >
                   {field.name ? (
                     headingFor(field)
@@ -287,7 +287,7 @@ export function DynamicResultsTable({
                   </td>
 
                   {getReadingImages && (
-                    <td className="px-2 py-2 text-center">
+                    <td className="px-1 py-2 text-center">
                       {(() => {
                         // Only presence matters here; the caller owns the image type.
                         const images = getReadingImages(row.pointNumber)
@@ -329,7 +329,7 @@ export function DynamicResultsTable({
                     </td>
                   )}
 
-                  <td className="px-2 py-2">
+                  <td className="px-1 py-2">
                     {/* Revealed on row hover: a delete affordance on every row competes
                         with the data for attention. */}
                     <button
@@ -337,7 +337,7 @@ export function DynamicResultsTable({
                       disabled={disabled || rows.length <= 1}
                       aria-label={`Remove point ${row.pointNumber}`}
                       onClick={() => onRemoveRow(rowIndex)}
-                      className="rounded-md p-1.5 text-slate-300 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 focus:opacity-100 group-hover:opacity-100 disabled:pointer-events-none"
+                      className="rounded-md p-1 text-slate-300 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 focus:opacity-100 group-hover:opacity-100 disabled:pointer-events-none"
                     >
                       <Trash2 className="size-3.5" />
                     </button>

@@ -7,8 +7,7 @@
 // numeric fields the error is computed from.
 //
 // Layout follows docs/todos/section05-dynamic-fields-revamp.md - Master and UUC
-// field lists side by side, error computation beneath, and a one-line summary when
-// collapsed.
+// field lists side by side and error computation beneath.
 // Master comes first, matching the results table and the certificate itself: the
 // reference is what the reading is being read against.
 //
@@ -35,7 +34,7 @@ import { cn } from '@/lib/utils'
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'numeric', label: 'Numeric' },
-  { value: 'expression', label: 'Expression' },
+  { value: 'expression', label: 'Formula' },
   { value: 'text', label: 'Text' },
 ]
 
@@ -55,18 +54,6 @@ interface ColumnSetupProps {
   onChange: (fields: FieldDefinition[], errorConfig: ErrorConfig) => void
 }
 
-/** One-line description of the schema, shown when the panel is collapsed. */
-function summarise(fields: FieldDefinition[], group: FieldGroup): string {
-  const inGroup = fields.filter((f) => f.group === group)
-  if (inGroup.length === 0) return 'none'
-  return inGroup
-    .map((f) => {
-      const name = f.name || 'Untitled'
-      return f.unit ? `${name} (${f.type}, ${f.unit})` : `${name} (${f.type})`
-    })
-    .join(', ')
-}
-
 export function ColumnSetup({
   fields,
   errorConfig,
@@ -83,8 +70,6 @@ export function ColumnSetup({
   const uucFields = fields.filter((f) => f.group === 'uuc')
   const cycles = detectExpressionCycles(fields)
 
-  const masterName = fields.find((f) => f.id === errorConfig.masterFieldId)?.name || '—'
-  const uucName = fields.find((f) => f.id === errorConfig.uucFieldId)?.name || '—'
 
   const updateField = (id: string, patch: Partial<FieldDefinition>) => {
     onChange(
@@ -187,7 +172,7 @@ export function ColumnSetup({
     const groupFields = group === 'master' ? masterFields : uucFields
     return (
       <div>
-        <h4 className="mb-2 text-sm font-semibold text-slate-700">
+        <h4 className="mb-2 text-xs font-semibold text-slate-700">
           {group === 'master' ? 'Master Instrument Fields' : 'UUC Fields'}
         </h4>
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -258,7 +243,7 @@ export function ColumnSetup({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-2 bg-section-inner px-4 py-3 text-left"
+        className="flex w-full items-center gap-2 bg-section-inner px-4 py-1.5 text-left"
         aria-expanded={expanded}
       >
         {expanded ? (
@@ -266,13 +251,7 @@ export function ColumnSetup({
         ) : (
           <ChevronRight className="h-4 w-4 text-slate-400" />
         )}
-        <span className="text-sm font-semibold text-slate-700">Calibration Results Table — Parameter Setup</span>
-        {!expanded && (
-          <span className="ml-2 truncate text-xs text-slate-500">
-            Master: {summarise(fields, 'master')} · UUC: {summarise(fields, 'uuc')} ·
-            Error: {masterName} − {uucName}
-          </span>
-        )}
+        <span className="text-xs font-semibold text-slate-700">Calibration Results Table — Parameter Setup</span>
       </button>
 
       {expanded && (
@@ -305,7 +284,7 @@ export function ColumnSetup({
           </div>
 
           <div className="border-t border-slate-200 pt-3">
-            <h4 className="mb-2 text-sm font-semibold text-slate-700">
+            <h4 className="mb-2 text-xs font-semibold text-slate-700">
               Error Computation
             </h4>
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
