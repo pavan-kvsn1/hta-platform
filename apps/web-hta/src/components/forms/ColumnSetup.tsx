@@ -113,11 +113,16 @@ export function ColumnSetup({
    *
    * The raw formula references fields by internal id, which nobody should have to type.
    * This composes it from a source column, an operator and either a number or a second
-   * column. A formula that does not fit that shape falls back to a raw input rather than
-   * being silently rewritten.
+   * column, all drawn from the same instrument. A formula that does not fit that shape
+   * falls back to a raw input rather than being silently rewritten.
    */
   const renderExpressionBuilder = (fieldDef: FieldDefinition) => {
-    const others = fields.filter((f) => f.id !== fieldDef.id && f.type !== 'text')
+    // Same side only. A UUC column derived from a master reading is not a derived
+    // column, it is an error calculation, and that is what the Error row is for -
+    // offering master fields here invites the two to be confused.
+    const others = fields.filter(
+      (f) => f.id !== fieldDef.id && f.type !== 'text' && f.group === fieldDef.group,
+    )
     const parsed = parseSimpleExpression(fieldDef.expression)
     const isRaw = Boolean(fieldDef.expression) && parsed === null
 

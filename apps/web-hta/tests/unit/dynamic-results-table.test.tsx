@@ -208,6 +208,35 @@ describe('ColumnSetup', () => {
     expect(within(fieldB).queryByText('Derived mV')).not.toBeInTheDocument()
   })
 
+  it('offers only same-side columns to an expression', () => {
+    // One master column and three UUC ones; Derived mV is the expression, so its
+    // operands may be UUC columns only - a UUC column derived from a master reading
+    // is an error calculation, which the Error row already covers.
+    const withFieldOperand: FieldDefinition[] = [
+      ...fields.filter((f) => f.id !== 'u3'),
+      { id: 'u4', name: 'UUC Offset', group: 'uuc', type: 'numeric', unit: 'mV', order: 3 },
+      {
+        id: 'u3',
+        name: 'Derived mV',
+        group: 'uuc',
+        type: 'expression',
+        unit: 'mV',
+        order: 4,
+        expression: '{u2} * {u4}',
+      },
+    ]
+    renderSetup({ fields: withFieldOperand })
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+
+    const source = screen.getByLabelText(/Source column for Derived mV/i)
+    expect(within(source).getByText('UUC Reading')).toBeInTheDocument()
+    expect(within(source).queryByText('Std Meter Reading')).not.toBeInTheDocument()
+
+    const second = screen.getByLabelText(/Second column for Derived mV/i)
+    expect(within(second).getByText('UUC Offset')).toBeInTheDocument()
+    expect(within(second).queryByText('Std Meter Reading')).not.toBeInTheDocument()
+  })
+
   it('adds a field defaulted to the parameter unit', () => {
     const { props } = renderSetup()
     fireEvent.click(screen.getByRole('button', { expanded: false }))
