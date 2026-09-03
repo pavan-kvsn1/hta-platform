@@ -28860,7 +28860,7 @@
           },
           "serial_no": "Ind : 5250062 & Sen : 25005083",
           "serial_parts": {
-            "ind": "5250062 &",
+            "ind": "5250062",
             "sen": "25005083"
           },
           "category": "Thermal",
@@ -28955,7 +28955,7 @@
           },
           "serial_no": "Ind : 5250074 & Sen : 25005098",
           "serial_parts": {
-            "ind": "5250074 &",
+            "ind": "5250074",
             "sen": "25005098"
           },
           "category": "Thermal",
@@ -29860,7 +29860,7 @@
           },
           "serial_no": "Ind: 15035889 & Sen: 15036741",
           "serial_parts": {
-            "ind": "15035889 &",
+            "ind": "15035889",
             "sen": "15036741"
           },
           "category": "Thermal",
@@ -29971,7 +29971,7 @@
           },
           "serial_no": "Ind: 15035872 & Sen: 15036736",
           "serial_parts": {
-            "ind": "15035872 &",
+            "ind": "15035872",
             "sen": "15036736"
           },
           "category": "Thermal",
@@ -30082,7 +30082,7 @@
           },
           "serial_no": "Ind: 17007076 & Sen: 17014227",
           "serial_parts": {
-            "ind": "17007076 &",
+            "ind": "17007076",
             "sen": "17014227"
           },
           "category": "Thermal",
@@ -30186,7 +30186,7 @@
           },
           "serial_no": "Ind: 17013097 & Sen: 19012265",
           "serial_parts": {
-            "ind": "17013097 &",
+            "ind": "17013097",
             "sen": "19012265"
           },
           "category": "Thermal",
@@ -30297,7 +30297,7 @@
           },
           "serial_no": "Ind: 17013098 & Sen: 19012268",
           "serial_parts": {
-            "ind": "17013098 &",
+            "ind": "17013098",
             "sen": "19012268"
           },
           "category": "Thermal",
@@ -30408,7 +30408,7 @@
           },
           "serial_no": "Ind: 16024227 & Sen: 20211110",
           "serial_parts": {
-            "ind": "16024227 &",
+            "ind": "16024227",
             "sen": "20211110"
           },
           "category": "Thermal",
@@ -30512,7 +30512,7 @@
           },
           "serial_no": "Ind: 17025978 & Sen: 20211030",
           "serial_parts": {
-            "ind": "17025978 &",
+            "ind": "17025978",
             "sen": "20211030"
           },
           "category": "Thermal",
@@ -30616,7 +30616,7 @@
           },
           "serial_no": "Ind: 17013094 & Sen: 21018600",
           "serial_parts": {
-            "ind": "17013094 &",
+            "ind": "17013094",
             "sen": "21018600"
           },
           "category": "Thermal",
@@ -30720,7 +30720,7 @@
           },
           "serial_no": "Ind: 20032393 & Sen: 21018599",
           "serial_parts": {
-            "ind": "20032393 &",
+            "ind": "20032393",
             "sen": "21018599"
           },
           "category": "Thermal",
@@ -30824,7 +30824,7 @@
           },
           "serial_no": "Ind: 20032399 & Sen: 21022186",
           "serial_parts": {
-            "ind": "20032399 &",
+            "ind": "20032399",
             "sen": "21022186"
           },
           "category": "Thermal",
@@ -30928,7 +30928,7 @@
           },
           "serial_no": "Ind: 21004418 & Sen: 26092023",
           "serial_parts": {
-            "ind": "21004418 &",
+            "ind": "21004418",
             "sen": "26092023"
           },
           "category": "Thermal",
@@ -31032,7 +31032,7 @@
           },
           "serial_no": "Ind: 17007068 & Sen: 26092024",
           "serial_parts": {
-            "ind": "17007068 &",
+            "ind": "17007068",
             "sen": "26092024"
           },
           "category": "Thermal",
@@ -31136,7 +31136,7 @@
           },
           "serial_no": "Ind: 21004419 & Sen: 28112023",
           "serial_parts": {
-            "ind": "21004419 &",
+            "ind": "21004419",
             "sen": "28112023"
           },
           "category": "Thermal",
@@ -31240,7 +31240,7 @@
           },
           "serial_no": "Ind: 24023425 & Sen: 24018379",
           "serial_parts": {
-            "ind": "24023425 &",
+            "ind": "24023425",
             "sen": "24018379"
           },
           "category": "Thermal",
@@ -31422,7 +31422,7 @@
           "model_parts": null,
           "serial_no": "Ind: 15033719 & Sen: 16002163",
           "serial_parts": {
-            "ind": "15033719 &",
+            "ind": "15033719",
             "sen": "16002163"
           },
           "category": "Thermal",
@@ -31736,46 +31736,50 @@
           "id": "B",
           "instrument_desc": "Paperless Recorder",
           "asset_type": "simple",
-          "make": null,
+          "make": "Brainchild",
           "make_parts": null,
-          "model": null,
+          "model": "PR2012-0A011000",
           "model_parts": null,
-          "serial_no": null,
+          "serial_no": "166280018",
           "serial_parts": null,
-          "category": null,
-          "usage": null,
-          "calibrated_at": null,
-          "report_no": null,
-          "next_due_on": null,
-          "calibration_state": "UNKNOWN",
-          "calibration_days": null,
-          "sop_references": [],
+          "category": "Thermal",
+          "usage": "For On Site",
+          "calibrated_at": "HTAIPL, Bangalore",
+          "report_no": "HTA/C50519/01/26",
+          "next_due_on": "2026-05-17",
+          "calibration_state": "EXPIRED",
+          "calibration_days": 109,
+          "sop_references": [
+            "NLAB/CAL/VL2/R01"
+          ],
           "certificate_file": "580B HTAIPL L.pdf",
           "capability_profiles": [],
-          "has_master_record": false,
+          "has_master_record": true,
           "legacy_id": 91
         },
         {
           "id": "C",
           "instrument_desc": "Digital Paperless Recorder for Type-T Thermocouple (24-channel)",
           "asset_type": "simple",
-          "make": null,
+          "make": "Brainchild",
           "make_parts": null,
-          "model": null,
+          "model": "PR2006-0A011000",
           "model_parts": null,
-          "serial_no": null,
+          "serial_no": "164070002",
           "serial_parts": null,
-          "category": null,
-          "usage": null,
-          "calibrated_at": null,
-          "report_no": null,
-          "next_due_on": null,
-          "calibration_state": "UNKNOWN",
-          "calibration_days": null,
-          "sop_references": [],
+          "category": "Thermal",
+          "usage": "For On Site",
+          "calibrated_at": "HTAIPL, Bangalore",
+          "report_no": "HTA/C50519/15/26",
+          "next_due_on": "2026-05-17",
+          "calibration_state": "EXPIRED",
+          "calibration_days": 109,
+          "sop_references": [
+            "NLAB/CAL/VL2/R01"
+          ],
           "certificate_file": "580C HTAIPL L.pdf",
           "capability_profiles": [],
-          "has_master_record": false,
+          "has_master_record": true,
           "legacy_id": 92
         }
       ]
@@ -34180,23 +34184,26 @@
           "id": "C",
           "instrument_desc": "Low Pressure External Transducer with Calibrator",
           "asset_type": "simple",
-          "make": null,
+          "make": "Druck",
           "make_parts": null,
-          "model": null,
+          "model": "LPE 9400",
           "model_parts": null,
-          "serial_no": null,
+          "serial_no": "2862100",
           "serial_parts": null,
-          "category": null,
-          "usage": null,
-          "calibrated_at": null,
-          "report_no": null,
-          "next_due_on": null,
-          "calibration_state": "UNKNOWN",
-          "calibration_days": null,
-          "sop_references": [],
+          "category": "Mechanical",
+          "usage": "For Lab",
+          "calibrated_at": "FCRI, Palakkad",
+          "report_no": "C01/251289/ 565",
+          "next_due_on": "2026-10-07",
+          "calibration_state": "EXPIRING_SOON",
+          "calibration_days": 34,
+          "sop_references": [
+            "NLAB/CAL/ML1/R01",
+            "NLAB/CAL/ML2/R01"
+          ],
           "certificate_file": "188C HTAIPL L.pdf",
           "capability_profiles": [],
-          "has_master_record": false,
+          "has_master_record": true,
           "legacy_id": 128
         }
       ]
@@ -35737,7 +35744,7 @@
           "model_parts": null,
           "serial_no": "Ind: 07011059 & Sen: 20194659",
           "serial_parts": {
-            "ind": "07011059 &",
+            "ind": "07011059",
             "sen": "20194659"
           },
           "category": "Mechanical",

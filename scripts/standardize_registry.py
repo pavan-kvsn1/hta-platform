@@ -153,7 +153,17 @@ def split_ind_sen(value):
     match = IND_SEN.match(str(value).strip())
     if not match:
         return None
-    return {"ind": match.group(1).strip(), "sen": match.group(2).strip()}
+    return {"ind": strip_separator(match.group(1)), "sen": strip_separator(match.group(2))}
+
+
+# The pattern stops at "Sen", so a separator written before it - "Ind: 5250062 & Sen:
+# 25005083" - is left on the end of the indicator part. A serial number with a stray
+# ampersand does not match the instrument it is meant to identify.
+TRAILING_SEPARATOR = re.compile(r"[\s&,;/]+$")
+
+
+def strip_separator(value):
+    return TRAILING_SEPARATOR.sub("", str(value).strip())
 
 
 def calibration_state(status):
