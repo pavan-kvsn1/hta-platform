@@ -305,6 +305,19 @@ export function parseSimpleExpression(
   }
 }
 
+/**
+ * Render a computed value at the resolution of the instrument that produced it.
+ *
+ * A calculated column is still a measurement, so it cannot carry more resolution than
+ * the instrument it derives from: {reading} / 3 is not known to sixteen decimals just
+ * because binary floating point produces sixteen. Rounding here also disposes of the
+ * 0.1 + 0.2 = 0.30000000000000004 artefacts, which otherwise reach the certificate.
+ */
+export function formatToPrecision(value: number, precision: number): string {
+  if (!Number.isFinite(value)) return ''
+  return value.toFixed(Math.max(0, Math.min(20, precision)))
+}
+
 class ExpressionError extends Error {}
 
 /**

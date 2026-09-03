@@ -115,10 +115,40 @@ describe('DynamicResultsTable', () => {
 
   it('shows expression cells as computed read-only values, not inputs', () => {
     renderTable()
-    // Derived mV = {u2} * 2, computed per row rather than entered.
-    expect(screen.getByText('12')).toBeInTheDocument()
-    expect(screen.getByText('11')).toBeInTheDocument()
+    // Derived mV = {u2} * 2, computed per row rather than entered, and rendered at the
+    // column's resolution rather than as a bare float.
+    expect(screen.getByText('12.00')).toBeInTheDocument()
+    expect(screen.getByText('11.00')).toBeInTheDocument()
     expect(screen.queryByLabelText('Derived mV, point 1')).not.toBeInTheDocument()
+  })
+
+  it('renders a computed value at its own column resolution', () => {
+    renderTable({
+      precisionFor: (field: FieldDefinition) => (field.group === 'master' ? 1 : 3),
+    })
+    // The expression column is a UUC column, so it takes the UUC resolution.
+    expect(screen.getByText('12.000')).toBeInTheDocument()
+  })
+
+  it('does not let floating point noise reach a computed cell', () => {
+    renderTable({
+      fields: [
+        fields[0],
+        {
+          id: 'x1',
+          name: 'Sum',
+          group: 'uuc',
+          type: 'expression',
+          unit: 'mV',
+          order: 0,
+          expression: '{m1} + 0.1',
+        },
+      ],
+      rows: [{ ...rows[0], values: { m1: '0.2' } }],
+    })
+    // 0.2 + 0.1 is 0.30000000000000004 in binary floating point.
+    expect(screen.getByText('0.30')).toBeInTheDocument()
+    expect(screen.queryByText(/0\.30000/)).not.toBeInTheDocument()
   })
 
   it('reports the entered value through onValueChange', () => {

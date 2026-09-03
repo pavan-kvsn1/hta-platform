@@ -26,6 +26,7 @@
 
 import { AlertTriangle, Camera, CheckCircle, ImageIcon, Plus, Trash2 } from 'lucide-react'
 import {
+  formatToPrecision,
   resolveRowValues,
   type CalibrationResultRow,
   type FieldDefinition,
@@ -36,10 +37,16 @@ interface DynamicResultsTableProps {
   fields: FieldDefinition[]
   rows: CalibrationResultRow[]
   /**
-   * Decimal places for numeric entry, from the parameter's least count. Used for the
-   * Limit column; entry itself is unconstrained, see the note on the readings below.
+   * Decimal places for the Limit column, and the fallback when precisionFor is absent.
    */
   precision: number
+  /**
+   * Decimal places for one column's values, from the least count of the instrument
+   * that column belongs to - the master's for a master column, the UUC's for a UUC
+   * one. Takes the row because a binned parameter's least count varies with the
+   * reading. Entry itself is unconstrained; this governs how computed values render.
+   */
+  precisionFor?: (field: FieldDefinition, row: CalibrationResultRow) => number
   disabled?: boolean
   onValueChange: (rowIndex: number, fieldId: string, value: string) => void
   onAddRow: () => void
@@ -68,6 +75,7 @@ export function DynamicResultsTable({
   fields,
   rows,
   precision,
+  precisionFor,
   disabled,
   onValueChange,
   onAddRow,
@@ -194,7 +202,12 @@ export function DynamicResultsTable({
 
                   {ordered.map((field) => {
                     if (field.type === 'expression') {
-                      const value = resolved[field.id]
+                      const raw = resolved[field.id]
+                      const places = precisionFor?.(field, row) ?? precision
+                      const value =
+                        raw === '' || raw === undefined || !Number.isFinite(Number(raw))
+                          ? raw
+                          : formatToPrecision(Number(raw), places)
                       return (
                         <td key={field.id} className="px-2 py-2">
                           <span

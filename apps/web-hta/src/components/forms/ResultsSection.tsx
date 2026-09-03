@@ -326,6 +326,10 @@ function ResultsTable({
 
   // Get default precision for the parameter
   const defaultPrecision = useMemo(() => getDefaultPrecision(parameter), [parameter])
+  // The parameter's least count describes the master - it comes from the master
+  // instrument registry. The UUC has a resolution of its own, but the certificate does
+  // not record one yet, so UUC columns follow the master's until it does.
+  const uucPrecision = defaultPrecision
   const _defaultStep = getStepFromPrecision(defaultPrecision)
 
 
@@ -481,6 +485,16 @@ function ResultsTable({
           fields={parameter.fieldDefinitions}
           rows={parameter.resultRows}
           precision={defaultPrecision}
+          precisionFor={(field, row) => {
+            // A master column follows the master's least count, which varies by bin,
+            // so it is read at that row's own master reading. A UUC column follows the
+            // UUC's - see uucPrecision.
+            if (field.group === 'master') {
+              const reading = Number(row.values[parameter.errorConfig.masterFieldId])
+              return getLeastCountInfo(parameter, reading).precision
+            }
+            return uucPrecision
+          }}
           disabled={disabled}
           onValueChange={onRowValueChange}
           onAddRow={onAddRow}
