@@ -8,8 +8,8 @@
 // - name and unit on one line rather than stacked. The group row is a band of its
 // own: a rule underneath it and enough height to be read as a band rather than a
 // cramped line, since it spans several columns and has to hold them together. The
-// fixed Sl./Error/Limit/Status columns bottom-align into the column-heading row,
-// which is the row they actually line up with.
+// fixed Sl./Error/Limit/Status/Photos columns span both header rows and centre
+// across the pair, rather than dropping to the baseline of the second.
 //
 // Sl. No is always the first column and Error always the last, regardless of how the
 // engineer arranged the instrument fields between them.
@@ -98,7 +98,7 @@ export function DynamicResultsTable({
             <tr>
               <th
                 rowSpan={2}
-                className="w-12 px-4 py-2 text-left align-bottom text-xs font-semibold text-slate-700"
+                className="w-12 px-4 py-2 text-left align-middle text-xs font-semibold text-slate-700"
               >
                 Sl.
               </th>
@@ -120,28 +120,28 @@ export function DynamicResultsTable({
               )}
               <th
                 rowSpan={2}
-                className="w-24 px-4 py-2 text-center align-bottom text-xs font-semibold text-slate-700"
+                className="w-24 px-4 py-2 text-center align-middle text-xs font-semibold text-slate-700"
               >
                 Error
               </th>
               {getLimit && (
                 <th
                   rowSpan={2}
-                  className="w-20 px-4 py-2 text-center align-bottom text-xs font-semibold text-slate-700"
+                  className="w-20 px-4 py-2 text-center align-middle text-xs font-semibold text-slate-700"
                 >
                   Limit
                 </th>
               )}
               <th
                 rowSpan={2}
-                className="w-20 px-4 py-2 text-center align-bottom text-xs font-semibold text-slate-700"
+                className="w-20 px-4 py-2 text-center align-middle text-xs font-semibold text-slate-700"
               >
                 Status
               </th>
               {getReadingImages && (
                 <th
                   rowSpan={2}
-                  className="w-16 px-2 py-2 text-center align-bottom text-xs font-semibold text-slate-700"
+                  className="w-16 px-2 py-2 text-center align-middle text-xs font-semibold text-slate-700"
                 >
                   Photos
                 </th>
