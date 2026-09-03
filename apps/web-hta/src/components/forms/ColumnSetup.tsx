@@ -40,9 +40,9 @@ const OPERATORS: { value: ExpressionOperator; label: string }[] = [
 ]
 
 const SELECT_CLASS =
-  'rounded border border-slate-200 px-2 py-1 text-sm text-slate-900 disabled:bg-slate-50'
+  'rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:bg-slate-50'
 const INPUT_CLASS =
-  'rounded border border-slate-200 px-2 py-1 text-sm text-slate-900 disabled:bg-slate-50'
+  'rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:bg-slate-50'
 
 interface ColumnSetupProps {
   fields: FieldDefinition[]
@@ -240,7 +240,7 @@ export function ColumnSetup({
   const renderFieldCard = (fieldDef: FieldDefinition, index: number) => (
     <div
       key={fieldDef.id}
-      className="rounded-md border border-slate-200 bg-white px-2 py-1.5"
+      className="rounded-lg border border-slate-200 bg-white px-2.5 py-2"
     >
       {/* One row per field: number, name, type, unit, remove. */}
       <div className="flex items-center gap-1.5">
@@ -300,7 +300,7 @@ export function ColumnSetup({
   )
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/50">
+    <div className="rounded-lg border border-slate-200 bg-slate-50/60">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -312,9 +312,7 @@ export function ColumnSetup({
         ) : (
           <ChevronRight className="h-4 w-4 text-slate-400" />
         )}
-        <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-          Column Setup
-        </span>
+        <span className="text-xs font-semibold text-slate-700">Column Setup</span>
         {!expanded && (
           <span className="ml-2 truncate text-xs text-slate-500">
             Master: {summarise(fields, 'master')} · UUC: {summarise(fields, 'uuc')} ·
@@ -343,7 +341,7 @@ export function ColumnSetup({
           <div className="grid gap-4 md:grid-cols-2">
             {(['master', 'uuc'] as const).map((group) => (
               <div key={group} className="space-y-2">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                <h4 className="text-[11px] font-semibold text-slate-600">
                   {group === 'master' ? 'Master Instrument Fields' : 'UUC Fields'}
                 </h4>
                 {(group === 'master' ? masterFields : uucFields).map(renderFieldCard)}
@@ -361,11 +359,9 @@ export function ColumnSetup({
           </div>
 
           <div className="space-y-2 border-t border-slate-200 pt-3">
-            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Error Computation
-            </h4>
+            <h4 className="text-[11px] font-semibold text-slate-600">Error Computation</h4>
             <div className="grid gap-2 sm:grid-cols-4">
-              <label className="text-[10px] uppercase tracking-wide text-slate-400">
+              <label className="text-[11px] font-medium text-slate-500">
                 Field A (Master)
                 <select
                   value={errorConfig.masterFieldId}
@@ -374,7 +370,7 @@ export function ColumnSetup({
                     onChange(fields, { ...errorConfig, masterFieldId: e.target.value })
                   }
                   className={cn(
-                    'mt-0.5 w-full rounded border px-2 py-1 text-sm normal-case tracking-normal text-slate-900 disabled:bg-slate-50',
+                    'mt-1 w-full rounded-md border px-2 py-1.5 text-sm text-slate-900 disabled:bg-slate-50',
                     errorConfig.masterFieldId ? 'border-slate-200' : 'border-amber-300',
                   )}
                 >
@@ -387,7 +383,7 @@ export function ColumnSetup({
                 </select>
               </label>
 
-              <label className="text-[10px] uppercase tracking-wide text-slate-400">
+              <label className="text-[11px] font-medium text-slate-500">
                 Field B (UUC)
                 <select
                   value={errorConfig.uucFieldId}
@@ -396,7 +392,7 @@ export function ColumnSetup({
                     onChange(fields, { ...errorConfig, uucFieldId: e.target.value })
                   }
                   className={cn(
-                    'mt-0.5 w-full rounded border px-2 py-1 text-sm normal-case tracking-normal text-slate-900 disabled:bg-slate-50',
+                    'mt-1 w-full rounded-md border px-2 py-1.5 text-sm text-slate-900 disabled:bg-slate-50',
                     errorConfig.uucFieldId ? 'border-slate-200' : 'border-amber-300',
                   )}
                 >
@@ -409,7 +405,7 @@ export function ColumnSetup({
                 </select>
               </label>
 
-              <label className="text-[10px] uppercase tracking-wide text-slate-400">
+              <label className="text-[11px] font-medium text-slate-500">
                 Formula
                 <select
                   value={errorConfig.formula}
@@ -420,14 +416,14 @@ export function ColumnSetup({
                       formula: e.target.value as ErrorConfig['formula'],
                     })
                   }
-                  className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-sm normal-case tracking-normal text-slate-900 disabled:bg-slate-50"
+                  className="mt-1 w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm text-slate-900 disabled:bg-slate-50"
                 >
                   <option value="A-B">A − B</option>
                   <option value="B-A">B − A</option>
                 </select>
               </label>
 
-              <label className="text-[10px] uppercase tracking-wide text-slate-400">
+              <label className="text-[11px] font-medium text-slate-500">
                 Error Unit
                 <input
                   type="text"
@@ -436,7 +432,7 @@ export function ColumnSetup({
                   onChange={(e) =>
                     onChange(fields, { ...errorConfig, unit: e.target.value })
                   }
-                  className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-sm normal-case tracking-normal text-slate-900 disabled:bg-slate-50"
+                  className="mt-1 w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm text-slate-900 disabled:bg-slate-50"
                 />
               </label>
             </div>
