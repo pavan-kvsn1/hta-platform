@@ -6,6 +6,7 @@ import {
   createDefaultFieldDefinitions,
   computeRowError,
   createRow,
+  resultValues,
   migrateLegacyResults,
   resolveRowValues,
   toLegacyResults,
@@ -295,12 +296,10 @@ export const ensureParameterFields = (parameter: Parameter): Parameter => {
     const rows: CalibrationResultRow[] = (parameter.results ?? []).map((result, index) => ({
       id: result.id || generateId(),
       pointNumber: result.pointNumber || index + 1,
-      values:
-        result.values ??
-        {
-          ...(config.masterFieldId ? { [config.masterFieldId]: result.standardReading } : {}),
-          ...(config.uucFieldId ? { [config.uucFieldId]: result.beforeAdjustment } : {}),
-        },
+      // Same mapping the renderers use, so a row rebuilt on load lands on the columns
+      // it was entered into - including when the error is configured against a formula
+      // column, which cannot hold an entered reading.
+      values: resultValues(result, parameter.fieldDefinitions ?? [], config),
       errorObserved: result.errorObserved,
       isOutOfLimit: result.isOutOfLimit,
     }))

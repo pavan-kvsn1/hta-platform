@@ -30,6 +30,11 @@ function collectElements(node: ReactNode, elements: ReactElement[] = []): ReactE
   return elements
 }
 
+function flattenStyle(style: unknown): Record<string, unknown> {
+  const styles = Array.isArray(style) ? style : [style]
+  return Object.assign({}, ...styles.filter((value) => value && typeof value === 'object'))
+}
+
 function textsIn(data: unknown): string[] {
   const document = CalibrationCertificatePDF({ data } as never)
   return collectElements(document)
@@ -120,7 +125,9 @@ describe('a certificate written before Section 05', () => {
 describe('a certificate whose columns the engineer declared', () => {
   it('prints every declared column heading', () => {
     const texts = textsIn(certificateWith(declaredParameter))
-    for (const name of ['Master Reading', 'Ambient', 'UUC Reading', 'Adjusted']) {
+    // The name row carries the name and, for the two columns the error reads, its
+    // alias. Units live in their own row beneath, not inside the name.
+    for (const name of ['Master Reading (x)', 'Ambient', 'UUC Reading (y)', 'Adjusted']) {
       expect(texts).toContain(name)
     }
   })
@@ -131,6 +138,54 @@ describe('a certificate whose columns the engineer declared', () => {
     expect(texts).toContain('Master Instrument')
     expect(texts).toContain('UUC')
     expect(texts).not.toContain('(Master)')
+  })
+
+  it('spans Error and Remarks across both header tiers', () => {
+    // They belong to neither instrument, so a band cell above them would be an empty
+    // box. Their header cell is twice a tier high instead.
+    const document = CalibrationCertificatePDF({
+      data: certificateWith(declaredParameter),
+    } as never)
+    const headers = collectElements(document).filter(
+      (el) => el.type === Text && ['Error Observed', 'Remarks'].includes(textContent(el)),
+    )
+    expect(headers.length).toBeGreaterThanOrEqual(2)
+    expect(headers.length).toBeGreaterThanOrEqual(2)
+
+    // Each sits in a cell given an explicit double-tier height.
+    const cells = collectElements(document).filter((el) => {
+      const text = textContent(el)
+      if (el.type === Text) return false
+      return text.startsWith('Error Observed(±)') || text === 'Remarks'
+    })
+    const heights = cells
+      .map((el) => flattenStyle((el.props as { style?: unknown }).style).minHeight)
+      .filter((h): h is number => typeof h === 'number')
+    expect(heights.length).toBeGreaterThanOrEqual(2)
+    // Twice the tier the bands and the column names each get.
+    expect(new Set(heights).size).toBe(1)
+  })
+
+  it('keeps units on their own row, not inside the column name', () => {
+    const texts = textsIn(certificateWith(declaredParameter))
+    // The unit stands alone in the units tier of the multi-index header.
+    expect(texts).toContain('°C')
+    expect(texts.some((t) => t.includes('Reading (°C)'))).toBe(false)
+  })
+
+  it('states the error formula in aliases', () => {
+    const texts = textsIn(certificateWith(declaredParameter))
+    // A-B is master minus UUC, which in aliases is x-y.
+    expect(texts.some((t) => t.includes('z = (x-y)'))).toBe(true)
+  })
+
+  it('follows the configured direction rather than assuming one', () => {
+    const reversed = {
+      ...declaredParameter,
+      errorConfig: { ...declaredParameter.errorConfig, formula: 'B-A' },
+    }
+    const texts = textsIn(certificateWith(reversed))
+    expect(texts.some((t) => t.includes('z = (y-x)'))).toBe(true)
   })
 
   it('prints the table name under Parameter & Range', () => {
@@ -147,8 +202,12 @@ describe('a certificate whose columns the engineer declared', () => {
 
   it('drops the fixed headings it replaced', () => {
     const texts = textsIn(certificateWith(declaredParameter))
+    // The fixed layout's own column names are gone. Its error label is not a useful
+    // marker any more: the declared header states the same formula when the direction
+    // works out the same way.
     expect(texts).not.toContain('Standard Meter')
-    expect(texts).not.toContain('(±) z = (x-y)')
+    expect(texts).not.toContain('Reading (y)')
+    expect(texts).not.toContain('UUC Reading(x)')
   })
 
   it('prints the value entered in each column', () => {

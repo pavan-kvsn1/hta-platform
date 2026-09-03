@@ -80,7 +80,7 @@ export function createDefaultFieldDefinitions(unit: string): FieldDefinition[] {
   return [
     {
       id: nextId('fld'),
-      name: 'Master Reading',
+      name: 'Standard Meter Reading',
       group: 'master',
       type: 'numeric',
       unit,
@@ -123,12 +123,56 @@ export function createField(group: FieldGroup, fields: FieldDefinition[]): Field
   }
 }
 
-/** Fields eligible for error computation: numeric only, and on the right side. */
+/**
+ * Fields the error can be computed from: anything numeric on that side.
+ *
+ * A formula column counts. It produces a number like any other, and computing the
+ * error against a corrected or converted reading is a normal thing to want - excluding
+ * them meant a column the engineer had just built could not be chosen, with nothing
+ * saying why. Only text columns are out, since they cannot be subtracted.
+ */
 export function errorFieldCandidates(
   fields: FieldDefinition[],
   group: FieldGroup,
 ): FieldDefinition[] {
-  return fields.filter((f) => f.group === group && f.type === 'numeric')
+  return fields.filter(
+    (f) => f.group === group && (f.type === 'numeric' || f.type === 'expression'),
+  )
+}
+
+/**
+ * Why the chosen pair cannot be subtracted, or null when it can.
+ *
+ * Units are the check that matters: an error is the difference between two readings of
+ * the same quantity, so subtracting °C from mV produces a number with no meaning - and
+ * it would be printed on a certificate as though it had one.
+ */
+export function errorConfigProblem(
+  fields: FieldDefinition[],
+  errorConfig: ErrorConfig | null | undefined,
+): string | null {
+  if (!errorConfig) return null
+  const master = fields.find((f) => f.id === errorConfig.masterFieldId)
+  const uuc = fields.find((f) => f.id === errorConfig.uucFieldId)
+
+  if (!errorConfig.masterFieldId || !errorConfig.uucFieldId) {
+    return 'Select both columns to compute the error.'
+  }
+  if (!master || !uuc) {
+    return 'A column the error uses has been removed. Choose another.'
+  }
+
+  const masterUnit = master.unit.trim()
+  const uucUnit = uuc.unit.trim()
+  if (masterUnit && uucUnit && masterUnit.toLowerCase() !== uucUnit.toLowerCase()) {
+    return `${master.name || 'The master column'} is in ${masterUnit} and ${
+      uuc.name || 'the UUC column'
+    } is in ${uucUnit}. Subtracting one from the other gives a number with no meaning.`
+  }
+  if (!masterUnit || !uucUnit) {
+    return 'One of these columns has no unit, so the error cannot be checked against the accuracy limit.'
+  }
+  return null
 }
 
 /**
@@ -595,7 +639,7 @@ export function migrateLegacyResults(
 
   const master: FieldDefinition = {
     id: nextId('fld'),
-    name: 'Master Reading',
+    name: 'Standard Meter Reading',
     group: 'master',
     type: 'numeric',
     unit: options.unit,
@@ -1203,21 +1247,105 @@ export function resultValues(
   if (stored && Object.keys(stored).length > 0) return stored
   if (!errorConfig) return {}
 
+  // The error may be configured against a formula column, which is computed rather
+  // than entered - writing a reading into it would put the value somewhere it is
+  // immediately overwritten, and leave the column it belonged in empty. Fall back to
+  // the first entered column on that side instead.
+  const entered = (group: FieldGroup, preferred: string) => {
+    const chosen = fields.find((f) => f.id === preferred)
+    if (chosen && chosen.type === 'numeric') return chosen.id
+    return fields.find((f) => f.group === group && f.type === 'numeric')?.id ?? ''
+  }
+  const masterId = entered('master', errorConfig.masterFieldId)
+  const uucId = entered('uuc', errorConfig.uucFieldId)
+
   const afterField = fields.find(
-    (f) => f.group === 'uuc' && f.type === 'numeric' && f.id !== errorConfig.uucFieldId,
+    (f) => f.group === 'uuc' && f.type === 'numeric' && f.id !== uucId,
   )
 
   // Built through a Map: the keys are field ids from stored data, so assigning them
   // onto an object literal is an injection sink.
   const mapped = new Map<string, string>()
-  if (errorConfig.masterFieldId && result.standardReading) {
-    mapped.set(errorConfig.masterFieldId, result.standardReading)
+  if (masterId && result.standardReading) {
+    mapped.set(masterId, result.standardReading)
   }
-  if (errorConfig.uucFieldId && result.beforeAdjustment) {
-    mapped.set(errorConfig.uucFieldId, result.beforeAdjustment)
+  if (uucId && result.beforeAdjustment) {
+    mapped.set(uucId, result.beforeAdjustment)
   }
   if (afterField && result.afterAdjustment) {
     mapped.set(afterField.id, result.afterAdjustment)
   }
   return Object.fromEntries(mapped)
+}
+
+/**
+ * Short aliases for the two columns the error is computed from.
+ *
+ * Certificates label the readings x and y and write the error as z, so the table can
+ * state the formula once instead of repeating the column names in every heading. The
+ * master instrument is always x and the unit under test always y, whichever columns
+ * happen to be chosen.
+ */
+export const MASTER_ALIAS = 'x'
+export const UUC_ALIAS = 'y'
+export const ERROR_ALIAS = 'z'
+
+/** 'x' or 'y' for a column the error reads, null for any other column. */
+export function errorAlias(
+  fieldId: string,
+  errorConfig: ErrorConfig | null | undefined,
+): string | null {
+  if (!errorConfig) return null
+  if (fieldId && fieldId === errorConfig.masterFieldId) return MASTER_ALIAS
+  if (fieldId && fieldId === errorConfig.uucFieldId) return UUC_ALIAS
+  return null
+}
+
+/**
+ * The error column's formula in aliases, e.g. "z = (x-y)".
+ *
+ * Follows the configured direction rather than assuming one: A-B is the standard minus
+ * the unit under test, B-A the other way round, and printing the wrong one would
+ * describe the certificate's own numbers incorrectly.
+ */
+export function errorFormulaLabel(errorConfig: ErrorConfig | null | undefined): string {
+  const order =
+    errorConfig?.formula === 'B-A'
+      ? `${UUC_ALIAS}-${MASTER_ALIAS}`
+      : `${MASTER_ALIAS}-${UUC_ALIAS}`
+  return `${ERROR_ALIAS} = (${order})`
+}
+
+/**
+ * A column heading: name, unit, then the alias when the error reads this column -
+ * "Standard Meter Reading (Pa) - (x)".
+ *
+ * The alias trails the unit rather than sitting between name and unit, so the two
+ * bracketed parts are not mistaken for each other.
+ */
+export function columnHeading(
+  field: FieldDefinition,
+  errorConfig?: ErrorConfig | null,
+): string {
+  const name = field.name || 'Untitled'
+  const withUnit = field.unit ? `${name} (${field.unit})` : name
+  const alias = errorAlias(field.id, errorConfig)
+  return alias ? `${withUnit} - (${alias})` : withUnit
+}
+
+/**
+ * The same heading without the unit, for a table that gives units their own row.
+ *
+ * The PDF's header is a multi-index - instrument band, column name, unit - so the unit
+ * belongs to its own tier there rather than inside the name.
+ */
+export function columnLabel(
+  field: FieldDefinition,
+  errorConfig?: ErrorConfig | null,
+): string {
+  const name = field.name || 'Untitled'
+  const alias = errorAlias(field.id, errorConfig)
+  // No separator: with the unit on its own row there is only one bracketed part here,
+  // so nothing needs holding apart.
+  return alias ? `${name} (${alias})` : name
 }

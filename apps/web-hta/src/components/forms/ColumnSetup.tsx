@@ -22,6 +22,7 @@ import { ArrowLeftRight, ChevronDown, ChevronRight, Plus, X, AlertTriangle } fro
 import {
   createField,
   detectExpressionCycles,
+  errorConfigProblem,
   errorFieldCandidates,
   removeField,
   type ErrorConfig,
@@ -65,6 +66,9 @@ export function ColumnSetup({
 }: ColumnSetupProps) {
   const [expanded, setExpanded] = useState(false)
   const [warning, setWarning] = useState<string | null>(null)
+  // Why the chosen pair cannot be subtracted - mismatched units above all, since an
+  // error between two different quantities would still print as a number.
+  const errorProblem = errorConfigProblem(fields, errorConfig)
 
   const masterFields = fields.filter((f) => f.group === 'master')
   const uucFields = fields.filter((f) => f.group === 'uuc')
@@ -320,9 +324,10 @@ export function ColumnSetup({
               />
             </div>
 
-            {(!errorConfig.masterFieldId || !errorConfig.uucFieldId) && (
-              <p className="mt-2 text-xs text-amber-700">
-                Select both fields to compute the error column.
+            {errorProblem && (
+              <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-700">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {errorProblem}
               </p>
             )}
           </div>

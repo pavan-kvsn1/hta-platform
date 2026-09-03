@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils'
 import {
   formatToPrecision,
   readStoredFieldSchema,
+  errorFormulaLabel,
+  columnHeading,
   resolveRowValues,
   resultValues,
   type ErrorConfig,
@@ -88,10 +90,13 @@ function schemaOf(param: CalibrationParameter): {
 const HEAD = 'px-4 py-2 text-left text-xs font-semibold text-slate-700'
 const CELL = 'px-4 py-2 text-xs'
 
-/** Name and unit on one line, matching how the engineer entered it. */
-function heading(field: FieldDefinition) {
-  const name = field.name || 'Untitled'
-  return field.unit ? `${name} (${field.unit})` : name
+/**
+ * Name, unit, then the alias when the error reads this column - so a heading reads
+ * "Standard Meter Reading (°C) - (x)" and the error column can state its formula
+ * without naming the columns again.
+ */
+function heading(field: FieldDefinition, errorConfig: ErrorConfig | null) {
+  return columnHeading(field, errorConfig)
 }
 
 export function CalibrationResultsTable({
@@ -154,7 +159,7 @@ export function CalibrationResultsTable({
                           </th>
                         )}
                         <th rowSpan={2} className={cn(HEAD, 'align-bottom')}>
-                          Error
+                          Error {errorFormulaLabel(errorConfig)}
                         </th>
                         <th
                           rowSpan={2}
@@ -166,7 +171,7 @@ export function CalibrationResultsTable({
                       <tr>
                         {ordered.map((field) => (
                           <th key={field.id} className={HEAD}>
-                            {heading(field)}
+                            {heading(field, errorConfig)}
                           </th>
                         ))}
                       </tr>

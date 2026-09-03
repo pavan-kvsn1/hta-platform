@@ -98,9 +98,9 @@ describe('a certificate with declared columns', () => {
   it('prints every declared column, not a fixed three', () => {
     render(<CalibrationResultsTable parameters={[dynamicParameter]} />)
     for (const name of [
-      'Master Reading (°C)',
+      'Master Reading (°C) - (x)',
       'Ambient (°C)',
-      'UUC Reading (°C)',
+      'UUC Reading (°C) - (y)',
       'Probe',
       'Adjusted (°C)',
     ]) {

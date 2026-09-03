@@ -442,7 +442,7 @@ export function ReadingImageModal({
           )}
 
           {renderImagePane(
-            'Master Reading',
+            'Standard Meter Reading',
             standardReading,
             masterImage,
             uploadingMaster,

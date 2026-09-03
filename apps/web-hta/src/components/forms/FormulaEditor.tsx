@@ -16,7 +16,8 @@
 // readings substituted, then one line per operation. When a computed column looks
 // wrong, the line where it goes wrong is the thing worth seeing.
 
-import { AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   checkExpression,
   expressionFromDisplay,
@@ -25,6 +26,7 @@ import {
   formulaBreakdown,
   type FieldDefinition,
 } from '@/lib/certificate-fields'
+import { cn } from '@/lib/utils'
 
 interface FormulaEditorProps {
   field: FieldDefinition
@@ -48,6 +50,18 @@ export function FormulaEditor({
   precision = 2,
   onChange,
 }: FormulaEditorProps) {
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  // The working is worth seeing while a formula is being written and worth folding
+  // away once it is settled, so it starts open and stays where the engineer puts it.
+  const [showWorking, setShowWorking] = useState(true)
+
+  // Height follows the content. Reset first, or the box can only ever grow.
+  useLayoutEffect(() => {
+    const node = inputRef.current
+    if (!node) return
+    node.style.height = 'auto'
+    node.style.height = `${node.scrollHeight}px`
+  }, [field.expression, fields])
   const candidates = fields.filter(
     (f) => f.id !== field.id && f.type !== 'text' && f.group === field.group,
   )
@@ -72,10 +86,15 @@ export function FormulaEditor({
     <div className="space-y-2.5 rounded-lg border border-slate-200 bg-slate-50/40 p-3">
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-xs text-slate-400">=</span>
-        <input
-          type="text"
+        {/* A textarea rather than an input: a formula naming three or four columns is
+            longer than the panel is wide, and a one-line field scrolls it out of sight
+            just when it most needs checking. It grows to fit instead. */}
+        <textarea
+          ref={inputRef}
+          rows={1}
           value={display}
           disabled={disabled}
+          spellCheck={false}
           placeholder={
             available.length > 0
               ? `{${available[0].name || 'Column'}} * 2`
@@ -83,7 +102,7 @@ export function FormulaEditor({
           }
           aria-label={`Formula for ${field.name || 'field'}`}
           onChange={(e) => onChange(expressionFromDisplay(e.target.value, fields))}
-          className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-xs text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          className="min-w-0 flex-1 resize-none overflow-hidden rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-xs leading-5 text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
         />
       </div>
 
@@ -116,25 +135,53 @@ export function FormulaEditor({
 
       {check.ok && breakdown && (
         <div className="space-y-1 border-t border-slate-200 pt-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-            {worked ? 'Working, from the first row entered' : 'Formula'}
-          </p>
+          <button
+            type="button"
+            onClick={() => setShowWorking((open) => !open)}
+            aria-expanded={showWorking}
+            className="-ml-1 inline-flex items-center gap-1 rounded px-1 py-0.5 text-left transition-colors hover:bg-slate-100"
+          >
+            {showWorking ? (
+              <ChevronDown className="h-3 w-3 text-slate-400" />
+            ) : (
+              <ChevronRight className="h-3 w-3 text-slate-400" />
+            )}
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              {worked ? 'Working, from the first row entered' : 'Formula'}
+            </span>
+            {/* Collapsed, the answer is still worth having - it is the line most often
+                being checked. */}
+            {!showWorking && worked && breakdown.result !== null && (
+              <span className="font-mono text-[11px] text-slate-600">
+                = {formatToPrecision(breakdown.result, precision)}
+                {field.unit ? ` ${field.unit}` : ''}
+              </span>
+            )}
+          </button>
 
-          <ol className="space-y-0.5 font-mono text-[11px] text-slate-500">
+          {showWorking && (
+            <>
+          <ol className="space-y-0.5 font-mono text-[11px] leading-5 text-slate-500">
             {breakdown.steps.map((step, index) => {
               const last = index === breakdown.steps.length - 1
               return (
                 <li
                   key={index}
-                  className={last && worked ? 'font-medium text-slate-800' : undefined}
+                  className={cn(
+                    'flex items-start gap-1',
+                    last && worked && 'font-medium text-slate-800',
+                  )}
                 >
-                  <span className="mr-1 inline-block w-2 text-slate-300">
-                    {index === 0 ? '' : '='}
+                  {/* The sign hangs in the margin, so a step too long for one line
+                      wraps under its own first character rather than under the sign.
+                      The opening line has none, so the formula starts flush. */}
+                  {index > 0 && <span className="shrink-0 text-slate-300">=</span>}
+                  <span className="min-w-0 flex-1 break-words">
+                    {step}
+                    {last && worked && breakdown.result !== null && field.unit
+                      ? ` ${field.unit}`
+                      : ''}
                   </span>
-                  {step}
-                  {last && worked && breakdown.result !== null && field.unit
-                    ? ` ${field.unit}`
-                    : ''}
                 </li>
               )
             })}
@@ -171,6 +218,8 @@ export function FormulaEditor({
                 Enter a row to see this worked through.
               </p>
             )
+          )}
+            </>
           )}
         </div>
       )}

@@ -315,7 +315,7 @@ export function ReadingImagesViewModal({
                   currentPoint?.uucImage ?? null
                 )}
                 {renderImagePane(
-                  'Master Reading',
+                  'Standard Meter Reading',
                   currentPoint?.standardReading ?? null,
                   currentPoint?.masterImage ?? null
                 )}

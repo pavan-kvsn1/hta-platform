@@ -20,8 +20,10 @@ import {
   migrateLegacyResults,
   toLegacyResults,
   readStoredFieldSchema,
+  resultValues,
   buildSimpleExpression,
   parseSimpleExpression,
+  type ErrorConfig,
   type FieldDefinition,
   type CalibrationResultRow,
 } from '@/lib/certificate-fields'
@@ -51,6 +53,12 @@ describe('default schema', () => {
     expect(fields.every((f) => f.type === 'numeric' && f.unit === 'kg/cm²')).toBe(true)
   })
 
+  it('names the master column the way a certificate does', () => {
+    // "Standard Meter Reading" is the wording on the printed certificate, so the
+    // default column matches it rather than introducing a second term for one thing.
+    expect(createDefaultFieldDefinitions('bar')[0].name).toBe('Standard Meter Reading')
+  })
+
   it('auto-selects those two fields for error computation', () => {
     const fields = createDefaultFieldDefinitions('bar')
     const config = createDefaultErrorConfig(fields, 'bar')
@@ -59,15 +67,17 @@ describe('default schema', () => {
     expect(config.formula).toBe('A-B')
   })
 
-  it('offers only numeric fields from the right side as error candidates', () => {
+  it('offers every column that yields a number, formulas included', () => {
     const fields = [
       field({ id: 'm1', group: 'master', type: 'numeric' }),
       field({ id: 'm2', group: 'master', type: 'text' }),
       field({ id: 'u1', group: 'uuc', type: 'numeric' }),
       field({ id: 'u2', group: 'uuc', type: 'expression' }),
     ]
+    // A formula column produces a number, so an error can be computed against it.
+    // Text cannot be subtracted, so it stays out.
     expect(errorFieldCandidates(fields, 'master').map((f) => f.id)).toEqual(['m1'])
-    expect(errorFieldCandidates(fields, 'uuc').map((f) => f.id)).toEqual(['u1'])
+    expect(errorFieldCandidates(fields, 'uuc').map((f) => f.id)).toEqual(['u1', 'u2'])
   })
 
   it('gives a new field the next order within its own group', () => {
@@ -615,5 +625,53 @@ describe('readStoredFieldSchema', () => {
     // ...and the rows come back with them, since rows live on the results.
     expect(loaded.resultRows).toHaveLength(1)
     expect(loaded.resultRows[0].values.u1).toBe('-4.9')
+  })
+})
+
+describe('a row rebuilt on reload', () => {
+  // The shape of certificate 5eed80c6: three columns, and the error configured against
+  // the formula column rather than the entered one.
+  const fields: FieldDefinition[] = [
+    { id: 'm1', name: 'Standard Meter Reading', group: 'master', type: 'numeric', unit: '°C', order: 0 },
+    { id: 'u1', name: 'UUC Reading', group: 'uuc', type: 'numeric', unit: '°C', order: 0 },
+    {
+      id: 'x1',
+      name: 'Adjusted Reading',
+      group: 'master',
+      type: 'expression',
+      unit: '°C',
+      order: 1,
+      expression: '{m1} + 0.1',
+    },
+  ]
+  const errorConfig: ErrorConfig = {
+    masterFieldId: 'x1',
+    uucFieldId: 'u1',
+    formula: 'A-B',
+    unit: '°C',
+  }
+  const legacyRow = {
+    standardReading: '25',
+    beforeAdjustment: '25.3',
+    afterAdjustment: '',
+  }
+
+  it('keeps the stored values when it has them', () => {
+    const stored = { ...legacyRow, values: { m1: '25', u1: '25.3', x1: '25.1' } }
+    expect(resultValues(stored, fields, errorConfig)).toEqual(stored.values)
+  })
+
+  it('never writes an entered reading into a formula column', () => {
+    // x1 is computed. Putting the reading there loses it - the formula overwrites it -
+    // and leaves Standard Meter Reading, where it belongs, empty.
+    const mapped = resultValues(legacyRow, fields, errorConfig)
+    expect(mapped.x1).toBeUndefined()
+    expect(mapped.m1).toBe('25')
+    expect(mapped.u1).toBe('25.3')
+  })
+
+  it('still uses the configured column when it is an entered one', () => {
+    const plain: ErrorConfig = { ...errorConfig, masterFieldId: 'm1' }
+    expect(resultValues(legacyRow, fields, plain).m1).toBe('25')
   })
 })

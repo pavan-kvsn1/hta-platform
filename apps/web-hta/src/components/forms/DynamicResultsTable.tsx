@@ -4,8 +4,8 @@
 //
 // Columns come from fieldDefinitions rather than being fixed, so each parameter can
 // have its own layout, per docs/todos/section05-dynamic-fields-revamp.md. Headers are
-// two rows: the Master / UUC group, then the column itself as "Master Reading (deg C)"
-// - name and unit on one line rather than stacked. The group row is a band of its
+// two rows: the Master / UUC group, then the column itself as "Standard Meter Reading
+// (deg C)" - name and unit on one line rather than stacked. The group row is a band of its
 // own: a rule underneath it and enough height to be read as a band rather than a
 // cramped line, since it spans several columns and has to hold them together. The
 // fixed Sl./Error/Limit/Status/Photos columns span both header rows, so they are
@@ -26,9 +26,12 @@
 
 import { AlertTriangle, Camera, CheckCircle, ImageIcon, Plus, Trash2 } from 'lucide-react'
 import {
+  errorFormulaLabel,
   formatToPrecision,
+  columnHeading,
   resolveRowValues,
   type CalibrationResultRow,
+  type ErrorConfig,
   type FieldDefinition,
 } from '@/lib/certificate-fields'
 import { cn } from '@/lib/utils'
@@ -36,6 +39,11 @@ import { cn } from '@/lib/utils'
 interface DynamicResultsTableProps {
   fields: FieldDefinition[]
   rows: CalibrationResultRow[]
+  /**
+   * Which two columns the error is computed from, so their headings can carry the
+   * aliases the Error heading refers to.
+   */
+  errorConfig?: ErrorConfig | null
   /**
    * Decimal places for the Limit column, and the fallback when precisionFor is absent.
    */
@@ -65,6 +73,13 @@ interface DynamicResultsTableProps {
    * is omitted rather than shown empty.
    */
   getLimit?: (row: CalibrationResultRow) => { limit: number | null; binIndex: number | null }
+  /**
+   * Why a row needs a second look, or null. A warning is not a failure: the reading is
+   * within the accuracy limit but something about it is still wrong - too many
+   * decimals for the least count, or a point outside the operating range. Supplied by
+   * ResultsSection; without it no row is marked.
+   */
+  getWarning?: (row: CalibrationResultRow) => string | null
 }
 
 function byOrder(a: FieldDefinition, b: FieldDefinition) {
@@ -74,6 +89,7 @@ function byOrder(a: FieldDefinition, b: FieldDefinition) {
 export function DynamicResultsTable({
   fields,
   rows,
+  errorConfig,
   precision,
   precisionFor,
   disabled,
@@ -83,6 +99,7 @@ export function DynamicResultsTable({
   getReadingImages,
   onOpenImages,
   getLimit,
+  getWarning,
 }: DynamicResultsTableProps) {
   const masterFields = fields.filter((f) => f.group === 'master').sort(byOrder)
   const uucFields = fields.filter((f) => f.group === 'uuc').sort(byOrder)
@@ -99,11 +116,12 @@ export function DynamicResultsTable({
   const alignFor = (field: FieldDefinition) =>
     field.type === 'text' ? 'text-left' : 'text-right tabular-nums'
 
-  /** Name and unit on one line, e.g. "Master Reading (deg C)". */
-  const headingFor = (field: FieldDefinition) => {
-    const name = field.name || 'Untitled'
-    return field.unit ? name + ' (' + field.unit + ')' : name
-  }
+  /**
+   * Name, unit, then the alias when the error reads this column, e.g. "Standard Meter
+   * Reading (deg C) - (x)". The alias marks the two columns the Error heading's formula
+   * refers to, so it need not repeat their names.
+   */
+  const headingFor = (field: FieldDefinition) => columnHeading(field, errorConfig)
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200">
@@ -138,6 +156,9 @@ export function DynamicResultsTable({
                 className="w-24 px-4 py-1.5 text-center align-middle text-xs font-semibold text-slate-700"
               >
                 Error
+                <span className="block font-normal text-slate-500">
+                  {errorFormulaLabel(errorConfig)}
+                </span>
               </th>
               {getLimit && (
                 <th
@@ -186,14 +207,21 @@ export function DynamicResultsTable({
             {rows.map((row, rowIndex) => {
               // Expression cells show computed values, so resolve once per row.
               const resolved = resolveRowValues(row, fields)
+              // A failing row stays red even when it also has a warning: exceeding the
+              // accuracy limit is the more serious verdict, and two colours on one row
+              // would say neither clearly.
+              const warning = row.isOutOfLimit ? null : (getWarning?.(row) ?? null)
               return (
                 <tr
                   key={row.id}
+                  title={warning ?? undefined}
                   className={cn(
                     'group transition-colors',
                     row.isOutOfLimit
                       ? 'bg-red-50/40 font-bold text-red-700'
-                      : 'hover:bg-slate-50/70',
+                      : warning
+                        ? 'bg-amber-50/50 text-amber-800'
+                        : 'hover:bg-slate-50/70',
                   )}
                 >
                   <td className="px-4 py-2 text-xs tabular-nums text-slate-400">
@@ -239,6 +267,7 @@ export function DynamicResultsTable({
                             'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
                             alignFor(field),
                             row.isOutOfLimit && 'font-bold text-red-700',
+                            warning && 'text-amber-800',
                           )}
                         />
                       </td>
@@ -275,6 +304,14 @@ export function DynamicResultsTable({
                       <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
                         <AlertTriangle className="size-3" />
                         Fail*
+                      </span>
+                    ) : warning ? (
+                      <span
+                        title={warning}
+                        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                      >
+                        <AlertTriangle className="size-3" />
+                        Check
                       </span>
                     ) : row.errorObserved !== null ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">

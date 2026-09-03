@@ -305,6 +305,51 @@ function ResultsTable({
     return count
   }, [parameter])
 
+  /**
+   * Why a row needs a second look, or null when it does not.
+   *
+   * Distinct from a failure. A failure is one thing: the error exceeds the accuracy
+   * limit, which is decided once in recomputeResultRow and stored on the row. A warning
+   * is a reading that is not out of limit but is still wrong enough to matter - more
+   * decimals than the instrument can resolve, or a point taken outside the operating
+   * range.
+   *
+   * Derived here rather than stored, because a warning is something to fix before
+   * signing rather than something to print: the certificate and the PDF show the
+   * failure verdict only.
+   */
+  const rowWarning = useCallback(
+    (row: { values: Record<string, string> }): string | null => {
+      const masterRaw = row.values[parameter.errorConfig.masterFieldId] ?? ''
+      const masterReading = parseFloat(masterRaw)
+      const { precision } = !isNaN(masterReading)
+        ? getLeastCountInfo(parameter, masterReading)
+        : { precision: getDefaultPrecision(parameter) }
+
+      const numericFields = parameter.fieldDefinitions.filter((f) => f.type === 'numeric')
+      const imprecise = numericFields.filter(
+        (field) => !validatePrecision(row.values[field.id] ?? '', precision),
+      )
+      if (imprecise.length > 0) {
+        const names = imprecise.map((f) => f.name || 'a column').join(', ')
+        return `${names} ${imprecise.length === 1 ? 'does' : 'do'} not match the least count of ${precision} decimal${precision === 1 ? '' : 's'}.`
+      }
+
+      const opMin = parseFloat(parameter.operatingMin)
+      const opMax = parseFloat(parameter.operatingMax)
+      if (!isNaN(masterReading) && (!isNaN(opMin) || !isNaN(opMax))) {
+        const belowMin = !isNaN(opMin) && masterReading < opMin
+        const aboveMax = !isNaN(opMax) && masterReading > opMax
+        if (belowMin || aboveMax) {
+          return `This point is outside the operating range ${parameter.operatingMin || '—'} to ${parameter.operatingMax || '—'} ${parameter.parameterUnit}.`
+        }
+      }
+
+      return null
+    },
+    [parameter],
+  )
+
   // Calculate base limit for display (for ABSOLUTE and PERCENT_SCALE which are constant)
   const baseLimit = useMemo(() => {
     if (parameter.accuracyType === 'PERCENT_READING') return null
@@ -421,12 +466,12 @@ function ResultsTable({
 
         {/* Operating range violation alert */}
         {operatingRangeViolations > 0 && (
-          <div className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] text-red-800">
-            <AlertTriangle className="size-3.5 shrink-0 text-red-500" />
+          <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800">
+            <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
             <div>
-              <span className="font-bold">Operating Range Error:</span>{' '}
+              <span className="font-bold">Operating Range Warning:</span>{' '}
               {operatingRangeViolations} standard reading{operatingRangeViolations !== 1 ? 's are' : ' is'} outside the operating range.
-              <span className="text-red-600 ml-1">
+              <span className="ml-1 text-amber-600">
                 (Operating range: {parameter.operatingMin || '—'} to {parameter.operatingMax || '—'} {parameter.parameterUnit})
               </span>
             </div>
@@ -489,7 +534,9 @@ function ResultsTable({
         <DynamicResultsTable
           fields={parameter.fieldDefinitions}
           rows={parameter.resultRows}
+          errorConfig={parameter.errorConfig}
           precision={defaultPrecision}
+          getWarning={rowWarning}
           precisionFor={(_field, row) => {
             // The parameter section describes the UUC, so its least count - blanket or
             // per bin - is the UUC's resolution. Bins are picked by the row's reading,

@@ -254,6 +254,9 @@ interface ApiResult {
   afterAdjustment: string | null
   errorObserved: number | null
   isOutOfLimit: boolean
+  /** Per-column values. Dropping these on load loses every column the legacy three
+   *  cannot represent, and the row is then rebuilt from those three alone. */
+  values?: Record<string, string> | null
 }
 
 interface ReviewerEdit {
@@ -466,6 +469,7 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
       afterAdjustment: result.afterAdjustment || '',
       errorObserved: result.errorObserved,
       isOutOfLimit: result.isOutOfLimit || false,
+      values: result.values ?? undefined,
     })),
     // Stored schema wins; ensureParameterFields derives the default Master/UUC pair
     // from the results only when a parameter has none - which is every parameter

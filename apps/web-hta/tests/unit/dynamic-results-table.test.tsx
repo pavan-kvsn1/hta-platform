@@ -85,6 +85,25 @@ describe('DynamicResultsTable', () => {
     expect(screen.getByText('Derived mV (mV)')).toBeInTheDocument()
   })
 
+  it('marks the two columns the error reads, master as x and UUC as y', () => {
+    renderTable({ errorConfig })
+    expect(screen.getByText('Std Meter Reading (kg/cm²) - (x)')).toBeInTheDocument()
+    expect(screen.getByText('UUC Reading (kg/cm²) - (y)')).toBeInTheDocument()
+    // A column the error does not read carries no alias.
+    expect(screen.getByText('Derived mV (mV)')).toBeInTheDocument()
+  })
+
+  it('states the error formula in those aliases', () => {
+    renderTable({ errorConfig })
+    // A-B is master minus UUC, which in aliases is x-y.
+    expect(screen.getByText('z = (x-y)')).toBeInTheDocument()
+  })
+
+  it('follows the configured direction', () => {
+    renderTable({ errorConfig: { ...errorConfig, formula: 'B-A' } })
+    expect(screen.getByText('z = (y-x)')).toBeInTheDocument()
+  })
+
   it('omits the parentheses for a column with no unit', () => {
     renderTable()
     // UUC Status is a text field and carries no unit.
@@ -169,6 +188,37 @@ describe('DynamicResultsTable', () => {
     }
   })
 
+  it('marks a row that needs a second look in amber, not red', () => {
+    renderTable({
+      rows: [rows[0]],
+      getWarning: () => 'Std Meter Reading does not match the least count of 2 decimals.',
+    })
+    const row = screen.getByText('Check').closest('tr')
+    expect(row).toHaveClass('bg-amber-50/50', 'text-amber-800')
+    expect(row).not.toHaveClass('bg-red-50/40')
+  })
+
+  it('explains the warning rather than only colouring the row', () => {
+    const reason = 'This point is outside the operating range 0 to 100 kg/cm².'
+    renderTable({ rows: [rows[0]], getWarning: () => reason })
+    expect(screen.getByText('Check').closest('tr')).toHaveAttribute('title', reason)
+  })
+
+  it('keeps a failing row red even when it also has a warning', () => {
+    // Exceeding the accuracy limit is the more serious verdict; two colours on one row
+    // would say neither clearly.
+    renderTable({ rows: [rows[1]], getWarning: () => 'Also imprecise.' })
+    const row = screen.getByText('Fail*').closest('tr')
+    expect(row).toHaveClass('bg-red-50/40', 'text-red-700')
+    expect(screen.queryByText('Check')).not.toBeInTheDocument()
+  })
+
+  it('leaves a clean row alone', () => {
+    renderTable({ rows: [rows[0]], getWarning: () => null })
+    expect(screen.getByText('Pass')).toBeInTheDocument()
+    expect(screen.queryByText('Check')).not.toBeInTheDocument()
+  })
+
   it('shows Pass for a point inside the limit', () => {
     renderTable({ rows: [rows[0]] })
     expect(screen.getByText('Pass')).toBeInTheDocument()
@@ -227,7 +277,7 @@ describe('ColumnSetup', () => {
     expect(screen.getByText('Master Instrument Fields')).toBeInTheDocument()
   })
 
-  it('offers only numeric fields of the matching side for error computation', () => {
+  it('offers every numeric column of the matching side, formulas included', () => {
     renderSetup()
     fireEvent.click(screen.getByRole('button', { expanded: false }))
 
@@ -235,10 +285,27 @@ describe('ColumnSetup', () => {
     expect(within(fieldA).getByText('Std Meter Reading')).toBeInTheDocument()
 
     const fieldB = screen.getByLabelText(/Field B \(UUC\)/i)
-    // UUC Status is text and Derived mV is an expression, so neither may be picked.
     expect(within(fieldB).getByText('UUC Reading')).toBeInTheDocument()
+    // A formula column produces a number, so the error can be computed against it -
+    // excluding it meant a column just built could not be chosen.
+    expect(within(fieldB).getByText('Derived mV')).toBeInTheDocument()
+    // Text cannot be subtracted.
     expect(within(fieldB).queryByText('UUC Status')).not.toBeInTheDocument()
-    expect(within(fieldB).queryByText('Derived mV')).not.toBeInTheDocument()
+  })
+
+  it('warns when the two error columns are in different units', () => {
+    // Subtracting a reading in mV from one in kg/cm² gives a number with no meaning,
+    // and it would be printed on the certificate as though it had one.
+    renderSetup({ errorConfig: { ...errorConfig, uucFieldId: 'u3' } })
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+    expect(screen.getByText(/no meaning/i)).toBeInTheDocument()
+  })
+
+  it('says nothing when the units agree', () => {
+    renderSetup()
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+    expect(screen.queryByText(/no meaning/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Select both columns/i)).not.toBeInTheDocument()
   })
 
   it('adds a field defaulted to the parameter unit', () => {
@@ -271,7 +338,7 @@ describe('ColumnSetup', () => {
         onChange={props.onChange}
       />,
     )
-    expect(screen.getByText(/Select both fields to compute the error column/i)).toBeInTheDocument()
+    expect(screen.getByText(/Select both columns to compute the error/i)).toBeInTheDocument()
   })
 
   it('flags an expression that refers back to itself', () => {

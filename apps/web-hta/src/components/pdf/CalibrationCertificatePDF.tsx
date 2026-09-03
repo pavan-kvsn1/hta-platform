@@ -53,7 +53,12 @@ import {
 } from './pdf-utils'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 import { resolveCalibrationPrecision } from '@/lib/utils/calibration-precision'
-import { resolveRowValues, resultValues } from '@/lib/certificate-fields'
+import {
+  errorFormulaLabel,
+  columnLabel,
+  resolveRowValues,
+  resultValues,
+} from '@/lib/certificate-fields'
 
 // Format ISO date string to readable format: "09 Feb 2026, 14:30 IST"
 function formatSigningDateTime(isoString: string | undefined, timezone?: string): string {
@@ -1015,14 +1020,26 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
           const dataWidth = `${100 / dataColumnCount}%`
           const masterColumns = declared.filter((f) => f.group === 'master')
           const uucColumns = declared.filter((f) => f.group === 'uuc')
-          /** Width of a band spanning n of the data columns. */
-          const groupWidth = (n: number) => `${(100 * n) / dataColumnCount}%`
+          // The declared columns share the part of the table that is not Error or
+          // Remarks; widths inside that block are relative to it, so a band over n
+          // columns and the n columns themselves always line up.
+          const declaredWidth = `${(100 * declared.length) / dataColumnCount}%`
+          const bandWidth = (n: number) =>
+            declared.length > 0 ? `${(100 * n) / declared.length}%` : '0%'
+          // One tier of the header. Both tiers get the same height, and the cells that
+          // span both get twice it, so nothing sits half a row out.
+          const headerTier = dynamicHeight(12)
 
           return (
             <View key={param.id} style={[styles.calibrationSection, { marginBottom: dynamicMargin(12) }]} wrap={false} break={needsBreak}>
               <View style={styles.calibrationTable}>
                 {/* Header Row 1 */}
-                <View style={styles.calibrationHeaderRow}>
+                <View
+                  style={[
+                    styles.calibrationHeaderRow,
+                    isDynamic ? { minHeight: headerTier * 2 } : {},
+                  ]}
+                >
                   <View style={[styles.calCell, { width: '8%' }]}>
                     <Text style={styles.calHeaderText}>Sl.</Text>
                     <Text style={styles.calHeaderText}>No.</Text>
@@ -1032,38 +1049,67 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                     <Text style={styles.calHeaderText}>Range</Text>
                   </View>
                   {isDynamic ? (
-                    // Two tiers, as the results table has: which instrument the columns
-                    // belong to, then the columns themselves. Reading a column heading
-                    // without knowing whose reading it is tells you very little.
-                    <View style={{ width: '72%' }}>
-                      <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#000' }}>
-                        {masterColumns.length > 0 && (
-                          <View style={[styles.calCell, { width: groupWidth(masterColumns.length) }]}>
-                            <Text style={styles.calHeaderText}>Master Instrument</Text>
-                          </View>
-                        )}
-                        {uucColumns.length > 0 && (
-                          <View style={[styles.calCell, { width: groupWidth(uucColumns.length) }]}>
-                            <Text style={styles.calHeaderText}>UUC</Text>
-                          </View>
-                        )}
-                        <View style={[styles.calCellLast, { width: groupWidth(2) }]}>
-                          <Text style={styles.calHeaderText}> </Text>
+                    // Two tiers over the declared columns - which instrument they
+                    // belong to, then the columns themselves - while Error Observed and
+                    // Remarks span both, since neither belongs to an instrument. Every
+                    // tier is one headerTier high so the two sides line up.
+                    <View style={{ width: '72%', flexDirection: 'row', alignItems: 'stretch' }}>
+                      <View style={{ width: declaredWidth }}>
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'stretch',
+                            minHeight: headerTier,
+                            borderBottomWidth: 0.5,
+                            borderBottomColor: '#000',
+                          }}
+                        >
+                          {masterColumns.length > 0 && (
+                            <View
+                              style={[styles.calCell, { width: bandWidth(masterColumns.length) }]}
+                            >
+                              <Text style={styles.calHeaderText}>Master Instrument</Text>
+                            </View>
+                          )}
+                          {uucColumns.length > 0 && (
+                            <View style={[styles.calCell, { width: bandWidth(uucColumns.length) }]}>
+                              <Text style={styles.calHeaderText}>UUC</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View
+                          style={{ flexDirection: 'row', alignItems: 'stretch', minHeight: headerTier }}
+                        >
+                          {declared.map((field) => (
+                            <View
+                              key={field.id}
+                              style={[styles.calCell, { width: bandWidth(1) }]}
+                            >
+                              <Text style={styles.calHeaderText}>
+                                {columnLabel(field, param.errorConfig ?? null)}
+                              </Text>
+                            </View>
+                          ))}
                         </View>
                       </View>
-                      <View style={{ flexDirection: 'row' }}>
-                        {declared.map((field) => (
-                          <View key={field.id} style={[styles.calCell, { width: dataWidth }]}>
-                            <Text style={styles.calHeaderText}>{field.name || 'Untitled'}</Text>
-                          </View>
-                        ))}
-                        <View style={[styles.calCell, { width: dataWidth }]}>
-                          <Text style={styles.calHeaderText}>Error Observed</Text>
-                          <Text style={styles.calHeaderText}>(±)</Text>
-                        </View>
-                        <View style={[styles.calCellLast, { width: dataWidth }]}>
-                          <Text style={styles.calHeaderText}>Remarks</Text>
-                        </View>
+                      <View
+                        style={[
+                          styles.calCell,
+                          { width: dataWidth, minHeight: headerTier * 2 },
+                        ]}
+                      >
+                        <Text style={styles.calHeaderText}>Error Observed</Text>
+                        <Text style={styles.calHeaderText}>
+                          (±) {errorFormulaLabel(param.errorConfig ?? null)}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.calCellLast,
+                          { width: dataWidth, minHeight: headerTier * 2 },
+                        ]}
+                      >
+                        <Text style={styles.calHeaderText}>Remarks</Text>
                       </View>
                     </View>
                   ) : (
@@ -1088,7 +1134,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                 </View>
 
                 {/* Sub-header Row (units) */}
-                <View style={styles.calibrationSubHeaderRow}>
+                <View style={[styles.calibrationSubHeaderRow, isDynamic ? { minHeight: headerTier } : {}]}>
                   <View style={[styles.calCell, { width: '8%' }]}>
                     <Text style={styles.calSubHeaderText}></Text>
                   </View>
@@ -1100,7 +1146,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                     </Text>
                   </View>
                   {isDynamic ? (
-                    <View style={{ width: '72%', flexDirection: 'row' }}>
+                    <View style={{ width: '72%', flexDirection: 'row', alignItems: 'stretch' }}>
                       {declared.map((field) => (
                         <View key={field.id} style={[styles.calCell, { width: dataWidth }]}>
                           <Text style={styles.calSubHeaderText}>{field.unit || ''}</Text>
