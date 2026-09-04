@@ -690,7 +690,7 @@ export function MasterAddFlow({
                   onChange={(e) => setInstrumentQuery(e.target.value)}
                   placeholder="Search by asset number, description, make, model or serial"
                   aria-label="Search instruments"
-                  className="h-10 w-full bg-transparent text-xs outline-none placeholder:text-slate-400"
+                  className="h-9 w-full bg-transparent text-xs outline-none placeholder:text-slate-400"
                 />
                 {instrumentQuery && (
                   <button

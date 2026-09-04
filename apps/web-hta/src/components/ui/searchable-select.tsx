@@ -186,7 +186,7 @@ export function SearchableSelect({
         <div
           ref={fieldRef}
           className={cn(
-            'w-full rounded-xl border border-slate-300 h-12 bg-white flex items-center gap-2 pl-4 pr-2',
+            'w-full rounded-xl border border-slate-300 h-9 bg-white flex items-center gap-2 pl-3 pr-1.5',
             'focus-within:border-primary focus-within:ring-1 focus-within:ring-primary',
             disabled && 'opacity-50',
             className,
