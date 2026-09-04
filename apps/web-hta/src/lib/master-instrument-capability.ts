@@ -413,3 +413,191 @@ export function unitCoversRange(
   }
   return false
 }
+
+// ---------------------------------------------------------------------------------
+// Master suitability
+// ---------------------------------------------------------------------------------
+//
+// Whether a chosen master is good enough for what is being calibrated, judged per
+// required range rather than once for the whole parameter. A parameter can be binned,
+// and a master's own resolution and accuracy change across its bands, so one verdict
+// for the pair would hide the case where the master is fine at one end and not the
+// other.
+//
+// The comparison is a test ACCURACY ratio: the unit's acceptance limit against the
+// master's accuracy specification. It is not a TUR - that needs the master's expanded
+// uncertainty at 95%, which the registry does not record. Named accordingly so nobody
+// reads it as the figure ILAC-G8 or Z540.3 ask for.
+
+/** One range the calibration needs covered, from the unit under test. */
+export interface RequiredRange {
+  from: number
+  to: number
+  /** Resolution the readings are recorded at. */
+  leastCount: number
+  /** Acceptance limit the error is judged against. */
+  accuracy: number
+}
+
+export type LeastCountVerdict = 'matches' | 'finer' | 'coarser'
+
+export interface RangeSuitability {
+  required: RequiredRange
+  /** The band the readings fall in, or null when nothing covers them. */
+  band: CapabilityBucket | null
+  /** Whether the capability spans the required range at all. */
+  covered: boolean
+  /**
+   * How the master's resolution compares. 'finer' is acceptable - the certificate
+   * records the master's own least count - while 'coarser' means readings would be
+   * written more precisely than the instrument can actually read.
+   */
+  leastCount: LeastCountVerdict | null
+  /** Acceptance limit divided by the master's accuracy, or null when not comparable. */
+  accuracyRatio: number | null
+  /** Why the ratio could not be computed, when it could not. */
+  notComparable: string | null
+}
+
+export interface AssignmentSuitability {
+  ranges: RangeSuitability[]
+  /** Every required range is spanned by the capability. */
+  covered: boolean
+  /** No required range is served by a coarser least count. */
+  resolvable: boolean
+  /** Lowest ratio across the ranges, or null when none could be computed. */
+  worstRatio: number | null
+  /** Whether that lowest ratio clears the threshold. */
+  meetsThreshold: boolean
+}
+
+/** The ratio a lab expects between the unit's limit and the master's accuracy. */
+export const DEFAULT_ACCURACY_RATIO = 4
+
+/**
+ * A subtype narrows the instrument: a thermocouple's Type K and Type S have different
+ * spans and different accuracies, so the declared curve replaces the profile's own
+ * range and buckets rather than sitting alongside them.
+ */
+export function declaredCapability(
+  profile: CapabilityProfile,
+  subtypeId?: string | null,
+): { min: number | null; max: number | null; buckets: CapabilityBucket[] } {
+  const subtype = subtypeId
+    ? (profile.subtypes ?? []).find((s) => s.id === subtypeId)
+    : undefined
+  if (subtype) {
+    return { min: subtype.min, max: subtype.max, buckets: subtype.buckets ?? [] }
+  }
+  return { min: profile.min, max: profile.max, buckets: profile.buckets ?? [] }
+}
+
+/** The bucket a required range falls in: one that spans it, else one that overlaps. */
+export function bucketForRange(
+  buckets: CapabilityBucket[],
+  range: RequiredRange,
+): CapabilityBucket | null {
+  return (
+    buckets.find((b) => b.min != null && b.max != null && b.min <= range.from && b.max >= range.to)
+    ?? buckets.find((b) => b.min != null && b.max != null && b.max > range.from && b.min < range.to)
+    ?? null
+  )
+}
+
+function compareLeastCount(
+  bucket: CapabilityBucket | null,
+  required: number,
+): LeastCountVerdict | null {
+  const lc = bucket?.least_count?.value
+  if (lc == null || !required) return null
+  if (Math.abs(lc - required) < 1e-9) return 'matches'
+  return lc < required ? 'finer' : 'coarser'
+}
+
+/**
+ * Judge one master capability against everything the calibration requires.
+ *
+ * Returns per-range detail rather than a single verdict, because that is what an
+ * engineer has to act on - which part of the range is the problem, and whether it is
+ * the resolution or the accuracy.
+ */
+export function evaluateSuitability(
+  profile: CapabilityProfile,
+  required: RequiredRange[],
+  options: { subtypeId?: string | null; threshold?: number } = {},
+): AssignmentSuitability {
+  const threshold = options.threshold ?? DEFAULT_ACCURACY_RATIO
+  const declared = declaredCapability(profile, options.subtypeId)
+
+  const ranges: RangeSuitability[] = required.map((range) => {
+    const covered =
+      declared.min != null && declared.max != null
+      && declared.min <= range.from && declared.max >= range.to
+    const bucket = bucketForRange(declared.buckets, range)
+    const resolved = bucket ? resolveAccuracy(bucket.accuracy, { reading: range.to }) : null
+
+    return {
+      required: range,
+      band: bucket,
+      covered,
+      leastCount: compareLeastCount(bucket, range.leastCount),
+      accuracyRatio: resolved && resolved.value > 0 ? range.accuracy / resolved.value : null,
+      notComparable: bucket
+        ? resolved
+          ? null
+          : 'The accuracy for this band cannot be reduced to a number.'
+        : 'No band covers this range.',
+    }
+  })
+
+  const rated = ranges.map((r) => r.accuracyRatio).filter((r): r is number => r !== null)
+  const worstRatio = rated.length ? Math.min(...rated) : null
+
+  return {
+    ranges,
+    covered: ranges.every((r) => r.covered),
+    resolvable: ranges.every((r) => r.leastCount !== 'coarser'),
+    worstRatio,
+    meetsThreshold: worstRatio !== null && worstRatio >= threshold,
+  }
+}
+
+/**
+ * The required ranges a parameter declares: its bins where it is binned, otherwise the
+ * single range it was set up with. This is read from the unit under test, never
+ * entered against the master.
+ */
+export function requiredRanges(parameter: {
+  rangeMin?: string
+  rangeMax?: string
+  leastCountValue?: string
+  accuracyValue?: string
+  requiresBinning?: boolean
+  bins?: { binMin: string; binMax: string; leastCount: string; accuracy: string }[]
+}): RequiredRange[] {
+  const num = (v?: string) => {
+    const parsed = parseFloat((v ?? '').replace('±', ''))
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  if (parameter.requiresBinning && parameter.bins?.length) {
+    return parameter.bins
+      .map((bin) => ({
+        from: num(bin.binMin),
+        to: num(bin.binMax),
+        leastCount: num(bin.leastCount),
+        accuracy: num(bin.accuracy),
+      }))
+      .filter(
+        (b): b is RequiredRange =>
+          b.from !== null && b.to !== null && b.leastCount !== null && b.accuracy !== null,
+      )
+  }
+
+  const from = num(parameter.rangeMin)
+  const to = num(parameter.rangeMax)
+  const leastCount = num(parameter.leastCountValue)
+  const accuracy = num(parameter.accuracyValue)
+  if (from === null || to === null || leastCount === null || accuracy === null) return []
+  return [{ from, to, leastCount, accuracy }]
+}
