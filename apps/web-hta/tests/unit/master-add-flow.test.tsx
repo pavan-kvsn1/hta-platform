@@ -113,6 +113,12 @@ const pick = (label: string | RegExp) =>
     within(screen.getByText(label).closest('label')!).getByRole('checkbox'),
   )
 
+/** Counts sit in <b> inside the sentence, so a regex has to see the whole paragraph. */
+const paragraph = (re: RegExp) =>
+  screen.getByText(
+    (_content, el) => el?.tagName === 'P' && re.test(el.textContent?.replace(/\s+/g, ' ') ?? ''),
+  )
+
 /** The asset number sits beside the description in one span, so match on the row. */
 const pickInstrument = (assetNo: string) =>
   fireEvent.click(
@@ -225,10 +231,51 @@ describe('step 2 - which instrument', () => {
     expect(screen.getByText(/the rest stay, with the reason/)).toBeInTheDocument()
   })
 
-  it('names what the rows are rated against, above the list', () => {
+  it('says what the list is, and what it leaves out', () => {
+    // A list that hides most of the lab should say so. GOOD and SHORT both record
+    // Temperature; neither is left out here.
     renderFlow()
     pick('Temperature')
-    expect(screen.getByText(/rated against/i)).toBeInTheDocument()
+    expect(paragraph(/2 of the lab.s 2 instruments record/)).toBeInTheDocument()
+  })
+
+  it('accounts for the instruments that record something else', () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1' }), parameter({ id: 'p2', parameterName: 'Pressure' })]}
+        coveredBy={new Map()}
+        instruments={[GOOD, SHORT]}
+        resolveUnit={(inst) => units.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Pressure')
+    // Neither records Pressure, so both are accounted for rather than vanishing.
+    expect(
+      paragraph(/the other 2 record different parameters and are not listed/),
+    ).toBeInTheDocument()
+  })
+
+  it('says why the ones with nothing recorded are set aside', () => {
+    // "8 record no capability" said what was hidden but never why.
+    const BLANK = instrument({ id: 19, asset_no: '165 HTAIPL/L' })
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1' })]}
+        coveredBy={new Map()}
+        instruments={[GOOD, BLANK]}
+        resolveUnit={(inst) => units.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    expect(
+      screen.getByText(/record no capability at all, so there is nothing to rate them by/),
+    ).toBeInTheDocument()
   })
 
   it('offers no instrument for a parameter none of them record', () => {
@@ -486,13 +533,13 @@ describe('instruments with nothing recorded', () => {
   it('are counted and named, not silently dropped', () => {
     withBlank()
     pick('Temperature')
-    expect(screen.getByText(/1 record no capability at all/)).toBeInTheDocument()
+    expect(screen.getByText(/A further 1 record no capability at all/)).toBeInTheDocument()
   })
 
   it('can still be reached, since one may be the right instrument', () => {
     withBlank()
     pick('Temperature')
-    fireEvent.click(screen.getByRole('button', { name: 'show them' }))
+    fireEvent.click(screen.getByRole('button', { name: 'show them anyway' }))
     expect(
       screen.getAllByRole('button').some((b) => b.textContent?.includes('165 HTAIPL/L')),
     ).toBe(true)

@@ -350,13 +350,32 @@ export function MasterAddFlow({
       : capable
   }, [instruments, chosenParameters, standing, showUnrecorded])
 
-  const unrecordedCount = useMemo(
-    () =>
-      chosenParameters.length === 0
-        ? 0
-        : instruments.filter((i) => standing(i) === 'nothing recorded').length,
-    [instruments, chosenParameters, standing],
-  )
+  /**
+   * What the list is, and what it leaves out.
+   *
+   * Three groups, and they add up to the lab's whole master list: the instruments that
+   * record what is being calibrated, the ones that record something else, and the ones
+   * that record nothing at all. Only the last was ever mentioned, so for Temperature
+   * 142 instruments vanished without a word - and for Flow, 199 of 209. A list that
+   * hides four fifths of the lab should say so and say why.
+   */
+  const groups = useMemo(() => {
+    if (chosenParameters.length === 0) {
+      return { recording: 0, otherParameters: 0, unrecorded: 0 }
+    }
+    let recording = 0
+    let otherParameters = 0
+    let unrecorded = 0
+    for (const inst of instruments) {
+      const where = standing(inst)
+      if (where === 'records them') recording += 1
+      else if (where === 'nothing recorded') unrecorded += 1
+      else otherParameters += 1
+    }
+    return { recording, otherParameters, unrecorded }
+  }, [instruments, chosenParameters, standing])
+
+  const unrecordedCount = groups.unrecorded
 
   const categories: SearchableOption[] = useMemo(
     () => [
@@ -676,9 +695,18 @@ export function MasterAddFlow({
                 </p>
               )}
               <p className="text-[11px] text-slate-500 mb-1.5">
-                Each row shows the model, where it was last calibrated, and the range it
-                records &mdash; rated against{' '}
-                <b className="text-slate-600">{listOf(labelsFor(paramIds))}</b>.
+                <b className="text-slate-600">{groups.recording}</b> of the lab&rsquo;s{' '}
+                {instruments.length} instruments record{' '}
+                {chosenParameters.length > 1 ? 'all of ' : ''}
+                <b className="text-slate-600">{listOf(labelsFor(paramIds))}</b>
+                {groups.otherParameters > 0 && (
+                  <>
+                    ; the other {groups.otherParameters} record different parameters and are
+                    not listed
+                  </>
+                )}
+                . Each row shows the model, where it was last calibrated, and the range it
+                records.
               </p>
 
               <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 mb-2">
@@ -764,13 +792,14 @@ export function MasterAddFlow({
                   {unrecordedCount > 0 && (
                     <>
                       {' '}
-                      {unrecordedCount} record no capability at all &mdash;{' '}
+                      A further {unrecordedCount} record no capability at all, so there is
+                      nothing to rate them by &mdash;{' '}
                       <button
                         type="button"
                         onClick={() => setShowUnrecorded((v) => !v)}
                         className="font-semibold text-primary"
                       >
-                        {showUnrecorded ? 'hide them' : 'show them'}
+                        {showUnrecorded ? 'hide them' : 'show them anyway'}
                       </button>
                     </>
                   )}
