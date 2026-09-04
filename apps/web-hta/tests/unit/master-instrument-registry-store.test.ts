@@ -67,7 +67,9 @@ describe('registry access', () => {
     // API then hands the app a hash of the row's UUID as its id. Resolving on that
     // alone made instruments recording up to ten capabilities read as "Capability not
     // recorded" - a claim about the instrument, not about the lookup that failed.
-    const asset = store().registry.assets.find((a) => a.units[0].capability_profiles.length > 0)!
+    const asset = store().registry.assets.find(
+      (a) => a.units.length === 1 && a.units[0].capability_profiles.length > 0,
+    )!
     const unresolvable = { id: -999, asset_no: asset.asset_no }
     expect(store().getUnitByLegacyId(unresolvable.id)).toBeUndefined()
     expect(store().getUnitForInstrument(unresolvable)).toBe(asset.units[0])
@@ -76,6 +78,14 @@ describe('registry access', () => {
   it('prefers the legacy id, which addresses a unit and not just an asset', () => {
     const sample = store().getRegistryUnits()[0]
     expect(store().getUnitForInstrument({ id: sample.legacy_id, asset_no: 'nonsense' })).toBe(sample)
+  })
+
+  it('will not guess a unit when the asset holds several', () => {
+    // 580 HTAIPL/L holds three units and only one records Temperature. Answering with
+    // the first would hand the other two a capability they do not have - the same
+    // false claim as reporting none, pointing the other way.
+    const shared = store().registry.assets.find((a) => a.units.length > 1)!
+    expect(store().getUnitForInstrument({ id: -999, asset_no: shared.asset_no })).toBeUndefined()
   })
 
   it('returns nothing when neither the id nor the asset number is known', () => {

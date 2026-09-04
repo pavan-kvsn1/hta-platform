@@ -82,6 +82,8 @@ const SHORT = instrument({ id: 69, asset_no: '742 HTAIPL/L' })
 const units = new Map<number, RegistryUnit>([
   [68, unitWith('Temperature', -50, 200, 0.1, 0.05)],
   [69, unitWith('Temperature', -20, 40, 0.1, 0.05)],
+  // 19 stands for 165 HTAIPL/L: on the list, but recording nothing.
+  [19, { capability_profiles: [] } as unknown as RegistryUnit],
 ])
 
 function renderFlow(over: Record<string, unknown> = {}) {
@@ -290,6 +292,61 @@ describe('committing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(onCancel).toHaveBeenCalled()
     expect(onAdd).not.toHaveBeenCalled()
+  })
+})
+
+describe('instruments with nothing recorded', () => {
+  // 165, 237 and 30 HTAIPL/L record no capability at all. Folding them into every
+  // parameter's list padded it with the same handful each time, and for a parameter
+  // few instruments serve they became most of the list.
+  const BLANK = instrument({ id: 19, asset_no: '165 HTAIPL/L' })
+  const withBlank = (over: Record<string, unknown> = {}) => {
+    const onAdd = vi.fn()
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1' })]}
+        coveredBy={new Map()}
+        instruments={[GOOD, BLANK]}
+        resolveUnit={(inst) => units.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={onAdd}
+        {...over}
+      />,
+    )
+    return onAdd
+  }
+
+  it('are left out of the list', () => {
+    withBlank()
+    pick('Temperature')
+    expect(
+      screen.getAllByRole('button').some((b) => b.textContent?.includes('165 HTAIPL/L')),
+    ).toBe(false)
+    expect(screen.queryByText('Capability not recorded')).not.toBeInTheDocument()
+  })
+
+  it('are counted and named, not silently dropped', () => {
+    withBlank()
+    pick('Temperature')
+    expect(
+      screen.getByText(/1 instrument records no capability at all and is not listed/),
+    ).toBeInTheDocument()
+  })
+
+  it('can still be reached, since one may be the right instrument', () => {
+    withBlank()
+    pick('Temperature')
+    fireEvent.click(screen.getByRole('button', { name: 'Show them' }))
+    expect(
+      screen.getAllByRole('button').some((b) => b.textContent?.includes('165 HTAIPL/L')),
+    ).toBe(true)
+  })
+
+  it('do not count towards what can serve a parameter', () => {
+    withBlank()
+    // GOOD serves it; the blank one must not be counted as a second.
+    expect(screen.getByText(/1 instrument can do it/)).toBeInTheDocument()
   })
 })
 

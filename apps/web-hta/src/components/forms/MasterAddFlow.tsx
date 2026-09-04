@@ -110,6 +110,7 @@ export function MasterAddFlow({
   const [subtype, setSubtype] = useState<string | undefined>()
   const [sop, setSop] = useState('')
   const [reason, setReason] = useState('')
+  const [showUnrecorded, setShowUnrecorded] = useState(false)
 
   const parameterIndex = parameters.findIndex((p) => p.id === paramId)
   const parameter = parameterIndex >= 0 ? parameters[parameterIndex] : null
@@ -135,19 +136,37 @@ export function MasterAddFlow({
     [resolveUnit, parameter, required, threshold],
   )
 
-  // Step 2's pool: everything that records the chosen parameter, plus the instruments
-  // whose capability was never recorded - excluding those would quietly hide the
-  // instruments the registry simply has nothing to say about.
+  // Step 2's pool: the instruments that record the chosen parameter.
+  //
+  // Instruments with no capability recorded at all used to be folded in here on the
+  // grounds that the registry has nothing to say about them. In this lab that padded
+  // every parameter's list with the same handful, and for a parameter few instruments
+  // serve they became most of it. They are set aside instead, and offered by name -
+  // an instrument the registry has not described may still be the right one.
+  const records = useMemo(() => {
+    const wanted = parameter?.parameterName.trim().toLowerCase() ?? ''
+    return (inst: MasterInstrument) => {
+      const unit = resolveUnit(inst)
+      if (!unit || unit.capability_profiles.length === 0) return 'nothing recorded' as const
+      if (!wanted) return 'records it' as const
+      return unit.capability_profiles.some((p) => p.parameter.toLowerCase().includes(wanted))
+        ? ('records it' as const)
+        : ('records something else' as const)
+    }
+  }, [parameter, resolveUnit])
+
   const pool = useMemo(() => {
     if (!parameter) return []
-    return instruments.filter((inst) => {
-      const unit = resolveUnit(inst)
-      if (!unit || unit.capability_profiles.length === 0) return true
-      const wanted = parameter.parameterName.trim().toLowerCase()
-      if (!wanted) return true
-      return unit.capability_profiles.some((p) => p.parameter.toLowerCase().includes(wanted))
-    })
-  }, [instruments, parameter, resolveUnit])
+    const capable = instruments.filter((i) => records(i) === 'records it')
+    return showUnrecorded
+      ? [...capable, ...instruments.filter((i) => records(i) === 'nothing recorded')]
+      : capable
+  }, [instruments, parameter, records, showUnrecorded])
+
+  const unrecordedCount = useMemo(
+    () => (parameter ? instruments.filter((i) => records(i) === 'nothing recorded').length : 0),
+    [instruments, parameter, records],
+  )
 
   const categories = useMemo(
     () => [...new Set(pool.map((i) => i.type))].sort(),
@@ -249,18 +268,23 @@ export function MasterAddFlow({
           <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
             {parameters.map((p, i) => {
               const covered = coveredBy.get(p.id)
+              // Only instruments that actually record this parameter count. Counting
+              // the ones with nothing recorded made every parameter look better served
+              // than it is, by the same handful of instruments each time.
+              const wanted = p.parameterName.trim().toLowerCase()
               const usable = instruments.filter((inst) => {
+                const unit = resolveUnit(inst)
+                if (!unit || unit.capability_profiles.length === 0) return false
+                if (wanted && !unit.capability_profiles.some((cp) => cp.parameter.toLowerCase().includes(wanted))) {
+                  return false
+                }
                 const fit = eligibilityFor(
-                  resolveUnit(inst),
+                  unit,
                   inst,
-                  {
-                    name: p.parameterName,
-                    unit: p.parameterUnit,
-                    required: requiredRanges(p),
-                  },
+                  { name: p.parameterName, unit: p.parameterUnit, required: requiredRanges(p) },
                   threshold,
                 )
-                return fit.usable && fit.rank <= 3
+                return fit.usable
               }).length
               const on = paramId === p.id
 
@@ -399,6 +423,20 @@ export function MasterAddFlow({
                 {shown.filter((s) => s.fit.usable).length} of {shown.length} shown can be used
                 for {parameter.parameterName || 'this parameter'} &mdash; the rest stay visible
                 with the reason.
+                {unrecordedCount > 0 && (
+                  <>
+                    {' '}
+                    {unrecordedCount} instrument{unrecordedCount === 1 ? ' records' : 's record'} no
+                    capability at all and {unrecordedCount === 1 ? 'is' : 'are'} not listed.{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowUnrecorded((v) => !v)}
+                      className="font-semibold text-primary"
+                    >
+                      {showUnrecorded ? 'Hide them' : 'Show them'}
+                    </button>
+                  </>
+                )}
               </p>
             </div>
           </div>

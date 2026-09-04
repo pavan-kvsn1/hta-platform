@@ -334,9 +334,21 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
     return undefined
   },
 
-  getUnitForInstrument: (instrument) =>
-    get().getUnitByLegacyId(instrument.id)
-    ?? (instrument.asset_no ? get().getUnitByAssetNo(instrument.asset_no) : undefined),
+  getUnitForInstrument: (instrument) => {
+    const byId = get().getUnitByLegacyId(instrument.id)
+    if (byId || !instrument.asset_no) return byId
+
+    // An asset number names an asset, not a unit, and an asset can hold several -
+    // 580 HTAIPL/L holds three, only one of which records Temperature. Falling back to
+    // the first would hand the other two a capability they do not have, which is the
+    // same false claim as reporting none at all, pointing the other way. So the
+    // fallback only answers where the asset is unambiguous.
+    const wanted = instrument.asset_no.replace(/\s+/g, '').toUpperCase()
+    const asset = get().registry.assets.find(
+      (a) => a.asset_no.replace(/\s+/g, '').toUpperCase() === wanted,
+    )
+    return asset && asset.units.length === 1 ? asset.units[0] : undefined
+  },
 
   getCapabilityProfiles: (legacyId) =>
     get().getUnitByLegacyId(legacyId)?.capability_profiles ?? [],
