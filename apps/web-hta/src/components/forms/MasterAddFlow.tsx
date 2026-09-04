@@ -52,6 +52,24 @@ const ANY = '__any__'
 
 const n = (v: number) => Number(v.toFixed(4)).toString()
 
+/**
+ * Distinct values, sorted, treating case and spacing as noise.
+ *
+ * The lab's list carries "Digital RTD Thermometer with Sensor" and "...with sensor" as
+ * two descriptions. Offered as two they read as a data error the engineer has to pick
+ * between; the first spelling seen stands for both.
+ */
+function distinct(values: string[]): string[] {
+  const seen = new Map<string, string>()
+  for (const value of values) {
+    const trimmed = value.trim()
+    if (!trimmed) continue
+    const key = trimmed.toLowerCase().replace(/\s+/g, ' ')
+    if (!seen.has(key)) seen.set(key, trimmed)
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b))
+}
+
 /** "a", "a and b", "a, b and c" - a bare join reads as canned. */
 const listOf = (items: string[]) =>
   items.length < 3
@@ -237,7 +255,7 @@ export function MasterAddFlow({
 
   const categories: SearchableOption[] = useMemo(
     () => [
-      { value: ANY, label: 'Any category' },
+      { value: ANY, label: 'Any category', pinned: true },
       ...[...new Set(pool.map((i) => i.type))]
         .sort()
         .map((c) => ({ value: c, label: CATEGORY_LABELS[c] || c })),
@@ -247,34 +265,29 @@ export function MasterAddFlow({
 
   const makes: SearchableOption[] = useMemo(
     () => [
-      { value: ANY, label: 'Any make' },
-      ...[
-        ...new Set(
-          pool
-            .filter((i) => category === ANY || i.type === category)
-            .map((i) => getSimpleValue(i.make))
-            .filter(Boolean),
-        ),
-      ]
-        .sort()
-        .map((m) => ({ value: m, label: m })),
+      { value: ANY, label: 'Any make', pinned: true },
+      ...distinct(
+        pool
+          .filter((i) => category === ANY || i.type === category)
+          .map((i) => getSimpleValue(i.make)),
+      ).map((m) => ({ value: m, label: m })),
     ],
     [pool, category],
   )
 
   const descriptions: SearchableOption[] = useMemo(
     () => [
-      { value: ANY, label: 'Any description' },
-      ...[
-        ...new Set(
-          pool
-            .filter((i) => category === ANY || i.type === category)
-            .filter((i) => make === ANY || getSimpleValue(i.make) === make)
-            .map((i) => i.instrument_desc),
-        ),
-      ]
-        .sort()
-        .map((d) => ({ value: d, label: d })),
+      { value: ANY, label: 'Any description', pinned: true },
+      ...distinct(
+        pool
+          .filter((i) => category === ANY || i.type === category)
+          .filter(
+          (i) =>
+            make === ANY ||
+            getSimpleValue(i.make).trim().toLowerCase() === make.trim().toLowerCase(),
+        )
+          .map((i) => i.instrument_desc),
+      ).map((d) => ({ value: d, label: d })),
     ],
     [pool, category, make],
   )
@@ -283,8 +296,17 @@ export function MasterAddFlow({
     () =>
       pool
         .filter((i) => category === ANY || i.type === category)
-        .filter((i) => make === ANY || getSimpleValue(i.make) === make)
-        .filter((i) => description === ANY || i.instrument_desc === description),
+        .filter(
+          (i) =>
+            make === ANY ||
+            getSimpleValue(i.make).trim().toLowerCase() === make.trim().toLowerCase(),
+        )
+        .filter(
+          (i) =>
+            description === ANY ||
+            i.instrument_desc.trim().toLowerCase().replace(/\s+/g, ' ') ===
+              description.trim().toLowerCase().replace(/\s+/g, ' '),
+        ),
     [pool, category, make, description],
   )
 
