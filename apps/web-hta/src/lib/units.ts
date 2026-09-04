@@ -31,7 +31,7 @@ const FAMILIES: Record<string, string[]> = {
     // knowing the ambient pressure - and this file does not claim they can.
     'barg', 'mbarg', 'kpag',
   ],
-  temperature: ['c', 'f', 'k', 'degc', 'degf'],
+  temperature: ['degc', 'degf', 'degk', 'c', 'k'],
   'volumetric flow': ['l/min', 'lpm', 'l/h', 'l/hr', 'ml/min', 'm3/h', 'm3/hr', 'cfm', 'lps'],
   // Standard and normal flows are referred to a stated temperature and pressure. They
   // are not interchangeable with an actual volumetric flow, so they answer only to
@@ -56,8 +56,24 @@ const FAMILIES: Record<string, string[]> = {
   acidity: ['ph'],
   'sound level': ['db', 'dba', 'dbc'],
   illuminance: ['lux', 'lx', 'fc'],
-  angle: ['deg', 'rad', 'arcmin', 'arcsec'],
+  angle: ['deg', 'rad', 'mrad', 'arcmin', 'arcsec'],
   concentration: ['ppm', 'ppb', '%'],
+}
+
+/**
+ * Symbols that mean different things depending on their case, resolved deliberately
+ * rather than by whichever family happens to be declared first.
+ *
+ * Checked before the symbol is lowercased, and only against the whole unit: "mH" is
+ * unambiguous and goes the ordinary way.
+ */
+const BY_CASE: Record<string, string> = {
+  H: 'inductance', // henry
+  h: 'time', // hour - four profiles record one
+  F: 'capacitance', // farad
+  G: 'acceleration', // g-force
+  g: 'mass', // gram - six profiles record one
+  C: 'temperature', // read as celsius here, not coulomb
 }
 
 /** Symbol to family, built once. */
@@ -79,18 +95,24 @@ for (const [family, symbols] of Object.entries(FAMILIES)) {
 export function normaliseUnit(unit?: string | null): string {
   return (unit ?? '')
     .trim()
-    .toLowerCase()
     .replace(/µ/g, 'u')
     .replace(/Ω|ω/g, 'ohm')
-    .replace(/°/g, '')
+    // Kept rather than stripped: a bare "°" is an angle, and stripping it made a unit
+    // that exists read as one that was never recorded.
+    .replace(/°/g, 'deg')
     .replace(/³/g, '3')
     .replace(/²/g, '2')
     .replace(/\s+/g, '')
+    .toLowerCase()
 }
 
 /** The quantity a unit measures, or null where the unit is unknown to us. */
 export function unitFamily(unit?: string | null): string | null {
-  const key = normaliseUnit(unit)
+  const raw = (unit ?? '').trim()
+  if (!raw) return null
+  const byCase = BY_CASE[raw]
+  if (byCase) return byCase
+  const key = normaliseUnit(raw)
   if (!key) return null
   return FAMILY_OF.get(key) ?? null
 }
@@ -107,9 +129,9 @@ export function sameQuantity(a?: string | null, b?: string | null): boolean {
   if (!left || !right) return false
   if (left === right) return true
 
-  const leftFamily = FAMILY_OF.get(left)
-  const rightFamily = FAMILY_OF.get(right)
-  return leftFamily !== null && leftFamily !== undefined && leftFamily === rightFamily
+  const leftFamily = unitFamily(a)
+  const rightFamily = unitFamily(b)
+  return leftFamily !== null && leftFamily === rightFamily
 }
 
 /**

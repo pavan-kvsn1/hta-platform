@@ -10,7 +10,9 @@ import { knownToDiffer, normaliseUnit, sameQuantity, unitFamily } from '@/lib/un
 
 describe('reducing a unit to something comparable', () => {
   it('ignores the ways the same unit gets written', () => {
-    expect(normaliseUnit('°C')).toBe('c')
+    // The degree sign is kept, not stripped: a bare "°" is an angle.
+    expect(normaliseUnit('°C')).toBe('degc')
+    expect(normaliseUnit('°')).toBe('deg')
     expect(normaliseUnit(' bar g ')).toBe('barg')
     expect(normaliseUnit('m³/h')).toBe('m3/h')
     expect(normaliseUnit('µS/cm')).toBe('us/cm')
@@ -39,6 +41,26 @@ describe('the quantity a unit measures', () => {
     expect(unitFamily('HD')).toBeNull()
     expect(unitFamily('%mc')).toBeNull()
     expect(unitFamily('')).toBeNull()
+  })
+
+  it('recognises the angle the registry records', () => {
+    // One profile is in "°", which stripping the degree sign turned into nothing.
+    expect(unitFamily('°')).toBe('angle')
+  })
+
+  it('resolves the symbols that differ only by case, deliberately', () => {
+    // Both readings are real units; the registry writes hours and grams in lower case
+    // and would write henry and farad in upper.
+    expect(unitFamily('h')).toBe('time')
+    expect(unitFamily('H')).toBe('inductance')
+    expect(unitFamily('g')).toBe('mass')
+    expect(unitFamily('F')).toBe('capacitance')
+    // Fahrenheit carries its degree sign here, so a bare F is not a temperature.
+    expect(unitFamily('°F')).toBe('temperature')
+    // A prefixed symbol is unambiguous and goes the ordinary way.
+    expect(unitFamily('mH')).toBe('inductance')
+    expect(unitFamily('nF')).toBe('capacitance')
+    expect(unitFamily('kg')).toBe('mass')
   })
 })
 
