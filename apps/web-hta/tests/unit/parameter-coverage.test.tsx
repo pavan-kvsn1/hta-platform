@@ -35,6 +35,7 @@ describe('ParameterCoverage', () => {
           param({ id: 'a', masterInstrumentId: 7 }),
           param({ id: 'b', parameterName: 'Pressure' }),
         ]}
+        assetByInstrumentId={new Map([[7, '600 HTAIPL/L']])}
       />,
     )
     expect(screen.getByText('1 of 2 parameters assigned')).toBeInTheDocument()
@@ -57,6 +58,7 @@ describe('ParameterCoverage', () => {
           param({ id: 'a', masterInstrumentId: 7 }),
           param({ id: 'b', parameterName: 'Flow' }),
         ]}
+        assetByInstrumentId={new Map([[7, '600 HTAIPL/L']])}
       />,
     )
     // Named twice on purpose: once on its own card, once in the sentence that blocks.
@@ -79,7 +81,12 @@ describe('ParameterCoverage', () => {
   })
 
   it('reports completion in the singular when there is one parameter', () => {
-    render(<ParameterCoverage parameters={[param({ masterInstrumentId: 7 })]} />)
+    render(
+      <ParameterCoverage
+        parameters={[param({ masterInstrumentId: 7 })]}
+        assetByInstrumentId={new Map([[7, '600 HTAIPL/L']])}
+      />,
+    )
     // Not "All 1 parameters have a master".
     expect(screen.getByText(/The parameter has a master/i)).toBeInTheDocument()
   })
@@ -91,9 +98,24 @@ describe('ParameterCoverage', () => {
           param({ id: 'a', masterInstrumentId: 7 }),
           param({ id: 'b', parameterName: 'Flow', masterInstrumentId: 8 }),
         ]}
+        assetByInstrumentId={new Map([[7, '600'], [8, '742']])}
       />,
     )
     expect(screen.getByText(/All 2 parameters have a master/i)).toBeInTheDocument()
+  })
+
+  it('does not count a master that is no longer on the certificate', () => {
+    // Certificate 5eed80c6 is in this state: its parameters name master 5 while the
+    // only master saved on it is 68. Counting that as covered says the section is
+    // finished when not one row on screen can be ticked.
+    render(
+      <ParameterCoverage
+        parameters={[param({ masterInstrumentId: 5 })]}
+        assetByInstrumentId={new Map([[68, '252 HTAIPL/L']])}
+      />,
+    )
+    expect(screen.getByText('0 of 1 parameter assigned')).toBeInTheDocument()
+    expect(screen.getByText(/no longer on this certificate/i)).toBeInTheDocument()
   })
 
   it('falls back to a position when a parameter has no name yet', () => {

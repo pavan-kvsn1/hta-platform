@@ -4,6 +4,7 @@ import {
   MasterInstrument,
   InstrumentCategory,
   InstrumentStatus,
+  calculateInstrumentStatus,
   enrichInstrument,
   canMeasureParameter,
   getSimpleValue,
@@ -154,11 +155,18 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
       asset.units.map((unit) => projectLegacyInstrument(asset, unit) as MasterInstrument),
     )
 
-    // Not run through enrichInstrument: that derives status and capabilities from the
-    // old flat range list, which the projection deliberately does not carry. The
-    // registry has already worked the status out, including the 60-day warning window.
+    // Status is recomputed here rather than taken from the projection. The registry
+    // records calibration_state as it stood when the file was generated, and a due
+    // date does not stop moving after a build - one instrument had already changed
+    // category a day later. Only the status is recomputed; enrichInstrument is still
+    // avoided because it also reads the flat range list the projection does not carry.
+    const withStatus = projected.map((instrument) => {
+      const { status, daysUntilExpiry } = calculateInstrumentStatus(instrument)
+      return { ...instrument, status, daysUntilExpiry }
+    })
+
     set({
-      instruments: projected,
+      instruments: withStatus,
       isLoaded: true,
       isLoading: false,
       lastUpdated: new Date(),

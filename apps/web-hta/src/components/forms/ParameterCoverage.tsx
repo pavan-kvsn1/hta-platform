@@ -38,7 +38,12 @@ export function listOf(items: string[]): string {
 export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() }: ParameterCoverageProps) {
   if (parameters.length === 0) return null
 
-  const missing = parameters.filter((p) => p.masterInstrumentId === null)
+  // A parameter can name a master that is no longer on the certificate - the master
+  // was removed and the reference left behind. Counting that as covered says the
+  // section is finished when nothing on screen can be ticked.
+  const isCovered = (p: CoverageParameter) =>
+    p.masterInstrumentId !== null && assetByInstrumentId.has(p.masterInstrumentId)
+  const missing = parameters.filter((p) => !isCovered(p))
   const complete = missing.length === 0
 
   return (
@@ -55,7 +60,7 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {parameters.map((p, i) => {
-          const covered = p.masterInstrumentId !== null
+          const covered = isCovered(p)
           const asset = covered ? assetByInstrumentId.get(p.masterInstrumentId!) : null
           const range =
             p.rangeMin && p.rangeMax
@@ -82,7 +87,11 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
                   covered ? 'text-green-700' : 'text-amber-700',
                 )}
               >
-                {covered ? (asset ? `Assigned to ${asset}` : 'Assigned') : 'No master assigned'}
+                {covered
+                  ? `Assigned to ${asset}`
+                  : p.masterInstrumentId !== null
+                    ? 'Assigned to a master no longer on this certificate'
+                    : 'No master assigned'}
               </p>
             </div>
           )
