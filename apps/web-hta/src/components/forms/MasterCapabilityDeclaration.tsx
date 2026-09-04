@@ -8,11 +8,14 @@
 // readings says which was used, so the engineer declares it and the certificate keeps
 // the answer.
 //
-// Only a question with more than one answer is asked. Where an instrument records one
-// capability, one role and no curves - most of them - nothing is asked at all and the
-// facts are stated instead.
+// The questions are asked in order and each one waits for the one before it: the role
+// is a property of a capability, and the curve a property of a role, so asking all
+// three at once would offer answers that the earlier answer may rule out. Only a
+// question with more than one answer is asked at all. Where an instrument records one
+// capability, one role and no curves - most of them - nothing is asked and the facts
+// are stated instead.
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Info } from 'lucide-react'
 import {
   declaredCapability,
@@ -53,71 +56,13 @@ function reaches(profile: CapabilityProfile, subtypeId: string | null, required:
   return required.every((r) => declared.min! <= r.from && declared.max! >= r.to)
 }
 
-export function MasterCapabilityDeclaration({
-  unit,
-  parameterName,
-  required,
-  profileId,
-  subtype,
-  disabled,
-  onChange,
-}: MasterCapabilityDeclarationProps) {
-  const [showAll, setShowAll] = useState(false)
-
-  const wanted = parameterName.trim().toLowerCase()
-  const profiles = unit.capability_profiles.filter((p) =>
-    p.parameter.toLowerCase().includes(wanted),
-  )
-  if (profiles.length === 0) return null
-
-  const current = profiles.find((p) => p.id === profileId) ?? profiles[0]
-  const curves = (current.subtypes ?? []).map((s) => s.id)
-  const currentCurve = subtype && curves.includes(subtype) ? subtype : (curves[0] ?? null)
-
-  const capabilities = [...new Set(profiles.map((p) => p.parameter))]
-  const rolesHere = profiles.filter((p) => p.parameter === current.parameter).map((p) => p.role)
-
-  const fits = (p: CapabilityProfile) => {
-    const ids = (p.subtypes ?? []).map((s) => s.id)
-    return ids.length ? ids.some((id) => reaches(p, id, required)) : reaches(p, null, required)
-  }
-
-  const capsShown = showAll
-    ? capabilities
-    : capabilities.filter((c) => profiles.some((p) => p.parameter === c && fits(p)))
-  const rolesShown = showAll
-    ? rolesHere
-    : rolesHere.filter((r) => {
-        const p = profiles.find((x) => x.parameter === current.parameter && x.role === r)
-        return p ? fits(p) : false
-      })
-  const curvesShown = showAll ? curves : curves.filter((id) => reaches(current, id, required))
-
-  const hidden =
-    capabilities.length - (capsShown.length || capabilities.length)
-    + rolesHere.length - (rolesShown.length || rolesHere.length)
-    + curves.length - (curvesShown.length || curves.length)
-
-  const caps = capsShown.length ? capsShown : capabilities
-  const roles = rolesShown.length ? rolesShown : rolesHere
-  const curveOptions = curvesShown.length ? curvesShown : curves
-
-  const pick = (parameter: string, role: string) => {
-    const next = profiles.find((p) => p.parameter === parameter && p.role === role) ?? current
-    const nextCurves = (next.subtypes ?? []).map((s) => s.id)
-    const nextCurve = nextCurves.find((id) => reaches(next, id, required)) ?? nextCurves[0]
-    onChange({ profileId: next.id, subtype: nextCurve })
-  }
-
-  const settled: [string, string][] = []
-  if (caps.length <= 1) settled.push(['Capability', current.parameter])
-  if (roles.length <= 1) settled.push(['Used as', current.role])
-  if (curves.length > 0 && curveOptions.length <= 1 && currentCurve) {
-    settled.push(['Sensor type', currentCurve])
-  }
-
-  const asksNothing = caps.length <= 1 && roles.length <= 1 && curveOptions.length <= 1
-
+function Panel({
+  children,
+  action,
+}: {
+  children: React.ReactNode
+  action?: React.ReactNode
+}) {
   return (
     <div className="mt-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
       <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-start justify-between gap-3 flex-wrap">
@@ -130,122 +75,241 @@ export function MasterCapabilityDeclaration({
             role or curve was used.
           </p>
         </div>
-        {(hidden > 0 || showAll) && (
+        {action}
+      </div>
+      <div className="p-4 space-y-5">{children}</div>
+    </div>
+  )
+}
+
+export function MasterCapabilityDeclaration({
+  unit,
+  parameterName,
+  required,
+  profileId,
+  subtype,
+  disabled,
+  onChange,
+}: MasterCapabilityDeclarationProps) {
+  const [showAll, setShowAll] = useState(false)
+  /**
+   * A capability chosen but not yet completed by a role. There is no profile to name
+   * until both are answered, so this half-answer has nowhere to live but here.
+   */
+  const [pendingCap, setPendingCap] = useState<string | null>(null)
+
+  const wanted = parameterName.trim().toLowerCase()
+  const profiles = unit.capability_profiles.filter((p) =>
+    p.parameter.toLowerCase().includes(wanted),
+  )
+
+  const fits = (p: CapabilityProfile) => {
+    const ids = (p.subtypes ?? []).map((s) => s.id)
+    return ids.length ? ids.some((id) => reaches(p, id, required)) : reaches(p, null, required)
+  }
+
+  const declared = profiles.find((p) => p.id === profileId) ?? null
+
+  // Capability. Answered by a declaration, by a choice made here, or by there being
+  // only one - never by picking the first of several on the engineer's behalf.
+  const capabilities = [...new Set(profiles.map((p) => p.parameter))]
+  const capsUsable = capabilities.filter((c) =>
+    profiles.some((p) => p.parameter === c && fits(p)),
+  )
+  const capShown = showAll ? capabilities : capsUsable.length ? capsUsable : capabilities
+  const cap =
+    declared?.parameter ??
+    (pendingCap && capabilities.includes(pendingCap) ? pendingCap : null) ??
+    (capShown.length === 1 ? capShown[0] : null)
+
+  // Used as - only once the capability is settled, since the roles belong to it.
+  const roles = cap ? profiles.filter((p) => p.parameter === cap).map((p) => p.role) : []
+  const rolesUsable = roles.filter((r) => {
+    const p = profiles.find((x) => x.parameter === cap && x.role === r)
+    return p ? fits(p) : false
+  })
+  const roleShown = showAll ? roles : rolesUsable.length ? rolesUsable : roles
+  const role = declared?.role ?? (roleShown.length === 1 ? roleShown[0] : null)
+
+  // Both answers together name one capability profile, and only then is there a span,
+  // a least count and an accuracy to compare against the requirement.
+  const profile = cap && role
+    ? (profiles.find((p) => p.parameter === cap && p.role === role) ?? null)
+    : null
+
+  // Sensor type - only once the role is settled, since the curves belong to the profile.
+  const curves = profile ? (profile.subtypes ?? []).map((s) => s.id) : []
+  const curvesUsable = profile ? curves.filter((id) => reaches(profile, id, required)) : []
+  const curveShown = showAll ? curves : curvesUsable.length ? curvesUsable : curves
+  const curve = profile
+    ? subtype && curves.includes(subtype)
+      ? subtype
+      : (curvesUsable[0] ?? curves[0] ?? null)
+    : null
+
+  const hidden =
+    capabilities.length - capShown.length +
+    (roles.length - roleShown.length) +
+    (curves.length - curveShown.length)
+
+  // A question that has only one answer is not worth asking, but the answer is still a
+  // declaration and still belongs on the certificate. Report it once, so it persists.
+  const report = useRef(onChange)
+  report.current = onChange
+  useEffect(() => {
+    if (!profile || profileId === profile.id) return
+    if (pendingCap) return // The engineer is mid-answer; wait for the role.
+    if (capShown.length > 1 || roleShown.length > 1) return
+    report.current({ profileId: profile.id, subtype: curve ?? undefined })
+  }, [profile, profileId, curve, pendingCap, capShown.length, roleShown.length])
+
+  if (profiles.length === 0) {
+    return (
+      <Panel>
+        <p className="text-xs text-slate-500">No capability recorded for this instrument.</p>
+      </Panel>
+    )
+  }
+
+  const pickCap = (c: string) => {
+    setPendingCap(c)
+    const theseRoles = profiles.filter((p) => p.parameter === c).map((p) => p.role)
+    if (theseRoles.length !== 1) return
+    // One role, so the capability alone settles the profile.
+    pickRole(c, theseRoles[0])
+  }
+
+  const pickRole = (c: string, r: string) => {
+    const next = profiles.find((p) => p.parameter === c && p.role === r)
+    if (!next) return
+    setPendingCap(null)
+    const ids = (next.subtypes ?? []).map((s) => s.id)
+    const nextCurve = ids.find((id) => reaches(next, id, required)) ?? ids[0]
+    onChange({ profileId: next.id, subtype: nextCurve })
+  }
+
+  const settled: [string, string][] = []
+  if (capabilities.length > 0 && capShown.length <= 1 && cap) settled.push(['Capability', cap])
+  if (cap && roleShown.length <= 1 && role) settled.push(['Used as', role])
+  if (role && curves.length > 0 && curveShown.length <= 1 && curve) {
+    settled.push(['Sensor type', curve])
+  }
+
+  return (
+    <Panel
+      action={
+        (hidden > 0 || showAll) && (
           <button
             type="button"
             onClick={() => setShowAll((v) => !v)}
             className="text-[11px] font-semibold text-primary whitespace-nowrap"
           >
-            {showAll ? 'Show only what fits' : `Show all options`}
+            {showAll
+              ? 'Show only what fits'
+              : `Show all ${hidden + capShown.length + roleShown.length + curveShown.length} options`}
           </button>
-        )}
-      </div>
+        )
+      }
+    >
+      {hidden > 0 && !showAll && (
+        <p className="text-xs text-slate-500">
+          {hidden} option{hidden === 1 ? '' : 's'} hidden because they do not reach the
+          required range.
+        </p>
+      )}
 
-      <div className="p-4 space-y-4">
-        {hidden > 0 && !showAll && (
-          <p className="text-xs text-slate-500">
-            {hidden} option{hidden === 1 ? '' : 's'} hidden because they do not reach the
-            required range.
-          </p>
-        )}
-
-        {caps.length > 1 && (
-          <div>
-            <label className={LABEL}>
-              Capability used <span className="text-red-500">*</span>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {caps.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => pick(c, profiles.find((p) => p.parameter === c)!.role)}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-xl border bg-white',
-                    current.parameter === c ? 'border-primary' : 'border-slate-300',
-                  )}
-                >
-                  {radio(current.parameter === c)}
-                  <span className="text-sm font-semibold text-slate-800">{c}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {roles.length > 1 && (
-          <div>
-            <label className={LABEL}>
-              Used as <span className="text-red-500">*</span>
-            </label>
-            <div className="flex flex-wrap gap-2 items-center">
-              {roles.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => pick(current.parameter, r)}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-xl border bg-white',
-                    current.role === r ? 'border-primary' : 'border-slate-300',
-                  )}
-                >
-                  {radio(current.role === r)}
-                  <span className="text-sm font-semibold text-slate-800 capitalize">{r}</span>
-                  <span className="text-xs text-slate-500">
-                    {r === 'source' ? 'it produced the value' : 'it read the value'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {curveOptions.length > 1 && (
-          <div>
-            <label className={LABEL} htmlFor={`curve-${current.id}`}>
-              Sensor type <span className="text-red-500">*</span>
-            </label>
-            <div className="flex items-center gap-3 flex-wrap">
-              <select
-                id={`curve-${current.id}`}
-                value={currentCurve ?? ''}
+      {capShown.length > 1 && (
+        <div>
+          <label className={LABEL}>
+            Capability used <span className="text-red-500">*</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {capShown.map((c) => (
+              <button
+                key={c}
+                type="button"
                 disabled={disabled}
-                onChange={(e) => onChange({ profileId: current.id, subtype: e.target.value })}
-                className="rounded-xl border border-slate-300 h-10 px-3 bg-white text-sm font-medium min-w-[220px]"
+                onClick={() => pickCap(c)}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-xl border bg-white',
+                  cap === c ? 'border-primary' : 'border-slate-300',
+                )}
               >
-                {curveOptions.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
-                  </option>
-                ))}
-              </select>
-              {currentCurve && (
-                <CurveReach profile={current} subtypeId={currentCurve} />
-              )}
-            </div>
-          </div>
-        )}
-
-        {settled.length > 0 && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 flex flex-wrap items-center gap-x-5 gap-y-1">
-            {settled.map(([k, v]) => (
-              <span key={k} className="text-xs">
-                <span className="text-slate-500">{k}</span>{' '}
-                <b className="text-slate-800 capitalize">{v}</b>
-              </span>
+                {radio(cap === c)}
+                <span className="text-sm font-semibold text-slate-800">{c}</span>
+              </button>
             ))}
-            {asksNothing && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                <Info className="size-3" />
-                the only option, so not asked
-              </span>
-            )}
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+
+      {cap && roleShown.length > 1 && (
+        <div>
+          <label className={LABEL}>
+            Used as <span className="text-red-500">*</span>
+          </label>
+          <div className="flex flex-wrap gap-2 items-center">
+            {roleShown.map((r) => (
+              <button
+                key={r}
+                type="button"
+                disabled={disabled}
+                onClick={() => pickRole(cap, r)}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-xl border bg-white',
+                  role === r ? 'border-primary' : 'border-slate-300',
+                )}
+              >
+                {radio(role === r)}
+                <span className="text-sm font-semibold text-slate-800 capitalize">{r}</span>
+                <span className="text-xs text-slate-500">
+                  {r === 'source' ? 'it produced the value' : 'it read the value'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {role && profile && curveShown.length > 1 && (
+        <div>
+          <label className={LABEL} htmlFor={`curve-${profile.id}`}>
+            Sensor type <span className="text-red-500">*</span>
+          </label>
+          <div className="flex items-center gap-3 flex-wrap">
+            <select
+              id={`curve-${profile.id}`}
+              value={curve ?? ''}
+              disabled={disabled}
+              onChange={(e) => onChange({ profileId: profile.id, subtype: e.target.value })}
+              className="rounded-xl border border-slate-300 h-10 px-3 bg-white text-sm font-medium min-w-[220px]"
+            >
+              {curveShown.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+            {curve && <CurveReach profile={profile} subtypeId={curve} />}
+          </div>
+        </div>
+      )}
+
+      {settled.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 flex flex-wrap items-center gap-x-5 gap-y-1">
+          {settled.map(([k, v]) => (
+            <span key={k} className="text-xs">
+              <span className="text-slate-500">{k}</span>{' '}
+              <b className="text-slate-800 capitalize">{v}</b>
+            </span>
+          ))}
+          <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+            <Info className="size-3" />
+            the only option, so not asked
+          </span>
+        </div>
+      )}
+    </Panel>
   )
 }
 

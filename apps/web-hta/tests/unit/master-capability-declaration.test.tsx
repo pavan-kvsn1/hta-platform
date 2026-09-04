@@ -1,8 +1,10 @@
 /**
  * Declaring how a master was used for one parameter.
  *
- * Only a question with more than one answer gets asked. An instrument that records one
- * capability, one role and no curves asks nothing and states the facts instead.
+ * Only a question with more than one answer gets asked, and each one waits for the one
+ * before it - the roles belong to a capability, the curves to a role. An instrument
+ * that records one capability, one role and no curves asks nothing and states the
+ * facts instead.
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -118,7 +120,8 @@ describe('when the capability records curves', () => {
   it('says how many were set aside, and can show them', () => {
     renderIt(curves)
     expect(screen.getByText(/1 option hidden/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Show all options/i }))
+    // The count is on the button, so the escape says how much it opens up.
+    fireEvent.click(screen.getByRole('button', { name: 'Show all 5 options' }))
     expect(screen.getByLabelText(/Sensor type/i).textContent).toContain('Ni-100')
   })
 
@@ -135,8 +138,8 @@ describe('when the capability records curves', () => {
 })
 
 describe('when the instrument records nothing for the parameter', () => {
-  it('renders nothing at all', () => {
-    const { container } = render(
+  it('says so, rather than showing an empty panel', () => {
+    render(
       <MasterCapabilityDeclaration
         unit={unit([profile({ parameter: 'Pressure' })])}
         parameterName="Temperature"
@@ -144,6 +147,74 @@ describe('when the instrument records nothing for the parameter', () => {
         onChange={vi.fn()}
       />,
     )
-    expect(container).toBeEmptyDOMElement()
+    expect(screen.getByText(/No capability recorded for this instrument/i)).toBeInTheDocument()
+  })
+})
+
+describe('each question waits for the one before it', () => {
+  // Two capabilities, and the second records both roles. Until the capability is
+  // answered there is no role list to show - the roles belong to a capability.
+  const twoCaps = unit([
+    profile({ id: 'P1', parameter: 'Temperature', role: 'measuring' }),
+    profile({ id: 'P2', parameter: 'Temperature (IR)', role: 'measuring' }),
+    profile({ id: 'P3', parameter: 'Temperature (IR)', role: 'source' }),
+  ])
+
+  it('asks the capability first and nothing else', () => {
+    renderIt(twoCaps)
+    expect(screen.getByText(/Capability used/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Used as/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Sensor type/i)).not.toBeInTheDocument()
+  })
+
+  it('does not answer the capability for the engineer', () => {
+    // Picking the first of several and presenting it as declared is the whole thing
+    // this component exists to stop.
+    const onChange = renderIt(twoCaps)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('asks the role once the capability is answered', () => {
+    renderIt(twoCaps)
+    fireEvent.click(screen.getByText('Temperature (IR)').closest('button')!)
+    expect(screen.getByText(/Used as/i)).toBeInTheDocument()
+    expect(screen.getByText('it produced the value')).toBeInTheDocument()
+  })
+
+  it('settles the profile itself when the chosen capability has one role', () => {
+    const onChange = renderIt(twoCaps)
+    fireEvent.click(screen.getByText('Temperature').closest('button')!)
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P1' }))
+  })
+
+  it('holds the sensor type back until the role is answered', () => {
+    const curved = unit([
+      profile({ id: 'P1', parameter: 'Temperature', role: 'measuring' }),
+      profile({
+        id: 'P2',
+        parameter: 'Temperature (RTD)',
+        role: 'measuring',
+        subtypes: [
+          { id: 'Pt-100', min: -200, max: 660, buckets: [bucket(-200, 660, 0.1, 0.05)] },
+          { id: 'Cu-53', min: -70, max: 150, buckets: [bucket(-70, 150, 0.5, 0.5)] },
+        ],
+      }),
+      profile({ id: 'P3', parameter: 'Temperature (RTD)', role: 'source' }),
+    ])
+    renderIt(curved)
+    expect(screen.queryByLabelText(/Sensor type/i)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Temperature (RTD)').closest('button')!)
+    // Capability answered, role still open, so still no curve.
+    expect(screen.queryByLabelText(/Sensor type/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('a question with one answer', () => {
+  it('is reported anyway, so the certificate keeps it', () => {
+    // Not asked, but still a declaration: the alternative is a certificate whose
+    // capability is only ever re-derived at render time.
+    const onChange = renderIt(unit([profile({})]))
+    expect(onChange).toHaveBeenCalledWith({ profileId: 'P1', subtype: undefined })
   })
 })
