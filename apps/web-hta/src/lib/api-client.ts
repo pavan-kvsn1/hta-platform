@@ -20,6 +20,22 @@ let tokenExpiresAt: number = 0
 /**
  * Get or refresh access token
  */
+/**
+ * Why the last attempt to mint an access token failed, if it did.
+ *
+ * Without this the reason is thrown away at the one point it is known: the request goes
+ * out with no Authorization header, the API answers 401, and every caller reports
+ * "401 Unauthorized" - which describes the second failure and not the first. The
+ * distinction matters to the reader: a signed-out session is fixed by signing in, and
+ * nothing else is.
+ */
+let lastTokenFailure: 'signed out' | 'unreachable' | null = null
+
+/** Whether the API refused us because there is no session to act on. */
+export function isSignedOut(): boolean {
+  return lastTokenFailure === 'signed out'
+}
+
 async function getAccessToken(): Promise<string | null> {
   // In Electron, get token from main process (no database needed)
   const electronApi = typeof window !== 'undefined'
@@ -48,17 +64,22 @@ async function getAccessToken(): Promise<string | null> {
     if (!response.ok) {
       accessToken = null
       tokenExpiresAt = 0
+      // 401 here means NextAuth has no session to mint against - the person is signed
+      // out. Anything else is the mint itself being unavailable.
+      lastTokenFailure = response.status === 401 ? 'signed out' : 'unreachable'
       return null
     }
 
     const data = await response.json()
     accessToken = data.accessToken
     tokenExpiresAt = Date.now() + (data.expiresIn * 1000)
+    lastTokenFailure = null
     return accessToken
   } catch (error) {
     console.error('Failed to refresh token:', error)
     accessToken = null
     tokenExpiresAt = 0
+    lastTokenFailure = 'unreachable'
     return null
   }
 }
@@ -67,6 +88,7 @@ async function getAccessToken(): Promise<string | null> {
  * Clear stored token (call on logout)
  */
 export function clearAccessToken(): void {
+  lastTokenFailure = null
   accessToken = null
   tokenExpiresAt = 0
 }
@@ -136,7 +158,9 @@ export async function apiFetch(
   }
 
   let response: Response
+  let sentToken = false
   try {
+    sentToken = (await peekAccessToken()) !== null
     response = await doApiFetch(input, init)
   } catch (err) {
     // Network error in Electron — try offline bridge for draft routes
@@ -174,7 +198,29 @@ export async function apiFetch(
     window.location.href = '/desktop/login?reauth=true'
   }
 
+  /**
+   * The same courtesy in a browser, which had none.
+   *
+   * An access token lives minutes and is cached with a 30-second buffer, so one can
+   * pass that check here and still be expired by the time the API reads it - the two
+   * clocks are not the same clock. That produced a 401 the reader had to recover from
+   * by reloading, for a token the app could have replaced without being asked. Once
+   * only, and only where a token was actually sent: retrying a request that went out
+   * unauthenticated would just ask the same question twice.
+   */
+  if (response.status === 401 && !electronApi?.refreshAccessToken && sentToken) {
+    accessToken = null
+    tokenExpiresAt = 0
+    const renewed = await getAccessToken()
+    if (renewed) return doApiFetch(input, init)
+  }
+
   return response
+}
+
+/** The token as it stands, without minting a new one. */
+async function peekAccessToken(): Promise<string | null> {
+  return getAccessToken()
 }
 
 async function doApiFetch(

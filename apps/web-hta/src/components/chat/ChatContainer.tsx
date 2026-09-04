@@ -1,6 +1,6 @@
 'use client'
 
-import { apiFetch } from '@/lib/api-client'
+import { apiFetch, isSignedOut } from '@/lib/api-client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
@@ -55,7 +55,14 @@ async function describeFailure(res: Response, action: string): Promise<Error> {
 
 /** What to tell the reader, as opposed to what to log. */
 function readableFailure(res: Response): string {
-  if (res.status === 401) return 'Your session has expired. Please sign in again.'
+  // A 401 has two causes with different remedies: there is no session to act on, or a
+  // token could not be minted for one that exists. Only the first is fixed by signing
+  // in, and telling someone to sign in when they already are wastes their time.
+  if (res.status === 401) {
+    return isSignedOut()
+      ? 'Your session has expired. Please sign in again.'
+      : 'Could not authenticate this request. Try again in a moment.'
+  }
   if (res.status === 403) return 'You do not have access to this conversation.'
   if (res.status === 404) return 'This conversation no longer exists.'
   return 'Failed to load messages'
