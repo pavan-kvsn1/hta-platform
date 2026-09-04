@@ -14,9 +14,11 @@ import { AlertTriangle, CheckCircle, Info } from 'lucide-react'
 import {
   DEFAULT_ACCURACY_RATIO,
   chooseCapability,
+  evaluateSuitability,
   requiredRanges,
   type AssignmentSuitability,
   type RangeSuitability,
+  type RequiredRange,
 } from '@/lib/master-instrument-capability'
 import type { RegistryUnit } from '@/lib/master-instrument-registry'
 import { cn } from '@/lib/utils'
@@ -32,12 +34,53 @@ interface MasterCapabilityComparisonProps {
     accuracyValue: string
     requiresBinning: boolean
     bins: { binMin: string; binMax: string; leastCount: string; accuracy: string }[]
+    masterProfileId?: string
+    masterSubtype?: string
   }
   /** The ratio this lab expects. Defaults to the common 4:1. */
   threshold?: number
 }
 
+/** What the engineer declared, when they have. */
+interface Declaration {
+  masterProfileId?: string
+  masterSubtype?: string
+}
+
 const num = (v: number) => Number(v.toFixed(4)).toString()
+
+/**
+ * The capability to compare against: the declared one where there is a declaration,
+ * otherwise the best fitting, flagged as a guess.
+ */
+function declaredFrom(
+  unit: RegistryUnit,
+  parameter: { parameterName: string } & Declaration,
+  required: RequiredRange[],
+  threshold: number,
+) {
+  const profile = parameter.masterProfileId
+    ? unit.capability_profiles.find((p) => p.id === parameter.masterProfileId)
+    : undefined
+
+  if (profile) {
+    return {
+      wasDeclared: true,
+      chosen: {
+        profile,
+        subtypeId: parameter.masterSubtype ?? null,
+        suitability: evaluateSuitability(profile, required, {
+          subtypeId: parameter.masterSubtype,
+          threshold,
+        }),
+      },
+    }
+  }
+  return {
+    wasDeclared: false,
+    chosen: chooseCapability(unit, parameter.parameterName, required, { threshold }),
+  }
+}
 
 const PILL = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase'
 const TH = 'text-left px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider'
@@ -61,7 +104,10 @@ export function MasterCapabilityComparison({
     )
   }
 
-  const chosen = chooseCapability(unit, parameter.parameterName, required, { threshold })
+  // The declaration decides which capability is compared. Without one, the best
+  // fitting is used and said to be a guess, rather than presented as a fact.
+  const declared = declaredFrom(unit, parameter, required, threshold)
+  const chosen = declared.chosen
 
   if (!chosen) {
     return (
@@ -92,6 +138,11 @@ export function MasterCapabilityComparison({
           <span className="text-xs">
             <span className="text-slate-500">Sensor type</span>{' '}
             <b className="text-slate-800">{subtypeId}</b>
+          </span>
+        )}
+        {!declared.wasDeclared && (
+          <span className="text-[11px] text-slate-500">
+            best fit &mdash; not yet declared
           </span>
         )}
       </div>

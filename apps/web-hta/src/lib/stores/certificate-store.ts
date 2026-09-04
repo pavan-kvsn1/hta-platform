@@ -67,6 +67,16 @@ export interface Parameter {
   bins: ParameterBin[]
   // Other fields
   errorFormula: string
+  /**
+   * Which of the master's capabilities was used for this parameter, and which curve.
+   *
+   * Declared by the engineer, not inferred: an instrument can record the same
+   * parameter as a source and as a measuring device with different accuracies, and a
+   * thermocouple's Type K and Type S have different spans - none of which the readings
+   * reveal. Absent on certificates written before this was asked for.
+   */
+  masterProfileId?: string
+  masterSubtype?: string
   results: CalibrationResult[]
   showAfterAdjustment: boolean
 

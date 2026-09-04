@@ -26,8 +26,9 @@ import {
   CATEGORY_LABELS,
   getSopReferences,
 } from '@/lib/master-instruments'
-import { unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
+import { requiredRanges, unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
 import { MasterCapabilityComparison } from '@/components/forms/MasterCapabilityComparison'
+import { MasterCapabilityDeclaration } from '@/components/forms/MasterCapabilityDeclaration'
 import { ParameterCoverage } from '@/components/forms/ParameterCoverage'
 import { cn } from '@/lib/utils'
 
@@ -699,7 +700,24 @@ function MasterInstrumentCard({
                     calibration requires. Only for the parameter this master is
                     actually assigned to, and only where the registry knows it. */}
                 {isAssigned && registryUnit && (
-                  <MasterCapabilityComparison unit={registryUnit} parameter={param} />
+                  <>
+                    <MasterCapabilityDeclaration
+                      unit={registryUnit}
+                      parameterName={param.parameterName}
+                      required={requiredRanges(param)}
+                      profileId={param.masterProfileId}
+                      subtype={param.masterSubtype}
+                      disabled={disabled}
+                      onChange={({ profileId, subtype }) =>
+                        onParameterUpdate(paramIdx, {
+                          ...param,
+                          masterProfileId: profileId,
+                          masterSubtype: subtype,
+                        })
+                      }
+                    />
+                    <MasterCapabilityComparison unit={registryUnit} parameter={param} />
+                  </>
                 )}
                 </div>
               )
