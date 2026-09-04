@@ -220,22 +220,46 @@ describe('step 2 - which instrument', () => {
 
 
 
-  it('keeps an unusable instrument on screen with the reason', () => {
+  it('leaves out an instrument that cannot reach the range, and counts it', () => {
+    // 742 stops at 40 and the parameter runs to 60. It cannot be used whatever else it
+    // offers, so it does not belong among the ones that can.
     renderFlow()
     pick('Temperature')
     expect(
+      screen.getAllByRole('button').find((b) => b.textContent?.includes('742 HTAIPL/L')),
+    ).toBeUndefined()
+    expect(paragraph(/1 more do not reach the required range/)).toBeInTheDocument()
+  })
+
+  it('shows the near misses on request, with the reason', () => {
+    // A near miss is worth seeing: it may mean the range is wrong rather than the
+    // instrument.
+    renderFlow()
+    pick('Temperature')
+    fireEvent.click(screen.getByRole('button', { name: 'show them' }))
+    const row = screen.getAllByRole('button').find((b) => b.textContent?.includes('742 HTAIPL/L'))
+    expect(row).toBeDefined()
+    expect(row).toBeDisabled()
+    expect(
       screen.getByText(/short of your 60 by 20 - does not reach the required range/),
     ).toBeInTheDocument()
+  })
+
+  it('can put them away again', () => {
+    renderFlow()
+    pick('Temperature')
+    fireEvent.click(screen.getByRole('button', { name: 'show them' }))
+    fireEvent.click(screen.getByRole('button', { name: 'hide them' }))
     expect(
       screen.getAllByRole('button').find((b) => b.textContent?.includes('742 HTAIPL/L')),
-    ).toBeDisabled()
+    ).toBeUndefined()
   })
 
   it('says how many of the listed instruments can be used', () => {
     renderFlow()
     pick('Temperature')
-    expect(screen.getByText(/1 of 2 can be used/)).toBeInTheDocument()
-    expect(screen.getByText(/the rest stay, with the reason/)).toBeInTheDocument()
+    // One instrument is listed and it can be used; the other is out of range.
+    expect(paragraph(/1 of 1 can be used/)).toBeInTheDocument()
   })
 
   it('says what the list is, and what it leaves out', () => {
@@ -700,7 +724,7 @@ describe('finding an instrument', () => {
       target: { value: '902' },
     })
     expect(rows()).toHaveLength(1)
-    expect(screen.getByText(/2 more hidden by the search/)).toBeInTheDocument()
+    expect(paragraph(/2 more hidden by the search/)).toBeInTheDocument()
   })
 
   it('moves the chosen instrument to the top', () => {
@@ -814,8 +838,9 @@ describe('reopening a master that is already chosen', () => {
     // The whole list is there to choose from again.
     expect(screen.getByLabelText('Search instruments')).toBeInTheDocument()
     expect(
-      screen.getAllByRole('button').some((b) => b.textContent?.includes('742 HTAIPL/L')),
+      screen.getAllByRole('button').some((b) => b.textContent?.includes('600 HTAIPL/L')),
     ).toBe(true)
+    expect(paragraph(/1 more do not reach the required range/)).toBeInTheDocument()
   })
 
   it('saves rather than adds', () => {

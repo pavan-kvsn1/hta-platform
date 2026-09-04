@@ -263,6 +263,7 @@ export function MasterAddFlow({
    */
   const [chosenId, setChosenId] = useState<number | null>(seed?.instrumentId ?? null)
   const [showUnrecorded, setShowUnrecorded] = useState(false)
+  const [showOutOfRange, setShowOutOfRange] = useState(false)
   const [declarations, setDeclarations] = useState<Record<string, Declaration>>(
     seed?.declarations ?? {},
   )
@@ -438,9 +439,27 @@ export function MasterAddFlow({
     [pool, category, make, description],
   )
 
+  /**
+   * Instruments whose capability does not span the required range.
+   *
+   * They cannot be used - the row was already disabled - and for a Temperature
+   * parameter of -20 to 60 there are fifteen of them among seventy-six. Listing them
+   * put the instruments that can do the job further down a list mostly made of ones
+   * that cannot. They are counted underneath instead, and a near miss is worth seeing,
+   * so they are one click away rather than gone.
+   */
+  const outOfRangeCount = useMemo(
+    () =>
+      chosenParameters.length === 0
+        ? 0
+        : pool.filter((inst) => rate(inst).outOfRange).length,
+    [pool, chosenParameters, rate],
+  )
+
   const shown = useMemo(() => {
     const q = instrumentQuery.trim().toLowerCase()
     const rows = filtered
+      .filter((i) => showOutOfRange || !rate(i).outOfRange)
       .filter((i) =>
         !q
           ? true
@@ -466,7 +485,7 @@ export function MasterAddFlow({
     }
     const missing = instruments.find((i) => i.id === chosenId)
     return missing ? [{ inst: missing, fit: rate(missing) }, ...rows] : rows
-  }, [filtered, instrumentQuery, rate, chosenId, instruments])
+  }, [filtered, instrumentQuery, rate, chosenId, instruments, showOutOfRange])
 
   const unrateable = useMemo(
     () =>
@@ -790,8 +809,37 @@ export function MasterAddFlow({
                 <p className="text-[11px] text-slate-500">
                   {shown.filter((s) => s.fit.usable).length} of {shown.length} can be used;
                   the rest stay, with the reason.
-                  {filtered.length !== shown.length &&
-                    ` ${filtered.length - shown.length} more hidden by the search.`}
+                  {filtered.length !== shown.length + (showOutOfRange ? 0 : outOfRangeCount) &&
+                    ` ${filtered.length - shown.length - (showOutOfRange ? 0 : outOfRangeCount)} more hidden by the search.`}
+                  {outOfRangeCount > 0 && !showOutOfRange && (
+                    <>
+                      {' '}
+                      {outOfRangeCount} more do not reach the required range &mdash;{' '}
+                      <button
+                        type="button"
+                        onClick={() => setShowOutOfRange(true)}
+                        className="font-semibold text-primary"
+                      >
+                        show them
+                      </button>
+                      .
+                    </>
+                  )}
+                  {showOutOfRange && outOfRangeCount > 0 && (
+                    <>
+                      {' '}
+                      Including {outOfRangeCount} that do not reach the required range
+                      &mdash;{' '}
+                      <button
+                        type="button"
+                        onClick={() => setShowOutOfRange(false)}
+                        className="font-semibold text-primary"
+                      >
+                        hide them
+                      </button>
+                      .
+                    </>
+                  )}
                   {unrecordedCount > 0 && (
                     <>
                       {' '}

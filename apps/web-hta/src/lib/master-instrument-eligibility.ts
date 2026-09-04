@@ -64,6 +64,12 @@ export interface Eligibility {
   /** Why each badge reads as it does, shown on hover. */
   leastCountNote: string
   accuracyNote: string
+  /**
+   * The capability does not span the required range. Distinct from a thin accuracy or
+   * a coarse resolution, which are judgements; this one is arithmetic, and the
+   * instrument cannot be used whatever else it offers.
+   */
+  outOfRange?: boolean
 }
 
 export const ELIGIBILITY_BADGE: Record<EligibilityTone, string> = {
@@ -192,6 +198,7 @@ export function eligibilityFor(
       usable: false,
       verdict: 'Range Exceeds',
       detail: `${reach}${short} - does not reach the required range`,
+      outOfRange: true,
       ...unjudged('Part of the required range falls outside this capability.'),
     }
   }
