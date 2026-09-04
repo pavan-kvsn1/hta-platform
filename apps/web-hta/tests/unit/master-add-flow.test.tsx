@@ -221,12 +221,22 @@ describe('steps 3 and 4 - the declaration and what it gives', () => {
     // The requirement, the comparison and the SOP are what the declaration produced.
     // Rendered as sections below it they read as separate questions.
     openToDeclare()
-    const panel = screen
-      .getByText(/How This Instrument Was Used/i)
-      .closest('div.rounded-xl')!.parentElement!
+    const panel = screen.getByRole('group', { name: /Compatibility - For Temperature/i })
     expect(within(panel).getByText('Required of the master')).toBeInTheDocument()
     expect(within(panel).getByText(/What 600 HTAIPL\/L offers/)).toBeInTheDocument()
     expect(within(panel).getByLabelText(/SOP Ref/i)).toBeInTheDocument()
+  })
+
+  it('can be folded away, and still says which parameter it covers', () => {
+    // A master serving three parameters produces three of these, each long enough to
+    // bury the next.
+    openToDeclare()
+    const panel = screen.getByRole('group', { name: /Compatibility - For Temperature/i })
+    fireEvent.click(within(panel).getByRole('button', { expanded: true }))
+    expect(within(panel).queryByText('Required of the master')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('group', { name: /Compatibility - For Temperature/i }),
+    ).toBeInTheDocument()
   })
 
   it('asks for the SOP reference the instrument records', () => {
@@ -499,7 +509,12 @@ describe('a master serving more than one parameter', () => {
     pick('Pressure')
     pickInstrument('900 HTAIPL/L')
     // One panel per parameter, each with its own requirement and procedure.
-    expect(screen.getAllByText(/How This Instrument Was Used/i)).toHaveLength(2)
+    expect(
+      screen.getByRole('group', { name: /Compatibility - For Temperature/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('group', { name: /Compatibility - For Pressure/i }),
+    ).toBeInTheDocument()
     expect(screen.getAllByText('Required of the master')).toHaveLength(2)
     expect(screen.getAllByLabelText(/SOP Ref/i)).toHaveLength(2)
   })

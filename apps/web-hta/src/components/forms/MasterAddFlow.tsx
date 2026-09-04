@@ -664,7 +664,6 @@ export function MasterAddFlow({
             <ParameterDeclaration
               key={parameter.id}
               parameter={parameter}
-              showParameterName={chosenParameters.length > 1}
               instrument={chosenInstrument}
               unit={registryUnit}
               required={requiredFor.get(parameter.id) ?? []}
@@ -730,7 +729,6 @@ export function MasterAddFlow({
  */
 function ParameterDeclaration({
   parameter,
-  showParameterName,
   instrument,
   unit,
   required,
@@ -741,7 +739,6 @@ function ParameterDeclaration({
   onChange,
 }: {
   parameter: Parameter
-  showParameterName: boolean
   instrument: MasterInstrument
   unit?: RegistryUnit
   required: RequiredRange[]
@@ -777,14 +774,9 @@ function ParameterDeclaration({
 
   const sopId = `flow-sop-${parameter.id}`
 
+  // The panel header names the parameter itself, so no heading is needed above it.
   return (
-    <>
-      {showParameterName && (
-        <p className="mt-5 text-xs font-extrabold text-slate-900 uppercase tracking-wider">
-          {parameter.parameterName || 'This parameter'}
-        </p>
-      )}
-      <MasterCapabilityDeclaration
+    <MasterCapabilityDeclaration
         unit={unit}
         parameterName={parameter.parameterName}
         required={required}
@@ -924,7 +916,6 @@ function ParameterDeclaration({
             />
           </div>
         )}
-      </MasterCapabilityDeclaration>
-    </>
+    </MasterCapabilityDeclaration>
   )
 }

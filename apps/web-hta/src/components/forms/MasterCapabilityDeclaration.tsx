@@ -16,7 +16,7 @@
 // are stated instead.
 
 import { useEffect, useRef, useState } from 'react'
-import { Info } from 'lucide-react'
+import { ChevronDown, Info } from 'lucide-react'
 import {
   declaredCapability,
   type RequiredRange,
@@ -63,29 +63,61 @@ function reaches(profile: CapabilityProfile, subtypeId: string | null, required:
   return required.every((r) => declared.min! <= r.from && declared.max! >= r.to)
 }
 
+/**
+ * One collapsible panel per parameter.
+ *
+ * A master serving three parameters produces three of these, each with its own
+ * requirement, comparison and procedure. Open they are long; collapsed the section
+ * stays readable and the header still names which parameter it covers.
+ */
 function Panel({
+  parameterName,
   children,
   action,
 }: {
+  parameterName: string
   children: React.ReactNode
   action?: React.ReactNode
 }) {
+  const [open, setOpen] = useState(true)
+  const heading = `Assess and Verify Master Instrument Compatibility${
+    parameterName ? ` - For ${parameterName}` : ''
+  }`
+
   return (
-    <div className="mt-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-            How This Instrument Was Used <span className="text-red-500">*</span>
-          </p>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Declared, not inferred &mdash; the readings cannot tell us which capability,
-            role or curve was used.
-          </p>
-        </div>
-        {action}
+    <section
+      role="group"
+      aria-label={heading}
+      className="mt-3 rounded-xl border border-slate-200 bg-white overflow-hidden"
+    >
+      <div
+        className={cn(
+          'bg-slate-100 px-4 py-3 flex items-center justify-between gap-3 flex-wrap',
+          open && 'border-b border-slate-200',
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex items-center gap-2 text-left min-w-0"
+        >
+          <ChevronDown
+            className={cn(
+              'size-4 text-slate-500 shrink-0 transition-transform',
+              !open && '-rotate-90',
+            )}
+          />
+          <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+            Assess and Verify Master Instrument Compatibility
+            {parameterName ? ` - For ${parameterName}` : ''}{' '}
+            <span className="text-red-500">*</span>
+          </span>
+        </button>
+        {open && action}
       </div>
-      <div className="p-4 space-y-5">{children}</div>
-    </div>
+      {open && <div className="p-4 space-y-5">{children}</div>}
+    </section>
   )
 }
 
@@ -173,7 +205,7 @@ export function MasterCapabilityDeclaration({
 
   if (profiles.length === 0) {
     return (
-      <Panel>
+      <Panel parameterName={parameterName}>
         <p className="text-xs text-slate-500">No capability recorded for this instrument.</p>
         {children}
       </Panel>
@@ -206,6 +238,7 @@ export function MasterCapabilityDeclaration({
 
   return (
     <Panel
+      parameterName={parameterName}
       action={
         (hidden > 0 || showAll) && (
           <button
