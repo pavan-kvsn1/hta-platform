@@ -97,7 +97,8 @@ function Info({ label, value }: { label: string; value: string }) {
   )
 }
 
-function MasterInstrumentCard({
+// Exported for tests: the editing behaviour below is worth pinning on its own.
+export function MasterInstrumentCard({
   instrument,
   index,
   onRemove,
@@ -111,6 +112,17 @@ function MasterInstrumentCard({
   disabled = false,
 }: MasterInstrumentCardProps) {
   const { instruments, getUnitForInstrument } = useMasterInstrumentStore()
+
+  /**
+   * Which parameters have their declaration open for editing.
+   *
+   * Editing cannot be expressed by clearing the declaration: an instrument recording
+   * one capability and one role - most of them - has its answer settled without being
+   * asked, and MasterCapabilityDeclaration reports that answer back the moment it
+   * mounts. Clearing it therefore set it again immediately and the panel shut, which
+   * is why the pencil appeared to do nothing.
+   */
+  const [editing, setEditing] = useState<string[]>([])
 
   const listed = useMemo(
     () => instruments.find((inst) => inst.id === instrument.masterInstrumentId) ?? null,
@@ -364,7 +376,7 @@ function MasterInstrumentCard({
                         missing - a master added through the flow arrives declared. */}
                     {isAssigned && registryUnit && (
                       <div className="ml-8">
-                        {!param.masterProfileId && (
+                        {(editing.includes(param.id) || !param.masterProfileId) && (
                           <MasterCapabilityDeclaration
                             unit={registryUnit}
                             parameterName={param.parameterName}
@@ -385,16 +397,22 @@ function MasterInstrumentCard({
                           unit={registryUnit}
                           parameter={param}
                           onEdit={
-                            param.masterProfileId && !disabled
-                              ? () =>
-                                  onParameterUpdate(paramIdx, {
-                                    ...param,
-                                    masterProfileId: undefined,
-                                    masterSubtype: undefined,
-                                  })
+                            param.masterProfileId && !disabled && !editing.includes(param.id)
+                              ? () => setEditing((open) => [...open, param.id])
                               : undefined
                           }
                         />
+                        {editing.includes(param.id) && !disabled && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditing((open) => open.filter((id) => id !== param.id))
+                            }
+                            className="mt-1.5 text-[11px] font-semibold text-primary"
+                          >
+                            Done
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
