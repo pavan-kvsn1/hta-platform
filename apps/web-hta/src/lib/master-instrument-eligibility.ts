@@ -29,6 +29,15 @@ export interface Eligibility {
   verdict: string
   /** The line under the instrument name, saying what the verdict is based on. */
   detail: string
+  /**
+   * The two things an engineer is actually judging, where they can be judged at all.
+   * They are separate because they fail for different reasons: a coarser least count
+   * means the readings cannot be recorded as written, while a thin accuracy ratio is a
+   * judgement the lab can accept with a reason. Null where nothing supports an answer,
+   * in which case `verdict` says why.
+   */
+  leastCount?: 'compatible' | 'not compatible' | null
+  accuracyRatio?: number | null
 }
 
 export const ELIGIBILITY_BADGE: Record<EligibilityTone, string> = {
@@ -83,14 +92,27 @@ export function eligibilityFor(
   }
 
   // Without a stated requirement there is nothing to rate the instrument against, but
-  // it does record the parameter, so it stays offered.
+  // it does record the parameter, so it stays offered. "Records it" said nothing an
+  // engineer could act on; the reason it cannot be rated is more use.
   if (parameter.required.length === 0) {
-    return { rank: 3, tone: 'slate', usable: true, verdict: 'Records it', detail: '' }
+    return {
+      rank: 3,
+      tone: 'slate',
+      usable: true,
+      verdict: 'Requirement not set',
+      detail: 'set the range, least count and accuracy in Section 02 to rate this',
+    }
   }
 
   const chosen = chooseCapability(unit, parameter.name, parameter.required, { threshold })
   if (!chosen) {
-    return { rank: 3, tone: 'slate', usable: true, verdict: 'Records it', detail: '' }
+    return {
+      rank: 3,
+      tone: 'slate',
+      usable: true,
+      verdict: 'Requirement not set',
+      detail: 'nothing recorded against this capability to compare',
+    }
   }
 
   const span = declaredCapability(chosen.profile, chosen.subtypeId)
@@ -124,7 +146,11 @@ export function eligibilityFor(
     }
   }
 
+  const leastCount = chosen.suitability.resolvable
+    ? ('compatible' as const)
+    : ('not compatible' as const)
   const ratio = chosen.suitability.worstRatio
+
   if (ratio === null) {
     return {
       rank: 3,
@@ -132,6 +158,8 @@ export function eligibilityFor(
       usable: true,
       verdict: 'Class accuracy',
       detail: reach ? `${reach} · not comparable as a number` : 'not comparable as a number',
+      leastCount,
+      accuracyRatio: null,
     }
   }
 
@@ -141,5 +169,7 @@ export function eligibilityFor(
     usable: true,
     verdict: `${ratio.toFixed(1)} : 1`,
     detail: reach,
+    leastCount,
+    accuracyRatio: ratio,
   }
 }

@@ -166,6 +166,33 @@ describe('step 2 - which instrument', () => {
     expect(screen.getByText('10.0 : 1')).toBeInTheDocument()
   })
 
+  it('badges the two things being judged, not one word', () => {
+    renderFlow()
+    pick('Temperature')
+    // Least count and accuracy fail for different reasons, so they are answered apart.
+    expect(screen.getByText('LC Compatible')).toBeInTheDocument()
+    expect(screen.getByText('10.0 : 1')).toBeInTheDocument()
+  })
+
+  it('says the requirement is missing rather than "records it"', () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', leastCountValue: '', accuracyValue: '' })]}
+        coveredBy={new Map()}
+        instruments={[GOOD]}
+        resolveUnit={(inst) => units.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    expect(screen.getByText('Requirement not set')).toBeInTheDocument()
+    expect(screen.queryByText('Records it')).not.toBeInTheDocument()
+  })
+
+
+
   it('keeps an unusable instrument on screen with the reason', () => {
     renderFlow()
     pick('Temperature')
@@ -595,6 +622,24 @@ describe('finding an instrument', () => {
     })
     expect(rows()).toHaveLength(1)
     expect(screen.getByText(/2 more are hidden by the search/)).toBeInTheDocument()
+  })
+
+  it('moves the chosen instrument to the top', () => {
+    // A choice that scrolls out of sight reads as a choice that came undone.
+    renderMany()
+    expect(rows()[0].textContent).toContain('600 HTAIPL/L')
+    pickInstrument('902 HTAIPL/L')
+    expect(rows()[0].textContent).toContain('902 HTAIPL/L')
+  })
+
+  it('keeps the chosen instrument on screen when the search excludes it', () => {
+    renderMany()
+    pickInstrument('902 HTAIPL/L')
+    fireEvent.change(screen.getByLabelText('Search instruments'), {
+      target: { value: 'Druck' },
+    })
+    expect(rows()[0].textContent).toContain('902 HTAIPL/L')
+    expect(rows()).toHaveLength(2)
   })
 
   it('says so rather than showing an empty box when nothing matches', () => {

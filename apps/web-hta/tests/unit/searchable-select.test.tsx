@@ -4,6 +4,9 @@
  * Written after the first version shipped three faults nothing caught: a panel that
  * sized itself to its content instead of the field, a reset option that could be
  * filtered out of its own list, and no keyboard at all.
+ *
+ * The field and the search are one control: it reads as the chosen value until it is
+ * typed into, and typing narrows the list below it.
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
@@ -25,23 +28,34 @@ function renderIt(over: Record<string, unknown> = {}) {
   return onChange
 }
 
-const open = () => fireEvent.click(screen.getByRole('combobox'))
-const search = () => screen.getByLabelText('Search')
+const field = () => screen.getByRole('combobox')
+const open = () => fireEvent.click(field())
+const type = (value: string) => fireEvent.change(field(), { target: { value } })
 const rows = () => screen.getAllByRole('option')
 
 describe('opening it', () => {
-  it('shows the field, then the list, then the search', () => {
+  it('reads as the chosen value until it is opened', () => {
     renderIt({ value: 'rtd' })
-    expect(screen.getByRole('combobox')).toHaveTextContent('Digital RTD Thermometer with Sensor')
+    expect(field()).toHaveValue('Digital RTD Thermometer with Sensor')
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+  })
+
+  it('opens the list on a click, with nothing else to find first', () => {
+    renderIt({ value: 'rtd' })
     open()
-    expect(search()).toBeInTheDocument()
     expect(rows()).toHaveLength(5)
   })
 
-  it('puts the caret in the search, so typing narrows straight away', () => {
+  it('opens on focus, so tabbing into it is enough', () => {
     renderIt()
-    open()
-    expect(search()).toHaveFocus()
+    fireEvent.focus(field())
+    expect(rows()).toHaveLength(5)
+  })
+
+  it('opens on arrow down from the closed field', () => {
+    renderIt()
+    fireEvent.keyDown(field(), { key: 'ArrowDown' })
+    expect(rows()).toHaveLength(5)
   })
 })
 
@@ -49,7 +63,7 @@ describe('narrowing it', () => {
   it('keeps only what matches, on a substring', () => {
     renderIt()
     open()
-    fireEvent.change(search(), { target: { value: 'rtd' } })
+    type('rtd')
     // Two RTD rows, plus the pinned reset.
     expect(rows()).toHaveLength(3)
   })
@@ -58,7 +72,7 @@ describe('narrowing it', () => {
     // "Any description" is not a search result, and losing it leaves no way back.
     renderIt()
     open()
-    fireEvent.change(search(), { target: { value: 'thermocouple' } })
+    type('thermocouple')
     expect(rows()[0]).toHaveTextContent('Any description')
     expect(rows()).toHaveLength(2)
   })
@@ -66,21 +80,21 @@ describe('narrowing it', () => {
   it('matches without regard to case', () => {
     renderIt()
     open()
-    fireEvent.change(search(), { target: { value: 'DEW POINT' } })
+    type('DEW POINT')
     expect(rows()).toHaveLength(2)
   })
 
   it('says how much of the list it is holding back', () => {
     renderIt()
     open()
-    fireEvent.change(search(), { target: { value: 'rtd' } })
+    type('rtd')
     expect(screen.getByText(/2 of 4 shown/)).toBeInTheDocument()
   })
 
   it('says so plainly when nothing matches', () => {
     renderIt()
     open()
-    fireEvent.change(search(), { target: { value: 'nothing like this' } })
+    type('nothing like this')
     expect(screen.getByText('Nothing matches that.')).toBeInTheDocument()
     // The reset survives, so the field is not a dead end.
     expect(rows()).toHaveLength(1)
@@ -89,9 +103,27 @@ describe('narrowing it', () => {
   it('can be cleared without closing', () => {
     renderIt()
     open()
-    fireEvent.change(search(), { target: { value: 'rtd' } })
+    type('rtd')
     fireEvent.click(screen.getByLabelText('Clear search'))
     expect(rows()).toHaveLength(5)
+  })
+})
+
+describe('leaving without choosing', () => {
+  it('puts the value back, so a half-typed search is not read as a selection', () => {
+    const onChange = renderIt({ value: 'rtd' })
+    open()
+    type('dew')
+    fireEvent.keyDown(field(), { key: 'Escape' })
+    expect(field()).toHaveValue('Digital RTD Thermometer with Sensor')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('closes on escape', () => {
+    renderIt()
+    open()
+    fireEvent.keyDown(field(), { key: 'Escape' })
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
   })
 })
 
@@ -101,7 +133,7 @@ describe('choosing', () => {
     open()
     fireEvent.click(screen.getByText('Dew Point Transmitter').closest('button')!)
     expect(onChange).toHaveBeenCalledWith('dew')
-    expect(screen.queryByLabelText('Search')).not.toBeInTheDocument()
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
   })
 
   it('marks what is already chosen', () => {
@@ -114,33 +146,33 @@ describe('choosing', () => {
   it('works from the keyboard, without reaching for the mouse', () => {
     const onChange = renderIt()
     open()
-    fireEvent.keyDown(search(), { key: 'ArrowDown' })
-    fireEvent.keyDown(search(), { key: 'Enter' })
+    fireEvent.keyDown(field(), { key: 'ArrowDown' })
+    fireEvent.keyDown(field(), { key: 'Enter' })
     expect(onChange).toHaveBeenCalledWith('dew')
   })
 
   it('reaches the last option with End', () => {
     const onChange = renderIt()
     open()
-    fireEvent.keyDown(search(), { key: 'End' })
-    fireEvent.keyDown(search(), { key: 'Enter' })
+    fireEvent.keyDown(field(), { key: 'End' })
+    fireEvent.keyDown(field(), { key: 'Enter' })
     expect(onChange).toHaveBeenCalledWith('tc')
   })
 
   it('does not run off either end of the list', () => {
     const onChange = renderIt()
     open()
-    for (let i = 0; i < 10; i += 1) fireEvent.keyDown(search(), { key: 'ArrowUp' })
-    fireEvent.keyDown(search(), { key: 'Enter' })
+    for (let i = 0; i < 10; i += 1) fireEvent.keyDown(field(), { key: 'ArrowUp' })
+    fireEvent.keyDown(field(), { key: 'Enter' })
     expect(onChange).toHaveBeenCalledWith('__any__')
   })
 
   it('starts from the top again when the search changes', () => {
     const onChange = renderIt()
     open()
-    fireEvent.keyDown(search(), { key: 'End' })
-    fireEvent.change(search(), { target: { value: 'rtd' } })
-    fireEvent.keyDown(search(), { key: 'Enter' })
+    fireEvent.keyDown(field(), { key: 'End' })
+    type('rtd')
+    fireEvent.keyDown(field(), { key: 'Enter' })
     expect(onChange).toHaveBeenCalledWith('__any__')
   })
 })
@@ -149,7 +181,7 @@ describe('reading it', () => {
   it('emphasises the run that matched, so the row explains itself', () => {
     renderIt()
     open()
-    fireEvent.change(search(), { target: { value: 'Sensor' } })
+    type('Sensor')
     const marks = screen.getAllByText('Sensor', { selector: 'mark' })
     expect(marks.length).toBeGreaterThan(0)
   })
@@ -163,7 +195,7 @@ describe('reading it', () => {
       value: 'a',
     })
     open()
-    fireEvent.change(search(), { target: { value: 'ametek' } })
+    type('ametek')
     expect(rows()).toHaveLength(1)
     expect(within(rows()[0]).getByText(/Ametek/)).toBeInTheDocument()
   })

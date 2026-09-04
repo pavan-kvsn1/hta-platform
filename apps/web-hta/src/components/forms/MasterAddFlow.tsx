@@ -130,6 +130,58 @@ interface MasterAddFlowProps {
   onAdd: (result: FlowResult) => void
 }
 
+/**
+ * What an engineer is judging, on the row: whether the least count can serve the
+ * ranges, and how the accuracy compares. Two badges because they fail for different
+ * reasons and are acted on differently. Where neither can be judged - expired, does not
+ * record it, no range recorded - the one reason stands alone.
+ */
+function Verdicts({
+  fit,
+  threshold,
+}: {
+  fit: Eligibility
+  threshold: number
+}) {
+  const PILL =
+    'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0'
+
+  if (!fit.leastCount && fit.accuracyRatio == null) {
+    return <span className={cn(PILL, ELIGIBILITY_BADGE[fit.tone])}>{fit.verdict}</span>
+  }
+
+  return (
+    <span className="flex items-center gap-1.5 flex-shrink-0">
+      {fit.leastCount && (
+        <span
+          className={cn(
+            PILL,
+            fit.leastCount === 'compatible'
+              ? ELIGIBILITY_BADGE.green
+              : ELIGIBILITY_BADGE.red,
+          )}
+          title="Whether the master's least count can serve every required range"
+        >
+          LC {fit.leastCount === 'compatible' ? 'Compatible' : 'Not Compatible'}
+        </span>
+      )}
+      <span
+        className={cn(
+          PILL,
+          fit.accuracyRatio == null
+            ? ELIGIBILITY_BADGE.slate
+            : fit.accuracyRatio >= threshold
+              ? ELIGIBILITY_BADGE.green
+              : ELIGIBILITY_BADGE.amber,
+        )}
+        title="Accuracy ratio, worst across the required ranges"
+      >
+        {fit.accuracyRatio == null ? 'Class accuracy' : `${fit.accuracyRatio.toFixed(1)} : 1`}
+      </span>
+    </span>
+  )
+}
+
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -312,7 +364,7 @@ export function MasterAddFlow({
 
   const shown = useMemo(() => {
     const q = instrumentQuery.trim().toLowerCase()
-    return filtered
+    const rows = filtered
       .filter((i) =>
         !q
           ? true
@@ -326,7 +378,19 @@ export function MasterAddFlow({
       )
       .map((i) => ({ inst: i, fit: rate(i) }))
       .sort((a, b) => a.fit.rank - b.fit.rank || a.inst.asset_no.localeCompare(b.inst.asset_no))
-  }, [filtered, instrumentQuery, rate])
+
+    // The chosen instrument goes to the top and stays there, whatever the filters or
+    // the search say. A choice that scrolls out of sight - or out of the list entirely,
+    // once the search narrows past it - reads as a choice that came undone.
+    if (!assetNo) return rows
+    const already = rows.findIndex((r) => r.inst.asset_no === assetNo)
+    if (already >= 0) {
+      const [row] = rows.splice(already, 1)
+      return [row, ...rows]
+    }
+    const missing = instruments.find((i) => i.asset_no === assetNo)
+    return missing ? [{ inst: missing, fit: rate(missing) }, ...rows] : rows
+  }, [filtered, instrumentQuery, rate, assetNo, instruments])
 
   const chosenInstrument = assetNo
     ? (instruments.find((i) => i.asset_no === assetNo) ?? null)
@@ -607,14 +671,7 @@ export function MasterAddFlow({
                             {fit.limiting ? ` · limited by ${fit.limiting}` : ''}
                           </span>
                         </span>
-                        <span
-                          className={cn(
-                            'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0',
-                            ELIGIBILITY_BADGE[fit.tone],
-                          )}
-                        >
-                          {fit.verdict}
-                        </span>
+                        <Verdicts fit={fit} threshold={threshold} />
                       </button>
                     )
                   })

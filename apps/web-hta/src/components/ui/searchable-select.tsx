@@ -1,28 +1,23 @@
 'use client'
 
-// A dropdown you can type into.
+// A dropdown that is also the search box.
 //
-// A plain select is fine for a handful of options. This lab's master list has 209
-// instruments across 96 descriptions and dozens of makes, and finding one by scrolling
-// is the slowest part of building a certificate. Typing narrows it.
+// This lab's master list has 209 instruments across 96 descriptions and dozens of
+// makes, and finding one by scrolling is the slowest part of building a certificate.
+// So the field itself takes the typing: click it and the list opens, type and it
+// narrows, and there is no second search box inside the panel to notice and move to.
 //
-// Three things the first version got wrong, all visible at a glance:
-//
-//  - the panel sized itself to its content rather than to the field, because Tailwind 4
-//    dropped the bare `w-[--css-var]` shorthand and the class was silently doing
-//    nothing. It now matches the field edge for edge.
-//  - "Any description" sat in the list and could be filtered out of it. A reset is not
-//    a search result; it is pinned above them.
-//  - every row was reachable only by mouse. Arrow keys move, Enter chooses, Escape
-//    closes.
+// Closed, the field reads as a value - the chosen description, in full. Focused, it
+// becomes what you type; leaving without choosing puts the value back, so a half-typed
+// search never looks like a selection that was made.
 //
 // The search is a case-insensitive substring match on what the engineer sees, and the
 // matched run is emphasised so it is clear why a row is in the list. Deliberately not
 // fuzzy: an asset number typed in full should land on that asset and nothing else.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, Search, X } from 'lucide-react'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Check, ChevronDown, X } from 'lucide-react'
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
 export interface SearchableOption {
@@ -39,14 +34,14 @@ interface SearchableSelectProps {
   options: SearchableOption[]
   onChange: (value: string) => void
   placeholder?: string
-  /** Tied to the visible label, so the field can be addressed by name. */
+  /** Put on the input, so a <Label htmlFor> names the field. */
   id?: string
   disabled?: boolean
   className?: string
   emptyMessage?: string
 }
 
-/** The matched run, emphasised, so it is clear why a row is in the list. */
+/** The matched run, emphasised, so a row explains why it is in the list. */
 function Highlight({ text, query }: { text: string; query: string }) {
   const at = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1
   if (at < 0) return <>{text}</>
@@ -72,16 +67,18 @@ export function SearchableSelect({
   emptyMessage = 'Nothing matches that.',
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
+  /** What has been typed since the field was opened. Null while it reads as a value. */
+  const [query, setQuery] = useState<string | null>(null)
   const [active, setActive] = useState(0)
-  const searchRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const fieldRef = useRef<HTMLDivElement>(null)
 
   const selected = options.find((o) => o.value === value)
   const pinned = useMemo(() => options.filter((o) => o.pinned), [options])
 
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = (query ?? '').trim().toLowerCase()
     const rest = options.filter((o) => !o.pinned)
     if (!q) return rest
     return rest.filter(
@@ -104,14 +101,23 @@ export function SearchableSelect({
     row?.scrollIntoView?.({ block: 'nearest' })
   }, [active, open])
 
+  const close = () => {
+    setOpen(false)
+    setQuery(null)
+  }
+
   const choose = (option?: SearchableOption) => {
     if (!option) return
     onChange(option.value)
-    setOpen(false)
-    setQuery('')
+    close()
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown' && !open) {
+      setOpen(true)
+      return
+    }
+    if (!open) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setActive((i) => Math.min(i + 1, navigable.length - 1))
@@ -127,17 +133,21 @@ export function SearchableSelect({
     } else if (e.key === 'Enter') {
       e.preventDefault()
       choose(navigable[active])
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      close()
     }
   }
 
   const Row = ({ option, index }: { option: SearchableOption; index: number }) => (
     <button
-      key={option.value}
       type="button"
       data-index={index}
       role="option"
       aria-selected={option.value === value}
       onMouseEnter={() => setActive(index)}
+      // The field keeps the caret, so the panel never steals focus mid-search.
+      onMouseDown={(e) => e.preventDefault()}
       onClick={() => choose(option)}
       className={cn(
         // A fixed tick gutter, so every label starts on the same column whether or not
@@ -159,11 +169,11 @@ export function SearchableSelect({
             option.value === value ? 'font-semibold text-slate-900' : 'text-slate-800',
           )}
         >
-          <Highlight text={option.label} query={query.trim()} />
+          <Highlight text={option.label} query={(query ?? '').trim()} />
         </span>
         {option.detail && (
           <span className="block text-xs text-slate-500 truncate">
-            <Highlight text={option.detail} query={query.trim()} />
+            <Highlight text={option.detail} query={(query ?? '').trim()} />
           </span>
         )}
       </span>
@@ -171,65 +181,45 @@ export function SearchableSelect({
   )
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next)
-        if (!next) setQuery('')
-      }}
-    >
-      <PopoverTrigger asChild>
-        <button
-          id={id}
-          type="button"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
+    <Popover open={open} onOpenChange={(next) => (next ? setOpen(true) : close())}>
+      <PopoverAnchor asChild>
+        <div
+          ref={fieldRef}
           className={cn(
-            'w-full rounded-xl border border-slate-300 h-12 px-4 bg-white font-medium text-sm',
-            'flex items-center justify-between gap-2 text-left disabled:opacity-50',
+            'w-full rounded-xl border border-slate-300 h-12 bg-white flex items-center gap-2 pl-4 pr-2',
+            'focus-within:border-primary focus-within:ring-1 focus-within:ring-primary',
+            disabled && 'opacity-50',
             className,
           )}
         >
-          <span className={cn('truncate', !selected && 'text-slate-400')}>
-            {selected ? selected.label : placeholder}
-          </span>
-          <ChevronDown
-            className={cn('size-4 shrink-0 text-slate-400 transition-transform', open && 'rotate-180')}
-          />
-        </button>
-      </PopoverTrigger>
-
-      <PopoverContent
-        align="start"
-        sideOffset={6}
-        collisionPadding={12}
-        // Edge for edge with the field. The bare `w-[--var]` shorthand this used to
-        // carry is not valid in Tailwind 4, so the panel sized itself to its content.
-        className="w-[var(--radix-popover-trigger-width)] p-0 overflow-hidden"
-        onOpenAutoFocus={(e) => {
-          e.preventDefault()
-          searchRef.current?.focus()
-        }}
-      >
-        <div className="flex items-center gap-2 border-b border-slate-200 px-3">
-          <Search className="size-4 text-slate-400 shrink-0" />
           <input
-            ref={searchRef}
+            ref={inputRef}
+            id={id}
             type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            role="combobox"
+            aria-expanded={open}
+            aria-autocomplete="list"
+            autoComplete="off"
+            disabled={disabled}
+            // Reads as the chosen value until it is typed into.
+            value={query ?? selected?.label ?? ''}
+            placeholder={placeholder}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setOpen(true)
+            }}
+            onFocus={() => setOpen(true)}
+            onClick={() => setOpen(true)}
             onKeyDown={onKeyDown}
-            placeholder="Type to narrow the list"
-            aria-label="Search"
-            className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+            className="h-full w-full bg-transparent text-sm font-medium outline-none placeholder:text-slate-400"
           />
-          {query && (
+          {query !== null && query !== '' && (
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setQuery('')
-                searchRef.current?.focus()
+                inputRef.current?.focus()
               }}
               aria-label="Clear search"
               className="text-slate-400 hover:text-slate-600 shrink-0"
@@ -237,8 +227,43 @@ export function SearchableSelect({
               <X className="size-4" />
             </button>
           )}
+          <button
+            type="button"
+            tabIndex={-1}
+            disabled={disabled}
+            aria-label={open ? 'Close the list' : 'Open the list'}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (open) close()
+              else {
+                setOpen(true)
+                inputRef.current?.focus()
+              }
+            }}
+            className="shrink-0 p-1 text-slate-400"
+          >
+            <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
+          </button>
         </div>
+      </PopoverAnchor>
 
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+        // Edge for edge with the field. The bare `w-[--var]` shorthand is not valid in
+        // Tailwind 4, which is how this came to size itself to its content instead.
+        className="w-[var(--radix-popover-trigger-width)] p-0 overflow-hidden"
+        // The caret stays in the field, so typing continues to narrow the list.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        // The field sits outside the panel, so clearing the search or working the
+        // chevron reads as an interaction outside it and would dismiss the list. Those
+        // controls belong to this field and handle themselves.
+        onInteractOutside={(e) => {
+          if (fieldRef.current?.contains(e.target as Node)) e.preventDefault()
+        }}
+      >
         <div ref={listRef} role="listbox" className="max-h-72 overflow-y-auto">
           {pinned.length > 0 && (
             <div className="border-b border-slate-100 py-1">
@@ -260,10 +285,13 @@ export function SearchableSelect({
         </div>
 
         <p className="border-t border-slate-200 px-3 py-1.5 text-[11px] text-slate-500">
-          {query.trim()
+          {(query ?? '').trim()
             ? `${matches.length} of ${options.length - pinned.length} shown`
             : `${matches.length} to choose from`}
-          <span className="text-slate-400"> &middot; &uarr;&darr; to move &middot; &crarr; to choose</span>
+          <span className="text-slate-400">
+            {' '}
+            &middot; &uarr;&darr; to move &middot; &crarr; to choose
+          </span>
         </p>
       </PopoverContent>
     </Popover>
