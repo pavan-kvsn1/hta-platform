@@ -62,7 +62,8 @@ interface MasterAddFlowProps {
   /** Master id per parameter id, for the ones already covered on this certificate. */
   coveredBy: Map<string, string>
   instruments: MasterInstrument[]
-  getUnitByLegacyId: (id: number) => RegistryUnit | undefined
+  /** The registry unit behind a listed instrument - by id, or by asset number. */
+  resolveUnit: (instrument: MasterInstrument) => RegistryUnit | undefined
   threshold?: number
   disabled?: boolean
   onCancel: () => void
@@ -95,7 +96,7 @@ export function MasterAddFlow({
   parameters,
   coveredBy,
   instruments,
-  getUnitByLegacyId,
+  resolveUnit,
   threshold = DEFAULT_ACCURACY_RATIO,
   disabled,
   onCancel,
@@ -122,7 +123,7 @@ export function MasterAddFlow({
   const rate = useMemo(
     () => (inst: MasterInstrument) =>
       eligibilityFor(
-        getUnitByLegacyId(inst.id),
+        resolveUnit(inst),
         inst,
         {
           name: parameter?.parameterName ?? '',
@@ -131,7 +132,7 @@ export function MasterAddFlow({
         },
         threshold,
       ),
-    [getUnitByLegacyId, parameter, required, threshold],
+    [resolveUnit, parameter, required, threshold],
   )
 
   // Step 2's pool: everything that records the chosen parameter, plus the instruments
@@ -140,13 +141,13 @@ export function MasterAddFlow({
   const pool = useMemo(() => {
     if (!parameter) return []
     return instruments.filter((inst) => {
-      const unit = getUnitByLegacyId(inst.id)
+      const unit = resolveUnit(inst)
       if (!unit || unit.capability_profiles.length === 0) return true
       const wanted = parameter.parameterName.trim().toLowerCase()
       if (!wanted) return true
       return unit.capability_profiles.some((p) => p.parameter.toLowerCase().includes(wanted))
     })
-  }, [instruments, parameter, getUnitByLegacyId])
+  }, [instruments, parameter, resolveUnit])
 
   const categories = useMemo(
     () => [...new Set(pool.map((i) => i.type))].sort(),
@@ -173,7 +174,7 @@ export function MasterAddFlow({
   )
 
   const chosenInstrument = assetNo ? (instruments.find((i) => i.asset_no === assetNo) ?? null) : null
-  const registryUnit = chosenInstrument ? getUnitByLegacyId(chosenInstrument.id) : undefined
+  const registryUnit = chosenInstrument ? resolveUnit(chosenInstrument) : undefined
   const sops = chosenInstrument ? getSopReferences(chosenInstrument) : []
 
   // The capability actually being compared: what was declared, or the best fit until
@@ -250,7 +251,7 @@ export function MasterAddFlow({
               const covered = coveredBy.get(p.id)
               const usable = instruments.filter((inst) => {
                 const fit = eligibilityFor(
-                  getUnitByLegacyId(inst.id),
+                  resolveUnit(inst),
                   inst,
                   {
                     name: p.parameterName,

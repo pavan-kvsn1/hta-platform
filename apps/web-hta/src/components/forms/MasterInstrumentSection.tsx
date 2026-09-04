@@ -111,7 +111,7 @@ function MasterInstrumentCard({
   onImageDelete,
   disabled = false,
 }: MasterInstrumentCardProps) {
-  const { instruments, getUnitByLegacyId } = useMasterInstrumentStore()
+  const { instruments, getUnitForInstrument } = useMasterInstrumentStore()
 
   const listed = useMemo(
     () => instruments.find((inst) => inst.id === instrument.masterInstrumentId) ?? null,
@@ -124,9 +124,12 @@ function MasterInstrumentCard({
   const registryUnit = useMemo(
     () =>
       instrument.masterInstrumentId
-        ? getUnitByLegacyId(instrument.masterInstrumentId)
+        ? getUnitForInstrument({
+            id: instrument.masterInstrumentId,
+            asset_no: instrument.assetNo,
+          })
         : undefined,
-    [getUnitByLegacyId, instrument.masterInstrumentId],
+    [getUnitForInstrument, instrument.masterInstrumentId, instrument.assetNo],
   )
 
   const sops =
@@ -445,7 +448,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     setParameter,
     saveDraft,
   } = useCertificateStore()
-  const { instruments, isLoaded, loadInstruments, getStats, getUnitByLegacyId } =
+  const { instruments, isLoaded, loadInstruments, getStats, getUnitForInstrument } =
     useMasterInstrumentStore()
 
   const [flowOpen, setFlowOpen] = useState(false)
@@ -625,7 +628,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
             parameters={formData.parameters}
             coveredBy={coveredBy}
             instruments={instruments}
-            getUnitByLegacyId={getUnitByLegacyId}
+            resolveUnit={getUnitForInstrument}
             disabled={disabled}
             onCancel={() => setFlowOpen(false)}
             onAdd={commit}

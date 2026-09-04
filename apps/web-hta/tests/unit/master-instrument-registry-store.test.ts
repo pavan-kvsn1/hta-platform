@@ -62,6 +62,26 @@ describe('registry access', () => {
     expect(store().getUnitByAssetNo(spaced.toLowerCase())).toBe(asset.units[0])
   })
 
+  it('finds a unit by asset number when the row carries no legacy id', () => {
+    // Eight of this lab's 209 instrument rows reach the app with legacyId null, and the
+    // API then hands the app a hash of the row's UUID as its id. Resolving on that
+    // alone made instruments recording up to ten capabilities read as "Capability not
+    // recorded" - a claim about the instrument, not about the lookup that failed.
+    const asset = store().registry.assets.find((a) => a.units[0].capability_profiles.length > 0)!
+    const unresolvable = { id: -999, asset_no: asset.asset_no }
+    expect(store().getUnitByLegacyId(unresolvable.id)).toBeUndefined()
+    expect(store().getUnitForInstrument(unresolvable)).toBe(asset.units[0])
+  })
+
+  it('prefers the legacy id, which addresses a unit and not just an asset', () => {
+    const sample = store().getRegistryUnits()[0]
+    expect(store().getUnitForInstrument({ id: sample.legacy_id, asset_no: 'nonsense' })).toBe(sample)
+  })
+
+  it('returns nothing when neither the id nor the asset number is known', () => {
+    expect(store().getUnitForInstrument({ id: -1, asset_no: 'no such asset' })).toBeUndefined()
+  })
+
   it('reads capability profiles for a selected master', () => {
     const withProfiles = store()
       .getRegistryUnits()

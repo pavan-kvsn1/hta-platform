@@ -74,6 +74,13 @@ interface MasterInstrumentStore {
   /** The unit a certificate's masterInstrumentId refers to. */
   getUnitByLegacyId: (legacyId: number) => RegistryUnit | undefined
   getUnitByAssetNo: (assetNo: string) => RegistryUnit | undefined
+  /**
+   * The registry unit behind an instrument in the list, by id or, failing that, by
+   * asset number. The API's instrument rows do not all carry a legacy id - eight of
+   * this lab's 209 do not - and an instrument that resolves to nothing reads on screen
+   * as one with no capability recorded, which is a different and much worse claim.
+   */
+  getUnitForInstrument: (instrument: { id: number; asset_no?: string }) => RegistryUnit | undefined
   /** Capability profiles for one selected master, empty when it has none recorded. */
   getCapabilityProfiles: (legacyId: number) => CapabilityProfile[]
   /** Standard parameter names this master can measure or source. */
@@ -326,6 +333,10 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
     }
     return undefined
   },
+
+  getUnitForInstrument: (instrument) =>
+    get().getUnitByLegacyId(instrument.id)
+    ?? (instrument.asset_no ? get().getUnitByAssetNo(instrument.asset_no) : undefined),
 
   getCapabilityProfiles: (legacyId) =>
     get().getUnitByLegacyId(legacyId)?.capability_profiles ?? [],

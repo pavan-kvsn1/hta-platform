@@ -96,7 +96,7 @@ function renderFlow(over: Record<string, unknown> = {}) {
       ]}
       coveredBy={new Map()}
       instruments={[GOOD, SHORT]}
-      getUnitByLegacyId={(id) => units.get(id)}
+      resolveUnit={(inst) => units.get(inst.id)}
       onCancel={onCancel}
       onAdd={onAdd}
       {...over}
@@ -225,7 +225,7 @@ describe('steps 3 and 4 - the declaration and what it gives', () => {
         parameters={[parameter({ id: 'p1' })]}
         coveredBy={new Map()}
         instruments={[GOOD]}
-        getUnitByLegacyId={() => unitWith('Temperature', -50, 200, 0.1, 0.2)}
+        resolveUnit={() => unitWith('Temperature', -50, 200, 0.1, 0.2)}
         onCancel={vi.fn()}
         onAdd={vi.fn()}
       />,
@@ -269,7 +269,7 @@ describe('committing', () => {
         parameters={[parameter({ id: 'p1' })]}
         coveredBy={new Map()}
         instruments={[GOOD]}
-        getUnitByLegacyId={() => unitWith('Temperature', -50, 200, 0.1, 0.2)}
+        resolveUnit={() => unitWith('Temperature', -50, 200, 0.1, 0.2)}
         onCancel={vi.fn()}
         onAdd={onAdd}
       />,
