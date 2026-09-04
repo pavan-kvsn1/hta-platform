@@ -4,8 +4,8 @@
  * The requirement is read from the unit under test; what this adds is the master's
  * side of it and the verdict. Nothing here is entered by hand.
  */
-import { describe, it, expect } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, within, fireEvent } from '@testing-library/react'
 import { MasterCapabilityComparison } from '@/components/forms/MasterCapabilityComparison'
 import type { RegistryUnit } from '@/lib/master-instrument-registry'
 
@@ -155,6 +155,22 @@ describe('MasterCapabilityComparison', () => {
     )
     expect(screen.getByText('no range')).toBeInTheDocument()
     expect(screen.getByText(/Set it in Section 02/i)).toBeInTheDocument()
+  })
+
+  it('offers an edit on the summary strip, where the answer is shown', () => {
+    const onEdit = vi.fn()
+    render(
+      <MasterCapabilityComparison unit={temperature} parameter={parameter} onEdit={onEdit} />,
+    )
+    fireEvent.click(screen.getByLabelText('Edit how this instrument was used'))
+    expect(onEdit).toHaveBeenCalled()
+  })
+
+  it('shows no edit where the caller offers none', () => {
+    render(<MasterCapabilityComparison unit={temperature} parameter={parameter} />)
+    expect(
+      screen.queryByLabelText('Edit how this instrument was used'),
+    ).not.toBeInTheDocument()
   })
 
   it('says plainly when the instrument records nothing for the parameter', () => {

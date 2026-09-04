@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
+import { numberProblem, rangeProblem } from '@/lib/parameter-validation'
 import { FormSection } from './FormSection'
 import { useCertificateStore, Parameter, ParameterBin, SelectedMasterInstrument, AccuracyType, ACCURACY_TYPE_CONFIG } from '@/lib/stores/certificate-store'
 import { ImageUploadGallery, GalleryImage } from './ImageUploadGallery'
@@ -223,6 +225,11 @@ function ParameterCard({
     onUpdate({ ...parameter, bins: newBins })
   }
 
+  // Shown under a field the certificate cannot compute with. Deliberately quiet -
+  // one line, no icon: it is a typo to correct, not a failure to dwell on.
+  const FieldProblem = ({ problem }: { problem: string | null }) =>
+    problem ? <p className="text-[10px] text-red-500 font-medium">{problem}</p> : null
+
   // Validate if a bin value is within operating range
   const validateBinValue = (value: string, _type: 'min' | 'max'): { isValid: boolean; message: string | null } => {
     if (!value) return { isValid: true, message: null }
@@ -249,22 +256,16 @@ function ParameterCard({
 
   // Check if bins have any validation errors
   const getBinValidationErrors = (bin: ParameterBin): { minError: string | null; maxError: string | null } => {
-    const minValidation = validateBinValue(bin.binMin, 'min')
-    const maxValidation = validateBinValue(bin.binMax, 'max')
+    // Whether it is a number at all comes first: "O" for zero reads as a value in the
+    // operating range check, because parseFloat gives up on it silently.
+    const minError =
+      numberProblem(bin.binMin, 'range') ?? validateBinValue(bin.binMin, 'min').message
+    const maxError =
+      numberProblem(bin.binMax, 'range')
+      ?? rangeProblem(bin.binMin, bin.binMax)
+      ?? validateBinValue(bin.binMax, 'max').message
 
-    // Also check if binMin > binMax
-    const binMin = parseFloat(bin.binMin)
-    const binMax = parseFloat(bin.binMax)
-
-    let maxError = maxValidation.message
-    if (!isNaN(binMin) && !isNaN(binMax) && binMin > binMax) {
-      maxError = 'Max must be greater than Min'
-    }
-
-    return {
-      minError: minValidation.message,
-      maxError: maxError
-    }
+    return { minError, maxError }
   }
 
   // Get the linked master instrument info
@@ -414,18 +415,40 @@ function ParameterCard({
                 type="text"
                 value={parameter.rangeMin}
                 onChange={(e) => updateField('rangeMin', e.target.value)}
+                aria-invalid={numberProblem(parameter.rangeMin, 'range') !== null}
                 placeholder="Min"
-                className="w-full rounded-lg border-slate-300 text-xs py-2"
+                className={cn(
+                  'w-full rounded-lg text-xs py-2',
+                  numberProblem(parameter.rangeMin, 'range') ? 'border-red-400' : 'border-slate-300',
+                )}
               />
               <span className="text-slate-400 text-xs font-bold shrink-0">to</span>
               <Input
                 type="text"
                 value={parameter.rangeMax}
                 onChange={(e) => updateField('rangeMax', e.target.value)}
+                aria-invalid={
+                  numberProblem(parameter.rangeMax, 'range') !== null ||
+                  rangeProblem(parameter.rangeMin, parameter.rangeMax) !== null
+                }
                 placeholder="Max"
-                className="w-full rounded-lg border-slate-300 text-xs py-2"
+                className={cn(
+                  'w-full rounded-lg text-xs py-2',
+                  numberProblem(parameter.rangeMax, 'range') ||
+                    rangeProblem(parameter.rangeMin, parameter.rangeMax)
+                    ? 'border-red-400'
+                    : 'border-slate-300',
+                )}
               />
             </div>
+            {/* One line for the pair: two complaints about one range is noise. */}
+            <FieldProblem
+              problem={
+                numberProblem(parameter.rangeMin, 'range') ??
+                numberProblem(parameter.rangeMax, 'range') ??
+                rangeProblem(parameter.rangeMin, parameter.rangeMax)
+              }
+            />
           </div>
 
           {/* Operating Range */}
@@ -498,8 +521,15 @@ function ParameterCard({
                 value={parameter.accuracyValue}
                 onChange={(e) => updateField('accuracyValue', e.target.value)}
                 placeholder={parameter.accuracyType === 'ABSOLUTE' ? 'e.g., 0.5' : 'e.g., 1.0'}
-                className="w-full rounded-lg border-slate-300 text-xs py-2"
+                aria-invalid={numberProblem(parameter.accuracyValue, 'accuracy') !== null}
+                className={cn(
+                  'w-full rounded-lg text-xs py-2',
+                  numberProblem(parameter.accuracyValue, 'accuracy')
+                    ? 'border-red-400'
+                    : 'border-slate-300',
+                )}
               />
+              <FieldProblem problem={numberProblem(parameter.accuracyValue, 'accuracy')} />
             </div>
 
             {/* Least Count */}
@@ -512,8 +542,15 @@ function ParameterCard({
                 value={parameter.leastCountValue}
                 onChange={(e) => updateField('leastCountValue', e.target.value)}
                 placeholder="e.g., 0.1"
-                className="w-full rounded-lg border-slate-300 text-xs py-2"
+                aria-invalid={numberProblem(parameter.leastCountValue, 'least count') !== null}
+                className={cn(
+                  'w-full rounded-lg text-xs py-2',
+                  numberProblem(parameter.leastCountValue, 'least count')
+                    ? 'border-red-400'
+                    : 'border-slate-300',
+                )}
               />
+              <FieldProblem problem={numberProblem(parameter.leastCountValue, 'least count')} />
             </div>
           </div>
         )}

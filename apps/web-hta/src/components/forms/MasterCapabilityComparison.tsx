@@ -10,7 +10,7 @@
 // One row per required range, because a binned parameter is calibrated at different
 // resolutions across its span and a single row would report one of them.
 
-import { AlertTriangle, CheckCircle, Info } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Info, Pencil } from 'lucide-react'
 import {
   DEFAULT_ACCURACY_RATIO,
   chooseCapability,
@@ -40,6 +40,12 @@ interface MasterCapabilityComparisonProps {
   }
   /** The ratio this lab expects. Defaults to the common 4:1. */
   threshold?: number
+  /**
+   * Reopen the declaration. Offered on the summary strip, which is where the answer
+   * being changed is actually shown - a sentence-long link underneath was describing
+   * the action instead of sitting on the thing it acts upon.
+   */
+  onEdit?: () => void
 }
 
 /** What the engineer declared, when they have. */
@@ -91,6 +97,7 @@ export function MasterCapabilityComparison({
   unit,
   parameter,
   threshold = DEFAULT_ACCURACY_RATIO,
+  onEdit,
 }: MasterCapabilityComparisonProps) {
   const required = requiredRanges(parameter)
 
@@ -153,6 +160,17 @@ export function MasterCapabilityComparison({
           <span className="text-[11px] text-slate-500">
             best fit &mdash; not yet declared
           </span>
+        )}
+        {onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label="Edit how this instrument was used"
+            title="Edit how this instrument was used"
+            className="ml-auto shrink-0 text-slate-400 hover:text-primary transition-colors"
+          >
+            <Pencil className="size-3.5" />
+          </button>
         )}
       </div>
 

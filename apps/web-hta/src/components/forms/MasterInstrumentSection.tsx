@@ -381,22 +381,20 @@ function MasterInstrumentCard({
                             }
                           />
                         )}
-                        <MasterCapabilityComparison unit={registryUnit} parameter={param} />
-                        {param.masterProfileId && !disabled && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onParameterUpdate(paramIdx, {
-                                ...param,
-                                masterProfileId: undefined,
-                                masterSubtype: undefined,
-                              })
-                            }
-                            className="mt-1.5 text-[11px] font-semibold text-primary"
-                          >
-                            Change how this instrument was used
-                          </button>
-                        )}
+                        <MasterCapabilityComparison
+                          unit={registryUnit}
+                          parameter={param}
+                          onEdit={
+                            param.masterProfileId && !disabled
+                              ? () =>
+                                  onParameterUpdate(paramIdx, {
+                                    ...param,
+                                    masterProfileId: undefined,
+                                    masterSubtype: undefined,
+                                  })
+                              : undefined
+                          }
+                        />
                       </div>
                     )}
                   </div>
