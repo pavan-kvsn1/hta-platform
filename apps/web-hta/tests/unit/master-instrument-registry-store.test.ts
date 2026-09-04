@@ -11,6 +11,7 @@ import { allUnits } from '@/lib/master-instrument-registry'
 import legacyList from '@/data/master-instruments.json'
 
 const store = () => useMasterInstrumentStore.getState()
+const registry = store().registry
 
 describe('registry access', () => {
   it('bundles the registry, so there is nothing to load', () => {
@@ -82,5 +83,46 @@ describe('registry access', () => {
     const params = store().getRegistryParameters(unit.legacy_id)
     expect(params).toEqual([...new Set(params)].sort())
     expect(params.length).toBeGreaterThan(0)
+  })
+})
+
+describe('the instrument list comes from the registry', () => {
+  it('loads every instrument without the old JSON file', () => {
+    store().loadFromRegistry()
+    const s = store()
+    expect(s.dataSource).toBe('registry')
+    expect(s.isLoaded).toBe(true)
+    expect(s.instruments).toHaveLength(registry.unit_count)
+  })
+
+  it('gives each one the identity the cascade filters on', () => {
+    store().loadFromRegistry()
+    const missing = store().instruments.filter(
+      (i) => !i.type || !i.instrument_desc || !i.asset_no,
+    )
+    expect(missing.map((i) => i.id)).toEqual([])
+  })
+
+  it('keeps the ids a saved certificate refers to', () => {
+    store().loadFromRegistry()
+    const ids = store().instruments.map((i) => i.id).sort((a, b) => a - b)
+    const fromRegistry = store()
+      .getRegistryUnits()
+      .map((u) => u.legacy_id)
+      .sort((a, b) => a - b)
+    expect(ids).toEqual(fromRegistry)
+  })
+
+  it('resolves every listed instrument back to its registry unit', () => {
+    store().loadFromRegistry()
+    const unresolved = store().instruments.filter((i) => !store().getUnitByLegacyId(i.id))
+    expect(unresolved).toHaveLength(0)
+  })
+
+  it('works out calibration status for the list', () => {
+    store().loadFromRegistry()
+    const stats = store().getStats()
+    expect(stats.total).toBe(registry.unit_count)
+    expect(stats.expired + stats.expiringSoon).toBeLessThanOrEqual(stats.total)
   })
 })

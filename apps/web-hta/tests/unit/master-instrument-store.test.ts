@@ -67,7 +67,7 @@ describe('useMasterInstrumentStore — setSearchQuery', () => {
   })
 })
 
-describe('useMasterInstrumentStore — loadFromJson', () => {
+describe('useMasterInstrumentStore — loadFromRegistry', () => {
   beforeEach(() => {
     // Reset store state
     useMasterInstrumentStore.setState({
@@ -80,21 +80,21 @@ describe('useMasterInstrumentStore — loadFromJson', () => {
     })
   })
 
-  it('loads instruments from JSON data', () => {
-    useMasterInstrumentStore.getState().loadFromJson()
+  it('loads instruments from the registry', () => {
+    useMasterInstrumentStore.getState().loadFromRegistry()
     const state = useMasterInstrumentStore.getState()
     expect(state.isLoaded).toBe(true)
     expect(state.isLoading).toBe(false)
-    expect(state.dataSource).toBe('json')
+    expect(state.dataSource).toBe('registry')
   })
 
-  it('instruments array is populated after loadFromJson', () => {
-    useMasterInstrumentStore.getState().loadFromJson()
+  it('populates the instrument list', () => {
+    useMasterInstrumentStore.getState().loadFromRegistry()
     expect(useMasterInstrumentStore.getState().instruments.length).toBeGreaterThan(0)
   })
 
   it('sets lastUpdated after loading', () => {
-    useMasterInstrumentStore.getState().loadFromJson()
+    useMasterInstrumentStore.getState().loadFromRegistry()
     expect(useMasterInstrumentStore.getState().lastUpdated).toBeInstanceOf(Date)
   })
 })
@@ -112,7 +112,7 @@ describe('useMasterInstrumentStore — loadInstruments (API fallback)', () => {
     })
   })
 
-  it('falls back to JSON when API returns failure', async () => {
+  it('falls back to the registry when the API fails', async () => {
     const { apiFetch } = await import('@/lib/api-client')
     vi.mocked(apiFetch).mockResolvedValue({
       ok: false,
@@ -122,11 +122,11 @@ describe('useMasterInstrumentStore — loadInstruments (API fallback)', () => {
     await useMasterInstrumentStore.getState().loadInstruments()
     const state = useMasterInstrumentStore.getState()
     expect(state.isLoaded).toBe(true)
-    expect(state.dataSource).toBe('json')
+    expect(state.dataSource).toBe('registry')
   })
 
   it('does not reload when already loaded', async () => {
-    useMasterInstrumentStore.getState().loadFromJson()
+    useMasterInstrumentStore.getState().loadFromRegistry()
     const countBefore = useMasterInstrumentStore.getState().instruments.length
 
     await useMasterInstrumentStore.getState().loadInstruments()
@@ -145,7 +145,7 @@ describe('useMasterInstrumentStore — loadInstruments (API fallback)', () => {
 
 describe('useMasterInstrumentStore — getters', () => {
   beforeEach(() => {
-    useMasterInstrumentStore.getState().loadFromJson()
+    useMasterInstrumentStore.getState().loadFromRegistry()
     useMasterInstrumentStore.getState().setSelectedCategory(null)
     useMasterInstrumentStore.getState().setSearchQuery('')
   })

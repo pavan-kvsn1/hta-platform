@@ -160,8 +160,10 @@ export function calculateInstrumentStatus(instrument: MasterInstrument): {
 }
 
 // Extract parameter capabilities from range array
-export function extractCapabilities(range: RangeItem[]): ParameterCapability[] {
-  return range.filter(isParameterCapability)
+export function extractCapabilities(range: RangeItem[] | undefined | null): ParameterCapability[] {
+  // An instrument projected from the registry has no flat range list - capability
+  // lives on its profiles instead - so this is reachable with nothing to filter.
+  return (range ?? []).filter(isParameterCapability)
 }
 
 // Check if instrument can measure a specific parameter type

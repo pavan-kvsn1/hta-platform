@@ -24,8 +24,6 @@ import {
   getSimpleValue,
   STATUS_CONFIG,
   CATEGORY_LABELS,
-  canMeasureParameter,
-  coversRange,
   getSopReferences,
 } from '@/lib/master-instruments'
 import { unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
@@ -310,8 +308,8 @@ function MasterInstrumentCard({
   }, [instruments, instrument.masterInstrumentId])
 
   // The same instrument in the registry, addressed by the id the certificate already
-  // holds. Undefined only if the registry does not know it, in which case the checks
-  // below fall back to the old flat range list.
+  // holds. Every instrument now comes from the registry, so this resolves unless a
+  // certificate references one that has since been removed from the master list.
   const registryUnit = useMemo(
     () =>
       instrument.masterInstrumentId
@@ -559,25 +557,21 @@ function MasterInstrumentCard({
               const isAssigned = param.masterInstrumentId === instrument.masterInstrumentId
               const isAssignedToOther = param.masterInstrumentId !== null && param.masterInstrumentId !== instrument.masterInstrumentId
 
-              // Capability comes from the registry's profiles where the instrument has
-              // them, falling back to the old flat range list otherwise. The registry
-              // records what each instrument can do per parameter with its own span,
-              // which the flat list cannot express.
-              const isCompatible = !param.parameterName
-                ? true
-                : registryUnit
-                  ? unitCanMeasure(registryUnit, param.parameterName)
-                  : canMeasureParameter(selectedInstrumentData, param.parameterName)
+              // Capability comes from the registry's profiles, which record what each
+              // instrument does per parameter with its own span. An instrument the
+              // registry does not know is allowed rather than hidden - the same way an
+              // instrument with no profiles recorded is.
+              const isCompatible =
+                !param.parameterName || !registryUnit
+                  ? true
+                  : unitCanMeasure(registryUnit, param.parameterName)
 
-              // Check if parameter range is within instrument's range
               const rangeMin = param.rangeMin ? parseFloat(param.rangeMin) : null
               const rangeMax = param.rangeMax ? parseFloat(param.rangeMax) : null
               const isRangeCovered =
-                rangeMin === null || rangeMax === null || !param.parameterName
+                rangeMin === null || rangeMax === null || !param.parameterName || !registryUnit
                   ? true
-                  : registryUnit
-                    ? unitCoversRange(registryUnit, param.parameterName, rangeMin, rangeMax)
-                    : coversRange(selectedInstrumentData, param.parameterName, rangeMin, rangeMax)
+                  : unitCoversRange(registryUnit, param.parameterName, rangeMin, rangeMax)
 
               const rangeStr = param.rangeMin && param.rangeMax
                 ? `${param.rangeMin} to ${param.rangeMax} ${param.parameterUnit}`
@@ -700,9 +694,9 @@ function MasterInstrumentCard({
 
           {/* Warning for parameters needing another instrument */}
           {(() => {
-            const incompatibleParams = parameters.filter(p =>
+            const incompatibleParams = !registryUnit ? [] : parameters.filter(p =>
               p.parameterName &&
-              !canMeasureParameter(selectedInstrumentData, p.parameterName) &&
+              !unitCanMeasure(registryUnit, p.parameterName) &&
               p.masterInstrumentId === null
             )
             if (incompatibleParams.length === 0) return null
@@ -729,13 +723,14 @@ function MasterInstrumentCard({
 
           {/* Warning for parameters with range exceeding instrument capability */}
           {(() => {
-            const rangeExceededParams = parameters.filter(p => {
+            const rangeExceededParams = !registryUnit ? [] : parameters.filter(p => {
               if (!p.parameterName || !p.rangeMin || !p.rangeMax) return false
-              if (!canMeasureParameter(selectedInstrumentData, p.parameterName)) return false // Already shown in incompatible warning
+              // Already named in the incompatible warning above.
+              if (!unitCanMeasure(registryUnit, p.parameterName)) return false
               const min = parseFloat(p.rangeMin)
               const max = parseFloat(p.rangeMax)
               if (isNaN(min) || isNaN(max)) return false
-              return !coversRange(selectedInstrumentData, p.parameterName, min, max)
+              return !unitCoversRange(registryUnit, p.parameterName, min, max)
             })
             if (rangeExceededParams.length === 0) return null
 

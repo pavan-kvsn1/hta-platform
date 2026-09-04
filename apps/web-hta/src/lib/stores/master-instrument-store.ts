@@ -12,9 +12,8 @@ import {
   getSopReferences,
 } from '@/lib/master-instruments'
 
-// Import the JSON data as fallback
-import masterListData from '@/data/master-instruments.json'
 import registryData from '@/data/master-instrument-registry.json'
+import { projectLegacyInstrument } from '@/lib/master-instrument-projection'
 import {
   allUnits,
   type CapabilityProfile,
@@ -29,7 +28,7 @@ interface MasterInstrumentStore {
   isLoading: boolean
   error: string | null
   lastUpdated: Date | null
-  dataSource: 'json' | 'api' | null
+  dataSource: 'registry' | 'api' | null
 
   // Filters
   selectedCategory: InstrumentCategory | null
@@ -37,7 +36,7 @@ interface MasterInstrumentStore {
 
   // Actions
   loadInstruments: () => Promise<void>
-  loadFromJson: () => void
+  loadFromRegistry: () => void
   setSelectedCategory: (category: InstrumentCategory | null) => void
   setSearchQuery: (query: string) => void
 
@@ -136,20 +135,34 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
     } catch (error) {
       console.warn('Failed to load instruments from API, using JSON fallback:', error)
       // Fall back to JSON data
-      get().loadFromJson()
+      get().loadFromRegistry()
     }
   },
 
-  loadFromJson: () => {
-    // Enrich all instruments with computed fields
-    const enrichedInstruments = (masterListData as MasterInstrument[]).map(enrichInstrument)
+  /**
+   * Build the instrument list from the registry.
+   *
+   * The API remains the first source because the admin pages edit those records; this
+   * is what runs when it is unreachable or empty. It used to read
+   * data/master-instruments.json, which the registry has replaced - identity and status
+   * project from it exactly, verified across all 209 instruments, and it carries the
+   * capability profiles the old file could not express.
+   */
+  loadFromRegistry: () => {
+    const registry = get().registry
+    const projected = registry.assets.flatMap((asset) =>
+      asset.units.map((unit) => projectLegacyInstrument(asset, unit) as MasterInstrument),
+    )
 
+    // Not run through enrichInstrument: that derives status and capabilities from the
+    // old flat range list, which the projection deliberately does not carry. The
+    // registry has already worked the status out, including the 60-day warning window.
     set({
-      instruments: enrichedInstruments,
+      instruments: projected,
       isLoaded: true,
       isLoading: false,
       lastUpdated: new Date(),
-      dataSource: 'json',
+      dataSource: 'registry',
     })
   },
 
@@ -363,9 +376,9 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
 
 // Initialize store on module load
 if (typeof window !== 'undefined') {
-  // Client-side: load instruments asynchronously
-  // Use JSON first for immediate availability, then try API
-  useMasterInstrumentStore.getState().loadFromJson()
+  // Client-side: the registry is bundled, so it renders immediately; the API then
+  // refreshes it in the background with whatever the admin pages have edited.
+  useMasterInstrumentStore.getState().loadFromRegistry()
 
   // Then attempt to refresh from API (non-blocking)
   setTimeout(() => {
