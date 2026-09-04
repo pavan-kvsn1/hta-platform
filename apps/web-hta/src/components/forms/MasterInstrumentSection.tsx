@@ -108,7 +108,6 @@ function MasterInstrumentCard({
 
   // Local state for cascading selection
   const [selectedCategory, setSelectedCategory] = useState<InstrumentCategory | ''>('')
-  const [selectedParameterGroup, setSelectedParameterGroup] = useState('')
   const [selectedDescription, setSelectedDescription] = useState('')
   const [selectedMake, setSelectedMake] = useState('')
 
@@ -121,18 +120,16 @@ function MasterInstrumentCard({
       if (originalInstrument) {
         // Use data from the master list for accurate dropdown matching
         setSelectedCategory(originalInstrument.type)
-        setSelectedParameterGroup(originalInstrument.parameter_group || '')
         setSelectedDescription(originalInstrument.instrument_desc)
         setSelectedMake(getSimpleValue(originalInstrument.make))
       } else if (instrument.category) {
         // Fallback to saved data if instrument not found in master list
         setSelectedCategory(instrument.category as InstrumentCategory)
-        setSelectedParameterGroup(instrument.parameterGroup || '')
         setSelectedDescription(instrument.description || '')
         setSelectedMake(instrument.make || '')
       }
     }
-  }, [instrument.masterInstrumentId, instrument.category, instrument.description, instrument.make, instrument.parameterGroup, instruments, isLoaded])
+  }, [instrument.masterInstrumentId, instrument.category, instrument.description, instrument.make, instruments, isLoaded])
 
   // Get unique categories
   const categories = useMemo(() => {
@@ -142,29 +139,18 @@ function MasterInstrumentCard({
   }, [instruments])
 
   // Get parameter groups for selected category
-  const parameterGroups = useMemo(() => {
-    if (!selectedCategory) return []
-    const groups = new Set<string>()
-    instruments
-      .filter(inst => inst.type === selectedCategory && inst.parameter_group)
-      .forEach(inst => groups.add(inst.parameter_group!))
-    return Array.from(groups).sort()
-  }, [instruments, selectedCategory])
-
-  // Get descriptions for selected category and parameter group
+  // Get descriptions for the selected category
   const descriptions = useMemo(() => {
     if (!selectedCategory) return []
     const descs = new Set<string>()
     instruments
       .filter(inst => {
         if (inst.type !== selectedCategory) return false
-        // If parameter group is selected, filter by it
-        if (selectedParameterGroup && inst.parameter_group !== selectedParameterGroup) return false
         return true
       })
       .forEach(inst => descs.add(inst.instrument_desc))
     return Array.from(descs).sort()
-  }, [instruments, selectedCategory, selectedParameterGroup])
+  }, [instruments, selectedCategory])
 
   // Get makes for selected description
   const makes = useMemo(() => {
@@ -174,12 +160,11 @@ function MasterInstrumentCard({
       .filter(inst => {
         if (inst.type !== selectedCategory) return false
         if (inst.instrument_desc !== selectedDescription) return false
-        if (selectedParameterGroup && inst.parameter_group !== selectedParameterGroup) return false
         return true
       })
       .forEach(inst => makeSet.add(getSimpleValue(inst.make)))
     return Array.from(makeSet).sort()
-  }, [instruments, selectedCategory, selectedParameterGroup, selectedDescription])
+  }, [instruments, selectedCategory, selectedDescription])
 
   // Get available instruments for final selection
   const availableInstruments = useMemo(() => {
@@ -187,19 +172,17 @@ function MasterInstrumentCard({
     let filtered = instruments.filter(inst => {
       if (inst.type !== selectedCategory) return false
       if (inst.instrument_desc !== selectedDescription) return false
-      if (selectedParameterGroup && inst.parameter_group !== selectedParameterGroup) return false
       return true
     })
     if (selectedMake) {
       filtered = filtered.filter(inst => getSimpleValue(inst.make) === selectedMake)
     }
     return filtered
-  }, [instruments, selectedCategory, selectedParameterGroup, selectedDescription, selectedMake])
+  }, [instruments, selectedCategory, selectedDescription, selectedMake])
 
   // Handle category change - reset downstream selections
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value as InstrumentCategory)
-    setSelectedParameterGroup('')
     setSelectedDescription('')
     setSelectedMake('')
     // Clear selection but keep category
@@ -207,7 +190,6 @@ function MasterInstrumentCard({
       ...instrument,
       masterInstrumentId: 0,
       category: value,
-      parameterGroup: '',
       description: '',
       make: '',
       model: '',
@@ -222,28 +204,6 @@ function MasterInstrumentCard({
   }
 
   // Handle parameter group change - reset downstream selections
-  const handleParameterGroupChange = (value: string) => {
-    const actualValue = value === '__all__' ? '' : value
-    setSelectedParameterGroup(actualValue)
-    setSelectedDescription('')
-    setSelectedMake('')
-    // Clear selection but keep category and parameter group
-    onUpdate({
-      ...instrument,
-      masterInstrumentId: 0,
-      parameterGroup: actualValue,
-      description: '',
-      make: '',
-      model: '',
-      assetNo: '',
-      serialNumber: '',
-      calibratedAt: '',
-      reportNo: '',
-      calibrationDueDate: '',
-      isExpired: false,
-      isExpiringSoon: false,
-    })
-  }
 
   // Handle description change
   const handleDescriptionChange = (value: string) => {
@@ -255,7 +215,6 @@ function MasterInstrumentCard({
       .filter(inst => {
         if (inst.type !== selectedCategory) return false
         if (inst.instrument_desc !== value) return false
-        if (selectedParameterGroup && inst.parameter_group !== selectedParameterGroup) return false
         return true
       })
       .forEach(inst => makesForDesc.add(getSimpleValue(inst.make)))
@@ -285,7 +244,6 @@ function MasterInstrumentCard({
       ...instrument,
       masterInstrumentId: selected.id,
       category: selected.type,
-      parameterGroup: selected.parameter_group || '',
       description: selected.instrument_desc,
       make: getDisplayValue(selected.make),
       model: getDisplayValue(selected.model),
@@ -395,30 +353,6 @@ function MasterInstrumentCard({
               {categories.map((cat) => (
                 <SelectItem key={cat} value={cat}>
                   {CATEGORY_LABELS[cat] || cat}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Parameter Group (NEW) */}
-        <div>
-          <Label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-            Parameter Group
-          </Label>
-          <Select
-            value={selectedParameterGroup || '__all__'}
-            onValueChange={handleParameterGroupChange}
-            disabled={!selectedCategory || parameterGroups.length === 0}
-          >
-            <SelectTrigger className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-medium bg-white disabled:opacity-50">
-              <SelectValue placeholder={selectedCategory ? "All parameter groups" : "Select category first"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All Parameter Groups</SelectItem>
-              {parameterGroups.map((group) => (
-                <SelectItem key={group} value={group}>
-                  {group}
                 </SelectItem>
               ))}
             </SelectContent>

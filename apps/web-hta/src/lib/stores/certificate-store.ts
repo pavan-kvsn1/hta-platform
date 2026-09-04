@@ -104,7 +104,12 @@ export interface SelectedMasterInstrument {
   id: string
   masterInstrumentId: number // Reference to the master list
   category: string // Instrument category (Electro-Technical, Thermal, Mechanical, etc.)
-  parameterGroup?: string // NEW: Sub-category filter (e.g., "Electrical (multi-function)")
+  /**
+   * @deprecated Sub-category filter from the old master list. The registry has no such
+   * field and the filter it drove has been removed, so nothing writes this any more.
+   * Kept on the type because certificates saved before that still carry one.
+   */
+  parameterGroup?: string
   description: string
   make: string
   model: string
