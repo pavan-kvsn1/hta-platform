@@ -618,6 +618,12 @@ model Parameter {
   tableName           String?
   sopReference        String?
   masterInstrumentId  String?
+  /// Which capability profile of the master instrument was used, and where that profile
+  /// records curves, which curve. Declared by the engineer, not inferred: the readings
+  /// cannot tell a source from a measuring device, nor a Pt-100 from a Cu-53. Null on a
+  /// parameter saved before the declaration existed.
+  masterProfileId     String?
+  masterSubtype       String?
   sortOrder           Int                           @default(0)
   results             CalibrationResult[]
   masterInstruments   CertificateMasterInstrument[]

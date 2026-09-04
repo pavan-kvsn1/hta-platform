@@ -243,6 +243,9 @@ interface ApiParameter {
   fieldSchema?: { fieldDefinitions?: unknown[]; errorConfig?: Record<string, unknown> | null } | null
   sopReference: string | null
   masterInstrumentId: string | null
+  /** How the master was used - declared by the engineer, absent until they declare it. */
+  masterProfileId?: string | null
+  masterSubtype?: string | null
   results: ApiResult[]
 }
 
@@ -373,6 +376,9 @@ function transformDraftToApiShape(draft: any): ApiCertificate {
       fieldSchema: p.field_schema ?? p.fieldSchema ?? null,
       sopReference: p.sop_reference || null,
       masterInstrumentId: p.master_instrument_id || null,
+      // Camel from the API (raw Prisma), snake from the offline draft store.
+      masterProfileId: p.master_profile_id ?? p.masterProfileId ?? null,
+      masterSubtype: p.master_subtype ?? p.masterSubtype ?? null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       results: (p.results || []).map((r: any) => ({
         id: r.id,
@@ -460,6 +466,8 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     errorFormula: param.errorFormula || 'A-B',
     showAfterAdjustment: param.showAfterAdjustment || false,
     masterInstrumentId: param.masterInstrumentId ? parseInt(param.masterInstrumentId) : null,
+    masterProfileId: param.masterProfileId || undefined,
+    masterSubtype: param.masterSubtype || undefined,
     sopReference: param.sopReference || '',
     results: param.results.map((result): CalibrationResult => ({
       id: generateId(),

@@ -177,6 +177,10 @@ const createCertificateSchema = z.object({
     errorConfig: z.record(z.unknown()).optional().nullable(),
     sopReference: z.string().optional().nullable(),
     masterInstrumentId: z.union([z.string(), z.number()]).optional().nullable(),
+    // How that master was used: which capability profile, and which curve within it.
+    // Declared by the engineer; the readings cannot tell us.
+    masterProfileId: z.string().optional().nullable(),
+    masterSubtype: z.string().optional().nullable(),
     results: z.array(z.object({
       pointNumber: z.number(),
       standardReading: z.string().optional().nullable(),
@@ -748,6 +752,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               fieldSchema: buildFieldSchema(param),
               sopReference: param.sopReference || null,
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
+              masterProfileId: param.masterProfileId || null,
+              masterSubtype: param.masterSubtype || null,
               sortOrder: i,
             },
           })
@@ -1179,6 +1185,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               fieldSchema: buildFieldSchema(param) ?? Prisma.DbNull,
               sopReference: param.sopReference || null,
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
+              masterProfileId: param.masterProfileId || null,
+              masterSubtype: param.masterSubtype || null,
               sortOrder: i,
             },
           })
@@ -2754,6 +2762,10 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         errorFormula: param.errorFormula || 'A-B',
         showAfterAdjustment: param.showAfterAdjustment || false,
         masterInstrumentId: param.masterInstrumentId ? parseInt(param.masterInstrumentId) : null,
+        // Undefined rather than '' when never declared, so the UI can tell "not yet
+        // declared" from a declaration of nothing.
+        masterProfileId: param.masterProfileId ?? undefined,
+        masterSubtype: param.masterSubtype ?? undefined,
         sopReference: param.sopReference || '',
         results: param.results.map((result: (typeof param.results)[number]) => ({
           id: result.id,
