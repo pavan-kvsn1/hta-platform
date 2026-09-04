@@ -196,13 +196,13 @@ export function MasterInstrumentCard({
             </div>
 
             {listed?.status === 'EXPIRING_SOON' && (
-              <p className="text-sm text-amber-800 font-semibold mb-2">
+              <p className="text-xs text-amber-800 font-semibold mb-2">
                 Warning: This instrument expires in {listed.daysUntilExpiry} days. Consider
                 using a different instrument if the certificate due date extends beyond.
               </p>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
               <Info label="Asset No" value={instrument.assetNo} />
               <Info
                 label="Make / Model"
@@ -306,7 +306,7 @@ export function MasterInstrumentCard({
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-slate-800 truncate">
+                          <p className="text-xs font-semibold text-slate-800 truncate">
                             {param.parameterName || `Parameter ${paramIdx + 1}`}
                           </p>
                           {!isCompatible && !isAssignedToOther && (
@@ -545,7 +545,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     )
     return {
       parameterIds: mine.map((p) => p.id),
-      assetNo: master.assetNo,
+      instrumentId: master.masterInstrumentId,
       declarations: Object.fromEntries(
         mine.map((p) => [
           p.id,
@@ -643,7 +643,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     >
       <div className="space-y-4 p-5 rounded-xl border border-slate-300 bg-section-inner">
         <div>
-          <p className="text-sm text-slate-500">
+          <p className="text-xs text-slate-500">
             Select the standard instrument(s) used for this calibration.
           </p>
           {isLoaded && (
@@ -728,7 +728,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
             type="button"
             onClick={() => setFlowOpen(true)}
             disabled={disabled}
-            className="mt-5 w-full h-12 rounded-xl border-2 border-dashed border-slate-300 bg-white text-sm font-semibold text-slate-500 hover:border-primary hover:text-primary transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+            className="mt-5 w-full h-12 rounded-xl border-2 border-dashed border-slate-300 bg-white text-xs font-semibold text-slate-500 hover:border-primary hover:text-primary transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
           >
             <Plus className="size-4" />
             {committed.length === 0 ? 'Add Master Instrument' : 'Add Another Master Instrument'}

@@ -278,7 +278,7 @@ export function MasterCapabilityDeclaration({
                 )}
               >
                 {radio(cap === c)}
-                <span className="text-sm font-semibold text-slate-800">{c}</span>
+                <span className="text-xs font-semibold text-slate-800">{c}</span>
               </button>
             ))}
           </div>
@@ -303,7 +303,7 @@ export function MasterCapabilityDeclaration({
                 )}
               >
                 {radio(role === r)}
-                <span className="text-sm font-semibold text-slate-800 capitalize">{r}</span>
+                <span className="text-xs font-semibold text-slate-800 capitalize">{r}</span>
                 <span className="text-xs text-slate-500">
                   {r === 'source' ? 'it produced the value' : 'it read the value'}
                 </span>
@@ -324,7 +324,7 @@ export function MasterCapabilityDeclaration({
               value={curve ?? ''}
               disabled={disabled}
               onChange={(e) => onChange({ profileId: profile.id, subtype: e.target.value })}
-              className="rounded-xl border border-slate-300 h-10 px-3 bg-white text-sm font-medium min-w-[220px]"
+              className="rounded-xl border border-slate-300 h-10 px-3 bg-white text-xs font-medium min-w-[220px]"
             >
               {curveShown.map((id) => (
                 <option key={id} value={id}>

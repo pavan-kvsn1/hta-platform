@@ -165,7 +165,7 @@ export function SearchableSelect({
       <span className="min-w-0">
         <span
           className={cn(
-            'block text-sm truncate',
+            'block text-xs truncate',
             option.value === value ? 'font-semibold text-slate-900' : 'text-slate-800',
           )}
         >
@@ -211,7 +211,7 @@ export function SearchableSelect({
             onFocus={() => setOpen(true)}
             onClick={() => setOpen(true)}
             onKeyDown={onKeyDown}
-            className="h-full w-full bg-transparent text-sm font-medium outline-none placeholder:text-slate-400"
+            className="h-full w-full bg-transparent text-xs font-medium outline-none placeholder:text-slate-400"
           />
           {query !== null && query !== '' && (
             <button

@@ -164,7 +164,7 @@ export function MasterBandTable({
         {subtypeId ? ` · ${subtypeId}` : ''}
       </label>
       <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs">
           <thead>
             <tr className="bg-slate-100">
               <th className={cn(TH, 'border-r border-slate-200')}>Serves</th>

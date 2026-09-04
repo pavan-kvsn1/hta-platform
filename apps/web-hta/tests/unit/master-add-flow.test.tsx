@@ -199,9 +199,10 @@ describe('step 2 - which instrument', () => {
   it('says what the colours mean', () => {
     renderFlow()
     pick('Temperature')
-    expect(screen.getByText('LC = least count, Acc. = accuracy')).toBeInTheDocument()
-    expect(screen.getByText('meets it with margin')).toBeInTheDocument()
-    expect(screen.getByText('does not meet it')).toBeInTheDocument()
+    expect(screen.getByText('least count')).toBeInTheDocument()
+    expect(screen.getByText('accuracy')).toBeInTheDocument()
+    expect(screen.getByText('with margin')).toBeInTheDocument()
+    expect(screen.getByText('falls short')).toBeInTheDocument()
   })
 
 
@@ -220,13 +221,20 @@ describe('step 2 - which instrument', () => {
   it('says how many of the listed instruments can be used', () => {
     renderFlow()
     pick('Temperature')
-    expect(screen.getByText(/1 of 2 shown can be used for Temperature/)).toBeInTheDocument()
+    expect(screen.getByText(/1 of 2 can be used/)).toBeInTheDocument()
+    expect(screen.getByText(/the rest stay, with the reason/)).toBeInTheDocument()
+  })
+
+  it('names what the rows are rated against, above the list', () => {
+    renderFlow()
+    pick('Temperature')
+    expect(screen.getByText(/rated against/i)).toBeInTheDocument()
   })
 
   it('offers no instrument for a parameter none of them record', () => {
     renderFlow()
     pick('Pressure')
-    expect(screen.getByText(/0 of 0 shown can be used for Pressure/)).toBeInTheDocument()
+    expect(screen.getByText(/0 of 0 can be used/)).toBeInTheDocument()
   })
 })
 
@@ -478,15 +486,13 @@ describe('instruments with nothing recorded', () => {
   it('are counted and named, not silently dropped', () => {
     withBlank()
     pick('Temperature')
-    expect(
-      screen.getByText(/1 instrument records no capability at all and is not listed/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/1 record no capability at all/)).toBeInTheDocument()
   })
 
   it('can still be reached, since one may be the right instrument', () => {
     withBlank()
     pick('Temperature')
-    fireEvent.click(screen.getByRole('button', { name: 'Show them' }))
+    fireEvent.click(screen.getByRole('button', { name: 'show them' }))
     expect(
       screen.getAllByRole('button').some((b) => b.textContent?.includes('165 HTAIPL/L')),
     ).toBe(true)
@@ -542,7 +548,8 @@ describe('a master serving more than one parameter', () => {
     renderBoth()
     pick('Temperature')
     pick('Pressure')
-    expect(screen.getByText(/can be used for Temperature and Pressure/)).toBeInTheDocument()
+    expect(screen.getByText('Temperature and Pressure')).toBeInTheDocument()
+    expect(screen.getByText(/1 of 1 can be used/)).toBeInTheDocument()
   })
 
   it('declares each parameter separately, naming which is which', () => {
@@ -636,7 +643,7 @@ describe('finding an instrument', () => {
       target: { value: '902' },
     })
     expect(rows()).toHaveLength(1)
-    expect(screen.getByText(/2 more are hidden by the search/)).toBeInTheDocument()
+    expect(screen.getByText(/2 more hidden by the search/)).toBeInTheDocument()
   })
 
   it('moves the chosen instrument to the top', () => {
@@ -725,7 +732,7 @@ describe('reopening a master that is already chosen', () => {
         resolveUnit={(inst) => units.get(inst.id)}
         seed={{
           parameterIds: ['p1'],
-          assetNo: '600 HTAIPL/L',
+          instrumentId: 68,
           declarations: {
             p1: { profileId: 'P1', subtype: undefined, sop: 'NLAB/CAL/T09/R02', reason: '' },
           },
@@ -762,6 +769,94 @@ describe('reopening a master that is already chosen', () => {
         assignments: [expect.objectContaining({ parameterIndex: 0, profileId: 'P1' })],
       }),
     )
+  })
+})
+
+describe('several units under one asset number', () => {
+  // 188 HTAIPL/L holds three units; 580 HTAIPL/L holds three of which only one records
+  // Temperature. An asset number names an asset, not the instrument that was used.
+  const twins = [
+    instrument({ id: 126, asset_no: '188 HTAIPL/L', instrument_sl_no: 'SN-A' }),
+    instrument({ id: 127, asset_no: '188 HTAIPL/L', instrument_sl_no: 'SN-B' }),
+  ]
+  const twinUnits = new Map<number, RegistryUnit>([
+    [126, unitWith('Temperature', -50, 200, 0.1, 0.05)],
+    [127, unitWith('Temperature', -50, 200, 0.1, 0.5)],
+  ])
+
+  const renderTwins = () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1' })]}
+        coveredBy={new Map()}
+        instruments={twins}
+        resolveUnit={(inst) => twinUnits.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+  }
+
+  const twinRows = () =>
+    screen.getAllByRole('button').filter((b) => b.textContent?.includes('188 HTAIPL/L'))
+
+  it('lists each unit, told apart by its serial', () => {
+    renderTwins()
+    expect(twinRows()).toHaveLength(2)
+    expect(twinRows()[0].textContent).toContain('serial')
+  })
+
+  it('selects the one that was clicked, not every unit sharing the asset', () => {
+    renderTwins()
+    fireEvent.click(twinRows()[1])
+    // The chosen row goes to the top; exactly one is marked.
+    const marked = twinRows().filter((r) => r.querySelector('[style*="inset"]'))
+    expect(marked).toHaveLength(1)
+    expect(marked[0].textContent).toContain('SN-B')
+  })
+
+  it('reports the unit that was chosen, not its asset twin', () => {
+    const onAdd = vi.fn()
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1' })]}
+        coveredBy={new Map()}
+        instruments={twins}
+        resolveUnit={(inst) => twinUnits.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={onAdd}
+      />,
+    )
+    pick('Temperature')
+    fireEvent.click(twinRows()[1])
+    fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
+    expect(onAdd.mock.calls[0][0].instrument.id).toBe(127)
+  })
+})
+
+describe('a certificate calibrating one parameter twice', () => {
+  // 5eed80c6 does this, and the list used to say it was rated against "Temperature and
+  // Temperature", which identifies neither of them.
+  it('tells the two apart by their range', () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[
+          parameter({ id: 'p1', rangeMin: '-20', rangeMax: '60' }),
+          parameter({ id: 'p2', rangeMin: '10', rangeMax: '100' }),
+        ]}
+        coveredBy={new Map()}
+        instruments={[GOOD]}
+        resolveUnit={(inst) => units.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Temperature (-20 to 60 °C)')).toBeInTheDocument()
+    expect(screen.getByText('Temperature (10 to 100 °C)')).toBeInTheDocument()
   })
 })
 

@@ -46,6 +46,7 @@ import {
 } from '@/lib/master-instrument-eligibility'
 import { MasterCapabilityDeclaration } from './MasterCapabilityDeclaration'
 import { MasterBandTable } from './MasterBandTable'
+import { listOf, parameterLabels } from '@/lib/parameter-labels'
 import { cn } from '@/lib/utils'
 
 const LABEL = 'block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2'
@@ -70,12 +71,6 @@ function distinct(values: string[]): string[] {
   }
   return [...seen.values()].sort((a, b) => a.localeCompare(b))
 }
-
-/** "a", "a and b", "a, b and c" - a bare join reads as canned. */
-const listOf = (items: string[]) =>
-  items.length < 3
-    ? items.join(' and ')
-    : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 
 /**
  * The procedures an instrument can be used under.
@@ -120,7 +115,8 @@ const EMPTY_DECLARATION: Declaration = { sop: '', reason: '' }
 /** An existing master, reopened: the flow starts filled in and commits back to it. */
 export interface FlowSeed {
   parameterIds: string[]
-  assetNo: string
+  /** The unit, by the id a certificate stores - an asset number names several. */
+  instrumentId: number
   declarations: Record<string, { profileId?: string; subtype?: string; sop: string; reason: string }>
 }
 
@@ -175,18 +171,32 @@ function Verdicts({ fit }: { fit: Eligibility }) {
   )
 }
 
-/** What the colours mean, once, under the list. */
+/**
+ * What the two badges mean, once, under the list.
+ *
+ * Four words rather than four sentences: the reader is matching a colour they can see
+ * against a phrase, not being taught the rule. The rule itself is on each badge, on
+ * hover, against that instrument's actual numbers.
+ */
 function BadgeLegend() {
-  const entries: [string, string][] = [
-    ['safe', 'meets it with margin'],
-    ['compatible', 'meets it, with none to spare'],
-    ['incompatible', 'does not meet it'],
-    ['unknown', 'nothing recorded to judge it by'],
+  const states: [string, string][] = [
+    ['safe', 'with margin'],
+    ['compatible', 'exact, none to spare'],
+    ['incompatible', 'falls short'],
+    ['unknown', 'not recorded'],
   ]
   return (
-    <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
-      <span className="font-semibold text-slate-600">LC = least count, Acc. = accuracy</span>
-      {entries.map(([state, meaning]) => (
+    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+      <span>
+        <b className="font-bold text-slate-600">LC</b> least count
+      </span>
+      <span>
+        <b className="font-bold text-slate-600">Acc.</b> accuracy
+      </span>
+      <span aria-hidden className="text-slate-300">
+        |
+      </span>
+      {states.map(([state, meaning]) => (
         <span key={state} className="inline-flex items-center gap-1.5">
           <span
             className={cn(
@@ -239,11 +249,28 @@ export function MasterAddFlow({
   const [make, setMake] = useState(ANY)
   const [description, setDescription] = useState(ANY)
   const [instrumentQuery, setInstrumentQuery] = useState('')
-  const [assetNo, setAssetNo] = useState<string | null>(seed?.assetNo ?? null)
+  /**
+   * The chosen instrument, by unit id.
+   *
+   * Not by asset number: 188 HTAIPL/L holds three units and 580 HTAIPL/L another three,
+   * only one of which records Temperature. Keying the list on the asset gave several
+   * rows the same React key, and selecting one of them selected all of them and
+   * resolved to whichever came first - which for 580 is the only unit that can do the
+   * job, and for 188 is one that cannot.
+   */
+  const [chosenId, setChosenId] = useState<number | null>(seed?.instrumentId ?? null)
   const [showUnrecorded, setShowUnrecorded] = useState(false)
   const [declarations, setDeclarations] = useState<Record<string, Declaration>>(
     seed?.declarations ?? {},
   )
+
+  /**
+   * Names that tell the parameters apart. A certificate can calibrate Temperature
+   * twice, and "rated against Temperature and Temperature" identifies neither.
+   */
+  const labels = useMemo(() => parameterLabels(parameters), [parameters])
+  const labelsFor = (ids: string[]) =>
+    parameters.map((p, i) => (ids.includes(p.id) ? labels[i] : null)).filter((x): x is string => x !== null)
 
   const chosenParameters = useMemo(
     () =>
@@ -408,30 +435,29 @@ export function MasterAddFlow({
     // The chosen instrument goes to the top and stays there, whatever the filters or
     // the search say. A choice that scrolls out of sight - or out of the list entirely,
     // once the search narrows past it - reads as a choice that came undone.
-    if (!assetNo) return rows
-    const already = rows.findIndex((r) => r.inst.asset_no === assetNo)
+    if (chosenId === null) return rows
+    const already = rows.findIndex((r) => r.inst.id === chosenId)
     if (already >= 0) {
       const [row] = rows.splice(already, 1)
       return [row, ...rows]
     }
-    const missing = instruments.find((i) => i.asset_no === assetNo)
+    const missing = instruments.find((i) => i.id === chosenId)
     return missing ? [{ inst: missing, fit: rate(missing) }, ...rows] : rows
-  }, [filtered, instrumentQuery, rate, assetNo, instruments])
+  }, [filtered, instrumentQuery, rate, chosenId, instruments])
 
   const unrateable = useMemo(
     () =>
       chosenParameters
         .filter(({ parameter }) => (requiredFor.get(parameter.id) ?? []).length === 0)
         .map(({ parameter }) => ({
-          name: parameter.parameterName || 'This parameter',
+          name: labels[parameters.indexOf(parameter)] ?? parameter.parameterName,
           missing: missingRequirement(parameter),
         })),
-    [chosenParameters, requiredFor],
+    [chosenParameters, requiredFor, labels, parameters],
   )
 
-  const chosenInstrument = assetNo
-    ? (instruments.find((i) => i.asset_no === assetNo) ?? null)
-    : null
+  const chosenInstrument =
+    chosenId !== null ? (instruments.find((i) => i.id === chosenId) ?? null) : null
   const registryUnit = chosenInstrument ? resolveUnit(chosenInstrument) : undefined
   const sops = sopReferencesFor(chosenInstrument, registryUnit)
 
@@ -441,7 +467,7 @@ export function MasterAddFlow({
     )
     // The instrument list is rated against the parameters ticked, so a change to them
     // invalidates a choice made under the old set.
-    setAssetNo(null)
+    setChosenId(null)
     setDeclarations({})
     setCategory(ANY)
     setMake(ANY)
@@ -450,14 +476,14 @@ export function MasterAddFlow({
   }
 
   const pickInstrument = (inst: MasterInstrument) => {
-    if (assetNo === inst.asset_no) {
+    if (chosenId === inst.id) {
       // Clicking the chosen one again un-picks it; a radio list can otherwise only be
       // changed, never cleared.
-      setAssetNo(null)
+      setChosenId(null)
       setDeclarations({})
       return
     }
-    setAssetNo(inst.asset_no)
+    setChosenId(inst.id)
     const firstSop = sopReferencesFor(inst, resolveUnit(inst))[0] ?? ''
     setDeclarations(
       Object.fromEntries(
@@ -553,8 +579,8 @@ export function MasterAddFlow({
                     className="size-4 rounded border-slate-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-semibold text-slate-800">
-                      {p.parameterName || `Parameter ${i + 1}`}
+                    <span className="block text-xs font-semibold text-slate-800">
+                      {labels[i]}
                     </span>
                     <span className="block text-xs text-slate-500">
                       {p.rangeMin && p.rangeMax
@@ -650,12 +676,9 @@ export function MasterAddFlow({
                 </p>
               )}
               <p className="text-[11px] text-slate-500 mb-1.5">
-                Each row: model &middot; where that master was last calibrated &middot; the
-                range it records for{' '}
-                {listOf(
-                  chosenParameters.map((c) => c.parameter.parameterName || 'this parameter'),
-                )}
-                . The badge is its accuracy against yours.
+                Each row shows the model, where it was last calibrated, and the range it
+                records &mdash; rated against{' '}
+                <b className="text-slate-600">{listOf(labelsFor(paramIds))}</b>.
               </p>
 
               <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 mb-2">
@@ -667,7 +690,7 @@ export function MasterAddFlow({
                   onChange={(e) => setInstrumentQuery(e.target.value)}
                   placeholder="Search by asset number, description, make, model or serial"
                   aria-label="Search instruments"
-                  className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+                  className="h-10 w-full bg-transparent text-xs outline-none placeholder:text-slate-400"
                 />
                 {instrumentQuery && (
                   <button
@@ -687,10 +710,14 @@ export function MasterAddFlow({
                   </p>
                 ) : (
                   shown.map(({ inst, fit }) => {
-                    const on = assetNo === inst.asset_no
+                    const on = chosenId === inst.id
+                    // Several units can share an asset number, so the serial is what
+                    // tells them apart on screen - shown only where it has to.
+                    const shares = shown.filter((r) => r.inst.asset_no === inst.asset_no).length > 1
+                    const serial = getSimpleValue(inst.instrument_sl_no)
                     return (
                       <button
-                        key={inst.asset_no}
+                        key={inst.id}
                         type="button"
                         disabled={disabled || !fit.usable}
                         onClick={() => pickInstrument(inst)}
@@ -709,11 +736,12 @@ export function MasterAddFlow({
                           style={on ? { boxShadow: 'inset 0 0 0 3px var(--primary)' } : undefined}
                         />
                         <span className="flex-1 min-w-0">
-                          <span className="block text-sm font-semibold text-slate-800 truncate">
+                          <span className="block text-xs font-semibold text-slate-800 truncate">
                             {inst.asset_no} &nbsp; {inst.instrument_desc}
                           </span>
                           <span className="block text-xs text-slate-500 truncate">
                             {getDisplayValue(inst.model)}
+                            {shares && serial ? ` · serial ${serial}` : ''}
                             {inst.calibrated_at ? ` · calibrated at ${inst.calibrated_at}` : ''}
                             {fit.detail ? ` · ${fit.detail}` : ''}
                             {fit.limiting ? ` · limited by ${fit.limiting}` : ''}
@@ -726,32 +754,28 @@ export function MasterAddFlow({
                 )}
               </div>
 
-              <BadgeLegend />
-
-              <p className="text-xs text-slate-500 mt-2">
-                {shown.filter((s) => s.fit.usable).length} of {shown.length} shown can be used
-                for{' '}
-                {listOf(
-                  chosenParameters.map((c) => c.parameter.parameterName || 'this parameter'),
-                )}{' '}
-                &mdash; the rest stay visible with the reason.
-                {filtered.length !== shown.length &&
-                  ` ${filtered.length - shown.length} more are hidden by the search.`}
-                {unrecordedCount > 0 && (
-                  <>
-                    {' '}
-                    {unrecordedCount} instrument{unrecordedCount === 1 ? ' records' : 's record'}{' '}
-                    no capability at all and {unrecordedCount === 1 ? 'is' : 'are'} not listed.{' '}
-                    <button
-                      type="button"
-                      onClick={() => setShowUnrecorded((v) => !v)}
-                      className="font-semibold text-primary"
-                    >
-                      {showUnrecorded ? 'Hide them' : 'Show them'}
-                    </button>
-                  </>
-                )}
-              </p>
+              <div className="mt-2 space-y-1">
+                <BadgeLegend />
+                <p className="text-[11px] text-slate-500">
+                  {shown.filter((s) => s.fit.usable).length} of {shown.length} can be used;
+                  the rest stay, with the reason.
+                  {filtered.length !== shown.length &&
+                    ` ${filtered.length - shown.length} more hidden by the search.`}
+                  {unrecordedCount > 0 && (
+                    <>
+                      {' '}
+                      {unrecordedCount} record no capability at all &mdash;{' '}
+                      <button
+                        type="button"
+                        onClick={() => setShowUnrecorded((v) => !v)}
+                        className="font-semibold text-primary"
+                      >
+                        {showUnrecorded ? 'hide them' : 'show them'}
+                      </button>
+                    </>
+                  )}
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -764,7 +788,7 @@ export function MasterAddFlow({
               <p className="text-xs font-extrabold uppercase tracking-wider text-green-700 mb-2">
                 Instrument Selected
               </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                 <Info label="Asset No" value={chosenInstrument.asset_no} />
                 <Info label="Make / Model" value={getDisplayValue(chosenInstrument.model)} />
                 <Info
@@ -809,7 +833,7 @@ export function MasterAddFlow({
             <button
               type="button"
               onClick={onCancel}
-              className="h-10 px-4 rounded-xl border border-slate-300 bg-white text-sm font-medium"
+              className="h-10 px-4 rounded-xl border border-slate-300 bg-white text-xs font-medium"
             >
               Cancel
             </button>
@@ -838,7 +862,7 @@ export function MasterAddFlow({
                   }),
                 })
               }
-              className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
+              className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50"
             >
               {seed ? 'Save this master' : 'Add this master'}
             </button>
@@ -937,7 +961,7 @@ function ParameterDeclaration({
           <div>
             <label className={LABEL}>Required of the master</label>
             <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     <th className="text-left px-3 py-2">Range</th>

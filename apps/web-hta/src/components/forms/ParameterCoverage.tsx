@@ -8,6 +8,7 @@
 // noticed.
 
 import { AlertTriangle, CheckCircle } from 'lucide-react'
+import { listOf as joinNames, parameterLabels } from '@/lib/parameter-labels'
 import { cn } from '@/lib/utils'
 
 interface CoverageParameter {
@@ -29,11 +30,9 @@ interface ParameterCoverageProps {
   assetByInstrumentId?: Map<number, string>
 }
 
-/** "A", "A and B", "A, B and C" - a list of names reads as canned otherwise. */
-export function listOf(items: string[]): string {
-  if (items.length < 3) return items.join(' and ')
-  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
-}
+// Re-exported: this component's own tests address it here, and the naming it needs is
+// the same naming the add flow needs.
+export { listOf } from '@/lib/parameter-labels'
 
 export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() }: ParameterCoverageProps) {
   if (parameters.length === 0) return null
@@ -43,15 +42,8 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
    * bare name would list "Temperature, Pressure and Temperature" and name neither.
    * The range only appears where it is needed to tell two apart.
    */
-  const counts = new Map<string, number>()
-  parameters.forEach((p) => counts.set(p.parameterName, (counts.get(p.parameterName) ?? 0) + 1))
-  const nameOf = (p: CoverageParameter, i: number) => {
-    const name = p.parameterName || `Parameter ${i + 1}`
-    if (!p.parameterName || (counts.get(p.parameterName) ?? 0) < 2) return name
-    return p.rangeMin && p.rangeMax
-      ? `${name} (${p.rangeMin} to ${p.rangeMax} ${p.parameterUnit})`
-      : name
-  }
+  const labels = parameterLabels(parameters)
+  const nameOf = (p: CoverageParameter) => labels[parameters.indexOf(p)]
 
   // A parameter can name a master that is no longer on the certificate - the master
   // was removed and the reference left behind. Counting that as covered says the
@@ -139,7 +131,7 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
             </>
           ) : (
             <>
-              <b>{listOf(missing.map(nameOf))}</b>{' '}
+              <b>{joinNames(missing.map((p) => nameOf(p)))}</b>{' '}
               {missing.length === 1 ? 'has' : 'have'} no master instrument assigned. Every
               parameter needs one before this certificate can be submitted.
             </>
