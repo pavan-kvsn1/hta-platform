@@ -295,6 +295,84 @@ describe('committing', () => {
   })
 })
 
+describe('when there is nothing to compare', () => {
+  // 1027 and 1028 HTAIPL/L name Temperature and Relative Humidity and record no span,
+  // least count or accuracy for either. Nine of this lab's units are like that, and
+  // the panel below the declaration was simply empty for all of them.
+  const NAMED_ONLY = {
+    capability_profiles: [
+      {
+        id: 'P1',
+        parameter: 'Temperature',
+        role: 'measuring',
+        unit: null,
+        min: null,
+        max: null,
+        buckets: [],
+        subtypes: [],
+      },
+    ],
+  } as unknown as RegistryUnit
+
+  it('says the registry names the capability but records no ranges', () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1' })]}
+        coveredBy={new Map()}
+        instruments={[instrument({ id: 50, asset_no: '1027 HTAIPL/L' })]}
+        resolveUnit={() => NAMED_ONLY}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('1027 HTAIPL/L')
+    expect(
+      screen.getByText(/names this capability but records no ranges/i),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/It can still be used/)).toBeInTheDocument()
+  })
+
+  it('names which part of the requirement the parameter is missing', () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', leastCountValue: '', accuracyValue: '' })]}
+        coveredBy={new Map()}
+        instruments={[GOOD]}
+        resolveUnit={(inst) => units.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('600 HTAIPL/L')
+    expect(screen.getByText(/Nothing to check this master against yet/i)).toBeInTheDocument()
+    expect(screen.getByText('no least count and no accuracy')).toBeInTheDocument()
+    expect(screen.getByText(/set it in Section 02/i)).toBeInTheDocument()
+  })
+
+  it('still lets the master be added', () => {
+    const onAdd = vi.fn()
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', leastCountValue: '' })]}
+        coveredBy={new Map()}
+        instruments={[GOOD]}
+        resolveUnit={(inst) => units.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={onAdd}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('600 HTAIPL/L')
+    fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
+    expect(onAdd).toHaveBeenCalled()
+  })
+})
+
 describe('instruments with nothing recorded', () => {
   // 165, 237 and 30 HTAIPL/L record no capability at all. Folding them into every
   // parameter's list padded it with the same handful each time, and for a parameter

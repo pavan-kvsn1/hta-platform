@@ -33,6 +33,8 @@ import type { RegistryUnit } from '@/lib/master-instrument-registry'
 import {
   DEFAULT_ACCURACY_RATIO,
   chooseCapability,
+  declaredCapability,
+  missingRequirement,
   requiredRanges,
   type RequiredRange,
 } from '@/lib/master-instrument-capability'
@@ -45,6 +47,12 @@ const LABEL = 'block text-[11px] font-bold text-slate-500 uppercase tracking-wid
 const ANY = '__any__'
 
 const n = (v: number) => Number(v.toFixed(4)).toString()
+
+/** "a", "a and b", "a, b and c" - a bare join reads as canned. */
+const listOf = (items: string[]) =>
+  items.length < 3
+    ? items.join(' and ')
+    : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 
 export interface FlowResult {
   parameterIndex: number
@@ -207,6 +215,13 @@ export function MasterAddFlow({
     return chooseCapability(registryUnit, parameter.parameterName, required, { threshold })
       ?.profile ?? null
   }, [registryUnit, parameter, profileId, required, threshold])
+
+  // A capability the registry names but records nothing for: 9 of this lab's units are
+  // like this, and every table below them has nothing to draw.
+  const recordsNoRanges = useMemo(() => {
+    if (!declaredProfile) return false
+    return declaredCapability(declaredProfile, subtype).buckets.length === 0
+  }, [declaredProfile, subtype])
 
   const worstRatio = useMemo(() => {
     if (!registryUnit || !parameter) return null
@@ -485,6 +500,20 @@ export function MasterAddFlow({
               />
             )}
 
+            {required.length === 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-bold text-amber-800 mb-1">
+                  Nothing to check this master against yet.
+                </p>
+                <p className="text-[11px] text-amber-800">
+                  {parameter.parameterName || 'This parameter'} states{' '}
+                  <b>{listOf(missingRequirement(parameter))}</b>. The requirement is read
+                  from the unit under test, so set it in Section 02 &mdash; the master can
+                  be chosen now and will be checked once it is there.
+                </p>
+              </div>
+            )}
+
             {required.length > 0 && (
               <div>
                 <label className={LABEL}>Required of the master</label>
@@ -522,7 +551,21 @@ export function MasterAddFlow({
               </div>
             )}
 
-            {declaredProfile && required.length > 0 && (
+            {declaredProfile && recordsNoRanges && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-bold text-slate-700 mb-1">
+                  The registry names this capability but records no ranges for it.
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {chosenInstrument.asset_no} is recorded as measuring{' '}
+                  {declaredProfile.parameter}, with no range, least count or accuracy
+                  against it, so there is no least-count match or accuracy ratio to show.
+                  It can still be used; the certificate records the declaration above.
+                </p>
+              </div>
+            )}
+
+            {declaredProfile && !recordsNoRanges && required.length > 0 && (
               <MasterBandTable
                 assetNo={chosenInstrument.asset_no}
                 profile={declaredProfile}

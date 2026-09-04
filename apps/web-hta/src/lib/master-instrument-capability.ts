@@ -567,6 +567,39 @@ export function evaluateSuitability(
  * single range it was set up with. This is read from the unit under test, never
  * entered against the master.
  */
+/**
+ * Which pieces of the requirement a parameter has not stated.
+ *
+ * requiredRanges returns an empty list when any of them is missing, and everything
+ * built on it - the comparison, the ratio, the least-count verdict - then has nothing
+ * to say. Reporting that as silence leaves the engineer looking at a heading with
+ * nothing under it, so the missing pieces are named instead.
+ */
+export function missingRequirement(parameter: {
+  rangeMin?: string
+  rangeMax?: string
+  leastCountValue?: string
+  accuracyValue?: string
+  requiresBinning?: boolean
+  bins?: { binMin: string; binMax: string; leastCount: string; accuracy: string }[]
+}): string[] {
+  if (requiredRanges(parameter).length > 0) return []
+
+  const stated = (v?: string) =>
+    Number.isFinite(parseFloat((v ?? '').replace('±', '')))
+
+  if (parameter.requiresBinning && parameter.bins?.length) {
+    // Binned: the bins exist but none of them is complete.
+    return ['no complete range bin']
+  }
+
+  const missing: string[] = []
+  if (!stated(parameter.rangeMin) || !stated(parameter.rangeMax)) missing.push('no range')
+  if (!stated(parameter.leastCountValue)) missing.push('no least count')
+  if (!stated(parameter.accuracyValue)) missing.push('no accuracy')
+  return missing
+}
+
 export function requiredRanges(parameter: {
   rangeMin?: string
   rangeMax?: string

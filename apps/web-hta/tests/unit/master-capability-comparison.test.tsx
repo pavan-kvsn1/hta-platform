@@ -135,14 +135,17 @@ describe('MasterCapabilityComparison', () => {
     expect(screen.getByText(/recorded as a class/i)).toBeInTheDocument()
   })
 
-  it('asks for the parameter to be set up before comparing anything', () => {
+  it('names the part of the parameter that is missing, not all three', () => {
+    // "Set the range, least count and accuracy" sends the engineer to check three
+    // fields when usually only one of them is blank.
     render(
       <MasterCapabilityComparison
         unit={temperature}
         parameter={{ ...parameter, rangeMin: '', rangeMax: '' }}
       />,
     )
-    expect(screen.getByText(/Set this parameter/i)).toBeInTheDocument()
+    expect(screen.getByText('no range')).toBeInTheDocument()
+    expect(screen.getByText(/Set it in Section 02/i)).toBeInTheDocument()
   })
 
   it('says plainly when the instrument records nothing for the parameter', () => {

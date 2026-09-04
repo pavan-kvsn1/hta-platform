@@ -99,6 +99,19 @@ export function eligibilityFor(
       ? `range ${n(span.min)} to ${n(span.max)} ${chosen.profile.unit ?? parameter.unit}`
       : ''
 
+  // A capability the registry names but records no span for. Nine of this lab's units
+  // are like that. Judging it "Range Exceeds" states that the instrument falls short,
+  // which nothing here establishes, and blocks it from being chosen at all.
+  if (span.min == null || span.max == null) {
+    return {
+      rank: 3,
+      tone: 'slate',
+      usable: true,
+      verdict: 'Range not recorded',
+      detail: `records ${chosen.profile.parameter}, with no range against it`,
+    }
+  }
+
   if (!chosen.suitability.covered) {
     const need = Math.max(...parameter.required.map((r) => r.to))
     const short = span.max != null && need > span.max ? ` · short of your ${n(need)} by ${n(need - span.max)}` : ''

@@ -15,6 +15,7 @@ import {
   DEFAULT_ACCURACY_RATIO,
   chooseCapability,
   evaluateSuitability,
+  missingRequirement,
   requiredRanges,
   type AssignmentSuitability,
   type RangeSuitability,
@@ -94,11 +95,19 @@ export function MasterCapabilityComparison({
   const required = requiredRanges(parameter)
 
   if (required.length === 0) {
+    // Name what is actually missing. "Set the range, least count and accuracy" sends
+    // the engineer to check three fields when usually only one of them is blank.
+    const missing = missingRequirement(parameter)
     return (
       <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
         <p className="text-xs text-slate-500">
-          Set this parameter&rsquo;s range, least count and accuracy to see how this
-          instrument compares.
+          This parameter states{' '}
+          <b className="text-slate-700">
+            {missing.length < 3
+              ? missing.join(' and ')
+              : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`}
+          </b>
+          , so there is nothing to compare this instrument against. Set it in Section 02.
         </p>
       </div>
     )
