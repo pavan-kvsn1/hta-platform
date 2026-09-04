@@ -207,7 +207,21 @@ describe('steps 3 and 4 - the declaration and what it gives', () => {
   it('lays the master bands against that requirement', () => {
     openToDeclare()
     expect(screen.getByText(/What 600 HTAIPL\/L offers/)).toBeInTheDocument()
-    expect(screen.getByText('Least count matches on every required range.')).toBeInTheDocument()
+    expect(screen.getByText('Compatible')).toBeInTheDocument()
+    // A compatible least count needs no sentence - the table already said so.
+    expect(screen.queryByText(/least count is/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps all of it inside the one panel', () => {
+    // The requirement, the comparison and the SOP are what the declaration produced.
+    // Rendered as sections below it they read as separate questions.
+    openToDeclare()
+    const panel = screen
+      .getByText(/How This Instrument Was Used/i)
+      .closest('div.rounded-xl')!.parentElement!
+    expect(within(panel).getByText('Required of the master')).toBeInTheDocument()
+    expect(within(panel).getByText(/What 600 HTAIPL\/L offers/)).toBeInTheDocument()
+    expect(within(panel).getByLabelText(/SOP Ref/i)).toBeInTheDocument()
   })
 
   it('asks for the SOP reference the instrument records', () => {

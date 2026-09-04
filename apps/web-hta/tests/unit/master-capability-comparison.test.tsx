@@ -66,9 +66,18 @@ describe('MasterCapabilityComparison', () => {
     expect(screen.getByText(/clears 4:1/i)).toBeInTheDocument()
   })
 
-  it('says the least count matches rather than showing arithmetic', () => {
+  it('says whether the least count can serve the range, not the arithmetic', () => {
     render(<MasterCapabilityComparison unit={temperature} parameter={parameter} />)
-    expect(screen.getByText('Matches')).toBeInTheDocument()
+    expect(screen.getByText('Compatible')).toBeInTheDocument()
+  })
+
+  it('reads a finer least count as compatible, since it serves the range', () => {
+    const finer = unit([
+      { ...(temperature.capability_profiles[0] as object), buckets: [bucket(-100, 100, 0.01, 0.0625)] },
+    ])
+    render(<MasterCapabilityComparison unit={finer} parameter={parameter} />)
+    expect(screen.getByText('Compatible')).toBeInTheDocument()
+    expect(screen.queryByText('Not Compatible')).not.toBeInTheDocument()
   })
 
   it('warns when the master is close to the unit it is checking', () => {
@@ -85,7 +94,7 @@ describe('MasterCapabilityComparison', () => {
       { ...(temperature.capability_profiles[0] as object), buckets: [bucket(-100, 100, 0.5, 0.0625)] },
     ])
     render(<MasterCapabilityComparison unit={coarse} parameter={parameter} />)
-    expect(screen.getByText('Does not match')).toBeInTheDocument()
+    expect(screen.getByText('Not Compatible')).toBeInTheDocument()
     expect(screen.getByText(/finer than it can actually read/i)).toBeInTheDocument()
   })
 

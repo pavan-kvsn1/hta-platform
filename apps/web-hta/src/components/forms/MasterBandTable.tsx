@@ -11,6 +11,11 @@
 // different reasons and are acted on differently - a coarser least count means the
 // readings cannot be recorded as written, while a thin accuracy ratio is a judgement
 // call the lab can accept with a reason.
+//
+// The least-count column answers one question: can this band serve that range. A band
+// finer than required serves it, so it reads Compatible like an exact match; the two
+// least counts are side by side in the columns before it for anyone who wants the
+// detail. Only an incompatibility is worth a sentence under the table.
 
 import {
   DEFAULT_ACCURACY_RATIO,
@@ -104,14 +109,10 @@ export function MasterBandTable({
             <span
               className={cn(
                 PILL,
-                matches
-                  ? ELIGIBILITY_BADGE.green
-                  : finer
-                    ? ELIGIBILITY_BADGE.amber
-                    : ELIGIBILITY_BADGE.red,
+                matches || finer ? ELIGIBILITY_BADGE.green : ELIGIBILITY_BADGE.red,
               )}
             >
-              {matches ? 'Matches' : 'Does not match'}
+              {matches || finer ? 'Compatible' : 'Not Compatible'}
             </span>
           </td>
           <td className="px-3 py-2">
@@ -221,15 +222,7 @@ function LeastCountVerdict({
       </p>
     )
   }
-  if (checks.some((c) => c.finer)) {
-    return (
-      <p className="text-xs mt-1.5 text-amber-700">
-        The master&rsquo;s least count is finer than required. Not a match, but acceptable
-        &mdash; the certificate records the master&rsquo;s own least count.
-      </p>
-    )
-  }
-  return (
-    <p className="text-xs mt-1.5 text-green-700">Least count matches on every required range.</p>
-  )
+  // A finer least count serves the range, and a compatible one needs no sentence: the
+  // table has already said so on every row.
+  return null
 }

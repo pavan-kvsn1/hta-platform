@@ -189,12 +189,12 @@ function Row({
   unitLabel: string
   threshold: number
 }) {
+  // A least count finer than required still serves the range, so it reads the same as
+  // an exact match. Only a coarser one cannot serve it.
   const lcTone =
-    range.leastCount === 'matches'
-      ? 'bg-green-100 text-green-700'
-      : range.leastCount === 'finer'
-        ? 'bg-amber-100 text-amber-700'
-        : 'bg-red-100 text-red-700'
+    range.leastCount === 'coarser'
+      ? 'bg-red-100 text-red-700'
+      : 'bg-green-100 text-green-700'
 
   // Derived from the ratio rather than read off the bucket, so the accuracy shown is
   // always the one the ratio was computed from - including where a formula accuracy
@@ -229,7 +229,7 @@ function Row({
       <td className="px-3 py-2">
         {range.leastCount && (
           <span className={cn(PILL, lcTone, 'mr-1.5')}>
-            {range.leastCount === 'matches' ? 'Matches' : 'Does not match'}
+            {range.leastCount === 'coarser' ? 'Not Compatible' : 'Compatible'}
           </span>
         )}
         {range.accuracyRatio === null ? (

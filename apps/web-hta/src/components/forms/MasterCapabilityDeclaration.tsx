@@ -25,7 +25,8 @@ import type { CapabilityProfile, RegistryUnit } from '@/lib/master-instrument-re
 import { cn } from '@/lib/utils'
 
 interface MasterCapabilityDeclarationProps {
-  unit: RegistryUnit
+  /** Absent when the certificate names a master the registry no longer holds. */
+  unit?: RegistryUnit
   parameterName: string
   /** What the calibration needs, so options that cannot reach it can be set aside. */
   required: RequiredRange[]
@@ -33,6 +34,12 @@ interface MasterCapabilityDeclarationProps {
   subtype?: string
   disabled?: boolean
   onChange: (declaration: { profileId: string; subtype?: string }) => void
+  /**
+   * What the declaration produces - the requirement, the comparison, the SOP - shown
+   * inside this panel rather than beneath it. They are the answer to the same question
+   * the header asks, and reading them as separate sections loses that.
+   */
+  children?: React.ReactNode
 }
 
 const LABEL = 'block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2'
@@ -90,6 +97,7 @@ export function MasterCapabilityDeclaration({
   subtype,
   disabled,
   onChange,
+  children,
 }: MasterCapabilityDeclarationProps) {
   const [showAll, setShowAll] = useState(false)
   /**
@@ -99,7 +107,7 @@ export function MasterCapabilityDeclaration({
   const [pendingCap, setPendingCap] = useState<string | null>(null)
 
   const wanted = parameterName.trim().toLowerCase()
-  const profiles = unit.capability_profiles.filter((p) =>
+  const profiles = (unit?.capability_profiles ?? []).filter((p) =>
     p.parameter.toLowerCase().includes(wanted),
   )
 
@@ -167,6 +175,7 @@ export function MasterCapabilityDeclaration({
     return (
       <Panel>
         <p className="text-xs text-slate-500">No capability recorded for this instrument.</p>
+        {children}
       </Panel>
     )
   }
@@ -309,6 +318,8 @@ export function MasterCapabilityDeclaration({
           </span>
         </div>
       )}
+
+      {children}
     </Panel>
   )
 }
