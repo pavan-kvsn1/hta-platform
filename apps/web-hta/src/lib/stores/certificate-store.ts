@@ -77,6 +77,12 @@ export interface Parameter {
    */
   masterProfileId?: string
   masterSubtype?: string
+  /**
+   * Why a master whose accuracy ratio falls below the lab's threshold was accepted.
+   * Empty where the ratio meets it - the field exists so an accepted shortfall is on
+   * the certificate rather than only in someone's memory.
+   */
+  masterAcceptanceReason?: string
   results: CalibrationResult[]
   showAfterAdjustment: boolean
 

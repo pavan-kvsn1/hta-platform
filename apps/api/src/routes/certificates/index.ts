@@ -181,6 +181,8 @@ const createCertificateSchema = z.object({
     // Declared by the engineer; the readings cannot tell us.
     masterProfileId: z.string().optional().nullable(),
     masterSubtype: z.string().optional().nullable(),
+    // Why a ratio below the lab's threshold was accepted.
+    masterAcceptanceReason: z.string().optional().nullable(),
     results: z.array(z.object({
       pointNumber: z.number(),
       standardReading: z.string().optional().nullable(),
@@ -754,6 +756,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
               masterProfileId: param.masterProfileId || null,
               masterSubtype: param.masterSubtype || null,
+              masterAcceptanceReason: param.masterAcceptanceReason || null,
               sortOrder: i,
             },
           })
@@ -1187,6 +1190,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
               masterProfileId: param.masterProfileId || null,
               masterSubtype: param.masterSubtype || null,
+              masterAcceptanceReason: param.masterAcceptanceReason || null,
               sortOrder: i,
             },
           })
@@ -2766,6 +2770,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         // declared" from a declaration of nothing.
         masterProfileId: param.masterProfileId ?? undefined,
         masterSubtype: param.masterSubtype ?? undefined,
+        masterAcceptanceReason: param.masterAcceptanceReason ?? undefined,
         sopReference: param.sopReference || '',
         results: param.results.map((result: (typeof param.results)[number]) => ({
           id: result.id,

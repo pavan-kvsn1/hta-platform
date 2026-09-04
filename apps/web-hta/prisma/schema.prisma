@@ -624,6 +624,9 @@ model Parameter {
   /// parameter saved before the declaration existed.
   masterProfileId     String?
   masterSubtype       String?
+  /// Why a master whose accuracy ratio falls below the lab's threshold was accepted.
+  /// Null where the ratio meets it.
+  masterAcceptanceReason String?
   sortOrder           Int                           @default(0)
   results             CalibrationResult[]
   masterInstruments   CertificateMasterInstrument[]
