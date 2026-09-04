@@ -601,3 +601,55 @@ export function requiredRanges(parameter: {
   if (from === null || to === null || leastCount === null || accuracy === null) return []
   return [{ from, to, leastCount, accuracy }]
 }
+
+export interface ChosenCapability {
+  profile: CapabilityProfile
+  /** The declared curve, where the capability has any. */
+  subtypeId: string | null
+  suitability: AssignmentSuitability
+}
+
+/**
+ * The capability that best serves a requirement, for use until it is declared.
+ *
+ * An engineer knows which capability and curve they used; the app does not, and
+ * cannot read it from the readings. Until that declaration is stored this picks the
+ * one that fits best - covering the range, resolving finely enough, then the highest
+ * accuracy ratio - so the comparison shown is the instrument's best case rather than
+ * whichever profile happened to be listed first. It is a stand-in, not an answer.
+ */
+export function chooseCapability(
+  unit: RegistryUnit,
+  parameter: string,
+  required: RequiredRange[],
+  options: { threshold?: number } = {},
+): ChosenCapability | null {
+  const wanted = parameter.trim().toLowerCase()
+  if (!wanted || required.length === 0) return null
+
+  const candidates: ChosenCapability[] = []
+  for (const profile of unit.capability_profiles) {
+    if (!profile.parameter.toLowerCase().includes(wanted)) continue
+    const curves = (profile.subtypes ?? []).map((s) => s.id)
+    const ids: (string | null)[] = curves.length ? curves : [null]
+    for (const subtypeId of ids) {
+      candidates.push({
+        profile,
+        subtypeId,
+        suitability: evaluateSuitability(profile, required, { subtypeId, ...options }),
+      })
+    }
+  }
+  if (candidates.length === 0) return null
+
+  const rank = (c: ChosenCapability) => [
+    c.suitability.covered ? 0 : 1,
+    c.suitability.resolvable ? 0 : 1,
+    -(c.suitability.worstRatio ?? -1),
+  ]
+  return candidates.sort((a, b) => {
+    const [ac, ar, aq] = rank(a)
+    const [bc, br, bq] = rank(b)
+    return ac - bc || ar - br || aq - bq
+  })[0]
+}

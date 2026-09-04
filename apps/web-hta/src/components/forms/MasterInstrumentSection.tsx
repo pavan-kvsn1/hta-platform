@@ -29,6 +29,7 @@ import {
   getSopReferences,
 } from '@/lib/master-instruments'
 import { unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
+import { MasterCapabilityComparison } from '@/components/forms/MasterCapabilityComparison'
 import { cn } from '@/lib/utils'
 
 interface MasterInstrumentCardProps {
@@ -580,10 +581,11 @@ function MasterInstrumentCard({
                 <div
                   key={param.id}
                   className={cn(
-                    'px-4 py-3 flex items-center gap-4',
+                    'px-4 py-3',
                     isDisabled && 'opacity-50 bg-slate-50'
                   )}
                 >
+                <div className="flex items-center gap-4">
                   {/* Checkbox */}
                   <input
                     type="checkbox"
@@ -668,6 +670,14 @@ function MasterInstrumentCard({
                       />
                     )}
                   </div>
+                </div>
+
+                {/* What this instrument offers for the parameter, against what the
+                    calibration requires. Only for the parameter this master is
+                    actually assigned to, and only where the registry knows it. */}
+                {isAssigned && registryUnit && (
+                  <MasterCapabilityComparison unit={registryUnit} parameter={param} />
+                )}
                 </div>
               )
             })}
