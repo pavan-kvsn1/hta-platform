@@ -30,6 +30,7 @@ import {
 } from '@/lib/master-instruments'
 import { unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
 import { MasterCapabilityComparison } from '@/components/forms/MasterCapabilityComparison'
+import { ParameterCoverage } from '@/components/forms/ParameterCoverage'
 import { cn } from '@/lib/utils'
 
 interface MasterInstrumentCardProps {
@@ -299,6 +300,51 @@ function MasterInstrumentCard({
     })
   }
 
+  /**
+   * Why an instrument is or is not worth choosing, for this certificate's parameters.
+   *
+   * An empty list teaches nothing, so an instrument that cannot be used stays visible
+   * with the reason: expired, or it records none of what is being calibrated.
+   */
+  const instrumentFit = (inst: _MasterInstrument) => {
+    const unit = getUnitByLegacyId(inst.id)
+    if (inst.status === 'EXPIRED') {
+      return {
+        usable: false,
+        tone: 'bg-red-100 text-red-700',
+        label: 'Expired',
+        detail: inst.daysUntilExpiry != null ? `${Math.abs(inst.daysUntilExpiry)} days ago` : '',
+      }
+    }
+    if (!unit || unit.capability_profiles.length === 0) {
+      return {
+        usable: true,
+        tone: 'bg-slate-200 text-slate-600',
+        label: 'Not recorded',
+        detail: 'nothing recorded to check against',
+      }
+    }
+    const named = parameters.filter((p) => p.parameterName)
+    if (named.length === 0) {
+      return { usable: true, tone: 'bg-slate-200 text-slate-600', label: 'Available', detail: '' }
+    }
+    const can = named.filter((p) => unitCanMeasure(unit, p.parameterName))
+    if (can.length === 0) {
+      return {
+        usable: false,
+        tone: 'bg-slate-200 text-slate-600',
+        label: 'No match',
+        detail: `records none of ${named.map((p) => p.parameterName).join(', ')}`,
+      }
+    }
+    return {
+      usable: true,
+      tone: can.length === named.length ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700',
+      label: `${can.length} of ${named.length}`,
+      detail: `records ${can.map((p) => p.parameterName).join(', ')}`,
+    }
+  }
+
   // Find currently selected instrument data
   const selectedInstrumentData = useMemo(() => {
     if (!instrument.masterInstrumentId) return null
@@ -427,38 +473,73 @@ function MasterInstrumentCard({
         </div>
 
         {/* Asset No / Instrument Selection */}
-        <div>
+        <div className="md:col-span-2">
           <Label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
             Select Instrument <span className="text-red-500">*</span>
           </Label>
-          <Select
-            value={instrument.assetNo}
-            onValueChange={handleInstrumentSelect}
-            disabled={!selectedDescription}
-          >
-            <SelectTrigger className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-medium bg-white disabled:opacity-50">
-              <SelectValue placeholder={selectedDescription ? "Select instrument..." : "Select description first"} />
-            </SelectTrigger>
-            <SelectContent>
-              {availableInstruments.map((inst) => (
-                <SelectItem
-                  key={inst.asset_no}
-                  value={inst.asset_no}
-                  disabled={inst.status === 'EXPIRED'}
-                  className={cn(
-                    inst.status === 'EXPIRED' && 'opacity-50 cursor-not-allowed'
-                  )}
-                >
-                  <div className="flex items-center justify-between w-full gap-2">
-                    <span>{inst.asset_no} - {getDisplayValue(inst.model)}</span>
-                    {inst.status && inst.status !== 'VALID' && (
-                      <StatusBadge status={inst.status} daysUntilExpiry={inst.daysUntilExpiry} />
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {!selectedDescription ? (
+            <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-xs text-slate-500">
+              Choose a category and description to see the instruments.
+            </p>
+          ) : (
+            <>
+              <p className="text-[11px] text-slate-500 mb-1.5">
+                Each row: model &middot; where that master was last calibrated &middot; what it
+                records for this certificate&rsquo;s parameters.
+              </p>
+              <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden max-h-72 overflow-y-auto">
+                {availableInstruments.map((inst) => {
+                  const fit = instrumentFit(inst)
+                  const chosen = instrument.assetNo === inst.asset_no
+                  return (
+                    <button
+                      key={inst.asset_no}
+                      type="button"
+                      disabled={disabled || !fit.usable}
+                      onClick={() => handleInstrumentSelect(inst.asset_no)}
+                      className={cn(
+                        'w-full text-left px-4 py-3 flex items-center gap-4 transition-colors',
+                        fit.usable
+                          ? 'bg-white hover:bg-slate-50'
+                          : 'bg-slate-50 opacity-60 cursor-not-allowed',
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'size-4 rounded-full border-2 flex-shrink-0',
+                          chosen ? 'border-primary' : 'border-slate-300',
+                        )}
+                        style={chosen ? { boxShadow: 'inset 0 0 0 3px var(--primary)' } : undefined}
+                      />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-semibold text-slate-800 truncate">
+                          {inst.asset_no} &nbsp; {inst.instrument_desc}
+                        </span>
+                        <span className="block text-xs text-slate-500 truncate">
+                          {getDisplayValue(inst.model)}
+                          {inst.calibrated_at ? ` · calibrated at ${inst.calibrated_at}` : ''}
+                          {fit.detail ? ` · ${fit.detail}` : ''}
+                        </span>
+                      </span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0',
+                          fit.tone,
+                        )}
+                      >
+                        {fit.label}
+                      </span>
+                    </button>
+                  )
+                })}
+                {availableInstruments.length === 0 && (
+                  <p className="px-4 py-6 text-center text-xs text-slate-500">
+                    No instruments match those filters.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </div>
         </div>
       </div>
@@ -878,6 +959,19 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
             Add Master Instrument
           </button>
         </div>
+
+        {/* Which parameters still have no master. Nothing said so before, and a
+            parameter can be missed without anything on screen noticing. */}
+        <ParameterCoverage
+          parameters={formData.parameters}
+          assetByInstrumentId={
+            new Map(
+              formData.masterInstruments
+                .filter((m) => m.masterInstrumentId)
+                .map((m) => [m.masterInstrumentId, m.assetNo || String(m.masterInstrumentId)]),
+            )
+          }
+        />
 
         <div className="space-y-6">
           {formData.masterInstruments.map((instrument, index) => {
