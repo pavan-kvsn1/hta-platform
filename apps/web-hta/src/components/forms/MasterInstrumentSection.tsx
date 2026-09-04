@@ -381,16 +381,30 @@ export function MasterInstrumentCard({
                             unit={registryUnit}
                             parameterName={param.parameterName}
                             required={requiredRanges(param)}
-                            profileId={param.masterProfileId}
-                            subtype={param.masterSubtype}
+                            // Editing starts the declaration over rather than showing
+                            // the settled answer with its questions pre-filled: the
+                            // point of editing is to be asked again. The stored answer
+                            // is untouched until a new one is given, and where there is
+                            // only one possible answer it settles itself straight back.
+                            profileId={editing.includes(param.id) ? undefined : param.masterProfileId}
+                            subtype={editing.includes(param.id) ? undefined : param.masterSubtype}
                             disabled={disabled}
-                            onChange={({ profileId, subtype }) =>
+                            onChange={({ profileId, subtype }) => {
+                              // An instrument with one capability and one role reports
+                              // its own answer on mount. Writing it back unchanged
+                              // would mark the certificate dirty for nothing.
+                              if (
+                                profileId === param.masterProfileId &&
+                                subtype === param.masterSubtype
+                              ) {
+                                return
+                              }
                               onParameterUpdate(paramIdx, {
                                 ...param,
                                 masterProfileId: profileId,
                                 masterSubtype: subtype,
                               })
-                            }
+                            }}
                           />
                         )}
                         <MasterCapabilityComparison

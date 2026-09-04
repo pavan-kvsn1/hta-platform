@@ -8,7 +8,7 @@
  * immediately and the panel shut, which made the pencil look like it did nothing.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MasterInstrumentCard } from '@/components/forms/MasterInstrumentSection'
 import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
 import type { Parameter, SelectedMasterInstrument } from '@/lib/stores/certificate-store'
@@ -109,6 +109,70 @@ describe('a declaration that is already made', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(screen.queryByRole('group', { name: /Compatibility/i })).not.toBeInTheDocument()
     expect(pencil()).toBeInTheDocument()
+  })
+})
+
+describe('an instrument that records a real choice', () => {
+  // 711 HTAIPL/L records Thermocouple both as a source and as a measuring device, so
+  // there is something to be asked again.
+  const CHOICE_ID = 3
+  const choiceMaster = { ...master, masterInstrumentId: CHOICE_ID, assetNo: '711 HTAIPL/L' }
+  const choiceParam = (over: Partial<Parameter> = {}) =>
+    parameter({ parameterName: 'Thermocouple', masterInstrumentId: CHOICE_ID, ...over })
+
+  beforeAll(() => {
+    useMasterInstrumentStore.getState().loadFromRegistry()
+  })
+
+  const renderChoice = (param: Parameter) => {
+    const onParameterUpdate = vi.fn()
+    render(
+      <MasterInstrumentCard
+        instrument={choiceMaster as unknown as SelectedMasterInstrument}
+        index={0}
+        onRemove={vi.fn()}
+        parameters={[param]}
+        mastersOnCertificate={new Set([CHOICE_ID])}
+        onParameterUpdate={onParameterUpdate}
+        certificateId="cert-1"
+        images={[]}
+        onImageUpload={vi.fn()}
+        onImageDelete={vi.fn()}
+      />,
+    )
+    return onParameterUpdate
+  }
+
+  it('starts the declaration over rather than showing the answer pre-filled', () => {
+    // Editing means being asked again. The role belongs to a capability, so until the
+    // capability is answered afresh there is no role question to show.
+    renderChoice(choiceParam({ masterProfileId: 'P2', masterSubtype: undefined }))
+    fireEvent.click(pencil()!)
+    const panel = screen.getByRole('group', { name: /Compatibility - For Thermocouple/i })
+    expect(within(panel).getByText(/Used as/i)).toBeInTheDocument()
+    // Neither role is chosen: the radios are all empty until it is answered again.
+    const chosen = within(panel)
+      .getAllByRole('button')
+      .filter((b) => /^(source|measuring)/i.test(b.textContent ?? ''))
+      .filter((b) => b.querySelector('[style*="inset"]'))
+    expect(chosen).toHaveLength(0)
+  })
+
+  it('leaves the stored answer alone until a new one is given', () => {
+    const onParameterUpdate = renderChoice(choiceParam({ masterProfileId: 'P2' }))
+    fireEvent.click(pencil()!)
+    expect(onParameterUpdate).not.toHaveBeenCalled()
+  })
+
+  it('records the new answer once it is given', () => {
+    const onParameterUpdate = renderChoice(choiceParam({ masterProfileId: 'P2' }))
+    fireEvent.click(pencil()!)
+    const panel = screen.getByRole('group', { name: /Compatibility - For Thermocouple/i })
+    fireEvent.click(within(panel).getByText('measuring').closest('button')!)
+    expect(onParameterUpdate).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ masterProfileId: expect.any(String) }),
+    )
   })
 })
 
