@@ -107,8 +107,11 @@ function renderFlow(over: Record<string, unknown> = {}) {
   return { onAdd, onCancel }
 }
 
+/** The parameter step ticks, since one master can serve several. */
 const pick = (label: string | RegExp) =>
-  fireEvent.click(screen.getByText(label).closest('button')!)
+  fireEvent.click(
+    within(screen.getByText(label).closest('label')!).getByRole('checkbox'),
+  )
 
 /** The asset number sits beside the description in one span, so match on the row. */
 const pickInstrument = (assetNo: string) =>
@@ -119,7 +122,7 @@ const pickInstrument = (assetNo: string) =>
 describe('step 1 - what the master is for', () => {
   it('asks for the parameter first, and nothing else', () => {
     renderFlow()
-    expect(screen.getByText(/Used for which parameter/i)).toBeInTheDocument()
+    expect(screen.getByText(/Used for which parameters/i)).toBeInTheDocument()
     expect(screen.queryByText('Instrument')).not.toBeInTheDocument()
     expect(screen.queryByText(/Instrument Selected/i)).not.toBeInTheDocument()
   })
@@ -127,7 +130,7 @@ describe('step 1 - what the master is for', () => {
   it('says why the order is that way round', () => {
     renderFlow()
     expect(
-      screen.getByText(/Choosing the parameter first filters the instrument list/i),
+      screen.getByText(/Choosing the parameters first filters the instrument list/i),
     ).toBeInTheDocument()
   })
 
@@ -140,7 +143,9 @@ describe('step 1 - what the master is for', () => {
   it('takes a parameter that already has a master out of the running', () => {
     renderFlow({ coveredBy: new Map([['p1', '600 HTAIPL/L']]) })
     expect(screen.getByText(/already assigned to 600 HTAIPL\/L/)).toBeInTheDocument()
-    expect(screen.getByText('Temperature').closest('button')).toBeDisabled()
+    expect(
+      within(screen.getByText('Temperature').closest('label')!).getByRole('checkbox'),
+    ).toBeDisabled()
   })
 })
 
@@ -266,15 +271,15 @@ describe('committing', () => {
     pick('Temperature')
     pickInstrument('600 HTAIPL/L')
     fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
-    expect(onAdd).toHaveBeenCalledWith(
+    expect(onAdd.mock.calls[0][0].instrument.asset_no).toBe('600 HTAIPL/L')
+    expect(onAdd.mock.calls[0][0].assignments).toEqual([
       expect.objectContaining({
         parameterIndex: 0,
         profileId: 'P1',
         sopReference: 'NLAB/CAL/T01/R01',
         acceptanceReason: '',
       }),
-    )
-    expect(onAdd.mock.calls[0][0].instrument.asset_no).toBe('600 HTAIPL/L')
+    ])
   })
 
   it('carries the accepted reason when the ratio falls short', () => {
@@ -296,7 +301,7 @@ describe('committing', () => {
       target: { value: 'Agreed with the reviewer.' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
-    expect(onAdd.mock.calls[0][0].acceptanceReason).toBe('Agreed with the reviewer.')
+    expect(onAdd.mock.calls[0][0].assignments[0].acceptanceReason).toBe('Agreed with the reviewer.')
   })
 
   it('can be abandoned', () => {
@@ -439,6 +444,195 @@ describe('instruments with nothing recorded', () => {
     withBlank()
     // GOOD serves it; the blank one must not be counted as a second.
     expect(screen.getByText(/1 instrument can do it/)).toBeInTheDocument()
+  })
+})
+
+describe('a master serving more than one parameter', () => {
+  // A universal calibrator sources temperature and reads pressure on the same
+  // certificate, so the parameter step ticks rather than picks.
+  const bothUnit = {
+    capability_profiles: [
+      ...(unitWith('Temperature', -50, 200, 0.1, 0.05) as unknown as {
+        capability_profiles: unknown[]
+      }).capability_profiles,
+      ...(unitWith('Pressure', 0, 3000, 0.1, 0.05) as unknown as {
+        capability_profiles: unknown[]
+      }).capability_profiles,
+    ],
+  } as unknown as RegistryUnit
+
+  const renderBoth = () => {
+    const onAdd = vi.fn()
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[
+          parameter({ id: 'p1', parameterName: 'Temperature' }),
+          parameter({
+            id: 'p2',
+            parameterName: 'Pressure',
+            parameterUnit: 'Pa',
+            rangeMin: '0',
+            rangeMax: '3000',
+          }),
+        ]}
+        coveredBy={new Map()}
+        instruments={[instrument({ id: 70, asset_no: '900 HTAIPL/L' })]}
+        resolveUnit={() => bothUnit}
+        onCancel={vi.fn()}
+        onAdd={onAdd}
+      />,
+    )
+    return onAdd
+  }
+
+  it('takes both parameters at once', () => {
+    renderBoth()
+    pick('Temperature')
+    pick('Pressure')
+    expect(screen.getByText(/can be used for Temperature and Pressure/)).toBeInTheDocument()
+  })
+
+  it('declares each parameter separately, naming which is which', () => {
+    renderBoth()
+    pick('Temperature')
+    pick('Pressure')
+    pickInstrument('900 HTAIPL/L')
+    // One panel per parameter, each with its own requirement and procedure.
+    expect(screen.getAllByText(/How This Instrument Was Used/i)).toHaveLength(2)
+    expect(screen.getAllByText('Required of the master')).toHaveLength(2)
+    expect(screen.getAllByLabelText(/SOP Ref/i)).toHaveLength(2)
+  })
+
+  it('reports one assignment per parameter', () => {
+    const onAdd = renderBoth()
+    pick('Temperature')
+    pick('Pressure')
+    pickInstrument('900 HTAIPL/L')
+    fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
+    expect(onAdd.mock.calls[0][0].assignments.map((a: { parameterIndex: number }) => a.parameterIndex))
+      .toEqual([0, 1])
+  })
+
+  it('drops the chosen instrument when the parameters change under it', () => {
+    // It was rated against the old set; keeping it would carry a verdict that no
+    // longer refers to anything on screen.
+    renderBoth()
+    pick('Temperature')
+    pickInstrument('900 HTAIPL/L')
+    expect(screen.getByText('Instrument Selected')).toBeInTheDocument()
+    pick('Pressure')
+    expect(screen.queryByText('Instrument Selected')).not.toBeInTheDocument()
+  })
+})
+
+describe('finding an instrument', () => {
+  const many = [
+    GOOD,
+    instrument({ id: 71, asset_no: '901 HTAIPL/L', make: 'Druck', model: 'DPI 610' }),
+    instrument({ id: 72, asset_no: '902 HTAIPL/L', make: 'Ametek', model: 'RTC-159' }),
+  ]
+  const unitsMany = new Map<number, RegistryUnit>([
+    [68, unitWith('Temperature', -50, 200, 0.1, 0.05)],
+    [71, unitWith('Temperature', -50, 200, 0.1, 0.05)],
+    [72, unitWith('Temperature', -50, 200, 0.1, 0.05)],
+  ])
+
+  const renderMany = () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1' })]}
+        coveredBy={new Map()}
+        instruments={many}
+        resolveUnit={(inst) => unitsMany.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+  }
+
+  const rows = () =>
+    screen.getAllByRole('button').filter((b) => b.textContent?.includes('HTAIPL/L'))
+
+  it('offers a make filter beside the category', () => {
+    renderMany()
+    expect(screen.getByLabelText('Category')).toBeInTheDocument()
+    expect(screen.getByLabelText('Make')).toBeInTheDocument()
+    expect(screen.getByLabelText('Description')).toBeInTheDocument()
+  })
+
+  it('shortens the list as the search narrows it', () => {
+    renderMany()
+    expect(rows()).toHaveLength(3)
+    fireEvent.change(screen.getByLabelText('Search instruments'), {
+      target: { value: 'Druck' },
+    })
+    expect(rows()).toHaveLength(1)
+    expect(rows()[0].textContent).toContain('901 HTAIPL/L')
+  })
+
+  it('searches the asset number, and says what it left out', () => {
+    renderMany()
+    fireEvent.change(screen.getByLabelText('Search instruments'), {
+      target: { value: '902' },
+    })
+    expect(rows()).toHaveLength(1)
+    expect(screen.getByText(/2 more are hidden by the search/)).toBeInTheDocument()
+  })
+
+  it('says so rather than showing an empty box when nothing matches', () => {
+    renderMany()
+    fireEvent.change(screen.getByLabelText('Search instruments'), {
+      target: { value: 'no such thing' },
+    })
+    expect(screen.getByText(/No instrument matches those filters/i)).toBeInTheDocument()
+  })
+})
+
+describe('the SOP reference', () => {
+  it('falls back to the registry when the instrument row carries none', () => {
+    // availableSopReferences is not persisted, so a reloaded draft had none and the
+    // dropdown rendered empty. All 209 registry units record their procedures.
+    const withRegistrySops = {
+      ...(unitWith('Temperature', -50, 200, 0.1, 0.05) as unknown as object),
+      sop_references: ['NLAB/CAL/ET1/R01', 'NLAB/CAL/ET2/R01'],
+    } as unknown as RegistryUnit
+
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1' })]}
+        coveredBy={new Map()}
+        instruments={[instrument({ id: 68, asset_no: '600 HTAIPL/L', sop_references: [] })]}
+        resolveUnit={() => withRegistrySops}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('600 HTAIPL/L')
+    const select = screen.getByLabelText(/SOP Ref/i)
+    expect(select.textContent).toContain('NLAB/CAL/ET1/R01')
+    expect(select).toHaveValue('NLAB/CAL/ET1/R01')
+  })
+
+  it('takes a typed reference when nothing records one', () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1' })]}
+        coveredBy={new Map()}
+        instruments={[instrument({ id: 68, asset_no: '600 HTAIPL/L', sop_references: [] })]}
+        resolveUnit={() => unitWith('Temperature', -50, 200, 0.1, 0.05)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('600 HTAIPL/L')
+    expect(screen.getByText(/No procedure is recorded against 600 HTAIPL\/L/)).toBeInTheDocument()
   })
 })
 

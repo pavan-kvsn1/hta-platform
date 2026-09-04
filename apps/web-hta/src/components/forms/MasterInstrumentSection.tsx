@@ -32,12 +32,11 @@ import {
   InstrumentStatus,
   getDisplayValue,
   STATUS_CONFIG,
-  getSopReferences,
 } from '@/lib/master-instruments'
 import { requiredRanges, unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
 import { MasterCapabilityComparison } from '@/components/forms/MasterCapabilityComparison'
 import { MasterCapabilityDeclaration } from '@/components/forms/MasterCapabilityDeclaration'
-import { MasterAddFlow, type FlowResult } from '@/components/forms/MasterAddFlow'
+import { MasterAddFlow, sopReferencesFor, type FlowResult } from '@/components/forms/MasterAddFlow'
 import { ParameterCoverage } from '@/components/forms/ParameterCoverage'
 import { cn } from '@/lib/utils'
 
@@ -132,12 +131,12 @@ function MasterInstrumentCard({
     [getUnitForInstrument, instrument.masterInstrumentId, instrument.assetNo],
   )
 
-  const sops =
-    instrument.availableSopReferences?.length
-      ? instrument.availableSopReferences
-      : listed
-        ? getSopReferences(listed)
-        : []
+  // availableSopReferences is not persisted, so a reloaded draft has none and the
+  // dropdown rendered empty. The registry records procedures for all 209 units, so it
+  // is the fallback when neither the saved master nor the loaded list carries them.
+  const sops = instrument.availableSopReferences?.length
+    ? instrument.availableSopReferences
+    : sopReferencesFor(listed, registryUnit)
 
   return (
     <div className="bg-section-inner rounded-xl p-5 border border-slate-300">
@@ -533,7 +532,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
       calibrationDueDate: inst.next_due_on,
       isExpired: false,
       isExpiringSoon: inst.status === 'EXPIRING_SOON',
-      availableSopReferences: getSopReferences(inst),
+      availableSopReferences: sopReferencesFor(inst, getUnitForInstrument(inst)),
     }
 
     // Reuse the blank row the store starts with rather than leaving it behind.
@@ -545,17 +544,20 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     }
     setMasterInstrument(slot, { ...selected, id: formData.masterInstruments[slot]?.id ?? selected.id })
 
-    const param = useCertificateStore.getState().formData.parameters[result.parameterIndex]
-    if (param) {
-      setParameter(result.parameterIndex, {
+    // One master can serve several parameters, each declared separately.
+    result.assignments.forEach((assignment) => {
+      const param =
+        useCertificateStore.getState().formData.parameters[assignment.parameterIndex]
+      if (!param) return
+      setParameter(assignment.parameterIndex, {
         ...param,
         masterInstrumentId: inst.id,
-        sopReference: result.sopReference,
-        masterProfileId: result.profileId,
-        masterSubtype: result.subtype,
-        masterAcceptanceReason: result.acceptanceReason || undefined,
+        sopReference: assignment.sopReference,
+        masterProfileId: assignment.profileId,
+        masterSubtype: assignment.subtype,
+        masterAcceptanceReason: assignment.acceptanceReason || undefined,
       })
-    }
+    })
 
     setFlowOpen(false)
   }
