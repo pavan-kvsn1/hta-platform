@@ -20,6 +20,26 @@ import {
 
 export type EligibilityTone = 'green' | 'amber' | 'orange' | 'red' | 'slate'
 
+/**
+ * How one aspect of a master stands against the requirement.
+ *
+ * Four states rather than two, because "it will do" and "it will do with nothing to
+ * spare" are different answers and an engineer acts on them differently:
+ *
+ *   safe         - meets it with margin
+ *   compatible   - meets it, with none
+ *   incompatible - does not meet it
+ *   unknown      - nothing recorded to judge it by
+ */
+export type Compatibility = 'safe' | 'compatible' | 'incompatible' | 'unknown'
+
+export const COMPATIBILITY_BADGE: Record<Compatibility, string> = {
+  safe: 'bg-green-100 text-green-700',
+  compatible: 'bg-amber-100 text-amber-700',
+  incompatible: 'bg-red-100 text-red-700',
+  unknown: 'bg-slate-200 text-slate-500',
+}
+
 export interface Eligibility {
   /** Sort key - 0 is the best answer, 5 the least useful. */
   rank: number
@@ -36,8 +56,13 @@ export interface Eligibility {
    * judgement the lab can accept with a reason. Null where nothing supports an answer,
    * in which case `verdict` says why.
    */
-  leastCount?: 'compatible' | 'not compatible' | null
-  accuracyRatio?: number | null
+  leastCount: Compatibility
+  accuracy: Compatibility
+  /** The worst ratio across the required ranges, for the badge's tooltip. */
+  accuracyRatio: number | null
+  /** Why each badge reads as it does, shown on hover. */
+  leastCountNote: string
+  accuracyNote: string
 }
 
 export const ELIGIBILITY_BADGE: Record<EligibilityTone, string> = {
@@ -49,6 +74,15 @@ export const ELIGIBILITY_BADGE: Record<EligibilityTone, string> = {
 }
 
 const n = (v: number) => Number(v.toFixed(4)).toString()
+
+/** Nothing recorded to judge either aspect by. */
+const unjudged = (note: string) => ({
+  leastCount: 'unknown' as const,
+  accuracy: 'unknown' as const,
+  accuracyRatio: null,
+  leastCountNote: note,
+  accuracyNote: note,
+})
 
 export function eligibilityFor(
   unit: RegistryUnit | undefined,
@@ -62,7 +96,8 @@ export function eligibilityFor(
       tone: 'slate',
       usable: true,
       verdict: 'Capability not recorded',
-      detail: 'nothing to check against',
+      detail: 'no capability recorded for this instrument',
+          ...unjudged('This instrument records no capability, so there is nothing to compare.'),
     }
   }
 
@@ -76,7 +111,8 @@ export function eligibilityFor(
       tone: 'slate',
       usable: false,
       verdict: `Does not record ${parameter.name || 'this parameter'}`,
-      detail: '',
+      detail: `does not record ${parameter.name || 'this parameter'}`,
+          ...unjudged('This instrument does not record this parameter.'),
     }
   }
 
@@ -87,20 +123,26 @@ export function eligibilityFor(
       tone: 'red',
       usable: false,
       verdict: 'Calibration expired',
-      detail: days != null ? `${Math.abs(days)} days ago` : '',
+      detail:
+        days != null
+          ? `calibration expired ${Math.abs(days)} days ago`
+          : 'calibration expired',
+          ...unjudged('Its calibration has expired, so it cannot be used.'),
     }
   }
 
   // Without a stated requirement there is nothing to rate the instrument against, but
-  // it does record the parameter, so it stays offered. "Records it" said nothing an
-  // engineer could act on; the reason it cannot be rated is more use.
+  // it does record the parameter, so it stays offered.
+  // Nothing to rate against. The reason belongs above the list, said once - repeated
+  // down every row it is noise that buries what each row actually says.
   if (parameter.required.length === 0) {
     return {
       rank: 3,
       tone: 'slate',
       usable: true,
-      verdict: 'Requirement not set',
-      detail: 'set the range, least count and accuracy in Section 02 to rate this',
+      verdict: 'Not rated',
+      detail: '',
+      ...unjudged('The parameter states no requirement to compare this against.'),
     }
   }
 
@@ -110,8 +152,9 @@ export function eligibilityFor(
       rank: 3,
       tone: 'slate',
       usable: true,
-      verdict: 'Requirement not set',
-      detail: 'nothing recorded against this capability to compare',
+      verdict: 'Not rated',
+      detail: '',
+      ...unjudged('Nothing is recorded against this capability to compare.'),
     }
   }
 
@@ -131,6 +174,7 @@ export function eligibilityFor(
       usable: true,
       verdict: 'Range not recorded',
       detail: `records ${chosen.profile.parameter}, with no range against it`,
+      ...unjudged('The registry names this capability but records no ranges for it.'),
     }
   }
 
@@ -142,14 +186,47 @@ export function eligibilityFor(
       tone: 'orange',
       usable: false,
       verdict: 'Range Exceeds',
-      detail: `${reach}${short}`,
+      detail: `${reach}${short} - does not reach the required range`,
+      ...unjudged('Part of the required range falls outside this capability.'),
     }
   }
 
-  const leastCount = chosen.suitability.resolvable
-    ? ('compatible' as const)
-    : ('not compatible' as const)
+  // Least count, across every required range. A master finer than required has margin;
+  // one that matches exactly has none, and any drift takes it out; a coarser one cannot
+  // record the readings as written at all.
+  const verdicts = chosen.suitability.ranges.map((r) => r.leastCount)
+  const leastCount: Compatibility = verdicts.some((v) => v === null)
+    ? 'unknown'
+    : verdicts.some((v) => v === 'coarser')
+      ? 'incompatible'
+      : verdicts.some((v) => v === 'finer')
+        ? 'safe'
+        : 'compatible'
+  const leastCountNote = {
+    safe: 'Finer than the parameter requires on every range.',
+    compatible: 'Matches the parameter exactly, with nothing to spare.',
+    incompatible:
+      'Coarser than required - readings would be recorded finer than this can read.',
+    unknown: 'No least count recorded for the band serving this range.',
+  }[leastCount]
+
+  // Accuracy. Below 1:1 the master is no better than the unit it is checking, which is
+  // not a thin margin but the wrong tool.
   const ratio = chosen.suitability.worstRatio
+  const accuracy: Compatibility =
+    ratio === null
+      ? 'unknown'
+      : ratio < 1
+        ? 'incompatible'
+        : ratio < threshold
+          ? 'compatible'
+          : 'safe'
+  const accuracyNote =
+    ratio === null
+      ? 'Accuracy is recorded as a class, so it cannot be compared as a number.'
+      : `${ratio.toFixed(1)} : 1 at worst across the required ranges; the lab asks for ${threshold}:1.`
+
+  const judged = { leastCount, accuracy, accuracyRatio: ratio, leastCountNote, accuracyNote }
 
   if (ratio === null) {
     return {
@@ -158,8 +235,7 @@ export function eligibilityFor(
       usable: true,
       verdict: 'Class accuracy',
       detail: reach ? `${reach} · not comparable as a number` : 'not comparable as a number',
-      leastCount,
-      accuracyRatio: null,
+      ...judged,
     }
   }
 
@@ -169,7 +245,6 @@ export function eligibilityFor(
     usable: true,
     verdict: `${ratio.toFixed(1)} : 1`,
     detail: reach,
-    leastCount,
-    accuracyRatio: ratio,
+    ...judged,
   }
 }

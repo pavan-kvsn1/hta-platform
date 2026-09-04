@@ -159,22 +159,23 @@ describe('step 2 - which instrument', () => {
     ).toBe(true)
   })
 
-  it('rates each instrument against that parameter', () => {
+  it('judges least count and accuracy apart, on every row', () => {
+    // They fail for different reasons and are acted on differently, so one badge
+    // cannot answer both.
     renderFlow()
     pick('Temperature')
-    // 0.5 required against 0.05 recorded.
-    expect(screen.getByText('10.0 : 1')).toBeInTheDocument()
+    const row = screen.getAllByRole('button').find((b) => b.textContent?.includes('600 HTAIPL/L'))!
+    const lc = within(row).getByText('LC')
+    const acc = within(row).getByText('Acc.')
+    // 0.1 required against 0.1 recorded: it meets it, with nothing to spare.
+    expect(lc).toHaveAttribute('title', expect.stringContaining('Matches the parameter exactly'))
+    expect(lc.className).toContain('amber')
+    // 0.5 required against 0.05 recorded: ten times better than asked for.
+    expect(acc).toHaveAttribute('title', expect.stringContaining('10.0 : 1'))
+    expect(acc.className).toContain('green')
   })
 
-  it('badges the two things being judged, not one word', () => {
-    renderFlow()
-    pick('Temperature')
-    // Least count and accuracy fail for different reasons, so they are answered apart.
-    expect(screen.getByText('LC Compatible')).toBeInTheDocument()
-    expect(screen.getByText('10.0 : 1')).toBeInTheDocument()
-  })
-
-  it('says the requirement is missing rather than "records it"', () => {
+  it('greys both badges where there is nothing to judge them by', () => {
     render(
       <MasterAddFlow
         index={1}
@@ -187,8 +188,20 @@ describe('step 2 - which instrument', () => {
       />,
     )
     pick('Temperature')
-    expect(screen.getByText('Requirement not set')).toBeInTheDocument()
-    expect(screen.queryByText('Records it')).not.toBeInTheDocument()
+    const row = screen.getAllByRole('button').find((b) => b.textContent?.includes('600 HTAIPL/L'))!
+    expect(within(row).getByText('LC').className).toContain('slate')
+    expect(within(row).getByText('Acc.').className).toContain('slate')
+    // The reason is said once, above the list, not repeated down every row.
+    expect(row.textContent).not.toMatch(/Section 02/)
+    expect(screen.getByText(/cannot be rated against/i)).toBeInTheDocument()
+  })
+
+  it('says what the colours mean', () => {
+    renderFlow()
+    pick('Temperature')
+    expect(screen.getByText('LC = least count, Acc. = accuracy')).toBeInTheDocument()
+    expect(screen.getByText('meets it with margin')).toBeInTheDocument()
+    expect(screen.getByText('does not meet it')).toBeInTheDocument()
   })
 
 
@@ -196,8 +209,9 @@ describe('step 2 - which instrument', () => {
   it('keeps an unusable instrument on screen with the reason', () => {
     renderFlow()
     pick('Temperature')
-    expect(screen.getByText('Range Exceeds')).toBeInTheDocument()
-    expect(screen.getByText(/short of your 60 by 20/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/short of your 60 by 20 - does not reach the required range/),
+    ).toBeInTheDocument()
     expect(
       screen.getAllByRole('button').find((b) => b.textContent?.includes('742 HTAIPL/L')),
     ).toBeDisabled()
@@ -405,8 +419,9 @@ describe('when there is nothing to compare', () => {
     pick('Temperature')
     pickInstrument('600 HTAIPL/L')
     expect(screen.getByText(/Nothing to check this master against yet/i)).toBeInTheDocument()
-    expect(screen.getByText('no least count and no accuracy')).toBeInTheDocument()
-    expect(screen.getByText(/set it in Section 02/i)).toBeInTheDocument()
+    // Once above the list, once in the panel that has nothing to show.
+    expect(screen.getAllByText('no least count and no accuracy')).toHaveLength(2)
+    expect(screen.getAllByText(/set it in Section 02/i).length).toBeGreaterThan(0)
   })
 
   it('still lets the master be added', () => {
@@ -701,6 +716,8 @@ describe('the instrument list', () => {
     renderFlow()
     pick('Temperature')
     const rows = screen.getAllByRole('button').filter((b) => b.textContent?.includes('HTAIPL/L'))
-    expect(within(rows[0]).getByText('10.0 : 1')).toBeInTheDocument()
+    // 600 rates; 742 cannot reach the range.
+    expect(rows[0].textContent).toContain('600 HTAIPL/L')
+    expect(within(rows[0]).getByText('Acc.').className).toContain('green')
   })
 })

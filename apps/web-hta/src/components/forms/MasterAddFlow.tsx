@@ -39,6 +39,7 @@ import {
   type RequiredRange,
 } from '@/lib/master-instrument-capability'
 import {
+  COMPATIBILITY_BADGE,
   ELIGIBILITY_BADGE,
   eligibilityFor,
   type Eligibility,
@@ -130,55 +131,60 @@ interface MasterAddFlowProps {
   onAdd: (result: FlowResult) => void
 }
 
+const PILL =
+  'inline-flex items-center justify-center min-w-[3rem] px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0'
+
 /**
- * What an engineer is judging, on the row: whether the least count can serve the
- * ranges, and how the accuracy compares. Two badges because they fail for different
- * reasons and are acted on differently. Where neither can be judged - expired, does not
- * record it, no range recorded - the one reason stands alone.
+ * The two things an engineer is judging, side by side on the right of each row.
+ *
+ * Least count and accuracy are answered apart because they fail for different reasons:
+ * a coarser least count means the readings cannot be recorded as written, while a thin
+ * accuracy ratio is a judgement the lab can accept with a reason. Colour carries the
+ * verdict so a list of forty can be read down in one pass; the numbers behind it are on
+ * the badge's tooltip and in full on the comparison table once an instrument is chosen.
  */
-function Verdicts({
-  fit,
-  threshold,
-}: {
-  fit: Eligibility
-  threshold: number
-}) {
-  const PILL =
-    'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0'
-
-  if (!fit.leastCount && fit.accuracyRatio == null) {
-    return <span className={cn(PILL, ELIGIBILITY_BADGE[fit.tone])}>{fit.verdict}</span>
-  }
-
+function Verdicts({ fit }: { fit: Eligibility }) {
   return (
     <span className="flex items-center gap-1.5 flex-shrink-0">
-      {fit.leastCount && (
-        <span
-          className={cn(
-            PILL,
-            fit.leastCount === 'compatible'
-              ? ELIGIBILITY_BADGE.green
-              : ELIGIBILITY_BADGE.red,
-          )}
-          title="Whether the master's least count can serve every required range"
-        >
-          LC {fit.leastCount === 'compatible' ? 'Compatible' : 'Not Compatible'}
-        </span>
-      )}
       <span
-        className={cn(
-          PILL,
-          fit.accuracyRatio == null
-            ? ELIGIBILITY_BADGE.slate
-            : fit.accuracyRatio >= threshold
-              ? ELIGIBILITY_BADGE.green
-              : ELIGIBILITY_BADGE.amber,
-        )}
-        title="Accuracy ratio, worst across the required ranges"
+        className={cn(PILL, COMPATIBILITY_BADGE[fit.leastCount])}
+        title={`Least count - ${fit.leastCountNote}`}
       >
-        {fit.accuracyRatio == null ? 'Class accuracy' : `${fit.accuracyRatio.toFixed(1)} : 1`}
+        LC
+      </span>
+      <span
+        className={cn(PILL, COMPATIBILITY_BADGE[fit.accuracy])}
+        title={`Accuracy - ${fit.accuracyNote}`}
+      >
+        Acc.
       </span>
     </span>
+  )
+}
+
+/** What the colours mean, once, under the list. */
+function BadgeLegend() {
+  const entries: [string, string][] = [
+    ['safe', 'meets it with margin'],
+    ['compatible', 'meets it, with none to spare'],
+    ['incompatible', 'does not meet it'],
+    ['unknown', 'nothing recorded to judge it by'],
+  ]
+  return (
+    <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+      <span className="font-semibold text-slate-600">LC = least count, Acc. = accuracy</span>
+      {entries.map(([state, meaning]) => (
+        <span key={state} className="inline-flex items-center gap-1.5">
+          <span
+            className={cn(
+              'size-2.5 rounded-full',
+              COMPATIBILITY_BADGE[state as keyof typeof COMPATIBILITY_BADGE].split(' ')[0],
+            )}
+          />
+          {meaning}
+        </span>
+      ))}
+    </p>
   )
 }
 
@@ -263,7 +269,11 @@ export function MasterAddFlow({
           return eligibilityFor(unit, inst, { name: '', unit: '', required: [] }, threshold)
         }
         const worst = each.reduce((a, b) => (b.fit.rank > a.fit.rank ? b : a))
-        return each.length > 1 && worst.fit.rank > 0
+        // Naming the parameter that holds an instrument back only means something when
+        // a comparison was made. On a row that could not be rated at all it reads as a
+        // finding about that parameter, which it is not.
+        const compared = worst.fit.verdict !== 'Not rated'
+        return each.length > 1 && worst.fit.rank > 0 && compared
           ? { ...worst.fit, limiting: worst.name }
           : worst.fit
       },
@@ -391,6 +401,17 @@ export function MasterAddFlow({
     const missing = instruments.find((i) => i.asset_no === assetNo)
     return missing ? [{ inst: missing, fit: rate(missing) }, ...rows] : rows
   }, [filtered, instrumentQuery, rate, assetNo, instruments])
+
+  const unrateable = useMemo(
+    () =>
+      chosenParameters
+        .filter(({ parameter }) => (requiredFor.get(parameter.id) ?? []).length === 0)
+        .map(({ parameter }) => ({
+          name: parameter.parameterName || 'This parameter',
+          missing: missingRequirement(parameter),
+        })),
+    [chosenParameters, requiredFor],
+  )
 
   const chosenInstrument = assetNo
     ? (instruments.find((i) => i.asset_no === assetNo) ?? null)
@@ -601,6 +622,16 @@ export function MasterAddFlow({
               <Label className={LABEL}>
                 Instrument <span className="text-red-500">*</span>
               </Label>
+              {unrateable.length > 0 && (
+                <p className="mb-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                  {listOf(unrateable.map((u) => u.name))}{' '}
+                  {unrateable.length === 1 ? 'states' : 'state'}{' '}
+                  <b>{listOf([...new Set(unrateable.flatMap((u) => u.missing))])}</b>, so these
+                  instruments cannot be rated against{' '}
+                  {unrateable.length === 1 ? 'it' : 'them'}. Set it in Section 02; the
+                  instrument can still be chosen now.
+                </p>
+              )}
               <p className="text-[11px] text-slate-500 mb-1.5">
                 Each row: model &middot; where that master was last calibrated &middot; the
                 range it records for{' '}
@@ -671,12 +702,14 @@ export function MasterAddFlow({
                             {fit.limiting ? ` · limited by ${fit.limiting}` : ''}
                           </span>
                         </span>
-                        <Verdicts fit={fit} threshold={threshold} />
+                        <Verdicts fit={fit} />
                       </button>
                     )
                   })
                 )}
               </div>
+
+              <BadgeLegend />
 
               <p className="text-xs text-slate-500 mt-2">
                 {shown.filter((s) => s.fit.usable).length} of {shown.length} shown can be used
