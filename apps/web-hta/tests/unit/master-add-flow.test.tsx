@@ -22,14 +22,21 @@ const bucket = (min: number, max: number, lc: number, acc: number) => ({
   accuracy: { type: 'symmetric', value: acc, unit: '°C', polarity: '±' },
 })
 
-const unitWith = (parameter: string, min: number, max: number, lc: number, acc: number) =>
+const unitWith = (
+  parameter: string,
+  min: number,
+  max: number,
+  lc: number,
+  acc: number,
+  unit = '°C',
+) =>
   ({
     capability_profiles: [
       {
         id: 'P1',
         parameter,
         role: 'measuring',
-        unit: '°C',
+        unit,
         min,
         max,
         buckets: [bucket(min, max, lc, acc)],
@@ -243,7 +250,10 @@ describe('step 2 - which instrument', () => {
     render(
       <MasterAddFlow
         index={1}
-        parameters={[parameter({ id: 'p1' }), parameter({ id: 'p2', parameterName: 'Pressure' })]}
+        parameters={[
+          parameter({ id: 'p1' }),
+          parameter({ id: 'p2', parameterName: 'Pressure', parameterUnit: 'Pa' }),
+        ]}
         coveredBy={new Map()}
         instruments={[GOOD, SHORT]}
         resolveUnit={(inst) => units.get(inst.id)}
@@ -560,7 +570,7 @@ describe('a master serving more than one parameter', () => {
       ...(unitWith('Temperature', -50, 200, 0.1, 0.05) as unknown as {
         capability_profiles: unknown[]
       }).capability_profiles,
-      ...(unitWith('Pressure', 0, 3000, 0.1, 0.05) as unknown as {
+      ...(unitWith('Pressure', 0, 3000, 0.1, 0.05, 'Pa') as unknown as {
         capability_profiles: unknown[]
       }).capability_profiles,
     ],
@@ -816,6 +826,76 @@ describe('reopening a master that is already chosen', () => {
         assignments: [expect.objectContaining({ parameterIndex: 0, profileId: 'P1' })],
       }),
     )
+  })
+})
+
+describe('matching a capability to a parameter', () => {
+  // The registry records "Vacuum" in bar and in Pa, and "Sound Pressure Level" in dB.
+  // A name filter showed the second for every Pressure parameter and never the first.
+  const pressureParam = parameter({
+    id: 'p1',
+    parameterName: 'Pressure',
+    parameterUnit: 'Pa',
+    rangeMin: '0',
+    rangeMax: '3000',
+    leastCountValue: '0.1',
+    accuracyValue: '5',
+  })
+
+  const withProfile = (name: string, unitSymbol: string) =>
+    ({
+      capability_profiles: [
+        {
+          id: 'P1',
+          parameter: name,
+          role: 'measuring',
+          unit: unitSymbol,
+          min: 0,
+          max: 100000,
+          buckets: [
+            {
+              id: 'B1',
+              min: 0,
+              max: 100000,
+              min_inclusive: true,
+              max_inclusive: true,
+              least_count: { value: 0.1, unit: unitSymbol },
+              accuracy: { type: 'symmetric', value: 0.05, unit: unitSymbol, polarity: '±' },
+            },
+          ],
+          subtypes: [],
+        },
+      ],
+    }) as unknown as RegistryUnit
+
+  const listFor = (name: string, unitSymbol: string) => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[pressureParam]}
+        coveredBy={new Map()}
+        instruments={[instrument({ id: 80, asset_no: '900 HTAIPL/L' })]}
+        resolveUnit={() => withProfile(name, unitSymbol)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Pressure')
+    return screen.getAllByRole('button').filter((b) => b.textContent?.includes('900 HTAIPL/L'))
+  }
+
+  it('brings in a pressure instrument whose name never says pressure', () => {
+    // "Vacuum", recorded in bar, for a parameter in Pa.
+    expect(listFor('Vacuum', 'bar')).toHaveLength(1)
+  })
+
+  it('keeps out an instrument whose name says pressure but measures sound', () => {
+    expect(listFor('Sound Pressure Level', 'dB')).toHaveLength(0)
+  })
+
+  it('still matches on the name where the registry records no unit', () => {
+    // A registry that records no unit should not lose its instruments.
+    expect(listFor('Pressure', '')).toHaveLength(1)
   })
 })
 

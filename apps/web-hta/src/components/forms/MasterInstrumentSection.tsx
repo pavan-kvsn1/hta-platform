@@ -380,6 +380,7 @@ export function MasterInstrumentCard({
                           <MasterCapabilityDeclaration
                             unit={registryUnit}
                             parameterName={param.parameterName}
+                            parameterUnit={param.parameterUnit}
                             required={requiredRanges(param)}
                             profileId={param.masterProfileId}
                             subtype={param.masterSubtype}

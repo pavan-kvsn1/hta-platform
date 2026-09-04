@@ -34,6 +34,7 @@ import {
   DEFAULT_ACCURACY_RATIO,
   chooseCapability,
   declaredCapability,
+  matchesParameter,
   missingRequirement,
   requiredRanges,
   type RequiredRange,
@@ -225,10 +226,12 @@ function worstRatioFor(
   parameterName: string,
   required: RequiredRange[],
   threshold: number,
+  parameterUnit?: string | null,
 ) {
   if (!unit || required.length === 0) return null
   return (
-    chooseCapability(unit, parameterName, required, { threshold })?.suitability.worstRatio ?? null
+    chooseCapability(unit, parameterName, required, { threshold, parameterUnit })?.suitability
+      .worstRatio ?? null
   )
 }
 
@@ -330,9 +333,10 @@ export function MasterAddFlow({
         const unit = resolveUnit(inst)
         if (!unit || unit.capability_profiles.length === 0) return 'nothing recorded'
         const servesAll = chosenParameters.every(({ parameter }) => {
-          const wanted = parameter.parameterName.trim().toLowerCase()
-          if (!wanted) return true
-          return unit.capability_profiles.some((p) => p.parameter.toLowerCase().includes(wanted))
+          if (!parameter.parameterName.trim()) return true
+          return unit.capability_profiles.some((p) =>
+            matchesParameter(p, parameter.parameterName, parameter.parameterUnit),
+          )
         })
         return servesAll ? 'records them' : 'records something else'
       },
@@ -552,7 +556,6 @@ export function MasterAddFlow({
           <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
             {parameters.map((p, i) => {
               const covered = coveredBy.get(p.id)
-              const wanted = p.parameterName.trim().toLowerCase()
               // Only instruments that record this parameter count. Counting the ones
               // with nothing recorded made every parameter look better served than it
               // is, by the same handful of instruments each time.
@@ -560,9 +563,9 @@ export function MasterAddFlow({
                 const unit = resolveUnit(inst)
                 if (!unit || unit.capability_profiles.length === 0) return false
                 if (
-                  wanted &&
+                  p.parameterName.trim() &&
                   !unit.capability_profiles.some((cp) =>
-                    cp.parameter.toLowerCase().includes(wanted),
+                    matchesParameter(cp, p.parameterName, p.parameterUnit),
                   )
                 ) {
                   return false
@@ -879,6 +882,7 @@ export function MasterAddFlow({
                       parameter.parameterName,
                       requiredFor.get(parameter.id) ?? [],
                       threshold,
+                      parameter.parameterUnit,
                     )
                     return {
                       parameterIndex,
@@ -936,8 +940,13 @@ function ParameterDeclaration({
       const found = unit.capability_profiles.find((p) => p.id === declaration.profileId)
       if (found) return found
     }
-    return chooseCapability(unit, parameter.parameterName, required, { threshold })?.profile ?? null
-  }, [unit, parameter.parameterName, declaration.profileId, required, threshold])
+    return (
+      chooseCapability(unit, parameter.parameterName, required, {
+        threshold,
+        parameterUnit: parameter.parameterUnit,
+      })?.profile ?? null
+    )
+  }, [unit, parameter.parameterName, parameter.parameterUnit, declaration.profileId, required, threshold])
 
   // A capability the registry names but records nothing for: nine of this lab's units
   // are like this, and every table below them has nothing to draw.
@@ -950,8 +959,8 @@ function ParameterDeclaration({
   )
 
   const worstRatio = useMemo(
-    () => worstRatioFor(unit, parameter.parameterName, required, threshold),
-    [unit, parameter.parameterName, required, threshold],
+    () => worstRatioFor(unit, parameter.parameterName, required, threshold, parameter.parameterUnit),
+    [unit, parameter.parameterName, parameter.parameterUnit, required, threshold],
   )
 
   const sopId = `flow-sop-${parameter.id}`
@@ -966,6 +975,7 @@ function ParameterDeclaration({
     <MasterCapabilityDeclaration
         unit={unit}
         parameterName={parameter.parameterName}
+        parameterUnit={parameter.parameterUnit}
         required={required}
         profileId={declaration.profileId}
         subtype={declaration.subtype}

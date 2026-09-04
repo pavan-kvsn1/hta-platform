@@ -15,6 +15,7 @@ import {
   DEFAULT_ACCURACY_RATIO,
   chooseCapability,
   declaredCapability,
+  matchesParameter,
   type RequiredRange,
 } from './master-instrument-capability'
 
@@ -101,9 +102,10 @@ export function eligibilityFor(
     }
   }
 
-  const wanted = parameter.name.trim().toLowerCase()
-  const profiles = wanted
-    ? unit.capability_profiles.filter((p) => p.parameter.toLowerCase().includes(wanted))
+  const profiles = parameter.name.trim()
+    ? unit.capability_profiles.filter((p) =>
+        matchesParameter(p, parameter.name, parameter.unit),
+      )
     : []
   if (profiles.length === 0) {
     return {
@@ -146,7 +148,10 @@ export function eligibilityFor(
     }
   }
 
-  const chosen = chooseCapability(unit, parameter.name, parameter.required, { threshold })
+  const chosen = chooseCapability(unit, parameter.name, parameter.required, {
+    threshold,
+    parameterUnit: parameter.unit,
+  })
   if (!chosen) {
     return {
       rank: 3,

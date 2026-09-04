@@ -62,7 +62,7 @@ const num = (v: number) => Number(v.toFixed(4)).toString()
  */
 function declaredFrom(
   unit: RegistryUnit,
-  parameter: { parameterName: string } & Declaration,
+  parameter: { parameterName: string; parameterUnit?: string } & Declaration,
   required: RequiredRange[],
   threshold: number,
 ) {
@@ -85,7 +85,10 @@ function declaredFrom(
   }
   return {
     wasDeclared: false,
-    chosen: chooseCapability(unit, parameter.parameterName, required, { threshold }),
+    chosen: chooseCapability(unit, parameter.parameterName, required, {
+      threshold,
+      parameterUnit: parameter.parameterUnit,
+    }),
   }
 }
 

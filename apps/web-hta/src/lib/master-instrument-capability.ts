@@ -20,6 +20,7 @@ import {
   type RegistryUnit,
   capabilityVariants,
 } from './master-instrument-registry'
+import { knownToDiffer, sameQuantity } from './units'
 
 /** What an accuracy resolves to for a particular reading. */
 export interface ResolvedAccuracy {
@@ -365,11 +366,14 @@ export function coverageByParameter(
 // capability profiles instead of the old flat range list.
 
 /** Every profile on a unit, including those nested under a subtype. */
-function profilesFor(unit: RegistryUnit, parameter: string): CapabilityProfile[] {
-  const wanted = parameter.trim().toLowerCase()
-  if (!wanted) return []
+function profilesFor(
+  unit: RegistryUnit,
+  parameter: string,
+  parameterUnit?: string | null,
+): CapabilityProfile[] {
+  if (!parameter.trim()) return []
   return unit.capability_profiles.filter((profile) =>
-    profile.parameter.toLowerCase().includes(wanted),
+    matchesParameter(profile, parameter, parameterUnit),
   )
 }
 
@@ -379,10 +383,41 @@ function profilesFor(unit: RegistryUnit, parameter: string): CapabilityProfile[]
  * A unit with no profiles recorded is allowed through: three assets in the registry
  * still have none, and hiding them would remove instruments the lab actually uses.
  */
-export function unitCanMeasure(unit: RegistryUnit, parameter: string): boolean {
+/**
+ * Whether a capability is a candidate for a parameter.
+ *
+ * The name alone was doing this, on a substring, and it both missed and over-reached
+ * against the lab's own registry: "Vacuum" never appeared for a Pressure parameter
+ * because the word is absent from its name, while "Sound Pressure Level", recorded in
+ * dB, appeared for every one because the word is present.
+ *
+ * The unit decides where both units are recognised, since it says what is being
+ * measured rather than what somebody called it. Where either is missing or unrecognised
+ * the name decides, as before - a registry that records no unit should not lose its
+ * instruments.
+ */
+export function matchesParameter(
+  profile: { parameter: string; unit?: string | null },
+  parameterName: string,
+  parameterUnit?: string | null,
+): boolean {
+  const wanted = parameterName.trim().toLowerCase()
+  const byName = wanted ? profile.parameter.toLowerCase().includes(wanted) : true
+
+  if (sameQuantity(profile.unit, parameterUnit)) return true
+  // Two units we recognise, measuring different things: the name is not enough.
+  if (knownToDiffer(profile.unit, parameterUnit)) return false
+  return byName
+}
+
+export function unitCanMeasure(
+  unit: RegistryUnit,
+  parameter: string,
+  parameterUnit?: string | null,
+): boolean {
   if (unit.capability_profiles.length === 0) return true
   if (!parameter.trim()) return true
-  return profilesFor(unit, parameter).length > 0
+  return profilesFor(unit, parameter, parameterUnit).length > 0
 }
 
 /**
@@ -397,8 +432,9 @@ export function unitCoversRange(
   parameter: string,
   requiredMin: number,
   requiredMax: number,
+  parameterUnit?: string | null,
 ): boolean {
-  const profiles = profilesFor(unit, parameter)
+  const profiles = profilesFor(unit, parameter, parameterUnit)
   if (profiles.length === 0) return true
 
   for (const profile of profiles) {
@@ -655,14 +691,14 @@ export function chooseCapability(
   unit: RegistryUnit,
   parameter: string,
   required: RequiredRange[],
-  options: { threshold?: number } = {},
+  options: { threshold?: number; parameterUnit?: string | null } = {},
 ): ChosenCapability | null {
   const wanted = parameter.trim().toLowerCase()
   if (!wanted || required.length === 0) return null
 
   const candidates: ChosenCapability[] = []
   for (const profile of unit.capability_profiles) {
-    if (!profile.parameter.toLowerCase().includes(wanted)) continue
+    if (!matchesParameter(profile, parameter, options.parameterUnit)) continue
     const curves = (profile.subtypes ?? []).map((s) => s.id)
     const ids: (string | null)[] = curves.length ? curves : [null]
     for (const subtypeId of ids) {

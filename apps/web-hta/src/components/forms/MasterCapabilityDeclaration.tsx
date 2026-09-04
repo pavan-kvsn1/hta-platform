@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Info } from 'lucide-react'
 import {
   declaredCapability,
+  matchesParameter,
   type RequiredRange,
 } from '@/lib/master-instrument-capability'
 import type { CapabilityProfile, RegistryUnit } from '@/lib/master-instrument-registry'
@@ -28,6 +29,8 @@ interface MasterCapabilityDeclarationProps {
   /** Absent when the certificate names a master the registry no longer holds. */
   unit?: RegistryUnit
   parameterName: string
+  /** The parameter's unit, which decides which capabilities are candidates at all. */
+  parameterUnit?: string | null
   /** What the calibration needs, so options that cannot reach it can be set aside. */
   required: RequiredRange[]
   profileId?: string
@@ -124,6 +127,7 @@ function Panel({
 export function MasterCapabilityDeclaration({
   unit,
   parameterName,
+  parameterUnit,
   required,
   profileId,
   subtype,
@@ -138,9 +142,8 @@ export function MasterCapabilityDeclaration({
    */
   const [pendingCap, setPendingCap] = useState<string | null>(null)
 
-  const wanted = parameterName.trim().toLowerCase()
   const profiles = (unit?.capability_profiles ?? []).filter((p) =>
-    p.parameter.toLowerCase().includes(wanted),
+    matchesParameter(p, parameterName, parameterUnit),
   )
 
   const fits = (p: CapabilityProfile) => {
