@@ -38,6 +38,8 @@ interface MasterInstrumentCardProps {
   onRemove: () => void
   canRemove: boolean
   parameters: Parameter[]
+  /** Master ids on this certificate, to tell a real assignment from a dangling one. */
+  mastersOnCertificate: Set<number>
   onParameterUpdate: (paramIndex: number, parameter: Parameter) => void
   // Image-related props
   certificateId: string | null
@@ -87,6 +89,7 @@ function MasterInstrumentCard({
   onRemove,
   canRemove,
   parameters,
+  mastersOnCertificate,
   onParameterUpdate,
   certificateId,
   images,
@@ -290,14 +293,14 @@ function MasterInstrumentCard({
         usable: false,
         tone: 'bg-slate-200 text-slate-600',
         label: 'No match',
-        detail: `records none of ${named.map((p) => p.parameterName).join(', ')}`,
+        detail: `records none of ${[...new Set(named.map((p) => p.parameterName))].join(', ')}`,
       }
     }
     return {
       usable: true,
       tone: can.length === named.length ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700',
       label: `${can.length} of ${named.length}`,
-      detail: `records ${can.map((p) => p.parameterName).join(', ')}`,
+      detail: `records ${[...new Set(can.map((p) => p.parameterName))].join(', ')}`,
     }
   }
 
@@ -555,7 +558,16 @@ function MasterInstrumentCard({
           <div className="divide-y divide-slate-100">
             {parameters.map((param, paramIdx) => {
               const isAssigned = param.masterInstrumentId === instrument.masterInstrumentId
-              const isAssignedToOther = param.masterInstrumentId !== null && param.masterInstrumentId !== instrument.masterInstrumentId
+              // "Assigned to another instrument" only holds when that other instrument
+              // is actually on this certificate. A reference to a master that has since
+              // been removed is a dangling one: it blocked the row from ever being
+              // ticked, which left the section with no way to finish.
+              const claimedByOther =
+                param.masterInstrumentId !== null
+                && param.masterInstrumentId !== instrument.masterInstrumentId
+              const isAssignedToOther =
+                claimedByOther && mastersOnCertificate.has(param.masterInstrumentId!)
+              const isDangling = claimedByOther && !isAssignedToOther
 
               // Capability comes from the registry's profiles, which record what each
               // instrument does per parameter with its own span. An instrument the
@@ -582,6 +594,8 @@ function MasterInstrumentCard({
               let statusMessage = ''
               if (isAssignedToOther) {
                 statusMessage = 'Assigned to another instrument'
+              } else if (isDangling) {
+                statusMessage = 'Was assigned to a master no longer on this certificate'
               } else if (!isCompatible) {
                 statusMessage = 'Not supported by this instrument'
               }
@@ -924,6 +938,13 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
                 onRemove={() => removeMasterInstrument(index)}
                 canRemove={formData.masterInstruments.length > 1}
                 parameters={formData.parameters}
+                mastersOnCertificate={
+                  new Set(
+                    formData.masterInstruments
+                      .map((m) => m.masterInstrumentId)
+                      .filter((id): id is number => typeof id === 'number' && id > 0),
+                  )
+                }
                 onParameterUpdate={setParameter}
                 certificateId={certificateId}
                 images={masterImages}

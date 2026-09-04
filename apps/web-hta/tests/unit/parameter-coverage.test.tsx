@@ -104,6 +104,23 @@ describe('ParameterCoverage', () => {
     expect(screen.getByText(/All 2 parameters have a master/i)).toBeInTheDocument()
   })
 
+  it('tells two parameters of the same name apart by their range', () => {
+    // Certificate 5eed80c6 calibrates Temperature twice. "Temperature, Pressure and
+    // Temperature" names neither of them.
+    render(
+      <ParameterCoverage
+        parameters={[
+          param({ id: 'a', rangeMin: '-20', rangeMax: '60' }),
+          param({ id: 'b', parameterName: 'Pressure', parameterUnit: 'Pa', rangeMin: '0', rangeMax: '3000' }),
+          param({ id: 'c', rangeMin: '10', rangeMax: '100' }),
+        ]}
+      />,
+    )
+    expect(
+      screen.getByText('Temperature (-20 to 60 °C), Pressure and Temperature (10 to 100 °C)'),
+    ).toBeInTheDocument()
+  })
+
   it('does not count a master that is no longer on the certificate', () => {
     // Certificate 5eed80c6 is in this state: its parameters name master 5 while the
     // only master saved on it is 68. Counting that as covered says the section is

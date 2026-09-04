@@ -38,6 +38,21 @@ export function listOf(items: string[]): string {
 export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() }: ParameterCoverageProps) {
   if (parameters.length === 0) return null
 
+  /**
+   * A certificate can calibrate the same parameter twice over different ranges, so a
+   * bare name would list "Temperature, Pressure and Temperature" and name neither.
+   * The range only appears where it is needed to tell two apart.
+   */
+  const counts = new Map<string, number>()
+  parameters.forEach((p) => counts.set(p.parameterName, (counts.get(p.parameterName) ?? 0) + 1))
+  const nameOf = (p: CoverageParameter, i: number) => {
+    const name = p.parameterName || `Parameter ${i + 1}`
+    if (!p.parameterName || (counts.get(p.parameterName) ?? 0) < 2) return name
+    return p.rangeMin && p.rangeMax
+      ? `${name} (${p.rangeMin} to ${p.rangeMax} ${p.parameterUnit})`
+      : name
+  }
+
   // A parameter can name a master that is no longer on the certificate - the master
   // was removed and the reference left behind. Counting that as covered says the
   // section is finished when nothing on screen can be ticked.
@@ -124,7 +139,7 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
             </>
           ) : (
             <>
-              <b>{listOf(missing.map((p, i) => p.parameterName || `Parameter ${i + 1}`))}</b>{' '}
+              <b>{listOf(missing.map(nameOf))}</b>{' '}
               {missing.length === 1 ? 'has' : 'have'} no master instrument assigned. Every
               parameter needs one before this certificate can be submitted.
             </>
