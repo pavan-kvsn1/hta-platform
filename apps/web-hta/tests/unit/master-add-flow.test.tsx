@@ -711,6 +711,60 @@ describe('the SOP reference', () => {
   })
 })
 
+describe('reopening a master that is already chosen', () => {
+  // Editing means going back to the whole selection: the instrument itself is as much
+  // a part of the answer as the capability declared on it.
+  const seeded = () => {
+    const onAdd = vi.fn()
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1' })]}
+        coveredBy={new Map()}
+        instruments={[GOOD, SHORT]}
+        resolveUnit={(inst) => units.get(inst.id)}
+        seed={{
+          parameterIds: ['p1'],
+          assetNo: '600 HTAIPL/L',
+          declarations: {
+            p1: { profileId: 'P1', subtype: undefined, sop: 'NLAB/CAL/T09/R02', reason: '' },
+          },
+        }}
+        onCancel={vi.fn()}
+        onAdd={onAdd}
+      />,
+    )
+    return onAdd
+  }
+
+  it('opens on the answers already given, not on a blank flow', () => {
+    seeded()
+    expect(screen.getByText(/editing/i)).toBeInTheDocument()
+    // The parameter is ticked and the instrument chosen, so the declaration is in view.
+    expect(screen.getByText('Instrument Selected')).toBeInTheDocument()
+    expect(screen.getByLabelText(/SOP Ref/i)).toHaveValue('NLAB/CAL/T09/R02')
+  })
+
+  it('lets the instrument itself be changed, which is the point', () => {
+    seeded()
+    // The whole list is there to choose from again.
+    expect(screen.getByLabelText('Search instruments')).toBeInTheDocument()
+    expect(
+      screen.getAllByRole('button').some((b) => b.textContent?.includes('742 HTAIPL/L')),
+    ).toBe(true)
+  })
+
+  it('saves rather than adds', () => {
+    const onAdd = seeded()
+    fireEvent.click(screen.getByRole('button', { name: 'Save this master' }))
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignments: [expect.objectContaining({ parameterIndex: 0, profileId: 'P1' })],
+      }),
+    )
+  })
+})
+
 describe('the instrument list', () => {
   it('puts the best answer first', () => {
     renderFlow()

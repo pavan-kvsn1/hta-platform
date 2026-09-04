@@ -117,6 +117,13 @@ interface Declaration {
 
 const EMPTY_DECLARATION: Declaration = { sop: '', reason: '' }
 
+/** An existing master, reopened: the flow starts filled in and commits back to it. */
+export interface FlowSeed {
+  parameterIds: string[]
+  assetNo: string
+  declarations: Record<string, { profileId?: string; subtype?: string; sop: string; reason: string }>
+}
+
 interface MasterAddFlowProps {
   index: number
   parameters: Parameter[]
@@ -127,6 +134,12 @@ interface MasterAddFlowProps {
   resolveUnit: (instrument: MasterInstrument) => RegistryUnit | undefined
   threshold?: number
   disabled?: boolean
+  /**
+   * Present when an already-chosen master is being edited. Editing means going back to
+   * the whole selection - the instrument itself is as much a part of the answer as the
+   * capability declared on it - so the same flow reopens on the answers already given.
+   */
+  seed?: FlowSeed
   onCancel: () => void
   onAdd: (result: FlowResult) => void
 }
@@ -217,17 +230,20 @@ export function MasterAddFlow({
   resolveUnit,
   threshold = DEFAULT_ACCURACY_RATIO,
   disabled,
+  seed,
   onCancel,
   onAdd,
 }: MasterAddFlowProps) {
-  const [paramIds, setParamIds] = useState<string[]>([])
+  const [paramIds, setParamIds] = useState<string[]>(seed?.parameterIds ?? [])
   const [category, setCategory] = useState(ANY)
   const [make, setMake] = useState(ANY)
   const [description, setDescription] = useState(ANY)
   const [instrumentQuery, setInstrumentQuery] = useState('')
-  const [assetNo, setAssetNo] = useState<string | null>(null)
+  const [assetNo, setAssetNo] = useState<string | null>(seed?.assetNo ?? null)
   const [showUnrecorded, setShowUnrecorded] = useState(false)
-  const [declarations, setDeclarations] = useState<Record<string, Declaration>>({})
+  const [declarations, setDeclarations] = useState<Record<string, Declaration>>(
+    seed?.declarations ?? {},
+  )
 
   const chosenParameters = useMemo(
     () =>
@@ -466,11 +482,12 @@ export function MasterAddFlow({
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
           Master Instrument {index}
+          {seed && <span className="ml-2 text-slate-500 normal-case">&mdash; editing</span>}
         </span>
         <button
           type="button"
           onClick={onCancel}
-          title="Discard"
+          title={seed ? 'Cancel' : 'Discard'}
           className="text-red-500 hover:text-red-700 transition-colors"
         >
           <Trash2 className="size-5" />
@@ -823,7 +840,7 @@ export function MasterAddFlow({
               }
               className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
             >
-              Add this master
+              {seed ? 'Save this master' : 'Add this master'}
             </button>
           </div>
         )}
@@ -885,6 +902,11 @@ function ParameterDeclaration({
   )
 
   const sopId = `flow-sop-${parameter.id}`
+
+  // A procedure recorded on the certificate that the instrument no longer lists still
+  // has to be offered: a <select> whose value is not among its options silently shows
+  // the first one instead, which would rewrite what was signed off.
+  const sopOptions = [...new Set([...sops, declaration.sop].filter(Boolean))]
 
   // The panel header names the parameter itself, so no heading is needed above it.
   return (
@@ -976,7 +998,7 @@ function ParameterDeclaration({
           <label className={LABEL} htmlFor={sopId}>
             SOP Ref <span className="text-red-500">*</span>
           </label>
-          {sops.length > 0 ? (
+          {sopOptions.length > 0 ? (
             <select
               id={sopId}
               value={declaration.sop}
@@ -984,7 +1006,7 @@ function ParameterDeclaration({
               onChange={(e) => onChange({ sop: e.target.value })}
               className="w-64 h-9 text-xs rounded-lg border border-slate-300 bg-white px-2"
             >
-              {sops.map((s) => (
+              {sopOptions.map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -1001,7 +1023,7 @@ function ParameterDeclaration({
               className="w-64 h-9 text-xs rounded-lg border border-slate-300 bg-white px-2"
             />
           )}
-          {sops.length === 0 && (
+          {sopOptions.length === 0 && (
             <p className="text-[11px] text-slate-500 mt-1">
               No procedure is recorded against {instrument.asset_no}, so type the reference
               in.

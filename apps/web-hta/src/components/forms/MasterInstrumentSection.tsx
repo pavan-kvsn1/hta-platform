@@ -36,7 +36,12 @@ import {
 import { requiredRanges, unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
 import { MasterCapabilityComparison } from '@/components/forms/MasterCapabilityComparison'
 import { MasterCapabilityDeclaration } from '@/components/forms/MasterCapabilityDeclaration'
-import { MasterAddFlow, sopReferencesFor, type FlowResult } from '@/components/forms/MasterAddFlow'
+import {
+  MasterAddFlow,
+  sopReferencesFor,
+  type FlowResult,
+  type FlowSeed,
+} from '@/components/forms/MasterAddFlow'
 import { ParameterCoverage } from '@/components/forms/ParameterCoverage'
 import { cn } from '@/lib/utils'
 
@@ -44,6 +49,9 @@ interface MasterInstrumentCardProps {
   instrument: SelectedMasterInstrument
   index: number
   onRemove: () => void
+  /** Reopen the whole selection for this master - the instrument as well as how it
+   *  was used, since the instrument is as much a part of the answer. */
+  onEdit: () => void
   parameters: Parameter[]
   /** Master ids on this certificate, to tell a real assignment from a dangling one. */
   mastersOnCertificate: Set<number>
@@ -102,6 +110,7 @@ export function MasterInstrumentCard({
   instrument,
   index,
   onRemove,
+  onEdit,
   parameters,
   mastersOnCertificate,
   onParameterUpdate,
@@ -112,17 +121,6 @@ export function MasterInstrumentCard({
   disabled = false,
 }: MasterInstrumentCardProps) {
   const { instruments, getUnitForInstrument } = useMasterInstrumentStore()
-
-  /**
-   * Which parameters have their declaration open for editing.
-   *
-   * Editing cannot be expressed by clearing the declaration: an instrument recording
-   * one capability and one role - most of them - has its answer settled without being
-   * asked, and MasterCapabilityDeclaration reports that answer back the moment it
-   * mounts. Clearing it therefore set it again immediately and the panel shut, which
-   * is why the pencil appeared to do nothing.
-   */
-  const [editing, setEditing] = useState<string[]>([])
 
   const listed = useMemo(
     () => instruments.find((inst) => inst.id === instrument.masterInstrumentId) ?? null,
@@ -376,57 +374,30 @@ export function MasterInstrumentCard({
                         missing - a master added through the flow arrives declared. */}
                     {isAssigned && registryUnit && (
                       <div className="ml-8">
-                        {(editing.includes(param.id) || !param.masterProfileId) && (
+                        {/* A master saved before the declaration existed has none;
+                            it can be given one here without reopening the flow. */}
+                        {!param.masterProfileId && (
                           <MasterCapabilityDeclaration
                             unit={registryUnit}
                             parameterName={param.parameterName}
                             required={requiredRanges(param)}
-                            // Editing starts the declaration over rather than showing
-                            // the settled answer with its questions pre-filled: the
-                            // point of editing is to be asked again. The stored answer
-                            // is untouched until a new one is given, and where there is
-                            // only one possible answer it settles itself straight back.
-                            profileId={editing.includes(param.id) ? undefined : param.masterProfileId}
-                            subtype={editing.includes(param.id) ? undefined : param.masterSubtype}
+                            profileId={param.masterProfileId}
+                            subtype={param.masterSubtype}
                             disabled={disabled}
-                            onChange={({ profileId, subtype }) => {
-                              // An instrument with one capability and one role reports
-                              // its own answer on mount. Writing it back unchanged
-                              // would mark the certificate dirty for nothing.
-                              if (
-                                profileId === param.masterProfileId &&
-                                subtype === param.masterSubtype
-                              ) {
-                                return
-                              }
+                            onChange={({ profileId, subtype }) =>
                               onParameterUpdate(paramIdx, {
                                 ...param,
                                 masterProfileId: profileId,
                                 masterSubtype: subtype,
                               })
-                            }}
+                            }
                           />
                         )}
                         <MasterCapabilityComparison
                           unit={registryUnit}
                           parameter={param}
-                          onEdit={
-                            param.masterProfileId && !disabled && !editing.includes(param.id)
-                              ? () => setEditing((open) => [...open, param.id])
-                              : undefined
-                          }
+                          onEdit={!disabled ? onEdit : undefined}
                         />
-                        {editing.includes(param.id) && !disabled && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setEditing((open) => open.filter((id) => id !== param.id))
-                            }
-                            className="mt-1.5 text-[11px] font-semibold text-primary"
-                          >
-                            Done
-                          </button>
-                        )}
                       </div>
                     )}
                   </div>
@@ -481,6 +452,8 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     useMasterInstrumentStore()
 
   const [flowOpen, setFlowOpen] = useState(false)
+  /** The master being reopened, by its index in the certificate. */
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
 
   const { uploadImageWithId, deleteImage, getMasterImages, refreshWithId } = useCertificateImages({
     certificateId,
@@ -546,6 +519,47 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     }
   })
 
+  /**
+   * Coverage as seen from inside the flow. The master being edited is left out, so its
+   * own parameters are still on offer - otherwise reopening one would show every
+   * parameter it serves as already taken, by itself.
+   */
+  const coveredByOther = (exceptIndex: number) => {
+    const map = new Map<string, string>()
+    const others = committed.filter(({ index }) => index !== exceptIndex)
+    const assets = new Map(others.map(({ m }) => [m.masterInstrumentId, m.assetNo || String(m.masterInstrumentId)]))
+    formData.parameters.forEach((p) => {
+      if (p.masterInstrumentId !== null && assets.has(p.masterInstrumentId)) {
+        map.set(p.id, assets.get(p.masterInstrumentId)!)
+      }
+    })
+    return map
+  }
+
+  /** The answers already given for one master, to reopen the flow on. */
+  const seedFor = (index: number): FlowSeed | undefined => {
+    const master = formData.masterInstruments[index]
+    if (!master || master.masterInstrumentId <= 0) return undefined
+    const mine = formData.parameters.filter(
+      (p) => p.masterInstrumentId === master.masterInstrumentId,
+    )
+    return {
+      parameterIds: mine.map((p) => p.id),
+      assetNo: master.assetNo,
+      declarations: Object.fromEntries(
+        mine.map((p) => [
+          p.id,
+          {
+            profileId: p.masterProfileId,
+            subtype: p.masterSubtype,
+            sop: p.sopReference || '',
+            reason: p.masterAcceptanceReason || '',
+          },
+        ]),
+      ),
+    }
+  }
+
   const commit = (result: FlowResult) => {
     const inst = result.instrument
     const selected: SelectedMasterInstrument = {
@@ -565,13 +579,37 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
       availableSopReferences: sopReferencesFor(inst, getUnitForInstrument(inst)),
     }
 
-    // Reuse the blank row the store starts with rather than leaving it behind.
-    const blank = formData.masterInstruments.findIndex((m) => m.masterInstrumentId <= 0)
-    let slot = blank
-    if (slot < 0) {
-      addMasterInstrument()
-      slot = useCertificateStore.getState().formData.masterInstruments.length - 1
+    // Editing writes back to the same master. Otherwise reuse the blank row the store
+    // starts with rather than leaving it behind.
+    let slot = editingIndex
+    if (slot === null) {
+      const blank = formData.masterInstruments.findIndex((m) => m.masterInstrumentId <= 0)
+      slot = blank
+      if (slot < 0) {
+        addMasterInstrument()
+        slot = useCertificateStore.getState().formData.masterInstruments.length - 1
+      }
     }
+
+    // A parameter this master used to serve and no longer does keeps a pointer to it
+    // otherwise, which is how a certificate ends up naming a master that does not
+    // claim it.
+    const previous = formData.masterInstruments[slot]
+    const keeping = new Set(result.assignments.map((a) => a.parameterIndex))
+    if (previous && previous.masterInstrumentId > 0) {
+      formData.parameters.forEach((p, i) => {
+        if (p.masterInstrumentId !== previous.masterInstrumentId || keeping.has(i)) return
+        setParameter(i, {
+          ...p,
+          masterInstrumentId: null,
+          masterProfileId: undefined,
+          masterSubtype: undefined,
+          masterAcceptanceReason: undefined,
+          sopReference: '',
+        })
+      })
+    }
+
     setMasterInstrument(slot, { ...selected, id: formData.masterInstruments[slot]?.id ?? selected.id })
 
     // One master can serve several parameters, each declared separately.
@@ -590,6 +628,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     })
 
     setFlowOpen(false)
+    setEditingIndex(null)
   }
 
   return (
@@ -628,12 +667,30 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
         />
 
         <div className="space-y-5">
-          {committed.map(({ m, index }) => (
+          {committed.map(({ m, index }) =>
+            editingIndex === index ? (
+              <MasterAddFlow
+                key={m.id}
+                index={index + 1}
+                parameters={formData.parameters}
+                coveredBy={coveredByOther(index)}
+                instruments={instruments}
+                resolveUnit={getUnitForInstrument}
+                disabled={disabled}
+                seed={seedFor(index)}
+                onCancel={() => setEditingIndex(null)}
+                onAdd={commit}
+              />
+            ) : (
             <MasterInstrumentCard
               key={m.id}
               instrument={m}
               index={index}
               onRemove={() => removeMasterInstrument(index)}
+              onEdit={() => {
+                setFlowOpen(false)
+                setEditingIndex(index)
+              }}
               parameters={formData.parameters}
               mastersOnCertificate={mastersOnCertificate}
               onParameterUpdate={setParameter}
@@ -651,10 +708,11 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
               onImageDelete={handleImageDelete}
               disabled={disabled}
             />
-          ))}
+            ),
+          )}
         </div>
 
-        {flowOpen ? (
+        {editingIndex !== null ? null : flowOpen ? (
           <MasterAddFlow
             index={committed.length + 1}
             parameters={formData.parameters}
