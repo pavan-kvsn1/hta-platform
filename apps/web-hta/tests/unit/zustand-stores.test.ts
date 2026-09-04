@@ -370,6 +370,52 @@ describe('useCertificateStore — addMasterInstrument / removeMasterInstrument',
     useCertificateStore.getState().removeMasterInstrument(0)
     expect(useCertificateStore.getState().formData.masterInstruments.length).toBe(countBefore - 1)
   })
+
+  it('removes the last one too', () => {
+    // It used to refuse, which left no way to delete a master picked by mistake.
+    const store = useCertificateStore.getState()
+    while (store.formData.masterInstruments.length > 1) store.removeMasterInstrument(0)
+    useCertificateStore.getState().removeMasterInstrument(0)
+    expect(useCertificateStore.getState().formData.masterInstruments).toHaveLength(0)
+  })
+
+  it('clears the parameters that pointed at the master it removed', () => {
+    // Leaving the pointer behind is how a certificate ends up naming a master it no
+    // longer carries, with no assignment row that can be ticked.
+    const store = useCertificateStore.getState()
+    store.setMasterInstrument(0, { ...store.formData.masterInstruments[0], masterInstrumentId: 5 })
+    store.setParameter(0, {
+      ...useCertificateStore.getState().formData.parameters[0],
+      masterInstrumentId: 5,
+      masterProfileId: 'P1',
+      masterSubtype: 'Pt-100',
+      sopReference: 'SOP-01',
+    })
+
+    useCertificateStore.getState().removeMasterInstrument(0)
+
+    const param = useCertificateStore.getState().formData.parameters[0]
+    expect(param.masterInstrumentId).toBeNull()
+    expect(param.masterProfileId).toBeUndefined()
+    expect(param.masterSubtype).toBeUndefined()
+    expect(param.sopReference).toBe('')
+  })
+
+  it('keeps the pointer when another master carries the same id', () => {
+    const store = useCertificateStore.getState()
+    store.setMasterInstrument(0, { ...store.formData.masterInstruments[0], masterInstrumentId: 5 })
+    store.addMasterInstrument()
+    const after = useCertificateStore.getState()
+    after.setMasterInstrument(1, { ...after.formData.masterInstruments[1], masterInstrumentId: 5 })
+    after.setParameter(0, {
+      ...useCertificateStore.getState().formData.parameters[0],
+      masterInstrumentId: 5,
+    })
+
+    useCertificateStore.getState().removeMasterInstrument(0)
+
+    expect(useCertificateStore.getState().formData.parameters[0].masterInstrumentId).toBe(5)
+  })
 })
 
 describe('useCertificateStore — hydrate', () => {

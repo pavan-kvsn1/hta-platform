@@ -429,14 +429,16 @@ describe('certificate-store', () => {
       expect(result.current.formData.masterInstruments.length).toBe(countAfterAdd - 1)
     })
 
-    it('does not remove the last master instrument', () => {
+    it('removes the last master instrument as well', () => {
+      // It used to refuse, which left no way to delete one picked by mistake. An
+      // empty section is a real state; Parameter Coverage is what says it is unfinished.
       const { result } = renderHook(() => useCertificateStore())
 
       act(() => {
         result.current.removeMasterInstrument(0)
       })
 
-      expect(result.current.formData.masterInstruments.length).toBe(1)
+      expect(result.current.formData.masterInstruments.length).toBe(0)
     })
   })
 

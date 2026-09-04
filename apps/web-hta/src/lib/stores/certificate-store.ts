@@ -761,10 +761,39 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
   // Remove master instrument - removes master instrument at index and marks as dirty
   removeMasterInstrument: (index) => {
     set((state) => {
-      if (state.formData.masterInstruments.length <= 1) return state
-      const newInstruments = state.formData.masterInstruments.filter((_, i) => i !== index)
+      const removed = state.formData.masterInstruments[index]
+      if (!removed) return state
+
+      // The last one is removable too. Keeping an empty card on the certificate to
+      // stand in for "none" only made the section look finished when it was not;
+      // Parameter Coverage is what says whether the section is done.
+      const masterInstruments = state.formData.masterInstruments.filter((_, i) => i !== index)
+
+      // A parameter can point at the master being removed. Leaving that pointer behind
+      // is how a certificate ends up naming a master it no longer carries - the
+      // assignment row can never be ticked and nothing on screen says why. Only clear
+      // it when no remaining master carries the same id.
+      const orphaned =
+        removed.masterInstrumentId > 0 &&
+        !masterInstruments.some((m) => m.masterInstrumentId === removed.masterInstrumentId)
+      const parameters = orphaned
+        ? state.formData.parameters.map((p) =>
+            p.masterInstrumentId === removed.masterInstrumentId
+              ? {
+                  ...p,
+                  masterInstrumentId: null,
+                  // The declaration and the SOP reference were both read off that
+                  // master, so neither means anything without it.
+                  masterProfileId: undefined,
+                  masterSubtype: undefined,
+                  sopReference: '',
+                }
+              : p,
+          )
+        : state.formData.parameters
+
       return {
-        formData: { ...state.formData, masterInstruments: newInstruments },
+        formData: { ...state.formData, masterInstruments, parameters },
         isDirty: true,
       }
     })

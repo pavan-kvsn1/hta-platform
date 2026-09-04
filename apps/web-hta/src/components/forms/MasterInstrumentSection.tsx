@@ -232,9 +232,51 @@ function MasterInstrumentCard({
   }
 
   // Handle final instrument selection
+  /**
+   * Put the row back to "no instrument chosen", keeping the category and description
+   * so the list stays on screen. Anything read off that master - the identity fields,
+   * the SOP references, and any parameter that pointed at it - goes with it.
+   */
+  const clearInstrument = () => {
+    const cleared = instrument.masterInstrumentId
+    onUpdate({
+      ...instrument,
+      masterInstrumentId: 0,
+      make: '',
+      model: '',
+      assetNo: '',
+      serialNumber: '',
+      calibratedAt: '',
+      reportNo: '',
+      calibrationDueDate: '',
+      isExpired: false,
+      isExpiringSoon: false,
+      availableSopReferences: [],
+    })
+    if (cleared > 0) {
+      parameters.forEach((param, i) => {
+        if (param.masterInstrumentId !== cleared) return
+        onParameterUpdate(i, {
+          ...param,
+          masterInstrumentId: null,
+          masterProfileId: undefined,
+          masterSubtype: undefined,
+          sopReference: '',
+        })
+      })
+    }
+  }
+
   const handleInstrumentSelect = (assetNo: string) => {
     const selected = instruments.find(inst => inst.asset_no === assetNo)
     if (!selected) return
+
+    // Clicking the chosen instrument again un-picks it. A radio list can otherwise
+    // only ever be changed, never cleared, so a row picked by mistake was stuck.
+    if (instrument.masterInstrumentId === selected.id) {
+      clearInstrument()
+      return
+    }
 
     // Check if expired - block selection
     if (selected.status === 'EXPIRED') {
@@ -421,7 +463,8 @@ function MasterInstrumentCard({
             <>
               <p className="text-[11px] text-slate-500 mb-1.5">
                 Each row: model &middot; where that master was last calibrated &middot; what it
-                records for this certificate&rsquo;s parameters.
+                records for this certificate&rsquo;s parameters. Click the chosen row again
+                to clear it.
               </p>
               <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden max-h-72 overflow-y-auto">
                 {availableInstruments.map((inst) => {
@@ -934,6 +977,28 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
           }
         />
 
+        {/* Removing the last master is allowed, so the section can legitimately be
+            empty. Say so, rather than leave a blank gap. */}
+        {formData.masterInstruments.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center">
+            <p className="text-sm font-semibold text-slate-700">
+              No master instruments on this certificate
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Every parameter needs one before this certificate can be submitted.
+            </p>
+            <button
+              type="button"
+              onClick={addMasterInstrument}
+              disabled={disabled}
+              className="mt-4 bg-white border border-primary text-primary text-xs font-bold px-4 py-2 rounded-lg inline-flex items-center gap-1.5 hover:bg-primary/5 transition-all disabled:opacity-50"
+            >
+              <Plus className="size-4" />
+              Add Master Instrument
+            </button>
+          </div>
+        )}
+
         <div className="space-y-6">
           {formData.masterInstruments.map((instrument, index) => {
             // Convert CertificateImage to GalleryImage format
@@ -954,7 +1019,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
                 index={index}
                 onUpdate={(inst) => setMasterInstrument(index, inst)}
                 onRemove={() => removeMasterInstrument(index)}
-                canRemove={formData.masterInstruments.length > 1}
+                canRemove={!disabled}
                 parameters={formData.parameters}
                 mastersOnCertificate={
                   new Set(
