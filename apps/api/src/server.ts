@@ -17,6 +17,7 @@ import notificationRoutes from './routes/notifications/index.js'
 import internalRequestRoutes from './routes/internal-requests/index.js'
 import customersRoutes from './routes/customers/index.js'
 import chatRoutes from './routes/chat/index.js'
+import calibrationParameterRoutes from './routes/calibration-parameters/index.js'
 import securityRoutes from './routes/security/index.js'
 import deviceRoutes from './routes/devices/index.js'
 import offlineCodesRoutes from './routes/devices/codes.js'
@@ -155,6 +156,7 @@ await server.register(customersRoutes, { prefix: '/api/customers' })
 
 // Chat routes
 await server.register(chatRoutes, { prefix: '/api/chat' })
+await server.register(calibrationParameterRoutes, { prefix: '/api/calibration-parameters' })
 
 // Security routes (CSP alerts, security dashboard)
 await server.register(securityRoutes, { prefix: '/api/security' })
