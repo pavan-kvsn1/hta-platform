@@ -37,6 +37,9 @@ model Tenant {
   // Device management (Electron offline app)
   devices DeviceRegistration[]
 
+  // What this lab calls each calibration parameter
+  calibrationParameters CalibrationParameter[]
+
   @@index([slug])
   @@index([domain])
 }
@@ -1227,4 +1230,59 @@ model VpnPeer {
 
   @@index([tenantId])
   @@index([isActive])
+}
+
+// ============================================================================
+// CALIBRATION PARAMETERS
+// ============================================================================
+//
+// What a lab can calibrate, in two layers.
+//
+// The standards are one shared list, seeded from the master instrument registry and
+// never edited by a tenant: they are what the masters are recorded against, so renaming
+// one here would break the match between a certificate and the instrument that served
+// it. Each tenant gets its own row per standard, holding the name its engineers use.
+
+model CalibrationParameterStandard {
+  id           String   @id @default(uuid())
+  /// The registry's own name, which is what master capabilities are recorded against.
+  standardName String   @unique
+  category     String
+  units        String[]
+  defaultUnit  String?
+  /// Curves and types the capability distinguishes - Pt-100, Type K, and so on.
+  subtypes     String[]
+  /// Other names for the same quantity, including the ones already on certificates:
+  /// "Voltage DC" for "DC Voltage", "Humidity" for "Relative Humidity".
+  aliases      String[]
+  /// "registry" where a master records it, "certificates" where only a certificate does.
+  source       String
+  seedVersion  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  parameters   CalibrationParameter[]
+
+  @@index([category])
+}
+
+model CalibrationParameter {
+  id          String   @id @default(uuid())
+  tenantId    String
+  standardId  String
+  /// What this lab calls it. Defaults to the standard name.
+  customName  String
+  /// Set only where the lab wants something other than the standard's.
+  units       String[]
+  defaultUnit String?
+  subtypes    String[]
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  standard    CalibrationParameterStandard @relation(fields: [standardId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, standardId])
+  @@index([tenantId, active])
 }

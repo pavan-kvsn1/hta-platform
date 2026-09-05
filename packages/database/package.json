@@ -21,7 +21,8 @@
     "db:studio": "prisma studio --schema prisma/schema.prisma",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:seed:parameters": "tsx scripts/seed-calibration-parameters.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.4.0"
