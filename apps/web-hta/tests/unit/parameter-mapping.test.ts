@@ -7,10 +7,12 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
+  defaultUnitForParameter,
   findParameter,
   groupByCategory,
   toCustomName,
   toStandardName,
+  unitsForParameter,
   type CalibrationParameter,
 } from '@/lib/parameter-mapping'
 
@@ -126,5 +128,58 @@ describe('grouping for a dropdown', () => {
 
   it('copes with nothing to group', () => {
     expect(groupByCategory([])).toEqual([])
+  })
+})
+
+describe('the units on offer for a parameter', () => {
+  // What the form shipped with, before any of this was fetched.
+  const SHIPPED = {
+    Temperature: { units: ['°C', '°F', 'K'], defaultUnit: '°C' },
+    'Voltage DC': { units: ['V', 'mV'], defaultUnit: 'V' },
+  }
+
+  it('takes the lab list where it has one', () => {
+    expect(unitsForParameter('Platinum RTD', undefined, LIST, SHIPPED)).toEqual(['°C'])
+  })
+
+  it('finds them through an alias, for a certificate written the old way', () => {
+    expect(unitsForParameter('Voltage DC', undefined, LIST, SHIPPED)).toEqual(['V', 'mV'])
+  })
+
+  it('falls back to what the form shipped with, before the list arrives', () => {
+    // A slow fetch must not cost an engineer the ability to fill in a certificate.
+    expect(unitsForParameter('Temperature', undefined, [], SHIPPED)).toEqual(['°C', '°F', 'K'])
+  })
+
+  it('keeps the unit already saved for a parameter nobody recognises', () => {
+    // It is the only record of what was measured.
+    expect(unitsForParameter('Blancmange', 'blob', LIST, SHIPPED)).toEqual(['blob'])
+  })
+
+  it('offers nothing where there is nothing to offer', () => {
+    expect(unitsForParameter('Blancmange', undefined, LIST, SHIPPED)).toEqual([])
+  })
+
+  it('does not let an empty lab list hide the shipped one', () => {
+    const emptyUnits = [{ ...LIST[0], customName: 'Temperature', units: [] }]
+    expect(unitsForParameter('Temperature', undefined, emptyUnits, SHIPPED)).toEqual([
+      '°C', '°F', 'K',
+    ])
+  })
+})
+
+describe('the unit chosen with a parameter', () => {
+  const SHIPPED = { Temperature: { defaultUnit: '°C' } }
+
+  it('is the lab default where it set one', () => {
+    expect(defaultUnitForParameter('Platinum RTD', LIST, SHIPPED)).toBe('°C')
+  })
+
+  it('falls back to the shipped default', () => {
+    expect(defaultUnitForParameter('Temperature', [], SHIPPED)).toBe('°C')
+  })
+
+  it('is empty rather than a guess when nothing says', () => {
+    expect(defaultUnitForParameter('Blancmange', LIST, SHIPPED)).toBe('')
   })
 })

@@ -109,3 +109,41 @@ export function groupByCategory(
   }
   return [...groups.entries()].map(([category, list]) => ({ category, parameters: list }))
 }
+
+/**
+ * The units on offer for a parameter as it is written on a certificate.
+ *
+ * Three sources, in order, and the order is the point:
+ *
+ *   1. The lab's list, matched through its own name, the standard, or an alias - so a
+ *      certificate saved as "Voltage DC" finds the units of "DC Voltage".
+ *   2. The table the form shipped with, for when the list has not loaded. A slow fetch
+ *      must not cost an engineer the ability to fill in a certificate.
+ *   3. The unit already saved. For a parameter nobody recognises this is the only
+ *      record of what was measured; dropping it because the name is unfamiliar would
+ *      throw away the reading.
+ */
+export function unitsForParameter(
+  parameterName: string,
+  savedUnit: string | undefined,
+  parameters: CalibrationParameter[],
+  fallback: Record<string, { units: string[] }>,
+): string[] {
+  const known = findParameter(parameterName, parameters)
+  if (known && known.units.length > 0) return known.units
+
+  const shipped = fallback[parameterName]?.units
+  if (shipped && shipped.length > 0) return shipped
+
+  return savedUnit ? [savedUnit] : []
+}
+
+/** The unit to select when a parameter is chosen: the lab's default, else the old one. */
+export function defaultUnitForParameter(
+  parameterName: string,
+  parameters: CalibrationParameter[],
+  fallback: Record<string, { defaultUnit?: string }>,
+): string {
+  const known = findParameter(parameterName, parameters)
+  return known?.defaultUnit ?? fallback[parameterName]?.defaultUnit ?? ''
+}

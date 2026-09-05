@@ -1,17 +1,25 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useEffect } from 'react'
 import { Plus, Trash2, Link2, Camera } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
+  SelectGroup,
+  SelectLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { useParameterStore } from '@/lib/stores/parameter-store'
+import {
+  defaultUnitForParameter,
+  groupByCategory,
+  unitsForParameter,
+} from '@/lib/parameter-mapping'
 import { numberProblem, rangeProblem } from '@/lib/parameter-validation'
 import { FormSection } from './FormSection'
 import { useCertificateStore, Parameter, ParameterBin, SelectedMasterInstrument, AccuracyType, ACCURACY_TYPE_CONFIG } from '@/lib/stores/certificate-store'
@@ -162,19 +170,67 @@ function ParameterCard({
     onUpdate({ ...parameter, [field]: value })
   }
 
-  // Get available units based on selected parameter type
-  const availableUnits = useMemo(() => {
-    const config = PARAMETER_CONFIG[parameter.parameterName]
-    return config?.units || []
-  }, [parameter.parameterName])
+  /**
+   * What this lab calls each parameter, seeded from the master registry.
+   *
+   * PARAMETER_CONFIG stays as the fallback rather than being deleted: it is what the
+   * form runs on before the list arrives, and if the list never arrives an engineer
+   * can still fill in a certificate. Losing the dropdown is a nuisance; losing the
+   * form is not something to risk on a fetch.
+   */
+  const { parameters: labParameters } = useParameterStore()
+
+  const parameterGroups = useMemo(() => {
+    if (labParameters.length === 0) {
+      return [
+        {
+          category: '',
+          parameters: PARAMETER_TYPES.map((type) => ({
+            id: type,
+            customName: PARAMETER_CONFIG[type].label,
+            standardName: type,
+            value: type,
+          })),
+        },
+      ]
+    }
+    return groupByCategory(labParameters).map((group) => ({
+      category: group.category,
+      parameters: group.parameters.map((p) => ({
+        id: p.id,
+        customName: p.customName,
+        standardName: p.standardName,
+        value: p.customName,
+      })),
+    }))
+  }, [labParameters])
+
+  /**
+   * The units on offer for the parameter as written on this certificate.
+   *
+   * Matched through the lab's name, the standard name or an alias, so a certificate
+   * saved as "Voltage DC" still finds the units of "DC Voltage". Falls back to the old
+   * hardcoded table, and then to the unit already saved - which matters for a
+   * parameter nobody recognises: the engineer typed it once and should not have it
+   * taken away.
+   */
+  const availableUnits = useMemo(
+    () =>
+      unitsForParameter(
+        parameter.parameterName,
+        parameter.parameterUnit,
+        labParameters,
+        PARAMETER_CONFIG,
+      ),
+    [parameter.parameterName, parameter.parameterUnit, labParameters],
+  )
 
   // Handle parameter type change - also update unit to default
   const handleParameterTypeChange = (paramType: string) => {
-    const config = PARAMETER_CONFIG[paramType]
     onUpdate({
       ...parameter,
       parameterName: paramType,
-      parameterUnit: config?.defaultUnit || '',
+      parameterUnit: defaultUnitForParameter(paramType, labParameters, PARAMETER_CONFIG),
     })
   }
 
@@ -346,10 +402,25 @@ function ParameterCard({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__select__" disabled>Select parameter type...</SelectItem>
-                {PARAMETER_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {PARAMETER_CONFIG[type].label}
-                  </SelectItem>
+                {/* A parameter saved before this list existed, or since renamed, is
+                    kept at the top so the certificate still reads as it was written. */}
+                {parameter.parameterName &&
+                  !parameterGroups.some((g) =>
+                    g.parameters.some((p) => p.value === parameter.parameterName),
+                  ) && (
+                    <SelectItem value={parameter.parameterName}>
+                      {parameter.parameterName} (not in this lab&rsquo;s list)
+                    </SelectItem>
+                  )}
+                {parameterGroups.map((group) => (
+                  <SelectGroup key={group.category || 'all'}>
+                    {group.category && <SelectLabel>{group.category}</SelectLabel>}
+                    {group.parameters.map((p) => (
+                      <SelectItem key={p.id} value={p.value}>
+                        {p.customName}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
               </SelectContent>
             </Select>
@@ -707,6 +778,13 @@ interface UUCSectionProps {
 
 export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedback }: UUCSectionProps = {}) {
   const { formData, setFormField, setParameter, addParameter, removeParameter, setParameterMasterInstrument, certificateId, saveDraft } = useCertificateStore()
+
+  // The names this lab uses for what it calibrates. Asked for once; the store shares
+  // one request between everything on the page that wants it.
+  const loadParameters = useParameterStore((state) => state.load)
+  useEffect(() => {
+    void loadParameters()
+  }, [loadParameters])
 
   // Image management hook
   const {
