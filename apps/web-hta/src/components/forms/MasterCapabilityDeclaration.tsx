@@ -42,7 +42,12 @@ interface MasterCapabilityDeclarationProps {
   profileId?: string
   subtype?: string
   disabled?: boolean
-  onChange: (declaration: { profileId: string; subtype?: string }) => void
+  /**
+   * The declaration so far. profileId is undefined while a capability has been picked
+   * and the questions under it are still open - the certificate records no half answer,
+   * and neither should the panel pretend one is settled.
+   */
+  onChange: (declaration: { profileId?: string; subtype?: string }) => void
   /**
    * What the declaration produces - the requirement, the comparison, the SOP - shown
    * inside this panel rather than beneath it. They are the answer to the same question
@@ -215,9 +220,14 @@ export function MasterCapabilityDeclaration({
     profiles.some((p) => p.parameter === c && fits(p)),
   )
   const capShown = showAll ? capabilities : capsUsable.length ? capsUsable : capabilities
+  //
+  // A capability just clicked outranks one declared earlier. The other way round, a
+  // declaration made under a previous answer kept deciding this: pick Thermocouple,
+  // switch to RTD, and Thermocouple could never be got back to, because it needs a
+  // role before it names a profile and the RTD profile was still answering for it.
   const cap =
-    declared?.parameter ??
     (pendingCap && capabilities.includes(pendingCap) ? pendingCap : null) ??
+    declared?.parameter ??
     (capShown.length === 1 ? capShown[0] : null)
 
   // Used as - only once the capability is settled, since the roles belong to it.
@@ -298,7 +308,13 @@ export function MasterCapabilityDeclaration({
     const theseRoles = [
       ...new Set(profiles.filter((p) => p.parameter === c).map((p) => p.role)),
     ]
-    if (theseRoles.length !== 1) return
+    if (theseRoles.length !== 1) {
+      // More to answer before this names a profile. Whatever was declared answered a
+      // different capability, and leaving it would have the role question answered by
+      // a profile the engineer has just moved away from.
+      if (declared) onChange({ profileId: undefined, subtype: undefined })
+      return
+    }
     // One role, so the capability alone settles the profile.
     pickRole(c, theseRoles[0])
   }

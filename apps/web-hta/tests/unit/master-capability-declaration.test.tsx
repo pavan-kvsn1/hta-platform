@@ -306,3 +306,47 @@ describe('two capabilities that look identical', () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P1' }))
   })
 })
+
+describe('changing a capability after one is declared', () => {
+  // 1018 HTAIPL/L, a thermocouple and RTD calibrator. Its thermocouple capability is
+  // recorded twice, once measuring and once sourcing - a calibrator that both reads a
+  // couple and simulates one - so picking it asks a role before it names a profile.
+  // RTD is recorded once, so picking that settles immediately.
+  const calibrator = unit([
+    profile({ id: 'P1', parameter: 'RTD', role: 'measuring' }),
+    profile({ id: 'P5', parameter: 'Thermocouple', role: 'measuring' }),
+    profile({ id: 'P6', parameter: 'Thermocouple', role: 'source' }),
+  ])
+
+  it('lets a capability be returned to after another was declared', () => {
+    // The reported fault: Thermocouple, then RTD, then Thermocouple again did nothing.
+    // The RTD profile was still declared, and it - not the click - decided which
+    // capability the panel thought it was on.
+    const onChange = renderIt(calibrator, { parameterUnit: '°C' })
+    fireEvent.click(screen.getByText('Thermocouple').closest('button')!)
+    expect(screen.getByText('Used as')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('RTD').closest('button')!)
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P1' }))
+
+    fireEvent.click(screen.getByText('Thermocouple').closest('button')!)
+    expect(screen.getByText('Used as')).toBeInTheDocument()
+    expect(screen.getByText('Thermocouple').closest('button')!.className).toContain(
+      'border-primary',
+    )
+  })
+
+  it('drops the old declaration rather than letting it answer the new question', () => {
+    // RTD is measuring. Carrying that over would answer "Used as" for Thermocouple
+    // without the engineer touching it, and quietly declare the measuring profile.
+    const onChange = renderIt(calibrator, { parameterUnit: '°C', profileId: 'P1' })
+    fireEvent.click(screen.getByText('Thermocouple').closest('button')!)
+    expect(onChange).toHaveBeenCalledWith({ profileId: undefined, subtype: undefined })
+  })
+
+  it('still settles a capability that has only one role', () => {
+    const onChange = renderIt(calibrator, { parameterUnit: '°C', profileId: 'P5' })
+    fireEvent.click(screen.getByText('RTD').closest('button')!)
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P1' }))
+  })
+})
