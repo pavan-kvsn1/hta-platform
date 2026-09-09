@@ -205,6 +205,10 @@ def group_profiles(profiles):
             prof["kind"],
             prof["unit"],
             prof.get("mode"),
+            # An indicator and its probe both measure Temperature, and folding them
+            # into one profile would average away the difference between a readout
+            # good to 0.01 and a sensor good to 0.25.
+            prof.get("component"),
         )
         if key not in grouped:
             grouped[key] = []
@@ -396,10 +400,19 @@ def build(registry, mapping):
                         f" stated basis - percent_of is null and must not be assumed"
                     )
 
+            # forceRole and forceSubtype are the map's answer to source rows whose
+            # parameter name carries something that belongs elsewhere: "Type-K
+            # thermocouple simulation" is the Thermocouple capability on the Type K
+            # curve, sourced. Both were declared in the map and read by nothing, which
+            # is why 849 and 850 each showed six identical "Thermocouple / source"
+            # capabilities with no way to tell a Type K from a Type R.
+            role = (entry or {}).get("forceRole") or prof.get("role")
+            subtype = prof.get("subtype") or (entry or {}).get("forceSubtype")
+
             profile_out = {
                 "id": f"P{index}",
                 "parameter": standard,
-                "role": prof.get("role"),
+                "role": role,
                 "unit": unit,
                 "kind": "artifact" if is_artifact else "range",
                 "min": prof.get("min"),
@@ -408,10 +421,16 @@ def build(registry, mapping):
                 "max_inclusive": prof.get("max_inclusive", True),
                 "buckets": buckets_out,
             }
-            if prof.get("subtype"):
-                profile_out["subtype"] = prof["subtype"]
+            if subtype:
+                profile_out["subtype"] = subtype
                 if entry and entry.get("subtypeKind"):
                     profile_out["subtype_kind"] = entry["subtypeKind"]
+            # Which part of a two-part instrument this profile came from. The standard
+            # name is the quantity - a temperature indicator measures temperature - so
+            # the component is carried beside it rather than inside it, and only where
+            # the source drew the distinction.
+            if entry and entry.get("component"):
+                profile_out["component"] = entry["component"]
             if prof.get("operating_range"):
                 profile_out["operating_range"] = prof["operating_range"]
             if prof.get("measurement_mode"):

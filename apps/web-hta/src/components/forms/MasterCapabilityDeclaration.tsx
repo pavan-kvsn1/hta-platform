@@ -15,13 +15,14 @@
 // capability, one role and no curves - most of them - nothing is asked and the facts
 // are stated instead.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Info } from 'lucide-react'
 import {
   declaredCapability,
   matchesParameter,
   type RequiredRange,
 } from '@/lib/master-instrument-capability'
+import { isSymmetric } from '@/lib/master-instrument-registry'
 import type { CapabilityProfile, RegistryUnit } from '@/lib/master-instrument-registry'
 import { cn } from '@/lib/utils'
 
@@ -62,6 +63,54 @@ function radio(on: boolean) {
       style={on ? { boxShadow: 'inset 0 0 0 3px var(--primary)' } : undefined}
     />
   )
+}
+
+/**
+ * What tells two profiles of the same capability and role apart, in the engineer's terms.
+ *
+ * The component where the registry knows it - an indicator and its probe are two
+ * certified instruments in one case, and which one did the measuring is the whole
+ * question. Otherwise the mode the certificate stated, and failing both the accuracy,
+ * which is what differs when nothing says why.
+ */
+function distinguish(profile: CapabilityProfile): { title: string; detail: string } {
+  // Only the plain ±x figures. A formula or a class accuracy does not reduce to one
+  // number, and a made-up one beside the real ones would be read as comparable.
+  const accuracies = [
+    ...new Set(
+      (profile.subtypes ?? [])
+        .flatMap((s) => s.buckets)
+        .concat(profile.buckets)
+        .map((b) => b.accuracy)
+        .filter(isSymmetric)
+        .map((a) => a.value),
+    ),
+  ].sort((a, b) => a - b)
+  const detail = accuracies.length
+    ? `±${accuracies[0]}${accuracies.length > 1 ? ` to ±${accuracies[accuracies.length - 1]}` : ''} ${profile.unit}`
+    : 'nothing recorded'
+
+  if (profile.component) {
+    return {
+      title: profile.component === 'indicator' ? 'Indicator' : 'Sensor',
+      detail,
+    }
+  }
+  if (profile.mode) return { title: profile.mode, detail }
+  return {
+    title:
+      profile.min !== null && profile.max !== null
+        ? `${profile.min} to ${profile.max} ${profile.unit}`
+        : 'Unrecorded range',
+    detail,
+  }
+}
+
+/** The heading for that question, which depends on what the answers are. */
+function distinguishLabel(candidates: CapabilityProfile[]): string {
+  if (candidates.every((c) => c.component)) return 'Which part'
+  if (candidates.every((c) => c.mode)) return 'Measured as'
+  return 'Which record'
 }
 
 /** Whether a capability, on a given curve, spans everything the calibration needs. */
@@ -172,19 +221,42 @@ export function MasterCapabilityDeclaration({
     (capShown.length === 1 ? capShown[0] : null)
 
   // Used as - only once the capability is settled, since the roles belong to it.
-  const roles = cap ? profiles.filter((p) => p.parameter === cap).map((p) => p.role) : []
-  const rolesUsable = roles.filter((r) => {
-    const p = profiles.find((x) => x.parameter === cap && x.role === r)
-    return p ? fits(p) : false
-  })
+  //
+  // Deduplicated: two profiles can share a capability and a role and still be two
+  // different things - the indicator and the probe of one thermometer, a caliper
+  // checker's height and outside faces. Listing the role once per profile put the same
+  // radio button on screen twice with nothing to tell the copies apart. Which one is a
+  // separate question, asked below.
+  const roles = cap
+    ? [...new Set(profiles.filter((p) => p.parameter === cap).map((p) => p.role))]
+    : []
+  const rolesUsable = roles.filter((r) =>
+    profiles.some((x) => x.parameter === cap && x.role === r && fits(x)),
+  )
   const roleShown = showAll ? roles : rolesUsable.length ? rolesUsable : roles
   const role = declared?.role ?? (roleShown.length === 1 ? roleShown[0] : null)
 
+  /**
+   * The profiles still in play once the capability and the role are answered.
+   *
+   * Usually one. Where there are several they are genuinely different instruments
+   * inside one asset, so the engineer picks - except that a profile recording nothing
+   * never wins against one that records something. 682 lists Thermocouple twice, once
+   * with eight curves and once empty, and asking which of those to use is a question
+   * with one sensible answer.
+   */
+  const candidates = useMemo(() => {
+    if (!cap || !role) return []
+    const all = profiles.filter((p) => p.parameter === cap && p.role === role)
+    const recorded = all.filter((p) => (p.subtypes ?? []).length > 0 || p.buckets.length > 0)
+    return recorded.length ? recorded : all
+  }, [profiles, cap, role])
+
   // Both answers together name one capability profile, and only then is there a span,
   // a least count and an accuracy to compare against the requirement.
-  const profile = cap && role
-    ? (profiles.find((p) => p.parameter === cap && p.role === role) ?? null)
-    : null
+  const profile =
+    candidates.find((p) => p.id === profileId) ??
+    (candidates.length === 1 ? candidates[0] : null)
 
   // Sensor type - only once the role is settled, since the curves belong to the profile.
   const curves = profile ? (profile.subtypes ?? []).map((s) => s.id) : []
@@ -208,9 +280,9 @@ export function MasterCapabilityDeclaration({
   useEffect(() => {
     if (!profile || profileId === profile.id) return
     if (pendingCap) return // The engineer is mid-answer; wait for the role.
-    if (capShown.length > 1 || roleShown.length > 1) return
+    if (capShown.length > 1 || roleShown.length > 1 || candidates.length > 1) return
     report.current({ profileId: profile.id, subtype: curve ?? undefined })
-  }, [profile, profileId, curve, pendingCap, capShown.length, roleShown.length])
+  }, [profile, profileId, curve, pendingCap, capShown.length, roleShown.length, candidates.length])
 
   if (profiles.length === 0) {
     return (
@@ -223,24 +295,39 @@ export function MasterCapabilityDeclaration({
 
   const pickCap = (c: string) => {
     setPendingCap(c)
-    const theseRoles = profiles.filter((p) => p.parameter === c).map((p) => p.role)
+    const theseRoles = [
+      ...new Set(profiles.filter((p) => p.parameter === c).map((p) => p.role)),
+    ]
     if (theseRoles.length !== 1) return
     // One role, so the capability alone settles the profile.
     pickRole(c, theseRoles[0])
   }
 
   const pickRole = (c: string, r: string) => {
-    const next = profiles.find((p) => p.parameter === c && p.role === r)
-    if (!next) return
+    const same = profiles.filter((p) => p.parameter === c && p.role === r)
+    const recorded = same.filter((p) => (p.subtypes ?? []).length > 0 || p.buckets.length > 0)
+    const usable = recorded.length ? recorded : same
+    // Several left means the next question decides it; do not answer it for them.
+    const next = usable.length === 1 ? usable[0] : usable.find((p) => fits(p))
+    if (!next || usable.length > 1) {
+      setPendingCap(c)
+      return
+    }
     setPendingCap(null)
     const ids = (next.subtypes ?? []).map((s) => s.id)
     const nextCurve = ids.find((id) => reaches(next, id, required)) ?? ids[0]
     onChange({ profileId: next.id, subtype: nextCurve })
   }
 
+  // An indicator-and-probe pair, which the unit's own serial number spells out.
+  const instrumentIsTwoPart = candidates.some((c) => c.component)
+
   const settled: [string, string][] = []
   if (capabilities.length > 0 && capShown.length <= 1 && cap) settled.push(['Capability', cap])
   if (cap && roleShown.length <= 1 && role) settled.push(['Used as', role])
+  if (candidates.length === 1 && profile && (profile.component || profile.mode)) {
+    settled.push([distinguishLabel(candidates), distinguish(profile).title])
+  }
   if (role && curves.length > 0 && curveShown.length <= 1 && curve) {
     settled.push(['Sensor type', curve])
   }
@@ -318,6 +405,47 @@ export function MasterCapabilityDeclaration({
                 </span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {cap && role && candidates.length > 1 && (
+        <div>
+          <label className={LABEL}>
+            {distinguishLabel(candidates)} <span className="text-red-500">*</span>
+          </label>
+          <p className="text-[11px] text-slate-500 mb-1.5">
+            {instrumentIsTwoPart
+              ? 'This instrument is a readout and a probe, each calibrated in its own right. Say which one did the measuring.'
+              : `${cap} is recorded more than once against this instrument. They are not the same, so say which was used.`}
+          </p>
+          <div className="flex flex-wrap gap-2 items-center">
+            {candidates.map((c) => {
+              const { title, detail } = distinguish(c)
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => {
+                    setPendingCap(null)
+                    const ids = (c.subtypes ?? []).map((x) => x.id)
+                    onChange({
+                      profileId: c.id,
+                      subtype: ids.find((id) => reaches(c, id, required)) ?? ids[0],
+                    })
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-xl border bg-white',
+                    profile?.id === c.id ? 'border-primary' : 'border-slate-300',
+                  )}
+                >
+                  {radio(profile?.id === c.id)}
+                  <span className="text-xs font-semibold text-slate-800 capitalize">{title}</span>
+                  <span className="text-xs text-slate-500">{detail}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

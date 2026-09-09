@@ -110,12 +110,12 @@
       "note": "Registry category is ['Mechanical','Source','Thermal'] - 'Source' is a role value leaking into the category field. Normalized to Thermal."
     },
     "Temperature indicator": {
-      "standardName": "Temperature", "category": "Thermal", "review": true,
-      "rationale": "Describes the instrument's function (indicator), not a distinct measured quantity. Same unit and overlapping range as Temperature."
+      "standardName": "Temperature", "category": "Thermal", "component": "indicator", "review": false,
+      "rationale": "The readout half of a two-part thermometer. It measures temperature, so the standard name is Temperature - but the lab certifies the indicator and its probe separately, with their own serials and their own accuracies, so the profiles stay split and each says which part it is."
     },
     "Temperature sensor": {
-      "standardName": "Temperature", "category": "Thermal", "review": true,
-      "rationale": "As above. If the lab reports indicator and sensor separately on certificates, keep them split instead."
+      "standardName": "Temperature", "category": "Thermal", "component": "sensor", "review": false,
+      "rationale": "The probe half of the pair above. Answering the earlier note: the lab does report the two separately, so they are kept split rather than merged."
     },
     "Temperature Generation": {
       "standardName": "Temperature", "category": "Thermal", "forceRole": "source",

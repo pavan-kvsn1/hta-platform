@@ -1,13 +1,13 @@
 {
   "schema_version": "2.0",
-  "generated_on": "2026-09-03",
+  "generated_on": "2026-09-09",
   "source": {
     "registry_schema_version": "1.0",
     "normalization_map_version": "0.1-draft"
   },
   "asset_count": 202,
   "unit_count": 209,
-  "profile_count": 376,
+  "profile_count": 366,
   "assets": [
     {
       "id": "149",
@@ -23821,181 +23821,172 @@
               "unit": "°C",
               "kind": "range",
               "min": -200.0,
-              "max": 1350.0,
+              "max": 1750.0,
               "min_inclusive": true,
               "max_inclusive": true,
-              "buckets": [
+              "buckets": [],
+              "subtype_kind": "thermocouple_type",
+              "subtypes": [
                 {
-                  "id": "B1",
+                  "id": "Type K",
                   "min": -200.0,
                   "max": 1350.0,
                   "min_inclusive": true,
                   "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 2.1,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -200.0,
+                      "max": 1350.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 2.1,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "Type T",
+                  "min": -200.0,
+                  "max": 400.0,
+                  "min_inclusive": true,
+                  "max_inclusive": true,
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -200.0,
+                      "max": 400.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 1.1,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "Type J",
+                  "min": -200.0,
+                  "max": 1200.0,
+                  "min_inclusive": true,
+                  "max_inclusive": true,
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -200.0,
+                      "max": 1200.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 1.0,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "Type N",
+                  "min": -200.0,
+                  "max": 1300.0,
+                  "min_inclusive": true,
+                  "max_inclusive": true,
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -200.0,
+                      "max": 1300.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.9,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "Type R",
+                  "min": 0.0,
+                  "max": 1750.0,
+                  "min_inclusive": true,
+                  "max_inclusive": true,
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": 0.0,
+                      "max": 1750.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.9,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "Type S",
+                  "min": 0.0,
+                  "max": 1750.0,
+                  "min_inclusive": true,
+                  "max_inclusive": true,
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": 0.0,
+                      "max": 1750.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.9,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
                 }
               ]
             },
             {
               "id": "P3",
-              "parameter": "Thermocouple",
-              "role": "source",
-              "unit": "°C",
-              "kind": "range",
-              "min": -200.0,
-              "max": 400.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -200.0,
-                  "max": 400.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 1.1,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ]
-            },
-            {
-              "id": "P4",
-              "parameter": "Thermocouple",
-              "role": "source",
-              "unit": "°C",
-              "kind": "range",
-              "min": -200.0,
-              "max": 1200.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -200.0,
-                  "max": 1200.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 1.0,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ]
-            },
-            {
-              "id": "P5",
-              "parameter": "Thermocouple",
-              "role": "source",
-              "unit": "°C",
-              "kind": "range",
-              "min": -200.0,
-              "max": 1300.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -200.0,
-                  "max": 1300.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.9,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ]
-            },
-            {
-              "id": "P6",
-              "parameter": "Thermocouple",
-              "role": "source",
-              "unit": "°C",
-              "kind": "range",
-              "min": 0.0,
-              "max": 1750.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": 0.0,
-                  "max": 1750.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.9,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ]
-            },
-            {
-              "id": "P7",
-              "parameter": "Thermocouple",
-              "role": "source",
-              "unit": "°C",
-              "kind": "range",
-              "min": 0.0,
-              "max": 1750.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": 0.0,
-                  "max": 1750.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.9,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ]
-            },
-            {
-              "id": "P8",
               "parameter": "DC Voltage",
               "role": "source",
               "unit": "V",
@@ -24042,7 +24033,7 @@
               ]
             },
             {
-              "id": "P9",
+              "id": "P4",
               "parameter": "Resistance",
               "role": "source",
               "unit": "Ω",
@@ -24160,181 +24151,172 @@
               "unit": "°C",
               "kind": "range",
               "min": -200.0,
-              "max": 1350.0,
+              "max": 1750.0,
               "min_inclusive": true,
               "max_inclusive": true,
-              "buckets": [
+              "buckets": [],
+              "subtype_kind": "thermocouple_type",
+              "subtypes": [
                 {
-                  "id": "B1",
+                  "id": "Type K",
                   "min": -200.0,
                   "max": 1350.0,
                   "min_inclusive": true,
                   "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 2.1,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -200.0,
+                      "max": 1350.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 2.1,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "Type T",
+                  "min": -200.0,
+                  "max": 400.0,
+                  "min_inclusive": true,
+                  "max_inclusive": true,
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -200.0,
+                      "max": 400.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 1.1,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "Type J",
+                  "min": -200.0,
+                  "max": 1200.0,
+                  "min_inclusive": true,
+                  "max_inclusive": true,
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -200.0,
+                      "max": 1200.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 1.0,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "Type N",
+                  "min": -200.0,
+                  "max": 1300.0,
+                  "min_inclusive": true,
+                  "max_inclusive": true,
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -200.0,
+                      "max": 1300.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.9,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "Type R",
+                  "min": 0.0,
+                  "max": 1750.0,
+                  "min_inclusive": true,
+                  "max_inclusive": true,
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": 0.0,
+                      "max": 1750.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.9,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "Type S",
+                  "min": 0.0,
+                  "max": 1750.0,
+                  "min_inclusive": true,
+                  "max_inclusive": true,
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": 0.0,
+                      "max": 1750.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.9,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
                 }
               ]
             },
             {
               "id": "P3",
-              "parameter": "Thermocouple",
-              "role": "source",
-              "unit": "°C",
-              "kind": "range",
-              "min": -200.0,
-              "max": 400.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -200.0,
-                  "max": 400.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 1.1,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ]
-            },
-            {
-              "id": "P4",
-              "parameter": "Thermocouple",
-              "role": "source",
-              "unit": "°C",
-              "kind": "range",
-              "min": -200.0,
-              "max": 1200.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -200.0,
-                  "max": 1200.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 1.0,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ]
-            },
-            {
-              "id": "P5",
-              "parameter": "Thermocouple",
-              "role": "source",
-              "unit": "°C",
-              "kind": "range",
-              "min": -200.0,
-              "max": 1300.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -200.0,
-                  "max": 1300.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.9,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ]
-            },
-            {
-              "id": "P6",
-              "parameter": "Thermocouple",
-              "role": "source",
-              "unit": "°C",
-              "kind": "range",
-              "min": 0.0,
-              "max": 1750.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": 0.0,
-                  "max": 1750.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.9,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ]
-            },
-            {
-              "id": "P7",
-              "parameter": "Thermocouple",
-              "role": "source",
-              "unit": "°C",
-              "kind": "range",
-              "min": 0.0,
-              "max": 1750.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": 0.0,
-                  "max": 1750.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.9,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ]
-            },
-            {
-              "id": "P8",
               "parameter": "DC Voltage",
               "role": "source",
               "unit": "V",
@@ -24381,7 +24363,7 @@
               ]
             },
             {
-              "id": "P9",
+              "id": "P4",
               "parameter": "Resistance",
               "role": "source",
               "unit": "Ω",
@@ -27113,7 +27095,7 @@
             {
               "id": "P1",
               "parameter": "Temperature",
-              "role": "measuring",
+              "role": "source",
               "unit": "°C",
               "kind": "range",
               "min": 5.0,
@@ -27138,7 +27120,7 @@
             {
               "id": "P2",
               "parameter": "Relative Humidity",
-              "role": "measuring",
+              "role": "source",
               "unit": "%RH",
               "kind": "range",
               "min": 20.0,
@@ -27297,20 +27279,31 @@
               "max": 250.0,
               "min_inclusive": true,
               "max_inclusive": true,
-              "buckets": [
+              "buckets": [],
+              "subtype_kind": "thermocouple_type",
+              "subtypes": [
                 {
-                  "id": "B1",
+                  "id": "Type K",
                   "min": -50.0,
                   "max": 250.0,
                   "min_inclusive": true,
                   "max_inclusive": true,
-                  "least_count": null,
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.26,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -50.0,
+                      "max": 250.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.26,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
                 }
               ]
             }
@@ -28551,7 +28544,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "indicator"
             },
             {
               "id": "P2",
@@ -28598,7 +28592,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "sensor"
             }
           ],
           "legacy_id": 56
@@ -29902,7 +29897,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "indicator"
             },
             {
               "id": "P2",
@@ -29946,7 +29942,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "sensor"
             }
           ],
           "legacy_id": 72
@@ -30013,7 +30010,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "indicator"
             },
             {
               "id": "P2",
@@ -30057,7 +30055,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "sensor"
             }
           ],
           "legacy_id": 73
@@ -30228,7 +30227,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "indicator"
             },
             {
               "id": "P2",
@@ -30272,7 +30272,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "sensor"
             }
           ],
           "legacy_id": 75
@@ -30339,7 +30340,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "indicator"
             },
             {
               "id": "P2",
@@ -30383,7 +30385,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "sensor"
             }
           ],
           "legacy_id": 76
@@ -31697,7 +31700,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "indicator"
             },
             {
               "id": "P2",
@@ -31727,7 +31731,8 @@
                     "polarity": "±"
                   }
                 }
-              ]
+              ],
+              "component": "sensor"
             }
           ],
           "legacy_id": 90
@@ -31748,7 +31753,7 @@
           "report_no": "HTA/C50519/01/26",
           "next_due_on": "2026-05-17",
           "calibration_state": "EXPIRED",
-          "calibration_days": 109,
+          "calibration_days": 115,
           "sop_references": [
             "NLAB/CAL/VL2/R01"
           ],
@@ -31773,7 +31778,7 @@
           "report_no": "HTA/C50519/15/26",
           "next_due_on": "2026-05-17",
           "calibration_state": "EXPIRED",
-          "calibration_days": 109,
+          "calibration_days": 115,
           "sop_references": [
             "NLAB/CAL/VL2/R01"
           ],
@@ -34196,7 +34201,7 @@
           "report_no": "C01/251289/ 565",
           "next_due_on": "2026-10-07",
           "calibration_state": "EXPIRING_SOON",
-          "calibration_days": 34,
+          "calibration_days": 28,
           "sop_references": [
             "NLAB/CAL/ML1/R01",
             "NLAB/CAL/ML2/R01"

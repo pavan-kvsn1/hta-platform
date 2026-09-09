@@ -89,3 +89,54 @@ describe('the units the certificates use', () => {
     expect(unitFamily('Pa')).toBe(unitFamily('mbar'))
   })
 })
+
+describe('capabilities the engineer could not tell apart', () => {
+  /**
+   * Two profiles of one unit answering every question the declaration asks the same way.
+   *
+   * The panel asks for the capability, the role, and - where the registry knows it -
+   * which part or which mode. Two profiles agreeing on all of those put the same choice
+   * on screen twice, which is what 717 HTAIPL/L did: an indicator and a probe both
+   * reading "Temperature / measuring". A profile recording nothing is left out; it can
+   * share those answers with a real one without being a second choice, since the panel
+   * always prefers the one with figures.
+   */
+  const indistinguishable = shipped.assets.flatMap((asset) =>
+    asset.units.flatMap((unit) => {
+      const seen = new Map<string, number>()
+      for (const p of unit.capability_profiles ?? []) {
+        if (!(p.subtypes ?? []).length && !p.buckets.length) continue
+        const key = [p.parameter, p.role, p.component ?? '', p.mode ?? ''].join(' / ')
+        seen.set(key, (seen.get(key) ?? 0) + 1)
+      }
+      return [...seen]
+        .filter(([, n]) => n > 1)
+        .map(([key, n]) => `${asset.asset_no} unit ${unit.id}: ${key} x${n}`)
+    }),
+  )
+
+  it('are not in the shipped registry', () => {
+    expect(indistinguishable).toEqual([])
+  })
+
+  it('kept the two-part thermometers split, and said which half is which', () => {
+    // Merging them would average a ±0.01 readout with a ±0.25 probe.
+    const parts = shipped.assets
+      .flatMap((a) => a.units.flatMap((u) => u.capability_profiles ?? []))
+      .filter((p) => p.component)
+    expect(parts.length).toBeGreaterThan(0)
+    expect(new Set(parts.map((p) => p.component))).toEqual(new Set(['indicator', 'sensor']))
+  })
+
+  it('folded the thermocouple simulations onto one capability with its curves', () => {
+    // 849 and 850 each listed six identical "Thermocouple / source" capabilities,
+    // because the map's forceSubtype was written and never read.
+    const unit = shipped.assets
+      .find((a) => a.asset_no.startsWith('849'))!
+      .units[0].capability_profiles.filter((p) => p.parameter === 'Thermocouple')
+    expect(unit).toHaveLength(1)
+    expect(unit[0].subtypes?.map((s) => s.id)).toEqual(
+      expect.arrayContaining(['Type J', 'Type K', 'Type T']),
+    )
+  })
+})

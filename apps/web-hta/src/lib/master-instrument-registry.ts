@@ -165,6 +165,16 @@ export interface CapabilityProfile {
   operating_range?: { min: number; max: number; unit: string }
   /** Disambiguates profiles that share a parameter, e.g. "height" vs "outside". */
   mode?: string
+  /**
+   * Which half of a two-part instrument this capability belongs to.
+   *
+   * A digital thermometer is a readout and a probe, certified separately: the
+   * indicator good to ±0.01 °C, the probe to ±0.25. Both measure temperature, so both
+   * normalize to the same parameter name, and without this the two profiles are
+   * indistinguishable - which is what put two identical "Used as / measuring" choices
+   * on screen for 717 HTAIPL/L.
+   */
+  component?: 'indicator' | 'sensor'
   /** Present when kind === 'artifact'. */
   artifact?: ArtifactCapability
 }

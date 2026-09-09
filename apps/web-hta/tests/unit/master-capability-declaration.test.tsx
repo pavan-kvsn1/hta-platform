@@ -218,3 +218,91 @@ describe('a question with one answer', () => {
     expect(onChange).toHaveBeenCalledWith({ profileId: 'P1', subtype: undefined })
   })
 })
+
+describe('two capabilities that look identical', () => {
+  // 717 HTAIPL/L is a readout and a probe sold and certified as one instrument: both
+  // measure temperature over the same span, the indicator to ±0.01 and the sensor to
+  // ±0.25. Before the registry carried the component they were two profiles with
+  // nothing to tell them apart, and the role question rendered twice.
+  const twoPart = unit([
+    profile({
+      id: 'P1',
+      component: 'indicator',
+      buckets: [bucket(-100, 100, 0.01, 0.01)],
+    }),
+    profile({
+      id: 'P2',
+      component: 'sensor',
+      buckets: [bucket(-100, 100, 0.1, 0.25)],
+    }),
+  ])
+
+  it('asks the role once, not once per profile', () => {
+    // The role is settled - both profiles are measuring - so it is stated once in the
+    // summary and never offered as a choice. It used to be offered twice, identically.
+    renderIt(twoPart)
+    expect(screen.queryAllByText('measuring')).toHaveLength(1)
+    expect(
+      screen.queryAllByRole('button').filter((b) => b.textContent?.includes('it read the value')),
+    ).toHaveLength(0)
+  })
+
+  it('asks which part did the measuring', () => {
+    renderIt(twoPart)
+    expect(screen.getByText('Which part')).toBeInTheDocument()
+    expect(screen.getByText('Indicator')).toBeInTheDocument()
+    expect(screen.getByText('Sensor')).toBeInTheDocument()
+  })
+
+  it('tells them apart by the accuracy, which is what differs', () => {
+    renderIt(twoPart)
+    expect(screen.getByText('±0.01 °C')).toBeInTheDocument()
+    expect(screen.getByText('±0.25 °C')).toBeInTheDocument()
+  })
+
+  it('says why the question is being asked', () => {
+    renderIt(twoPart)
+    expect(screen.getByText(/readout and a probe, each calibrated in its own right/)).toBeInTheDocument()
+  })
+
+  it('declares the one that was picked', () => {
+    const onChange = renderIt(twoPart)
+    fireEvent.click(screen.getByText('Sensor').closest('button')!)
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P2' }))
+  })
+
+  it('answers nothing on the engineer’s behalf', () => {
+    // Two real capabilities and no way to rank them: picking one would put a figure on
+    // the certificate that nobody chose.
+    const onChange = renderIt(twoPart)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('names the faces of a checker by the mode the certificate stated', () => {
+    // 782 HTAIPL/L, a steel caliper checker: the same blocks read as height or as an
+    // outside measurement, certified separately.
+    renderIt(
+      unit([
+        profile({ id: 'P1', parameter: 'Length', role: 'source', unit: 'mm', mode: 'height' }),
+        profile({ id: 'P2', parameter: 'Length', role: 'source', unit: 'mm', mode: 'outside' }),
+      ]),
+      { parameterName: 'Length', parameterUnit: 'mm' },
+    )
+    expect(screen.getByText('Measured as')).toBeInTheDocument()
+    expect(screen.getByText('height')).toBeInTheDocument()
+    expect(screen.getByText('outside')).toBeInTheDocument()
+  })
+
+  it('does not ask about a record that holds nothing', () => {
+    // 682 lists Thermocouple twice, once with its curves and once empty. There is one
+    // sensible answer, so it is not a question.
+    const onChange = renderIt(
+      unit([
+        profile({ id: 'P1' }),
+        profile({ id: 'P2', buckets: [], subtypes: [], min: null, max: null }),
+      ]),
+    )
+    expect(screen.queryByText('Which record')).not.toBeInTheDocument()
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P1' }))
+  })
+})
