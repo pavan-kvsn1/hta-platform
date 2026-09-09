@@ -159,7 +159,6 @@ interface ParameterCardProps {
   onRemove: () => void
   canRemove: boolean
   selectedMasterInstruments: SelectedMasterInstrument[]
-  onMasterInstrumentChange: (masterInstrumentId: number | null) => void
 }
 
 function ParameterCard({
@@ -169,7 +168,6 @@ function ParameterCard({
   onRemove,
   canRemove,
   selectedMasterInstruments,
-  onMasterInstrumentChange,
 }: ParameterCardProps) {
   const updateField = (field: keyof Parameter, value: string | boolean) => {
     onUpdate({ ...parameter, [field]: value })
@@ -210,6 +208,21 @@ function ParameterCard({
   )
 
   const curves = selected?.subtypes ?? []
+
+  /**
+   * The identity fields share the width between however many of them there are.
+   *
+   * Kind appears only for a measurand with siblings, and sensor type only where that
+   * kind records curves, so the row is two fields wide, three, or four - and a fixed
+   * three-column grid would leave a hole in two of those three cases.
+   */
+  const identityFieldCount = 2 + (kinds.length > 1 ? 1 : 0) + (curves.length > 0 ? 1 : 0)
+  const identityColumns =
+    identityFieldCount === 4
+      ? 'md:grid-cols-4'
+      : identityFieldCount === 3
+        ? 'md:grid-cols-3'
+        : 'md:grid-cols-2'
 
   const chooseMeasurand = (measures: string) => {
     const next = defaultKindFor(measures, labParameters)
@@ -363,10 +376,6 @@ function ParameterCard({
     mi => mi.masterInstrumentId === parameter.masterInstrumentId
   )
 
-  // Filter to only show master instruments that have been properly selected (have a masterInstrumentId > 0)
-  const availableMasterInstruments = selectedMasterInstruments.filter(
-    mi => mi.masterInstrumentId > 0
-  )
 
   // Get the display unit (parameterUnit is the single source of truth)
   const displayUnit = parameter.parameterUnit || ''
@@ -422,7 +431,7 @@ function ParameterCard({
       <div className="bg-white rounded-xl p-4 border border-slate-200">
         <div className="grid grid-cols-1 gap-6">
           {/* Parameter Type (35%), Unit (20%), and Master Instrument Link (35%) */}
-        <div className="grid grid-cols-1 md:grid-cols-[7fr_4fr_7fr] gap-4">
+        <div className={cn('grid grid-cols-1 gap-4', identityColumns)}>
           <div>
             <Label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">
               Parameter Type <span className="text-red-500">*</span>
@@ -436,7 +445,7 @@ function ParameterCard({
                   value !== '__select__' && handleParameterTypeChange(value)
                 }
               >
-                <SelectTrigger className="rounded-lg border-slate-300 bg-white">
+                <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white">
                   <SelectValue placeholder="Select parameter type..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -490,7 +499,7 @@ function ParameterCard({
                 value={selected?.kind ?? '__select__'}
                 onValueChange={(value) => value !== '__select__' && chooseKind(value)}
               >
-                <SelectTrigger className="rounded-lg border-slate-300 bg-white h-9 text-xs">
+                <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -519,7 +528,7 @@ function ParameterCard({
                   updateField('parameterSubtype', value === '__none__' ? '' : value)
                 }
               >
-                <SelectTrigger className="rounded-lg border-slate-300 bg-white h-9 text-xs">
+                <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -543,7 +552,7 @@ function ParameterCard({
               onValueChange={(value) => value !== '__select__' && updateField('parameterUnit', value)}
               disabled={availableUnits.length === 0}
             >
-              <SelectTrigger className="rounded-lg border-slate-300 bg-white disabled:opacity-50">
+              <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white disabled:opacity-50">
                 <SelectValue placeholder={availableUnits.length === 0 ? "Select parameter first" : "Select unit..."} />
               </SelectTrigger>
               <SelectContent>
@@ -551,31 +560,6 @@ function ParameterCard({
                 {availableUnits.map((unit) => (
                   <SelectItem key={unit} value={unit}>
                     {unit}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">
-              Linked Master Instrument
-            </Label>
-            <Select
-              value={parameter.masterInstrumentId?.toString() || '__none__'}
-              onValueChange={(value) => onMasterInstrumentChange(value === '__none__' ? null : parseInt(value, 10))}
-            >
-              <SelectTrigger className="rounded-lg border-slate-300 bg-white">
-                <SelectValue placeholder={
-                  availableMasterInstruments.length === 0
-                    ? "Select in Section 03 first"
-                    : "Select master instrument..."
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
-                {availableMasterInstruments.map((mi) => (
-                  <SelectItem key={mi.id} value={mi.masterInstrumentId.toString()}>
-                    {mi.assetNo} - {mi.description}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1093,7 +1077,6 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
                 onRemove={() => removeParameter(index)}
                 canRemove={formData.parameters.length > 1}
                 selectedMasterInstruments={formData.masterInstruments}
-                onMasterInstrumentChange={(id) => setParameterMasterInstrument(index, id)}
               />
             ))}
           </div>
