@@ -299,6 +299,27 @@ interface CertificateStore {
 
 const generateId = () => Math.random().toString(36).substring(2, 9)
 
+/**
+ * A parameter with its master forgotten.
+ *
+ * Everything here was read off that one instrument - which of its capabilities was
+ * used, on which curve, under which procedure, what the reviewer was told, and how a
+ * master measuring something else was mapped to the parameter. None of it means
+ * anything about the next master, and left behind it is a certificate naming a master
+ * it no longer carries.
+ */
+function withoutMaster(parameter: Parameter): Parameter {
+  return {
+    ...parameter,
+    masterInstrumentId: null,
+    masterProfileId: undefined,
+    masterSubtype: undefined,
+    masterAcceptanceReason: undefined,
+    masterMapping: undefined,
+    sopReference: '',
+  }
+}
+
 const _createDefaultBin = (): ParameterBin => ({
   id: generateId(),
   binMin: '',
@@ -827,17 +848,7 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
         !masterInstruments.some((m) => m.masterInstrumentId === removed.masterInstrumentId)
       const parameters = orphaned
         ? state.formData.parameters.map((p) =>
-            p.masterInstrumentId === removed.masterInstrumentId
-              ? {
-                  ...p,
-                  masterInstrumentId: null,
-                  // The declaration and the SOP reference were both read off that
-                  // master, so neither means anything without it.
-                  masterProfileId: undefined,
-                  masterSubtype: undefined,
-                  sopReference: '',
-                }
-              : p,
+            p.masterInstrumentId === removed.masterInstrumentId ? withoutMaster(p) : p,
           )
         : state.formData.parameters
 
@@ -1057,10 +1068,29 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
   resetForm: () => set({ formData: initialFormData, isDirty: false, validationErrors: {}, certificateId: null }),
 
   // Load form - loads form data and marks as not dirty
-  loadForm: (data) => set((state) => ({
-    formData: { ...state.formData, ...data },
-    isDirty: false,
-  })),
+  /**
+   * Load a certificate, letting go of any master it does not actually carry.
+   *
+   * A parameter can arrive naming a master that is not on the certificate - removed
+   * before the removal cleared these fields, or edited elsewhere. The row can then
+   * never be ticked and nothing on screen says why. The reference is already broken
+   * when it arrives; dropping it is repair, not a change of the engineer's answer.
+   */
+  loadForm: (data) => set((state) => {
+    const formData = { ...state.formData, ...data }
+    const carried = new Set(formData.masterInstruments.map((m) => m.masterInstrumentId))
+    return {
+      formData: {
+        ...formData,
+        parameters: formData.parameters.map((p) =>
+          p.masterInstrumentId !== null && !carried.has(p.masterInstrumentId)
+            ? withoutMaster(p)
+            : p,
+        ),
+      },
+      isDirty: false,
+    }
+  }),
 
   // Set certificate ID - sets certificate ID
   setCertificateId: (id) => set({ certificateId: id }),

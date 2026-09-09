@@ -389,16 +389,59 @@ describe('useCertificateStore — addMasterInstrument / removeMasterInstrument',
       masterInstrumentId: 5,
       masterProfileId: 'P1',
       masterSubtype: 'Pt-100',
+      masterAcceptanceReason: 'Agreed with the reviewer.',
+      masterMapping: { parameter: 'DC Voltage', unit: 'mV', ranges: [] },
       sopReference: 'SOP-01',
     })
 
     useCertificateStore.getState().removeMasterInstrument(0)
 
+    // Everything here was read off that one instrument - which capability, on which
+    // curve, under which procedure, what the reviewer was told, and how a master
+    // measuring something else was mapped to it. None of it survives the master.
     const param = useCertificateStore.getState().formData.parameters[0]
     expect(param.masterInstrumentId).toBeNull()
     expect(param.masterProfileId).toBeUndefined()
     expect(param.masterSubtype).toBeUndefined()
+    expect(param.masterAcceptanceReason).toBeUndefined()
+    expect(param.masterMapping).toBeUndefined()
     expect(param.sopReference).toBe('')
+  })
+
+  it('lets go of a master the certificate does not carry, on the way in', () => {
+    // A parameter can arrive naming a master that was removed before removal cleared
+    // these fields. The row could then never be ticked and nothing said why.
+    const store = useCertificateStore.getState()
+    store.loadForm({
+      masterInstruments: [{ ...store.formData.masterInstruments[0], masterInstrumentId: 5 }],
+      parameters: [
+        {
+          ...store.formData.parameters[0],
+          masterInstrumentId: 999,
+          masterProfileId: 'P1',
+          sopReference: 'SOP-01',
+        },
+      ],
+    })
+
+    const param = useCertificateStore.getState().formData.parameters[0]
+    expect(param.masterInstrumentId).toBeNull()
+    expect(param.masterProfileId).toBeUndefined()
+    expect(param.sopReference).toBe('')
+  })
+
+  it('keeps a master the certificate does carry, on the way in', () => {
+    const store = useCertificateStore.getState()
+    store.loadForm({
+      masterInstruments: [{ ...store.formData.masterInstruments[0], masterInstrumentId: 5 }],
+      parameters: [
+        { ...store.formData.parameters[0], masterInstrumentId: 5, sopReference: 'SOP-01' },
+      ],
+    })
+
+    const param = useCertificateStore.getState().formData.parameters[0]
+    expect(param.masterInstrumentId).toBe(5)
+    expect(param.sopReference).toBe('SOP-01')
   })
 
   it('keeps the pointer when another master carries the same id', () => {
