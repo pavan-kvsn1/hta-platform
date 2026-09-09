@@ -1310,12 +1310,17 @@ export function MasterAddFlow({
                   instrument: chosenInstrument!,
                   assignments: chosenParameters.map(({ parameter, parameterIndex }) => {
                     const declaration = declarations[parameter.id] ?? EMPTY_DECLARATION
+                    // Against the capability that will do the measuring, which under a
+                    // mapping is not the parameter's own: a millivolt source rated
+                    // against a degrees-Celsius name matches nothing and reads as a
+                    // ratio of none.
+                    const capability = mappedCapability(parameter)
                     const ratio = worstRatioFor(
                       registryUnit,
-                      parameter.parameterName,
+                      capability.name,
                       requiredFor.get(parameter.id) ?? [],
                       threshold,
-                      parameter.parameterUnit,
+                      capability.unit,
                     )
                     return {
                       parameterIndex,
@@ -1374,6 +1379,17 @@ function ParameterDeclaration({
   disabled?: boolean
   onChange: (patch: Partial<Declaration>) => void
 }) {
+  /**
+   * What the master is being asked to measure.
+   *
+   * The parameter's own name and unit ordinarily, and the mapped ones where the
+   * engineer said the master measures something else. Everything below compares against
+   * this rather than the parameter: the capability offered, the ratio, the bands. The
+   * heading still says the parameter, because that is what is being calibrated.
+   */
+  const capability = mappedCapability(parameter)
+  const mapping = parameter.masterMapping
+
   const declaredProfile = useMemo(() => {
     if (!unit) return null
     if (declaration.profileId) {
@@ -1381,13 +1397,13 @@ function ParameterDeclaration({
       if (found) return found
     }
     return (
-      chooseCapability(unit, parameter.parameterName, required, {
+      chooseCapability(unit, capability.name, required, {
         threshold,
-        parameterUnit: parameter.parameterUnit,
+        parameterUnit: capability.unit,
         classify,
       })?.profile ?? null
     )
-  }, [unit, parameter.parameterName, parameter.parameterUnit, declaration.profileId, required, threshold, classify])
+  }, [unit, capability.name, capability.unit, declaration.profileId, required, threshold, classify])
 
   // A capability the registry names but records nothing for: nine of this lab's units
   // are like this, and every table below them has nothing to draw.
@@ -1400,8 +1416,8 @@ function ParameterDeclaration({
   )
 
   const worstRatio = useMemo(
-    () => worstRatioFor(unit, parameter.parameterName, required, threshold, parameter.parameterUnit),
-    [unit, parameter.parameterName, parameter.parameterUnit, required, threshold],
+    () => worstRatioFor(unit, capability.name, required, threshold, capability.unit),
+    [unit, capability.name, capability.unit, required, threshold],
   )
 
   const sopId = `flow-sop-${parameter.id}`
@@ -1415,8 +1431,9 @@ function ParameterDeclaration({
   return (
     <MasterCapabilityDeclaration
         unit={unit}
-        parameterName={parameter.parameterName}
-        parameterUnit={parameter.parameterUnit}
+        parameterName={capability.name}
+        parameterUnit={capability.unit}
+        label={label}
         required={required}
         profileId={declaration.profileId}
         subtype={declaration.subtype}
@@ -1428,12 +1445,21 @@ function ParameterDeclaration({
             <p className="text-xs font-bold text-amber-800 mb-1">
               Nothing to check this master against yet.
             </p>
-            <p className="text-[11px] text-amber-800">
-              {parameter.parameterName || 'This parameter'} states{' '}
-              <b>{listOf(missingRequirement(parameter))}</b>. The requirement is read from
-              the unit under test, so set it in Section 02 &mdash; the master can be chosen
-              now and will be checked once it is there.
-            </p>
+            {mapping ? (
+              <p className="text-[11px] text-amber-800">
+                {label || 'This parameter'} is measured through {mapping.parameter}, and
+                what that master must achieve has not been stated yet. Fill in the range,
+                least count and accuracy in the mapping above &mdash; it cannot be read
+                from Section 02, which is in {parameter.parameterUnit || 'another unit'}.
+              </p>
+            ) : (
+              <p className="text-[11px] text-amber-800">
+                {label || 'This parameter'} states{' '}
+                <b>{listOf(missingRequirement(parameter))}</b>. The requirement is read from
+                the unit under test, so set it in Section 02 &mdash; the master can be chosen
+                now and will be checked once it is there.
+              </p>
+            )}
           </div>
         )}
 
@@ -1453,7 +1479,7 @@ function ParameterDeclaration({
                   {required.map((r, i) => (
                     <tr key={i} className="bg-white">
                       <td className="px-3 py-2 font-mono text-xs tabular-nums text-slate-800">
-                        {n(r.from)} to {n(r.to)} {parameter.parameterUnit}
+                        {n(r.from)} to {n(r.to)} {capability.unit}
                       </td>
                       <td className="px-3 py-2 font-mono text-xs tabular-nums text-slate-800">
                         {n(r.leastCount)}
@@ -1467,9 +1493,22 @@ function ParameterDeclaration({
               </table>
             </div>
             <p className="text-xs text-slate-500 mt-1.5">
-              Taken from the unit under test in Section 02
-              {required.length > 1 ? `, which is binned across ${required.length} ranges` : ''}.
-              Change it there, not here.
+              {mapping ? (
+                <>
+                  As you stated it in the mapping above, in {mapping.parameter}&rsquo;s
+                  units &mdash; not read from Section 02, which is in{' '}
+                  {parameter.parameterUnit || 'another unit'}. Everything below is rated
+                  against this.
+                </>
+              ) : (
+                <>
+                  Taken from the unit under test in Section 02
+                  {required.length > 1
+                    ? `, which is binned across ${required.length} ranges`
+                    : ''}
+                  . Change it there, not here.
+                </>
+              )}
             </p>
           </div>
         )}
@@ -1541,8 +1580,9 @@ function ParameterDeclaration({
               Lowest ratio across your buckets is {worstRatio.toFixed(1)} : 1.
             </p>
             <p className="text-[11px] text-amber-800 mb-2">
-              Below the {threshold}:1 the lab asks for. Usable, with a reason recorded on the
-              certificate.
+              Below the {threshold}:1 the lab asks for
+              {mapping ? ', against the requirement you stated above' : ''}. Usable, with a
+              reason recorded on the certificate.
             </p>
             <textarea
               rows={2}

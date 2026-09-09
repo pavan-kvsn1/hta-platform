@@ -1072,6 +1072,62 @@ describe('a master that measures something else', () => {
     })
   })
 
+  /** The four boxes have labels but no htmlFor, so reach them through the panel. */
+  const stateRequirement = (from: string, to: string, lc: string, acc: string) => {
+    const panel = screen.getByText(/Measured using/i).closest('section')!
+    const box = (label: RegExp) =>
+      within(within(panel).getAllByText(label)[0].closest('div')!).getByRole('textbox')
+    fireEvent.change(box(/^From$/), { target: { value: from } })
+    fireEvent.change(box(/^To$/), { target: { value: to } })
+    fireEvent.change(box(/^Least count$/), { target: { value: lc } })
+    fireEvent.change(box(/^Accuracy/), { target: { value: acc } })
+  }
+
+  const mapToVolts = () => {
+    goDifferent()
+    fireEvent.click(screen.getByPlaceholderText(/Which capability will measure it/i))
+    fireEvent.click(screen.getByRole('option', { name: /DC Voltage/ }))
+  }
+
+  it('says what is missing is the mapping, not Section 02', () => {
+    // Section 02 is complete. What is not stated is what the millivolt source has to
+    // do, and sending them to the wrong section is worse than saying nothing.
+    renderMapped()
+    mapToVolts()
+    pickInstrument('711 HTAIPL/L')
+    // Twice over: the list says why nothing can be rated, the panel says it again
+    // where the requirement would have been.
+    expect(
+      screen.getAllByText(
+        (_c, el) => el?.tagName === 'P' && /measured through DC Voltage/.test(el.textContent ?? ''),
+      ).length,
+    ).toBe(2)
+    expect(screen.queryByText(/so set it in Section 02/)).not.toBeInTheDocument()
+  })
+
+  it('rates the master against the millivolts, in millivolts', () => {
+    renderMapped()
+    mapToVolts()
+    stateRequirement('0', '100', '0.01', '0.02')
+    pickInstrument('711 HTAIPL/L')
+    // In the requirement table specifically - the master's own band says the same
+    // figures, which is the point, but is not what is being checked here.
+    const required = screen.getByText('Required of the master').closest('div')!
+    expect(within(required).getByText(/0 to 100 mV/)).toBeInTheDocument()
+    expect(paragraph(/As you stated it in the mapping above/)).toBeInTheDocument()
+    expect(screen.queryByText(/Taken from the unit under test/)).not.toBeInTheDocument()
+  })
+
+  it('names the parameter being calibrated, not the capability doing it', () => {
+    // The panel is about Temperature. That it happens through a voltage source is the
+    // mapping's business, and the heading saying "DC Voltage" would lose the thread.
+    renderMapped()
+    mapToVolts()
+    stateRequirement('0', '100', '0.01', '0.02')
+    pickInstrument('711 HTAIPL/L')
+    expect(screen.getAllByText(/Assess and Verify.*For Temperature/i).length).toBeGreaterThan(0)
+  })
+
   it('goes back to the ordinary case when the answer is changed back', () => {
     renderMapped()
     goDifferent()
