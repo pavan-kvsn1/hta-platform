@@ -946,14 +946,24 @@ export function MasterAddFlow({
   const registryUnit = chosenInstrument ? resolveUnit(chosenInstrument) : undefined
   const sops = sopReferencesFor(chosenInstrument, registryUnit)
 
+  /**
+   * Let go of the chosen instrument and everything declared about it.
+   *
+   * Used wherever the ground it was chosen on moves. The declaration is the engineer's
+   * answer about that instrument and means nothing about another, so it goes with it.
+   */
+  const forgetChoice = () => {
+    setChosenId(null)
+    setDeclarations({})
+  }
+
   const toggleParameter = (id: string) => {
     setParamIds((current) =>
       current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     )
     // The instrument list is rated against the parameters ticked, so a change to them
     // invalidates a choice made under the old set.
-    setChosenId(null)
-    setDeclarations({})
+    forgetChoice()
     setCategory(ANY)
     setMake(ANY)
     setDescription(ANY)
@@ -964,8 +974,7 @@ export function MasterAddFlow({
     if (chosenId === inst.id) {
       // Clicking the chosen one again un-picks it; a radio list can otherwise only be
       // changed, never cleared.
-      setChosenId(null)
-      setDeclarations({})
+      forgetChoice()
       return
     }
     setChosenId(inst.id)
@@ -1160,6 +1169,10 @@ export function MasterAddFlow({
                   onChange={(v) => {
                     setMake(v)
                     setDescription(ANY)
+                    // Narrowing the list is a change of mind about which instrument to
+                    // look at. Keeping the old choice pinned to the top of a list it is
+                    // no longer part of asks the engineer to notice it and unpick it.
+                    forgetChoice()
                   }}
                 />
               </div>
@@ -1172,7 +1185,10 @@ export function MasterAddFlow({
                   value={description}
                   options={descriptions}
                   disabled={disabled}
-                  onChange={setDescription}
+                  onChange={(v) => {
+                    setDescription(v)
+                    forgetChoice()
+                  }}
                 />
               </div>
             </div>
@@ -1315,7 +1331,7 @@ export function MasterAddFlow({
                 {chosenIsFilteredOut && chosenInstrument && (
                   <p className="text-[11px] text-amber-900">
                     {chosenInstrument.asset_no} is on the list because you chose it, though
-                    the filters above exclude it.
+                    the group it belongs to is hidden.
                   </p>
                 )}
 

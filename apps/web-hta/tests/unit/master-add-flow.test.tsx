@@ -790,6 +790,21 @@ describe('finding an instrument', () => {
     expect(rows()[0].textContent).toContain('902 HTAIPL/L')
   })
 
+  it('lets go of the chosen instrument when a filter changes', () => {
+    // Narrowing to one make is a change of mind about which instrument to look at.
+    // Pinning the old choice to the top of a list it is not part of asks the engineer
+    // to notice it and unpick it, and the declaration made about it means nothing
+    // about whatever they pick next.
+    renderFlow()
+    pick('Temperature')
+    pickInstrument('600 HTAIPL/L')
+    expect(screen.getByText('Instrument Selected')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Make'))
+    fireEvent.click(screen.getByRole('option', { name: 'Fluke' }))
+    expect(screen.queryByText('Instrument Selected')).not.toBeInTheDocument()
+  })
+
   it('keeps the chosen instrument on screen when the search excludes it', () => {
     renderMany()
     pickInstrument('902 HTAIPL/L')
