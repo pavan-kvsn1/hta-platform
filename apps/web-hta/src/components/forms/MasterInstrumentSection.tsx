@@ -304,12 +304,17 @@ export function MasterInstrumentCard({
 
                 const isDisabled = isAssignedToOther || !isCompatible
                 let statusMessage = ''
+                // In the order of what is actually stopping the engineer. A stale
+                // reference to a master that has been removed is worth saying, but it
+                // is not why the row is greyed out - and said first it hid the reason
+                // that was: the badge read "Incompatible" while the line beneath talked
+                // about a master that is no longer here.
                 if (isAssignedToOther) {
                   statusMessage = 'Assigned to another instrument'
-                } else if (isDangling) {
-                  statusMessage = 'Was assigned to a master no longer on this certificate'
                 } else if (!isCompatible) {
                   statusMessage = 'Not supported by this instrument'
+                } else if (isDangling) {
+                  statusMessage = 'Was assigned to a master no longer on this certificate'
                 }
 
                 return (

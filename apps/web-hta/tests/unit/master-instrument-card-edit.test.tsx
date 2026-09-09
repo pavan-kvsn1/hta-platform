@@ -190,3 +190,49 @@ describe('a capability that serves the parameter under another name', () => {
     ).toBeGreaterThan(0)
   })
 })
+
+describe('a parameter with a stale reference to a removed master', () => {
+  /**
+   * The parameter still holds the id of a master that is no longer on the certificate.
+   * Worth saying - but it is not what greys the row out when the instrument also does
+   * not serve the parameter, and said first it hid the reason that did: the badge read
+   * "Incompatible" while the line beneath talked about a master that is not here.
+   */
+  const calibrator = {
+    ...master,
+    masterInstrumentId: 10,
+    assetNo: '1018 HTAIPL/L',
+  } as unknown as SelectedMasterInstrument
+
+  beforeAll(() => {
+    useMasterInstrumentStore.getState().loadFromRegistry()
+  })
+
+  // queryAll, not getAll: the absence of a line is half of what is being checked, and
+  // getAll throws rather than returning nothing.
+  const line = (re: RegExp) =>
+    screen.queryAllByText((_c, el) => re.test(el?.textContent ?? '')).length > 0
+
+  it('names the reason that blocks it, not the one that does not', () => {
+    renderCard(
+      // Humidity: 1018 records nothing like it. The id points at a master that is not
+      // on this certificate.
+      parameter({
+        parameterName: 'Relative Humidity',
+        parameterUnit: '%RH',
+        masterInstrumentId: 999,
+      }),
+      { instrument: calibrator, mastersOnCertificate: new Set([10]) },
+    )
+    expect(line(/Not supported by this instrument/)).toBe(true)
+    expect(line(/no longer on this certificate/)).toBe(false)
+  })
+
+  it('still says so where nothing else is wrong', () => {
+    renderCard(
+      parameter({ masterInstrumentId: 999 }),
+      { instrument: calibrator, mastersOnCertificate: new Set([10]) },
+    )
+    expect(line(/no longer on this certificate/)).toBe(true)
+  })
+})
