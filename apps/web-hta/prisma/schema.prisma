@@ -603,6 +603,16 @@ model Parameter {
   /// masterSubtype, which records the same about the master that measured it. Null
   /// where the parameter has no curves, and on anything written before it was asked.
   parameterSubtype    String?
+  /// How a master measuring something else serves this parameter.
+  ///
+  /// Null for the ordinary case, where the master measures the same thing and the
+  /// requirement comes from the unit under test. Set where it does not: a temperature
+  /// indicator calibrated with a millivolt source records the master parameter it was
+  /// mapped to, what that master had to achieve in its own units, and the expression
+  /// that converts its readings back. Held as one object because the three are only
+  /// meaningful together - a requirement in millivolts means nothing without saying
+  /// millivolts of what, and neither means anything without the conversion.
+  masterMapping       Json?
   rangeMin            String?
   rangeMax            String?
   rangeUnit           String?

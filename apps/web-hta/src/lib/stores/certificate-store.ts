@@ -46,6 +46,26 @@ export interface ParameterBin {
 }
 
 // Types for the certificate form
+/**
+ * A master mapped to a parameter it does not itself measure.
+ *
+ * A temperature indicator can be calibrated with a millivolt source, the readings
+ * converted through an expression. Nothing can derive that pairing - the relationship
+ * is whatever the expression says - so it is declared, and what the master has to
+ * achieve is stated in the master's own units rather than guessed from the unit under
+ * test's.
+ */
+export interface MasterMapping {
+  /** The master capability used, by the registry's name for it. */
+  parameter: string
+  /** The unit that capability is read in. */
+  unit: string
+  /** What the master must achieve, in its own units. */
+  ranges: { from: number; to: number; leastCount: number; accuracy: number }[]
+  /** Converts a master reading into the parameter's unit; Section 05 uses it too. */
+  conversion?: string
+}
+
 export interface Parameter {
   id: string
   parameterName: string
@@ -58,6 +78,13 @@ export interface Parameter {
    * four of the fifty-two.
    */
   parameterSubtype?: string
+  /**
+   * How a master measuring something else serves this parameter.
+   *
+   * Absent for the ordinary case, where the master measures the same thing and the
+   * requirement is read from this parameter's own range, least count and accuracy.
+   */
+  masterMapping?: MasterMapping
   rangeMin: string
   rangeMax: string
   rangeUnit: string

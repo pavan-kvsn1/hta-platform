@@ -156,6 +156,25 @@ const createCertificateSchema = z.object({
     parameterUnit: z.string().default(''),
     // Which curve or type the unit under test is - Pt-100, Type K.
     parameterSubtype: z.string().optional().nullable(),
+    // How a master measuring something else serves this parameter. Validated rather
+    // than passed through: both ends of this are ours, and a malformed requirement
+    // would silently disable the comparison it exists to feed.
+    masterMapping: z
+      .object({
+        parameter: z.string().min(1),
+        unit: z.string(),
+        ranges: z.array(
+          z.object({
+            from: z.number(),
+            to: z.number(),
+            leastCount: z.number(),
+            accuracy: z.number(),
+          }),
+        ),
+        conversion: z.string().optional().nullable(),
+      })
+      .optional()
+      .nullable(),
     rangeMin: z.string().optional().nullable(),
     rangeMax: z.string().optional().nullable(),
     rangeUnit: z.string().optional().nullable(),
@@ -757,6 +776,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               sopReference: param.sopReference || null,
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
               parameterSubtype: param.parameterSubtype || null,
+              masterMapping: param.masterMapping
+                ? (param.masterMapping as Prisma.InputJsonValue)
+                : Prisma.DbNull,
               masterProfileId: param.masterProfileId || null,
               masterSubtype: param.masterSubtype || null,
               masterAcceptanceReason: param.masterAcceptanceReason || null,
@@ -1192,6 +1214,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               sopReference: param.sopReference || null,
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
               parameterSubtype: param.parameterSubtype || null,
+              masterMapping: param.masterMapping
+                ? (param.masterMapping as Prisma.InputJsonValue)
+                : Prisma.DbNull,
               masterProfileId: param.masterProfileId || null,
               masterSubtype: param.masterSubtype || null,
               masterAcceptanceReason: param.masterAcceptanceReason || null,
@@ -2773,6 +2798,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         // Undefined rather than '' when never declared, so the UI can tell "not yet
         // declared" from a declaration of nothing.
         parameterSubtype: param.parameterSubtype ?? undefined,
+        masterMapping: (param.masterMapping as Record<string, unknown> | null) ?? undefined,
         masterProfileId: param.masterProfileId ?? undefined,
         masterSubtype: param.masterSubtype ?? undefined,
         masterAcceptanceReason: param.masterAcceptanceReason ?? undefined,

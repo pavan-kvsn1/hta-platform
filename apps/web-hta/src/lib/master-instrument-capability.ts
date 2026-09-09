@@ -668,6 +668,60 @@ export function missingRequirement(parameter: {
   return missing
 }
 
+/**
+ * What the master has to achieve, and the unit it is stated in.
+ *
+ * Ordinarily this is the unit under test's own requirement, read from Section 02. It is
+ * not, where the master measures something else: a millivolt source calibrating a
+ * temperature indicator has to be judged in millivolts, and no conversion the app could
+ * invent would be better than the number the engineer already has from a table.
+ *
+ * Everything downstream - the eligibility ranking, the band table, the two badges -
+ * consumes RequiredRange and does not care which of the two it got.
+ */
+export function requirementFor(parameter: {
+  rangeMin?: string
+  rangeMax?: string
+  parameterUnit?: string
+  leastCountValue?: string
+  accuracyValue?: string
+  requiresBinning?: boolean
+  bins?: { binMin: string; binMax: string; leastCount: string; accuracy: string }[]
+  masterMapping?: {
+    parameter: string
+    unit: string
+    ranges: RequiredRange[]
+    conversion?: string
+  }
+}): { ranges: RequiredRange[]; unit: string; stated: boolean } {
+  const mapping = parameter.masterMapping
+  if (mapping && mapping.ranges.length > 0) {
+    // Stated by the engineer against the master, not derived from the unit under test.
+    // The caller says so on screen, because the ratio it produces is a check on the
+    // instrument and not an independent check on their arithmetic.
+    return { ranges: mapping.ranges, unit: mapping.unit, stated: true }
+  }
+  return {
+    ranges: requiredRanges(parameter),
+    unit: parameter.parameterUnit ?? '',
+    stated: false,
+  }
+}
+
+/**
+ * The capability a master must record to serve this parameter, and the unit it is read
+ * in - the parameter's own unless it has been mapped to something else.
+ */
+export function mappedCapability(parameter: {
+  parameterName: string
+  parameterUnit?: string
+  masterMapping?: { parameter: string; unit: string }
+}): { name: string; unit: string } {
+  return parameter.masterMapping
+    ? { name: parameter.masterMapping.parameter, unit: parameter.masterMapping.unit }
+    : { name: parameter.parameterName, unit: parameter.parameterUnit ?? '' }
+}
+
 export function requiredRanges(parameter: {
   rangeMin?: string
   rangeMax?: string
