@@ -38,13 +38,24 @@ interface ChatContainerProps {
  *
  * "Failed to fetch messages" discards the status and the server's own message, so a
  * 401, a 403 and a 500 are indistinguishable in the console - there is nothing to act
- * on. The API answers errors as { error: string }, so surface that when it is there.
+ * on.
+ *
+ * The API answers { error, message, requestId }, where `error` is the class of failure
+ * and `message` is what actually went wrong. Reading only `error` printed "500 Internal
+ * Server Error - Internal Server Error", which repeats the status and says nothing;
+ * `message` carries the reason, and the request id is what finds it in the API's log.
  */
 async function describeFailure(res: Response, action: string): Promise<Error> {
   let detail = ''
   try {
     const body = await res.clone().json()
-    if (body && typeof body.error === 'string') detail = body.error
+    const parts = [body?.message, body?.error]
+      .filter((v: unknown): v is string => typeof v === 'string' && v.trim() !== '')
+    // The two are often the same sentence; say it once.
+    detail = [...new Set(parts)].join(' - ')
+    if (typeof body?.requestId === 'string' && body.requestId) {
+      detail += ` (request ${body.requestId})`
+    }
   } catch {
     // Not JSON - the status alone still says more than nothing.
   }

@@ -227,6 +227,23 @@ function Info({ label, value }: { label: string; value: string }) {
   )
 }
 
+/**
+ * Whether the free-text search matches an instrument.
+ *
+ * Shared so the list and the count of what the search hid cannot drift apart.
+ */
+function matchesQuery(inst: MasterInstrument, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return [
+    inst.asset_no,
+    inst.instrument_desc,
+    getSimpleValue(inst.make),
+    getSimpleValue(inst.model),
+    getSimpleValue(inst.instrument_sl_no),
+  ].some((field) => (field ?? '').toLowerCase().includes(q))
+}
+
 function worstRatioFor(
   unit: RegistryUnit | undefined,
   parameterName: string,
@@ -808,21 +825,15 @@ export function MasterAddFlow({
     [pool, chosenParameters, rate],
   )
 
+  /** Rows the filters leave, before the search runs over them. */
+  const beforeSearch = useMemo(
+    () => filtered.filter((i) => showOutOfRange || !rate(i).outOfRange),
+    [filtered, showOutOfRange, rate],
+  )
+
   const shown = useMemo(() => {
-    const q = instrumentQuery.trim().toLowerCase()
-    const rows = filtered
-      .filter((i) => showOutOfRange || !rate(i).outOfRange)
-      .filter((i) =>
-        !q
-          ? true
-          : [
-              i.asset_no,
-              i.instrument_desc,
-              getSimpleValue(i.make),
-              getSimpleValue(i.model),
-              getSimpleValue(i.instrument_sl_no),
-            ].some((field) => (field ?? '').toLowerCase().includes(q)),
-      )
+    const rows = beforeSearch
+      .filter((i) => matchesQuery(i, instrumentQuery))
       .map((i) => ({ inst: i, fit: rate(i) }))
       .sort((a, b) => a.fit.rank - b.fit.rank || a.inst.asset_no.localeCompare(b.inst.asset_no))
 
@@ -837,7 +848,22 @@ export function MasterAddFlow({
     }
     const missing = instruments.find((i) => i.id === chosenId)
     return missing ? [{ inst: missing, fit: rate(missing) }, ...rows] : rows
-  }, [filtered, instrumentQuery, rate, chosenId, instruments, showOutOfRange])
+  }, [beforeSearch, instrumentQuery, rate, chosenId, instruments])
+
+  /**
+   * How many the search took off the list.
+   *
+   * Counted against the rows the filters left rather than subtracted from what is on
+   * screen: the chosen instrument is pinned into the list even when the filters exclude
+   * it, and subtracting a list that holds one extra printed "-5 more hidden".
+   */
+  const hiddenBySearch = useMemo(
+    () =>
+      instrumentQuery.trim()
+        ? beforeSearch.filter((i) => !matchesQuery(i, instrumentQuery)).length
+        : 0,
+    [beforeSearch, instrumentQuery],
+  )
 
   /**
    * Parameters with nothing to rate an instrument against, and why.
@@ -863,6 +889,10 @@ export function MasterAddFlow({
 
   const chosenInstrument =
     chosenId !== null ? (instruments.find((i) => i.id === chosenId) ?? null) : null
+
+  /** The choice is kept on the list even when the filters would drop it - say so. */
+  const chosenIsFilteredOut =
+    chosenInstrument !== null && !beforeSearch.some((i) => i.id === chosenInstrument.id)
   const registryUnit = chosenInstrument ? resolveUnit(chosenInstrument) : undefined
   const sops = sopReferencesFor(chosenInstrument, registryUnit)
 
@@ -1189,55 +1219,57 @@ export function MasterAddFlow({
 
               <div className="mt-2 space-y-1">
                 <BadgeLegend />
+                {/* One statement per line. Strung together they read as a paragraph
+                    about nothing in particular; apart, each is a fact with a number and
+                    the button that acts on it. */}
                 <p className="text-[11px] text-slate-500">
                   {shown.filter((s) => s.fit.usable).length} of {shown.length} can be used;
                   the rest stay, with the reason.
-                  {filtered.length !== shown.length + (showOutOfRange ? 0 : outOfRangeCount) &&
-                    ` ${filtered.length - shown.length - (showOutOfRange ? 0 : outOfRangeCount)} more hidden by the search.`}
-                  {outOfRangeCount > 0 && !showOutOfRange && (
-                    <>
-                      {' '}
-                      {outOfRangeCount} more do not reach the required range &mdash;{' '}
-                      <button
-                        type="button"
-                        onClick={() => setShowOutOfRange(true)}
-                        className="font-semibold text-primary"
-                      >
-                        show them
-                      </button>
-                      .
-                    </>
-                  )}
-                  {showOutOfRange && outOfRangeCount > 0 && (
-                    <>
-                      {' '}
-                      Including {outOfRangeCount} that do not reach the required range
-                      &mdash;{' '}
-                      <button
-                        type="button"
-                        onClick={() => setShowOutOfRange(false)}
-                        className="font-semibold text-primary"
-                      >
-                        hide them
-                      </button>
-                      .
-                    </>
-                  )}
-                  {unrecordedCount > 0 && (
-                    <>
-                      {' '}
-                      A further {unrecordedCount} record no capability at all, so there is
-                      nothing to rate them by &mdash;{' '}
-                      <button
-                        type="button"
-                        onClick={() => setShowUnrecorded((v) => !v)}
-                        className="font-semibold text-primary"
-                      >
-                        {showUnrecorded ? 'hide them' : 'show them anyway'}
-                      </button>
-                    </>
-                  )}
                 </p>
+
+                {hiddenBySearch > 0 && (
+                  <p className="text-[11px] text-slate-500">
+                    {hiddenBySearch} more hidden by the search.
+                  </p>
+                )}
+
+                {chosenIsFilteredOut && chosenInstrument && (
+                  <p className="text-[11px] text-slate-500">
+                    {chosenInstrument.asset_no} is on the list because you chose it, though
+                    the filters above exclude it.
+                  </p>
+                )}
+
+                {outOfRangeCount > 0 && (
+                  <p className="text-[11px] text-slate-500">
+                    {showOutOfRange ? 'Including ' : ''}
+                    {outOfRangeCount} {showOutOfRange ? 'that' : 'more'} do not reach the
+                    required range &mdash;{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowOutOfRange((v) => !v)}
+                      className="font-semibold text-primary"
+                    >
+                      {showOutOfRange ? 'hide them' : 'show them'}
+                    </button>
+                    .
+                  </p>
+                )}
+
+                {unrecordedCount > 0 && (
+                  <p className="text-[11px] text-slate-500">
+                    A further {unrecordedCount} record no capability at all, so there is
+                    nothing to rate them by &mdash;{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowUnrecorded((v) => !v)}
+                      className="font-semibold text-primary"
+                    >
+                      {showUnrecorded ? 'hide them' : 'show them anyway'}
+                    </button>
+                    .
+                  </p>
+                )}
               </div>
             </div>
           </Step>
