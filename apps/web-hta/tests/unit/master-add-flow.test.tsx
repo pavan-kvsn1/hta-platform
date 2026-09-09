@@ -926,6 +926,56 @@ describe('matching a capability to a parameter', () => {
   })
 })
 
+describe('a certificate that calibrates one parameter twice', () => {
+  // 5eed80c6 does. Every heading has to say which of the two it is about, and a binned
+  // parameter's requirement has to read as the whole thing rather than its first band.
+  const twice = [
+    parameter({ id: 'p1', rangeMin: '-10', rangeMax: '40', accuracyValue: '1' }),
+    parameter({
+      id: 'p2',
+      rangeMin: '0',
+      rangeMax: '100',
+      requiresBinning: true,
+      bins: [
+        { binMin: '0', binMax: '20', leastCount: '0.01', accuracy: '0.01' },
+        { binMin: '20', binMax: '100', leastCount: '0.1', accuracy: '0.5' },
+      ],
+    }),
+  ]
+
+  const renderTwice = () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={twice}
+        coveredBy={new Map()}
+        instruments={[GOOD]}
+        resolveUnit={(inst) => units.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+  }
+
+  it('names which of the two each panel is about', () => {
+    renderTwice()
+    fireEvent.click(
+      within(screen.getByText('Temperature (-10 to 40 °C)').closest('label')!).getByRole('checkbox'),
+    )
+    expect(screen.getByText(/Measured using — for Temperature \(-10 to 40 °C\)/)).toBeInTheDocument()
+  })
+
+  it('reports a binned requirement as the whole thing, not its first band', () => {
+    // "for Temperature (0 to 100 °C)" over "0 to 20 °C" was the first bin wearing the
+    // parameter's name.
+    renderTwice()
+    fireEvent.click(
+      within(screen.getByText('Temperature (0 to 100 °C)').closest('label')!).getByRole('checkbox'),
+    )
+    expect(screen.getByText(/0 to 100 °C, binned across 2 ranges/)).toBeInTheDocument()
+  })
+})
+
 describe('a master that measures something else', () => {
   // A thermocouple indicator reading °C, calibrated with a millivolt source. The
   // master's parameter is a different quantity, and no rule can derive the pairing.

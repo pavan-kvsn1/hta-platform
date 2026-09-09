@@ -18,7 +18,7 @@
 // without leaving a partly-filled master behind.
 
 import { useMemo, useState } from 'react'
-import { CheckCircle, Search, Trash2 } from 'lucide-react'
+import { CheckCircle, ChevronDown, Search, Trash2 } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { SearchableSelect, type SearchableOption } from '@/components/ui/searchable-select'
 import type { MasterMapping, Parameter } from '@/lib/stores/certificate-store'
@@ -242,6 +242,69 @@ function worstRatioFor(
 }
 
 
+
+/** A step of the flow that can be folded away once it is answered. */
+function Step({
+  title,
+  summary,
+  children,
+}: {
+  title: string
+  summary?: string
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(true)
+  return (
+    <section className="rounded-xl border border-slate-200 overflow-hidden mb-4">
+      <div
+        className={cn(
+          'bg-slate-100 px-4 py-3 flex items-center justify-between gap-3',
+          open && 'border-b border-slate-200',
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex items-center gap-2 text-left min-w-0"
+        >
+          <ChevronDown
+            className={cn(
+              'size-4 text-slate-500 shrink-0 transition-transform',
+              !open && '-rotate-90',
+            )}
+          />
+          <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+            {title}
+          </span>
+        </button>
+        {!open && summary && (
+          <span className="text-[11px] text-slate-500 truncate">{summary}</span>
+        )}
+      </div>
+      {open && <div className="p-4">{children}</div>}
+    </section>
+  )
+}
+
+/**
+ * A requirement in one line.
+ *
+ * A binned parameter has several, and printing the first as though it were the whole
+ * thing said "0 to 100 °C" in the heading and "0 to 20 °C" underneath it - the first
+ * band, wearing the name of the parameter.
+ */
+function requirementSummary(ranges: RequiredRange[], unit: string): string {
+  if (ranges.length === 0) return 'not stated yet'
+  if (ranges.length === 1) {
+    const [only] = ranges
+    return `${n(only.from)} to ${n(only.to)} ${unit} · least count ${n(only.leastCount)} · accuracy ±${n(only.accuracy)}`
+  }
+  const from = Math.min(...ranges.map((r) => r.from))
+  const to = Math.max(...ranges.map((r) => r.to))
+  return `${n(from)} to ${n(to)} ${unit}, binned across ${ranges.length} ranges`
+}
+
 /**
  * How one parameter is to be measured.
  *
@@ -289,11 +352,14 @@ function MeasuredUsing({
   const parse = (v: string) => (v.trim() === '' ? Number.NaN : Number(v))
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 mt-3">
-      <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-3">
-        Measured using &mdash; for {label}
-      </p>
-
+    <Step
+      title={`Measured using — for ${label}`}
+      summary={
+        mapping
+          ? `through ${mapping.parameter || 'another parameter'}${mapping.unit ? ` · ${mapping.unit}` : ''}`
+          : `directly, as ${label}`
+      }
+    >
       <div className="flex flex-wrap gap-2 mb-3">
         {[
           { on: !mapping, text: `directly, as ${label}` },
@@ -329,12 +395,7 @@ function MeasuredUsing({
       {!mapping ? (
         <p className="text-[11px] text-slate-500">
           Requirement comes from Section 02 &mdash;{' '}
-          <b className="text-slate-600">
-            {own.ranges.length > 0
-              ? `${own.ranges[0].from} to ${own.ranges[0].to} ${own.unit} · least count ${own.ranges[0].leastCount} · accuracy ±${own.ranges[0].accuracy}`
-              : 'not stated yet'}
-          </b>
-          .
+          <b className="text-slate-600">{requirementSummary(own.ranges, own.unit)}</b>.
         </p>
       ) : (
         <div className="space-y-3">
@@ -378,11 +439,7 @@ function MeasuredUsing({
               {own.ranges.length > 0 && (
                 <>
                   Your unit needs{' '}
-                  <b className="text-slate-700">
-                    {own.ranges[0].from} to {own.ranges[0].to} {own.unit} · least count{' '}
-                    {own.ranges[0].leastCount} · accuracy ±{own.ranges[0].accuracy}
-                  </b>
-                  .
+                  <b className="text-slate-700">{requirementSummary(own.ranges, own.unit)}</b>.
                 </>
               )}
             </p>
@@ -444,7 +501,7 @@ function MeasuredUsing({
           </div>
         </div>
       )}
-    </div>
+    </Step>
   )
 }
 
@@ -517,6 +574,18 @@ export function MasterAddFlow({
    * twice, and "rated against Temperature and Temperature" identifies neither.
    */
   const labels = useMemo(() => parameterLabels(parameters), [parameters])
+
+  /**
+   * The label for a parameter, found by id.
+   *
+   * Not by identity: once a mapping is made the flow works on a copy of the parameter,
+   * and looking it up by object gave -1 and quietly dropped the range that tells two
+   * Temperatures apart.
+   */
+  const labelOf = (id: string) => {
+    const at = parameters.findIndex((p) => p.id === id)
+    return at >= 0 ? labels[at] : ''
+  }
   const labelsFor = (ids: string[]) =>
     parameters.map((p, i) => (ids.includes(p.id) ? labels[i] : null)).filter((x): x is string => x !== null)
 
@@ -776,14 +845,25 @@ export function MasterAddFlow({
     return missing ? [{ inst: missing, fit: rate(missing) }, ...rows] : rows
   }, [filtered, instrumentQuery, rate, chosenId, instruments, showOutOfRange])
 
+  /**
+   * Parameters with nothing to rate an instrument against, and why.
+   *
+   * Two different reasons wearing one sentence until now: a parameter that never
+   * stated its range, least count and accuracy in Section 02, and a parameter measured
+   * through a different master whose requirement has not been filled in above. The
+   * second was borrowing the first's wording and printing "states , so" - an empty
+   * list of missing pieces, because in that case nothing is missing from Section 02.
+   */
   const unrateable = useMemo(
     () =>
       chosenParameters
         .filter(({ parameter }) => (requiredFor.get(parameter.id) ?? []).length === 0)
         .map(({ parameter }) => ({
-          name: labels[parameters.indexOf(parameter)] ?? parameter.parameterName,
+          name: labelOf(parameter.id) || parameter.parameterName,
+          mappedTo: parameter.masterMapping?.parameter ?? null,
           missing: missingRequirement(parameter),
         })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [chosenParameters, requiredFor, labels, parameters],
   )
 
@@ -962,9 +1042,12 @@ export function MasterAddFlow({
           ))}
         </div>
 
-        {/* Step 2 - which instrument */}
+        {/* Step 3 - which instrument */}
         {chosenParameters.length > 0 && (
-          <div className="mb-6">
+          <Step
+            title="Which instrument"
+            summary={chosenInstrument ? `${chosenInstrument.asset_no} · ${chosenInstrument.instrument_desc}` : undefined}
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               <div>
                 <Label className={LABEL} htmlFor="flow-make">
@@ -999,16 +1082,27 @@ export function MasterAddFlow({
               <Label className={LABEL}>
                 Instrument <span className="text-red-500">*</span>
               </Label>
-              {unrateable.length > 0 && (
-                <p className="mb-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
-                  {listOf(unrateable.map((u) => u.name))}{' '}
-                  {unrateable.length === 1 ? 'states' : 'state'}{' '}
-                  <b>{listOf([...new Set(unrateable.flatMap((u) => u.missing))])}</b>, so these
-                  instruments cannot be rated against{' '}
-                  {unrateable.length === 1 ? 'it' : 'them'}. Set it in Section 02; the
-                  instrument can still be chosen now.
+              {unrateable.map((u) => (
+                <p
+                  key={u.name}
+                  className="mb-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800"
+                >
+                  {u.mappedTo ? (
+                    <>
+                      <b>{u.name}</b> is measured through {u.mappedTo}, and what that master
+                      must achieve has not been stated yet &mdash; fill in the range, least
+                      count and accuracy above. These instruments cannot be rated until it
+                      is; one can still be chosen.
+                    </>
+                  ) : (
+                    <>
+                      <b>{u.name}</b> states <b>{listOf(u.missing)}</b>, so these instruments
+                      cannot be rated against it. Set it in Section 02; the instrument can
+                      still be chosen now.
+                    </>
+                  )}
                 </p>
-              )}
+              ))}
               <p className="text-[11px] text-slate-500 mb-1.5">
                 <b className="text-slate-600">{groups.recording}</b> of the lab&rsquo;s{' '}
                 {instruments.length} instruments record{' '}
@@ -1150,7 +1244,7 @@ export function MasterAddFlow({
                 </p>
               </div>
             </div>
-          </div>
+          </Step>
         )}
 
         {/* The instrument, once chosen */}
@@ -1190,6 +1284,7 @@ export function MasterAddFlow({
             <ParameterDeclaration
               key={parameter.id}
               parameter={parameter}
+              label={labelOf(parameter.id) || parameter.parameterName}
               instrument={chosenInstrument}
               unit={registryUnit}
               required={requiredFor.get(parameter.id) ?? []}
@@ -1258,6 +1353,7 @@ export function MasterAddFlow({
  */
 function ParameterDeclaration({
   parameter,
+  label,
   instrument,
   unit,
   required,
@@ -1269,6 +1365,8 @@ function ParameterDeclaration({
   onChange,
 }: {
   parameter: Parameter
+  /** The parameter's name, told apart from its siblings by range where needed. */
+  label: string
   instrument: MasterInstrument
   unit?: RegistryUnit
   required: RequiredRange[]

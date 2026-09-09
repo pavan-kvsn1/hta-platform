@@ -29,6 +29,11 @@ interface MasterCapabilityDeclarationProps {
   /** Absent when the certificate names a master the registry no longer holds. */
   unit?: RegistryUnit
   parameterName: string
+  /**
+   * What to call it in the heading - the same name the mapping step above uses, told
+   * apart from a sibling by its range where a certificate calibrates one twice.
+   */
+  label?: string
   /** The parameter's unit, which decides which capabilities are candidates at all. */
   parameterUnit?: string | null
   /** What the calibration needs, so options that cannot reach it can be set aside. */
@@ -127,6 +132,7 @@ function Panel({
 export function MasterCapabilityDeclaration({
   unit,
   parameterName,
+  label,
   parameterUnit,
   required,
   profileId,
@@ -208,7 +214,7 @@ export function MasterCapabilityDeclaration({
 
   if (profiles.length === 0) {
     return (
-      <Panel parameterName={parameterName}>
+      <Panel parameterName={label ?? parameterName}>
         <p className="text-xs text-slate-500">No capability recorded for this instrument.</p>
         {children}
       </Panel>
@@ -241,7 +247,7 @@ export function MasterCapabilityDeclaration({
 
   return (
     <Panel
-      parameterName={parameterName}
+      parameterName={label ?? parameterName}
       action={
         (hidden > 0 || showAll) && (
           <button
