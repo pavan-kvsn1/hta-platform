@@ -171,7 +171,6 @@ const createCertificateSchema = z.object({
             accuracy: z.number(),
           }),
         ),
-        conversion: z.string().optional().nullable(),
       })
       .optional()
       .nullable(),

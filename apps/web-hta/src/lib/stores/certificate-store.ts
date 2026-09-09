@@ -60,10 +60,18 @@ export interface MasterMapping {
   parameter: string
   /** The unit that capability is read in. */
   unit: string
-  /** What the master must achieve, in its own units. */
+  /**
+   * What the master must achieve, in its own units.
+   *
+   * Stated by the engineer rather than converted from the unit under test's: a
+   * millivolt figure for a half-degree limit comes off a thermocouple table they
+   * already have, and deriving it here would be a worse version of a number they know.
+   *
+   * The conversion itself is not recorded here. Section 05 already owns expression
+   * columns, and that is where the one turning these readings into the parameter's
+   * unit lives - the same expression the error column subtracts with.
+   */
   ranges: { from: number; to: number; leastCount: number; accuracy: number }[]
-  /** Converts a master reading into the parameter's unit; Section 05 uses it too. */
-  conversion?: string
 }
 
 export interface Parameter {

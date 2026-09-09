@@ -25,7 +25,6 @@ const throughMillivolts = {
     parameter: 'DC Voltage',
     unit: 'mV',
     ranges: [{ from: 0, to: 20, leastCount: 0.001, accuracy: 0.01 }],
-    conversion: '(x * 24.9) + 0.2',
   },
 }
 

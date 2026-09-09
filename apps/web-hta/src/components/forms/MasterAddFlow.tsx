@@ -339,7 +339,6 @@ function MeasuredUsing({
       parameter: mapping?.parameter ?? '',
       unit: mapping?.unit ?? '',
       ranges: mapping?.ranges ?? [],
-      conversion: mapping?.conversion,
       ...patch,
     })
 
@@ -483,21 +482,16 @@ function MeasuredUsing({
               </div>
             </div>
 
-            <div>
-              <label className={LABEL}>How it converts</label>
-              <input
-                type="text"
-                value={mapping.conversion ?? ''}
-                onChange={(e) => set({ conversion: e.target.value })}
-                placeholder="e.g. (x * 24.9) + 0.2"
-                className="w-full h-9 rounded-lg border border-slate-300 px-2 text-xs font-mono"
-              />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Turns a reading in {mapping.unit || 'the master\u2019s unit'} into{' '}
-                {own.unit || 'the parameter\u2019s unit'}. Section 05 uses the same
-                expression, so the error column has something it can subtract.
-              </p>
-            </div>
+            {/* The conversion itself belongs to Section 05, which already owns
+                expression columns. Nothing here needs it: which instruments are
+                offered turns on the requirement stated above, in the master's own
+                units, which is why the engineer states it rather than the app
+                deriving it from an expression that does not exist yet. */}
+            <p className="text-[11px] text-slate-500">
+              Readings in {mapping.unit || 'the master’s unit'} are converted to{' '}
+              {own.unit || 'the parameter’s unit'} by an expression column in
+              Section 05, which is what the error column subtracts.
+            </p>
           </div>
         </div>
       )}
@@ -1023,23 +1017,25 @@ export function MasterAddFlow({
 
           {/* Step 2 - how each is to be measured. Ordinarily nothing to decide; the
               question is asked so that the other answer is a choice and not a drift. */}
-          {chosenParameters.map(({ parameter }) => (
-            <MeasuredUsing
-              key={parameter.id}
-              parameter={parameter}
-              label={labels[parameters.findIndex((p) => p.id === parameter.id)] ?? parameter.parameterName}
-              capabilities={capabilities}
-              mapping={mappings[parameter.id]}
-              onChange={(next) =>
-                setMappings((current) => {
-                  const copy = { ...current }
-                  if (next) copy[parameter.id] = next
-                  else delete copy[parameter.id]
-                  return copy
-                })
-              }
-            />
-          ))}
+          <div className="mt-4">
+            {chosenParameters.map(({ parameter }) => (
+              <MeasuredUsing
+                key={parameter.id}
+                parameter={parameter}
+                label={labelOf(parameter.id) || parameter.parameterName}
+                capabilities={capabilities}
+                mapping={mappings[parameter.id]}
+                onChange={(next) =>
+                  setMappings((current) => {
+                    const copy = { ...current }
+                    if (next) copy[parameter.id] = next
+                    else delete copy[parameter.id]
+                    return copy
+                  })
+                }
+              />
+            ))}
+          </div>
         </div>
 
         {/* Step 3 - which instrument */}

@@ -691,7 +691,6 @@ export function requirementFor(parameter: {
     parameter: string
     unit: string
     ranges: RequiredRange[]
-    conversion?: string
   }
 }): { ranges: RequiredRange[]; unit: string; stated: boolean } {
   const mapping = parameter.masterMapping
