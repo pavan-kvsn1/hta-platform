@@ -212,8 +212,10 @@ describe('step 2 - which instrument', () => {
   it('says what the colours mean', () => {
     renderFlow()
     pick('Temperature')
-    expect(screen.getByText('least count')).toBeInTheDocument()
-    expect(screen.getByText('accuracy')).toBeInTheDocument()
+    // The abbreviation and the word it stands for, with the word between them that
+    // makes it a legend rather than two nouns side by side.
+    expect(screen.getByText(/for least count/)).toBeInTheDocument()
+    expect(screen.getByText(/for accuracy/)).toBeInTheDocument()
     expect(screen.getByText('with margin')).toBeInTheDocument()
     expect(screen.getByText('falls short')).toBeInTheDocument()
   })
@@ -262,15 +264,30 @@ describe('step 2 - which instrument', () => {
     expect(paragraph(/1 of 1 can be used/)).toBeInTheDocument()
   })
 
-  it('says what the list is, and what it leaves out', () => {
-    // A list that hides most of the lab should say so. GOOD and SHORT both record
-    // Temperature; neither is left out here.
+  it('says what to do, and what the list is', () => {
+    // The line above the list is an instruction and a description of the rows. The
+    // count is the one on screen, not a figure about the whole lab: it sits above a
+    // list the make and description filters have already cut down.
     renderFlow()
     pick('Temperature')
-    expect(paragraph(/2 of the lab.s 2 instruments record/)).toBeInTheDocument()
+    const line = paragraph(/Select the master from the \d+ listed below/).textContent!
+    expect(line).toMatch(/those recording Temperature/)
+    // The same number the box underneath counts from, since both mean the list.
+    const listed = line.match(/from the (\d+) listed/)![1]
+    expect(paragraph(/can be used/).textContent).toMatch(
+      new RegExp(`of ${listed} can be used`),
+    )
   })
 
-  it('accounts for the instruments that record something else', () => {
+  it('names the filters it was narrowed by', () => {
+    renderFlow()
+    pick('Temperature')
+    fireEvent.click(screen.getByLabelText('Make'))
+    fireEvent.click(screen.getByRole('option', { name: 'Fluke' }))
+    expect(paragraph(/made by Fluke/)).toBeInTheDocument()
+  })
+
+  it('says what the list is made of rather than what the lab holds', () => {
     render(
       <MasterAddFlow
         index={1}
@@ -286,10 +303,11 @@ describe('step 2 - which instrument', () => {
       />,
     )
     pick('Pressure')
-    // Neither records Pressure, so both are accounted for rather than vanishing.
-    expect(
-      paragraph(/the other 2 record different parameters and are not listed/),
-    ).toBeInTheDocument()
+    // Neither records Pressure. The line used to add a second figure for the ones that
+    // record something else; with the criteria named above the list, that only invited
+    // the reader to check whether two numbers about different populations agreed.
+    expect(paragraph(/those recording Pressure/)).toBeInTheDocument()
+    expect(screen.queryByText(/record different parameters/)).not.toBeInTheDocument()
   })
 
   it('says why the ones with nothing recorded are set aside', () => {
@@ -1388,5 +1406,69 @@ describe('the counts under the list', () => {
     expect(c.listed + c.range + c.none).toBe(3)
     expect(c.range).toBe(1)
     expect(c.none).toBe(1)
+  })
+})
+
+describe('a master that falls short on more than one count', () => {
+  /**
+   * Each fault keeps its own sentence; the remedy is said once.
+   *
+   * A coarse least count and a thin ratio fail for different reasons and both are
+   * worth naming, but repeating "please select a compatible master instrument" under
+   * each reads as two problems wanting two instruments.
+   */
+  const both = instrument({ id: 77, asset_no: '777 HTAIPL/L' })
+  // Least count 0.5 against a required 0.1, and accuracy 0.5 against a required 0.5:
+  // coarser than it can write down, and a ratio of 1.0 against the lab's 4.
+  const coarse = unitWith('Temperature', -50, 200, 0.5, 0.5)
+
+  const show = () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+        coveredBy={new Map()}
+        instruments={[both]}
+        resolveUnit={() => coarse}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    // It spans the range, so it is on the list; what it cannot do is resolve or
+    // out-accurate the unit under test.
+    pickInstrument('777 HTAIPL/L')
+  }
+
+  it('names both faults', () => {
+    show()
+    expect(screen.getByText(/least count is coarser than required/)).toBeInTheDocument()
+    expect(screen.getByText(/accuracy ratio is 1.0 : 1/)).toBeInTheDocument()
+  })
+
+  it('asks for another instrument once, not once per fault', () => {
+    show()
+    expect(
+      screen.getAllByText(/Please select a compatible master instrument/),
+    ).toHaveLength(1)
+  })
+
+  it('says nothing of the sort when the master is fit', () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+        coveredBy={new Map()}
+        instruments={[GOOD]}
+        resolveUnit={() => units.get(68)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('600 HTAIPL/L')
+    expect(
+      screen.queryByText(/Please select a compatible master instrument/),
+    ).not.toBeInTheDocument()
   })
 })

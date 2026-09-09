@@ -194,11 +194,16 @@ function BadgeLegend() {
   ]
   return (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+      {/* "LC least count" is two things pushed together and reads as neither. The word
+          between them is what makes it a legend. */}
       <span>
-        <b className="font-bold text-slate-600">LC</b> least count
+        <b className="font-bold text-slate-600">LC</b> for least count
+      </span>
+      <span aria-hidden className="text-slate-300">
+        |
       </span>
       <span>
-        <b className="font-bold text-slate-600">Acc.</b> accuracy
+        <b className="font-bold text-slate-600">Acc.</b> for accuracy
       </span>
       <span aria-hidden className="text-slate-300">
         |
@@ -762,31 +767,6 @@ export function MasterAddFlow({
     [instruments, chosenParameters, standing],
   )
 
-  /**
-   * What the list is, and what it leaves out.
-   *
-   * Three groups, and they add up to the lab's whole master list: the instruments that
-   * record what is being calibrated, the ones that record something else, and the ones
-   * that record nothing at all. Only the last was ever mentioned, so for Temperature
-   * 142 instruments vanished without a word - and for Flow, 199 of 209. A list that
-   * hides four fifths of the lab should say so and say why.
-   */
-  const groups = useMemo(() => {
-    if (chosenParameters.length === 0) {
-      return { recording: 0, otherParameters: 0, unrecorded: 0 }
-    }
-    let recording = 0
-    let otherParameters = 0
-    let unrecorded = 0
-    for (const inst of instruments) {
-      const where = standing(inst)
-      if (where === 'records them') recording += 1
-      else if (where === 'nothing recorded') unrecorded += 1
-      else otherParameters += 1
-    }
-    return { recording, otherParameters, unrecorded }
-  }, [instruments, chosenParameters, standing])
-
   const categories: SearchableOption[] = useMemo(
     () => [
       { value: ANY, label: 'Any category', pinned: true },
@@ -1218,22 +1198,38 @@ export function MasterAddFlow({
                   )}
                 </p>
               ))}
+              {/* An instruction, not a census. This said "75 of the lab's 209 record
+                  Temperature; the other 126 record different parameters" - two figures
+                  about the whole lab, sitting directly above a list the make and
+                  description filters had already cut down, so neither described what was
+                  on screen. What belongs here is what to do and what the rows are;
+                  what is being held back is stated below, where the rest of the
+                  arithmetic lives. */}
               <p className="text-[11px] text-slate-500 mb-1.5">
-                <b className="text-slate-600">{groups.recording}</b> of the lab&rsquo;s{' '}
-                {instruments.length} instruments record{' '}
+                Select the master from the{' '}
+                <b className="text-slate-600">{shown.length}</b> listed below &mdash;
+                those recording{' '}
                 {chosenParameters.length > 1 ? 'all of ' : ''}
                 <b className="text-slate-600">{listOf(labelsFor(paramIds))}</b>
-                {groups.otherParameters > 0 && (
+                {make !== ANY && (
                   <>
-                    ; the other {groups.otherParameters} record different parameters and are
-                    not listed
+                    , made by <b className="text-slate-600">{make}</b>
+                  </>
+                )}
+                {description !== ANY && (
+                  <>
+                    , described as <b className="text-slate-600">{description}</b>
                   </>
                 )}
                 . Each row shows the model, where it was last calibrated, and the range it
                 records.
               </p>
 
-              <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 mb-2">
+              {/* The search and the list are one control. Two bordered boxes stacked
+                  read as two things, and the top one looked like another filter to set
+                  before the list would answer - when it is the list, being narrowed. */}
+              <div className="rounded-xl border border-slate-300 bg-white overflow-hidden">
+              <div className="flex items-center gap-2 border-b border-slate-200 px-3">
                 <Search className="size-4 text-slate-400 shrink-0" />
                 <input
                   type="text"
@@ -1255,7 +1251,7 @@ export function MasterAddFlow({
                 )}
               </div>
 
-              <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden max-h-80 overflow-y-auto">
+              <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
                 {shown.length === 0 ? (
                   <p className="px-4 py-6 text-center text-xs text-slate-500">
                     No instrument matches those filters.
@@ -1304,6 +1300,7 @@ export function MasterAddFlow({
                     )
                   })
                 )}
+              </div>
               </div>
 
               <div className="mt-2 space-y-1">

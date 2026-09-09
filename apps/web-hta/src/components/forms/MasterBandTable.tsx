@@ -42,6 +42,81 @@ interface MasterBandTableProps {
   threshold?: number
 }
 
+/**
+ * What is wrong with this master, and the one thing to do about it.
+ *
+ * The least count and the accuracy fail for different reasons and both are worth
+ * naming - a coarse least count cannot be written down at all, a thin ratio is a
+ * judgement - so each keeps its own sentence. What they share is the remedy, and
+ * repeating "please select a compatible master instrument" under each of them reads as
+ * two problems needing two instruments. Said once, after whichever of them spoke.
+ */
+function Verdicts({
+  required,
+  bands,
+  declared,
+  threshold,
+}: {
+  required: RequiredRange[]
+  bands: CapabilityBucket[]
+  declared: { min: number | null; max: number | null }
+  threshold: number
+}) {
+  const leastCount = LeastCountVerdict({ required, bands, declared })
+  const accuracy = AccuracyVerdict({ required, bands, threshold })
+  if (!leastCount && !accuracy) return null
+  return (
+    <>
+      {leastCount}
+      {accuracy}
+      <p className="text-xs mt-1.5 text-red-600">
+        Please select a compatible master instrument.
+      </p>
+    </>
+  )
+}
+
+/**
+ * Whether the master is enough finer than the unit under test, said in words.
+ *
+ * The ratio was a badge on each row and nothing else. A column of figures says what the
+ * numbers are; it does not say that the instrument fails the lab's rule, and the least
+ * count beside it had a sentence while this did not - so a master short on accuracy
+ * read as one with a slightly odd number rather than one to put back.
+ */
+function AccuracyVerdict({
+  required,
+  bands,
+  threshold,
+}: {
+  required: RequiredRange[]
+  bands: CapabilityBucket[]
+  threshold: number
+}) {
+  const ratios = required
+    .map((req) => {
+      const band =
+        bands.find((b) => b.min != null && b.max != null && b.min <= req.from && b.max >= req.to) ??
+        bands.find((b) => b.min != null && b.max != null && b.max > req.from && b.min < req.to) ??
+        bands[0]
+      const acc = band ? accuracyOf(band, req.to) : null
+      return acc ? req.accuracy / acc : null
+    })
+    .filter((r): r is number => r !== null)
+
+  if (ratios.length === 0) return null
+  const worst = Math.min(...ratios)
+  if (worst >= threshold) return null
+
+  return (
+    <p className="text-xs mt-1.5 text-red-600">
+      The master&rsquo;s accuracy ratio is {worst.toFixed(1)} : 1, below the {threshold} : 1
+      the lab asks for &mdash; it is not enough finer than the unit under test for the
+      result to carry.
+    </p>
+  )
+}
+
 /** The accuracy of one band as a number, where it reduces to one. */
 function accuracyOf(band: CapabilityBucket, at: number) {
   const resolved = resolveAccuracy(band.accuracy, { reading: at })
@@ -178,7 +253,7 @@ export function MasterBandTable({
           <tbody className="divide-y divide-slate-100">{rows}</tbody>
         </table>
       </div>
-      <LeastCountVerdict required={required} bands={bands} declared={declared} />
+      <Verdicts required={required} bands={bands} declared={declared} threshold={threshold} />
     </div>
   )
 }

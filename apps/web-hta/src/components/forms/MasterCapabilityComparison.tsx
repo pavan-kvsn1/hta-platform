@@ -283,6 +283,7 @@ function Verdict({
     return (
       <Note tone="red">
         Part of the required range falls outside every band this capability records.
+        Please select a compatible master instrument.
       </Note>
     )
   }
@@ -290,7 +291,8 @@ function Verdict({
     return (
       <Note tone="red">
         This instrument&rsquo;s least count is coarser than the parameter requires &mdash;
-        readings would be recorded finer than it can actually read.
+        readings would be recorded finer than it can actually read. Please select a
+        compatible master instrument.
       </Note>
     )
   }
@@ -307,7 +309,8 @@ function Verdict({
       <Note tone="amber">
         At {suitability.worstRatio.toFixed(1)}:1 this master is close to the unit&rsquo;s
         own accuracy, so a reading near the limit may not decide pass or fail. The lab
-        asks for {threshold}:1.
+        asks for {threshold}:1. Please select a compatible master instrument, or record
+        why this one was accepted.
       </Note>
     )
   }
