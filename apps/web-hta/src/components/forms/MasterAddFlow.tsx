@@ -992,18 +992,14 @@ export function MasterAddFlow({
    */
   const awaitingApproval = chosenParameters.filter(({ parameter }) => {
     const declaration = declarations[parameter.id] ?? EMPTY_DECLARATION
-    if (
-      !nothingToRateBy(
-        registryUnit,
-        mappedCapability(parameter),
-        requiredFor.get(parameter.id) ?? [],
-        declaration,
-        threshold,
-        classify,
-      )
-    ) {
-      return false
-    }
+    const capability = mappedCapability(parameter)
+    const required = requiredFor.get(parameter.id) ?? []
+    const blind = nothingToRateBy(registryUnit, capability, required, declaration, threshold, classify)
+    // A ratio short of the lab's threshold is a decision, not a defect - but it is the
+    // reviewer's decision, and the certificate carries nothing else that records it.
+    const ratio = worstRatioFor(registryUnit, capability.name, required, threshold, capability.unit)
+    const short = ratio !== null && ratio < threshold
+    if (!blind && !short) return false
     return declaration.reason.trim() === ''
   })
 
@@ -1451,10 +1447,9 @@ export function MasterAddFlow({
 
         {ready && awaitingApproval.length > 0 && (
           <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
-            Nothing recorded rates this master against{' '}
+            This master needs the reviewer&rsquo;s approval for{' '}
             <b>{listOf(awaitingApproval.map(({ parameter }) => labelOf(parameter.id) || parameter.parameterName))}</b>
-            . Write the reason the reviewer will approve it on, above, and it can be
-            added.
+            . Write what they should approve it on, above, and it can be added.
           </p>
         )}
 
@@ -1779,14 +1774,15 @@ function ParameterDeclaration({
                 </p>
                 <p className="text-[11px] text-amber-800 mb-2">
                   Below the {threshold}:1 the lab asks for
-                  {mapping ? ', against the requirement you stated above' : ''}. Usable,
-                  with a reason recorded on the certificate.
+                  {mapping ? ', against the requirement you stated above' : ''}. The
+                  master is still finer than the unit under test, so this is a call the
+                  lab can make &mdash; the reviewer&rsquo;s, and they approve the
+                  certificate on what you write here.
                 </p>
               </>
             )}
             <label className={LABEL}>
-              Reason for the reviewer{' '}
-              {unrateable && <span className="text-red-500">*</span>}
+              For the reviewer&rsquo;s approval <span className="text-red-500">*</span>
             </label>
             <textarea
               rows={2}
@@ -1800,7 +1796,7 @@ function ParameterDeclaration({
                   : 'e.g. Customer tolerance is wider than the stated accuracy; agreed with the reviewer.'
               }
             />
-            {unrateable && declaration.reason.trim() === '' && (
+            {declaration.reason.trim() === '' && (
               <p className="text-[11px] text-amber-800 mt-1">
                 The master cannot be added until this is written.
               </p>

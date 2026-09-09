@@ -65,15 +65,49 @@ function Verdicts({
   const leastCount = LeastCountVerdict({ required, bands, declared })
   const accuracy = AccuracyVerdict({ required, bands, threshold })
   if (!leastCount && !accuracy) return null
+
+  /**
+   * A short ratio is not the same fault as an unusable instrument.
+   *
+   * A master that cannot resolve the reading, or cannot reach the range, cannot do the
+   * job at all - there is nothing to weigh, and the answer is another instrument. A
+   * ratio between 1 : 1 and the lab's threshold is different: the master is finer than
+   * the unit under test, just not by the margin the lab asks for. That is a judgement
+   * the lab can make, and telling the engineer to go and find another instrument reads
+   * as a refusal where the lab's own rules allow a decision.
+   */
+  const onlyTheRatio = !leastCount && ratiosOf(required, bands).every((r) => r > 1)
+
   return (
     <>
       {leastCount}
       {accuracy}
-      <p className="text-xs mt-1.5 text-red-600">
-        Please select a compatible master instrument.
-      </p>
+      {onlyTheRatio ? (
+        <p className="text-xs mt-1.5 text-amber-700">
+          If a finer master is available, use it. If this one has to be used, record why
+          below &mdash; the reviewer approves the certificate on that.
+        </p>
+      ) : (
+        <p className="text-xs mt-1.5 text-red-600">
+          Please select a compatible master instrument.
+        </p>
+      )}
     </>
   )
+}
+
+/** The accuracy ratio of each required band, where it reduces to a number. */
+function ratiosOf(required: RequiredRange[], bands: CapabilityBucket[]): number[] {
+  return required
+    .map((req) => {
+      const band =
+        bands.find((b) => b.min != null && b.max != null && b.min <= req.from && b.max >= req.to) ??
+        bands.find((b) => b.min != null && b.max != null && b.max > req.from && b.min < req.to) ??
+        bands[0]
+      const acc = band ? accuracyOf(band, req.to) : null
+      return acc ? req.accuracy / acc : null
+    })
+    .filter((r): r is number => r !== null)
 }
 
 /**

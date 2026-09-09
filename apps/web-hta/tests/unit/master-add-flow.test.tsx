@@ -624,7 +624,7 @@ describe('instruments with nothing recorded', () => {
     it('will not add the master until it is written', () => {
       chooseIt()
       expect(screen.getByRole('button', { name: 'Add this master' })).toBeDisabled()
-      expect(screen.getByText(/Write the reason the reviewer will approve it on/)).toBeInTheDocument()
+      expect(screen.getByText(/Write what they should approve it on/)).toBeInTheDocument()
     })
 
     it('adds it once it is, and carries the reason', () => {
@@ -1287,6 +1287,10 @@ describe('several units under one asset number', () => {
     )
     pick('Temperature')
     fireEvent.click(twinRows()[1])
+    // This twin's ratio falls short of the lab's threshold, so the reviewer's approval
+    // is required before it can be added.
+    const reason = screen.queryByPlaceholderText(/Customer tolerance|Calibrated against/)
+    if (reason) fireEvent.change(reason, { target: { value: 'Agreed with the reviewer.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
     expect(onAdd.mock.calls[0][0].instrument.id).toBe(127)
   })
@@ -1522,5 +1526,69 @@ describe('instruments with no calibration procedure on file', () => {
       screen.getAllByRole('button', { name: 'show them anyway' })[0],
     )
     expect(listed('996 HTAIPL/L')).toBe(true)
+  })
+})
+
+describe('a master finer than the unit, but not by the margin the lab asks', () => {
+  /**
+   * A ratio between 1 : 1 and the threshold is not a defect. The master is finer than
+   * the thing it is checking, just not by the margin the lab wants, and the lab's own
+   * rules let that be accepted with a reason. Telling the engineer to go and find
+   * another instrument reads as a refusal where a decision is allowed.
+   *
+   * A master that cannot resolve the reading is the other case, and still says so.
+   */
+  const THIN = instrument({ id: 91, asset_no: '901 HTAIPL/L' })
+  // Required is 0.1 least count, ±0.5 accuracy. This resolves finely and gives 2 : 1.
+  const thinUnit = unitWith('Temperature', -50, 200, 0.1, 0.25)
+
+  const show = (u: RegistryUnit) => {
+    const onAdd = vi.fn()
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+        coveredBy={new Map()}
+        instruments={[THIN]}
+        resolveUnit={() => u}
+        onCancel={vi.fn()}
+        onAdd={onAdd}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('901 HTAIPL/L')
+    return onAdd
+  }
+
+  it('advises rather than refuses', () => {
+    show(thinUnit)
+    expect(screen.getByText(/If a finer master is available, use it/)).toBeInTheDocument()
+    expect(
+      screen.queryByText('Please select a compatible master instrument.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('still refuses where the least count cannot resolve the reading', () => {
+    show(unitWith('Temperature', -50, 200, 0.5, 0.25))
+    expect(
+      screen.getByText('Please select a compatible master instrument.'),
+    ).toBeInTheDocument()
+  })
+
+  it('will not add it until the reviewer has something to approve', () => {
+    show(thinUnit)
+    expect(screen.getByRole('button', { name: 'Add this master' })).toBeDisabled()
+    expect(screen.getByText(/needs the reviewer/)).toBeInTheDocument()
+  })
+
+  it('adds it once that is written, and carries it', () => {
+    const onAdd = show(thinUnit)
+    fireEvent.change(screen.getByPlaceholderText(/Customer tolerance/), {
+      target: { value: 'Customer tolerance is wider; agreed with the reviewer.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
+    expect(onAdd.mock.calls[0][0].assignments[0].acceptanceReason).toBe(
+      'Customer tolerance is wider; agreed with the reviewer.',
+    )
   })
 })
