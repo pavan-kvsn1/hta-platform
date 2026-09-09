@@ -39,6 +39,7 @@ import {
   missingRequirement,
   requirementFor,
   requiredRanges,
+  resolveAccuracy,
   type RequiredRange,
 } from '@/lib/master-instrument-capability'
 import {
@@ -278,7 +279,23 @@ function nothingToRateBy(
         classify,
       })?.profile
   if (!profile) return true
-  return declaredCapability(profile, declaration.subtype).buckets.length === 0
+  const buckets = declaredCapability(profile, declaration.subtype).buckets
+  if (buckets.length === 0) return true
+  // A band with no least count recorded is the same predicament in smaller form: the
+  // figure the comparison turns on is not there. It used to be read as a coarse least
+  // count and printed "reads in steps of 0" - a number nobody wrote.
+  return required.some((req) => {
+    const band =
+      buckets.find((b) => b.min != null && b.max != null && b.min <= req.from && b.max >= req.to) ??
+      buckets.find((b) => b.min != null && b.max != null && b.max > req.from && b.min < req.to) ??
+      buckets[0]
+    if ((band?.least_count?.value ?? null) === null) return true
+    // The same for the accuracy: absent, or recorded in a form that gives no figure -
+    // a percentage with no stated basis, a class. Either way there is no ratio to work
+    // out, and the app cannot say whether the master is fit.
+    const accuracy = band ? resolveAccuracy(band.accuracy, { reading: req.to }) : null
+    return !accuracy || accuracy.value <= 0
+  })
 }
 
 function worstRatioFor(
@@ -1805,14 +1822,14 @@ function ParameterDeclaration({
             {unrateable ? (
               <>
                 <p className="text-xs font-bold text-amber-800 mb-1">
-                  Nothing recorded to rate this master by.
+                  The registry does not hold enough to judge this master.
                 </p>
                 <p className="text-[11px] text-amber-800 mb-2">
-                  {instrument.asset_no} carries no range, least count or accuracy for{' '}
-                  {capability.name || 'this parameter'}, so neither the least-count match
-                  nor the accuracy ratio can be shown. Say why it is fit for this
-                  calibration &mdash; the reviewer approves the certificate on this, and
-                  it is all they will have.
+                  What {instrument.asset_no} records for{' '}
+                  {capability.name || 'this parameter'} is incomplete &mdash; a range, a
+                  least count or an accuracy is missing &mdash; so the comparison cannot
+                  be made here. Its own calibration certificate has the figures; say what
+                  the reviewer should approve it on, because that is all they will have.
                 </p>
               </>
             ) : (

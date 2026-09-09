@@ -617,8 +617,10 @@ describe('instruments with nothing recorded', () => {
 
     it('asks for the reason the reviewer will approve it on', () => {
       chooseIt()
-      expect(screen.getByText(/Nothing recorded to rate this master by/)).toBeInTheDocument()
-      expect(screen.getByText(/the reviewer approves the certificate on this/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/does not hold enough to judge this master/),
+      ).toBeInTheDocument()
+      expect(screen.getByText(/that is all they will have/)).toBeInTheDocument()
     })
 
     it('will not add the master until it is written', () => {
@@ -1447,15 +1449,19 @@ describe('a master that falls short on more than one count', () => {
 
   it('names both faults', () => {
     show()
-    expect(screen.getByText(/least count is coarser than required/)).toBeInTheDocument()
-    expect(screen.getByText(/accuracy ratio is 2.0 : 1/)).toBeInTheDocument()
+    expect(screen.getByText(/reads in steps of/)).toBeInTheDocument()
+    expect(screen.getByText(/At 2.0 : 1 it is not enough finer/)).toBeInTheDocument()
   })
 
-  it('asks for another instrument once, not once per fault', () => {
+  it('ends each fault in what to do about it, and says it once', () => {
+    // The generic "please select a compatible master instrument" underneath read as a
+    // third fault when two had already spoken.
     show()
     expect(
-      screen.getAllByText(/Please select a compatible master instrument/),
-    ).toHaveLength(1)
+      screen.queryByText(/Please select a compatible master instrument/),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText(/Choose a master that reads at least as finely/)).toBeInTheDocument()
+    expect(screen.getByText(/Choose a finer master/)).toBeInTheDocument()
   })
 
   it('says nothing of the sort when the master is fit', () => {
@@ -1576,9 +1582,10 @@ describe('a master finer than the unit, but not by the margin the lab asks', () 
 
   it('still refuses where the least count cannot resolve the reading', () => {
     show(unitWith('Temperature', -50, 200, 0.5, 0.25))
+    expect(screen.getByText(/reads in steps of/)).toBeInTheDocument()
     expect(
-      screen.getByText('Please select a compatible master instrument.'),
-    ).toBeInTheDocument()
+      screen.queryByText(/If a finer master is available, use it/),
+    ).not.toBeInTheDocument()
   })
 
   it('will not add it until the reviewer has something to approve', () => {
@@ -1645,5 +1652,146 @@ describe('a master no finer than the thing it is checking', () => {
     expect(screen.getByText(/It cannot be used here/)).toBeInTheDocument()
     // The way out stays.
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+  })
+})
+
+describe('a master whose least count was never recorded', () => {
+  /**
+   * The registry holds a band and an accuracy for it, and no least count. That is not a
+   * coarse least count - it is a missing one, and the two were being reported the same
+   * way: "reads in steps of 0", a figure nobody ever wrote, presented as the
+   * instrument's own.
+   *
+   * The comparison cannot be made, so it goes the way of every other master the
+   * registry cannot judge: the reviewer approves it from the instrument's certificate,
+   * and the engineer has to say what they should approve it on.
+   */
+  const NO_LC = instrument({ id: 93, asset_no: '903 HTAIPL/L' })
+  const noLeastCount = {
+    capability_profiles: [
+      {
+        id: 'P1',
+        parameter: 'Temperature',
+        role: 'measuring',
+        unit: '°C',
+        min: -50,
+        max: 200,
+        buckets: [
+          {
+            id: 'B1',
+            min: -50,
+            max: 200,
+            min_inclusive: true,
+            max_inclusive: true,
+            least_count: null,
+            accuracy: { type: 'symmetric', value: 0.05, unit: '°C', polarity: '±' },
+          },
+        ],
+        subtypes: [],
+      },
+    ],
+  } as unknown as RegistryUnit
+
+  const show = () => {
+    const onAdd = vi.fn()
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+        coveredBy={new Map()}
+        instruments={[NO_LC]}
+        resolveUnit={() => noLeastCount}
+        onCancel={vi.fn()}
+        onAdd={onAdd}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('903 HTAIPL/L')
+    return onAdd
+  }
+
+  it('does not report it as a coarse least count', () => {
+    show()
+    expect(screen.queryByText(/reads in steps of/)).not.toBeInTheDocument()
+    expect(screen.getByText(/No least count is recorded for this band/)).toBeInTheDocument()
+  })
+
+  it('asks the reviewer to approve it instead', () => {
+    show()
+    expect(screen.getByText(/does not hold enough to judge this master/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add this master' })).toBeDisabled()
+  })
+
+  it('adds it once that is written', () => {
+    const onAdd = show()
+    fireEvent.change(screen.getByPlaceholderText(/Calibrated against its own certificate/), {
+      target: { value: 'Certificate states 0.01 °C resolution.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
+    expect(onAdd.mock.calls[0][0].assignments[0].acceptanceReason).toBe(
+      'Certificate states 0.01 °C resolution.',
+    )
+  })
+})
+
+describe('a master whose accuracy was never recorded', () => {
+  /**
+   * The mirror of the missing least count. The band gives a resolution and no accuracy,
+   * so there is no figure to divide the requirement by. The ratio column showed a dash
+   * and nothing said the comparison had not been made, which read as "nothing wrong".
+   */
+  const NO_ACC = instrument({ id: 94, asset_no: '904 HTAIPL/L' })
+  const noAccuracy = {
+    capability_profiles: [
+      {
+        id: 'P1',
+        parameter: 'Temperature',
+        role: 'measuring',
+        unit: '°C',
+        min: -50,
+        max: 200,
+        buckets: [
+          {
+            id: 'B1',
+            min: -50,
+            max: 200,
+            min_inclusive: true,
+            max_inclusive: true,
+            least_count: { value: 0.01, unit: '°C' },
+            accuracy: null,
+          },
+        ],
+        subtypes: [],
+      },
+    ],
+  } as unknown as RegistryUnit
+
+  const show = () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+        coveredBy={new Map()}
+        instruments={[NO_ACC]}
+        resolveUnit={() => noAccuracy}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('904 HTAIPL/L')
+  }
+
+  it('says the ratio could not be worked out', () => {
+    show()
+    expect(
+      screen.getByText(/does not give a figure to compare against/),
+    ).toBeInTheDocument()
+  })
+
+  it('asks the reviewer to approve it, and waits', () => {
+    show()
+    expect(screen.getByText(/does not hold enough to judge this master/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add this master' })).toBeDisabled()
   })
 })

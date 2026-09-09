@@ -85,7 +85,11 @@ function Verdicts({
    * the lab can make, and telling the engineer to go and find another instrument reads
    * as a refusal where the lab's own rules allow a decision.
    */
-  const onlyTheRatio = !leastCount && ratiosOf(required, bands).every((r) => r > 1)
+  // An empty list passes every() - so a band with no comparable accuracy at all was
+  // being told "if a finer master is available, use it", as though a ratio had been
+  // worked out and come up short.
+  const ratios = ratiosOf(required, bands)
+  const onlyTheRatio = !leastCount && ratios.length > 0 && ratios.every((r) => r > 1)
 
   // Where the ratio is the only fault, the figure is already in the table's own column
   // and naming it again in a sentence only delays what to do about it.
@@ -98,13 +102,12 @@ function Verdicts({
     )
   }
 
+  // Each verdict now ends in what to do about it, so the generic line beneath them
+  // only repeats the last one - and where both spoke, it read as a third fault.
   return (
     <>
       {leastCount}
       {accuracy}
-      <p className="text-xs mt-1.5 text-red-600">
-        Please select a compatible master instrument.
-      </p>
     </>
   )
 }
@@ -151,15 +154,28 @@ function AccuracyVerdict({
     })
     .filter((r): r is number => r !== null)
 
-  if (ratios.length === 0) return null
+  // No number to divide by. Either the band records no accuracy at all, or it records
+  // one that does not reduce to a figure - a percentage with no stated basis, a class.
+  // Silence here read as "nothing wrong": the ratio column showed a dash and no
+  // sentence said the comparison had not been made.
+  if (ratios.length === 0) {
+    return (
+      <p className="text-xs mt-1.5 text-amber-700">
+        The accuracy recorded for this band does not give a figure to compare against,
+        so the ratio cannot be worked out here. The reviewer approves that from the
+        instrument&rsquo;s own certificate &mdash; say what they should approve it on
+        below.
+      </p>
+    )
+  }
   const worst = Math.min(...ratios)
   if (worst >= threshold) return null
 
   return (
     <p className="text-xs mt-1.5 text-red-600">
-      The master&rsquo;s accuracy ratio is {worst.toFixed(1)} : 1, below the {threshold} : 1
-      the lab asks for &mdash; it is not enough finer than the unit under test for the
-      result to carry.
+      At {worst.toFixed(1)} : 1 it is not enough finer than the unit under test for a
+      reading near the limit to decide pass from fail; the lab asks for {threshold} : 1.
+      Choose a finer master.
     </p>
   )
 }
@@ -329,21 +345,54 @@ function LeastCountVerdict({
         declared.min <= req.from && declared.max >= req.to,
       matches: lc != null && Math.abs(lc - req.leastCount) < 1e-9,
       finer: lc != null && lc < req.leastCount,
+      lc,
+      needs: req.leastCount,
+      unit: band?.least_count?.unit ?? '',
     }
   })
 
   if (checks.some((c) => !c.covered)) {
     return (
       <p className="text-xs mt-1.5 text-red-600">
-        Part of the required range falls outside every band this capability records.
+        Part of the range being calibrated falls outside every band this capability
+        records, so there is nothing to check those points against. Choose a master that
+        spans the whole range.
       </p>
     )
   }
-  if (checks.some((c) => !c.matches && !c.finer)) {
+  // Said as the two numbers it is about. "Coarser than required - readings would be
+  // recorded finer than this instrument can actually read" is true and takes a second
+  // reading; "reads in steps of 0.5 °C, and the certificate needs 0.1" is the same fact
+  // and needs none.
+  // A least count the registry never recorded is not a coarse one. Both used to end up
+  // here, and the sentence printed "reads in steps of 0" - a figure nobody wrote,
+  // presented as the instrument's own.
+  const unrecorded = checks.find((c) => c.lc === null)
+  if (unrecorded) {
+    return (
+      <p className="text-xs mt-1.5 text-amber-700">
+        No least count is recorded for this band, so whether the master can resolve the
+        reading cannot be judged here. The reviewer approves that from the
+        instrument&rsquo;s own certificate &mdash; say what they should approve it on
+        below.
+      </p>
+    )
+  }
+
+  const coarse = checks.find((c) => !c.matches && !c.finer)
+  if (coarse) {
     return (
       <p className="text-xs mt-1.5 text-red-600">
-        The master&rsquo;s least count is coarser than required &mdash; readings would be
-        recorded finer than this instrument can actually read.
+        This master reads in steps of{' '}
+        <b>
+          {n(coarse.lc ?? 0)} {coarse.unit}
+        </b>
+        , and the certificate needs{' '}
+        <b>
+          {n(coarse.needs)} {coarse.unit}
+        </b>
+        . Any finer digit would be one nobody read. Choose a master that reads at least
+        as finely.
       </p>
     )
   }
