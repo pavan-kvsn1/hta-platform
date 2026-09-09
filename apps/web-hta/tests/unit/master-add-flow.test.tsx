@@ -166,7 +166,7 @@ describe('step 2 - which instrument', () => {
   it('appears only once the parameter is answered', () => {
     renderFlow()
     pick('Temperature')
-    expect(screen.getByText('Category')).toBeInTheDocument()
+    expect(screen.getByLabelText('Search instruments')).toBeInTheDocument()
     expect(
       screen.getAllByRole('button').some((b) => b.textContent?.includes('600 HTAIPL/L')),
     ).toBe(true)
@@ -701,9 +701,11 @@ describe('finding an instrument', () => {
   const rows = () =>
     screen.getAllByRole('button').filter((b) => b.textContent?.includes('HTAIPL/L'))
 
-  it('offers a make filter beside the category', () => {
+  it('filters on the instrument’s own attributes, not its category', () => {
+    // Category told us nothing once the capability was chosen: 45 of the 47
+    // capabilities appear in exactly one of them.
     renderMany()
-    expect(screen.getByLabelText('Category')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Category')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Make')).toBeInTheDocument()
     expect(screen.getByLabelText('Description')).toBeInTheDocument()
   })
@@ -921,6 +923,113 @@ describe('matching a capability to a parameter', () => {
   it('still matches on the name where the registry records no unit', () => {
     // A registry that records no unit should not lose its instruments.
     expect(listFor('Pressure', '')).toHaveLength(1)
+  })
+})
+
+describe('a master that measures something else', () => {
+  // A thermocouple indicator reading °C, calibrated with a millivolt source. The
+  // master's parameter is a different quantity, and no rule can derive the pairing.
+  const VOLTS = {
+    capability_profiles: [
+      {
+        id: 'P1',
+        parameter: 'DC Voltage',
+        role: 'source',
+        unit: 'mV',
+        min: 0,
+        max: 100,
+        buckets: [
+          {
+            id: 'B1',
+            min: 0,
+            max: 100,
+            min_inclusive: true,
+            max_inclusive: true,
+            least_count: { value: 0.001, unit: 'mV' },
+            accuracy: { type: 'symmetric', value: 0.002, unit: 'mV', polarity: '±' },
+          },
+        ],
+        subtypes: [],
+      },
+    ],
+  } as unknown as RegistryUnit
+
+  const CALIBRATOR = instrument({ id: 90, asset_no: '711 HTAIPL/L' })
+
+  const renderMapped = () => {
+    const onAdd = vi.fn()
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+        coveredBy={new Map()}
+        instruments={[GOOD, CALIBRATOR]}
+        resolveUnit={(inst) => (inst.id === 90 ? VOLTS : units.get(inst.id))}
+        onCancel={vi.fn()}
+        onAdd={onAdd}
+      />,
+    )
+    pick('Temperature')
+    return onAdd
+  }
+
+  const goDifferent = () =>
+    fireEvent.click(screen.getByText('through a different parameter').closest('button')!)
+
+  it('asks how it is measured, and says the ordinary answer costs nothing', () => {
+    renderMapped()
+    expect(screen.getByText(/Measured using/i)).toBeInTheDocument()
+    expect(screen.getByText(/Requirement comes from Section 02/i)).toBeInTheDocument()
+  })
+
+  it('offers no voltage source while the answer is "directly"', () => {
+    // The list holds only instruments recording temperature, which is right until
+    // the engineer says otherwise.
+    renderMapped()
+    expect(
+      screen.getAllByRole('button').some((b) => b.textContent?.includes('711 HTAIPL/L')),
+    ).toBe(false)
+  })
+
+  it('shows the unit under test’s requirement while the conversion is made', () => {
+    // They are converting from it, so it belongs on screen while they do.
+    renderMapped()
+    goDifferent()
+    expect(screen.getByText(/Your unit needs/i)).toBeInTheDocument()
+    // Also on the parameter's own row above, hence "all".
+    expect(screen.getAllByText(/-20 to 60 °C/).length).toBeGreaterThan(0)
+  })
+
+  it('offers the voltage source once the parameter is mapped to it', () => {
+    renderMapped()
+    goDifferent()
+    fireEvent.click(screen.getByPlaceholderText(/Which capability will measure it/i))
+    fireEvent.click(screen.getByRole('option', { name: /DC Voltage/ }))
+    expect(
+      screen.getAllByRole('button').some((b) => b.textContent?.includes('711 HTAIPL/L')),
+    ).toBe(true)
+  })
+
+  it('carries the mapping onto the certificate, not just the profile it resolved to', () => {
+    const onAdd = renderMapped()
+    goDifferent()
+    fireEvent.click(screen.getByPlaceholderText(/Which capability will measure it/i))
+    fireEvent.click(screen.getByRole('option', { name: /DC Voltage/ }))
+    pickInstrument('711 HTAIPL/L')
+    fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
+    expect(onAdd.mock.calls[0][0].assignments[0].masterMapping).toMatchObject({
+      parameter: 'DC Voltage',
+    })
+  })
+
+  it('goes back to the ordinary case when the answer is changed back', () => {
+    renderMapped()
+    goDifferent()
+    fireEvent.click(screen.getByText('directly, as Temperature').closest('button')!)
+    expect(screen.getByText(/Requirement comes from Section 02/i)).toBeInTheDocument()
+    expect(
+      screen.getAllByRole('button').some((b) => b.textContent?.includes('711 HTAIPL/L')),
+    ).toBe(false)
   })
 })
 

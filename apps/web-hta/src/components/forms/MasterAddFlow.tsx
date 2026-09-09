@@ -21,7 +21,7 @@ import { useMemo, useState } from 'react'
 import { CheckCircle, Search, Trash2 } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { SearchableSelect, type SearchableOption } from '@/components/ui/searchable-select'
-import type { Parameter } from '@/lib/stores/certificate-store'
+import type { MasterMapping, Parameter } from '@/lib/stores/certificate-store'
 import {
   MasterInstrument,
   CATEGORY_LABELS,
@@ -34,8 +34,10 @@ import {
   DEFAULT_ACCURACY_RATIO,
   chooseCapability,
   declaredCapability,
+  mappedCapability,
   matchesParameter,
   missingRequirement,
+  requirementFor,
   requiredRanges,
   type RequiredRange,
 } from '@/lib/master-instrument-capability'
@@ -48,7 +50,7 @@ import {
 import { MasterCapabilityDeclaration } from './MasterCapabilityDeclaration'
 import { MasterBandTable } from './MasterBandTable'
 import { listOf, parameterLabels } from '@/lib/parameter-labels'
-import { classificationOf } from '@/lib/parameter-mapping'
+import { classificationOf, type CalibrationParameter } from '@/lib/parameter-mapping'
 import { useParameterStore } from '@/lib/stores/parameter-store'
 import { cn } from '@/lib/utils'
 
@@ -94,6 +96,8 @@ export function sopReferencesFor(
 /** What was declared for one parameter, on the master being added. */
 export interface FlowAssignment {
   parameterIndex: number
+  /** Set where the master measures something other than the parameter. */
+  masterMapping?: MasterMapping
   profileId?: string
   subtype?: string
   sopReference: string
@@ -237,6 +241,213 @@ function worstRatioFor(
   )
 }
 
+
+/**
+ * How one parameter is to be measured.
+ *
+ * Ordinarily by a master recording the same thing, and there is nothing to decide. Not
+ * always: a thermocouple indicator reading °C is calibrated with a millivolt source and
+ * the readings converted, and no rule can derive that pairing because the relationship
+ * is whatever the expression says.
+ *
+ * So it is asked outright, as two answers rather than a dropdown that might drift. The
+ * ordinary answer costs a glance; the other opens the questions it needs and no more.
+ */
+function MeasuredUsing({
+  parameter,
+  label,
+  capabilities,
+  mapping,
+  onChange,
+}: {
+  parameter: Parameter
+  label: string
+  /** Every capability the lab's instruments record, with a label where one is known. */
+  capabilities: { standardName: string; customName: string; category: string; units: string[]; defaultUnit: string | null }[]
+  mapping?: MasterMapping
+  onChange: (mapping: MasterMapping | undefined) => void
+}) {
+  const own = requirementFor({ ...parameter, masterMapping: undefined })
+  const mapped = capabilities.find((c) => c.standardName === mapping?.parameter)
+  const range = mapping?.ranges[0]
+
+  const set = (patch: Partial<MasterMapping>) =>
+    onChange({
+      parameter: mapping?.parameter ?? '',
+      unit: mapping?.unit ?? '',
+      ranges: mapping?.ranges ?? [],
+      conversion: mapping?.conversion,
+      ...patch,
+    })
+
+  const setRange = (patch: Partial<RequiredRange>) => {
+    const current = range ?? { from: 0, to: 0, leastCount: 0, accuracy: 0 }
+    set({ ranges: [{ ...current, ...patch }] })
+  }
+
+  const num = (v: number | undefined) => (v === undefined || Number.isNaN(v) ? '' : String(v))
+  const parse = (v: string) => (v.trim() === '' ? Number.NaN : Number(v))
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 mt-3">
+      <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-3">
+        Measured using &mdash; for {label}
+      </p>
+
+      <div className="flex flex-wrap gap-2 mb-3">
+        {[
+          { on: !mapping, text: `directly, as ${label}` },
+          { on: !!mapping, text: 'through a different parameter' },
+        ].map((choice) => (
+          <button
+            key={choice.text}
+            type="button"
+            onClick={() =>
+              onChange(
+                choice.text.startsWith('directly')
+                  ? undefined
+                  : { parameter: '', unit: '', ranges: [] },
+              )
+            }
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 rounded-xl border bg-white',
+              choice.on ? 'border-primary' : 'border-slate-300',
+            )}
+          >
+            <span
+              className={cn(
+                'size-4 rounded-full border-2 flex-shrink-0',
+                choice.on ? 'border-primary' : 'border-slate-300',
+              )}
+              style={choice.on ? { boxShadow: 'inset 0 0 0 3px var(--primary)' } : undefined}
+            />
+            <span className="text-xs font-semibold text-slate-800">{choice.text}</span>
+          </button>
+        ))}
+      </div>
+
+      {!mapping ? (
+        <p className="text-[11px] text-slate-500">
+          Requirement comes from Section 02 &mdash;{' '}
+          <b className="text-slate-600">
+            {own.ranges.length > 0
+              ? `${own.ranges[0].from} to ${own.ranges[0].to} ${own.unit} · least count ${own.ranges[0].leastCount} · accuracy ±${own.ranges[0].accuracy}`
+              : 'not stated yet'}
+          </b>
+          .
+        </p>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+            <div>
+              <label className={LABEL}>
+                Master parameter <span className="text-red-500">*</span>
+              </label>
+              <SearchableSelect
+                value={mapping.parameter}
+                placeholder="Which capability will measure it..."
+                className="h-9 rounded-lg"
+                options={capabilities.map((capability) => ({
+                  value: capability.standardName,
+                  label: capability.customName,
+                  detail: capability.category,
+                }))}
+                onChange={(value) => {
+                  const next = capabilities.find((c) => c.standardName === value)
+                  set({ parameter: value, unit: next?.defaultUnit ?? '' })
+                }}
+              />
+            </div>
+            <div>
+              <label className={LABEL}>
+                Unit <span className="text-red-500">*</span>
+              </label>
+              <SearchableSelect
+                value={mapping.unit}
+                placeholder="Unit it is read in..."
+                className="h-9 rounded-lg"
+                options={(mapped?.units ?? []).map((u) => ({ value: u, label: u }))}
+                onChange={(value) => set({ unit: value })}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+            <p className="text-[11px] text-slate-500">
+              This master measures something else, so state what it must do.{' '}
+              {own.ranges.length > 0 && (
+                <>
+                  Your unit needs{' '}
+                  <b className="text-slate-700">
+                    {own.ranges[0].from} to {own.ranges[0].to} {own.unit} · least count{' '}
+                    {own.ranges[0].leastCount} · accuracy ±{own.ranges[0].accuracy}
+                  </b>
+                  .
+                </>
+              )}
+            </p>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div>
+                <label className={LABEL}>From</label>
+                <input
+                  type="text"
+                  value={num(range?.from)}
+                  onChange={(e) => setRange({ from: parse(e.target.value) })}
+                  className="w-full h-9 rounded-lg border border-slate-300 px-2 text-xs"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>To</label>
+                <input
+                  type="text"
+                  value={num(range?.to)}
+                  onChange={(e) => setRange({ to: parse(e.target.value) })}
+                  className="w-full h-9 rounded-lg border border-slate-300 px-2 text-xs"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Least count</label>
+                <input
+                  type="text"
+                  value={num(range?.leastCount)}
+                  onChange={(e) => setRange({ leastCount: parse(e.target.value) })}
+                  className="w-full h-9 rounded-lg border border-slate-300 px-2 text-xs"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Accuracy &plusmn;</label>
+                <input
+                  type="text"
+                  value={num(range?.accuracy)}
+                  onChange={(e) => setRange({ accuracy: parse(e.target.value) })}
+                  className="w-full h-9 rounded-lg border border-slate-300 px-2 text-xs"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={LABEL}>How it converts</label>
+              <input
+                type="text"
+                value={mapping.conversion ?? ''}
+                onChange={(e) => set({ conversion: e.target.value })}
+                placeholder="e.g. (x * 24.9) + 0.2"
+                className="w-full h-9 rounded-lg border border-slate-300 px-2 text-xs font-mono"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Turns a reading in {mapping.unit || 'the master\u2019s unit'} into{' '}
+                {own.unit || 'the parameter\u2019s unit'}. Section 05 uses the same
+                expression, so the error column has something it can subtract.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function MasterAddFlow({
   index,
   parameters,
@@ -277,6 +488,24 @@ export function MasterAddFlow({
    * job, and for 188 is one that cannot.
    */
   const [chosenId, setChosenId] = useState<number | null>(seed?.instrumentId ?? null)
+  /**
+   * How each ticked parameter is to be measured.
+   *
+   * Absent means the ordinary case - the master measures the same thing, and the
+   * requirement is the unit under test's own. Present means the engineer has said the
+   * master measures something else, and has stated what it must achieve in the master's
+   * units, because no conversion this app could invent would beat the figure they
+   * already have from a table.
+   */
+  const [mappings, setMappings] = useState<Record<string, MasterMapping>>(
+    () =>
+      Object.fromEntries(
+        parameters
+          .filter((p) => p.masterMapping)
+          .map((p) => [p.id, p.masterMapping as MasterMapping]),
+      ),
+  )
+
   const [showUnrecorded, setShowUnrecorded] = useState(false)
   const [showOutOfRange, setShowOutOfRange] = useState(false)
   const [declarations, setDeclarations] = useState<Record<string, Declaration>>(
@@ -291,19 +520,60 @@ export function MasterAddFlow({
   const labelsFor = (ids: string[]) =>
     parameters.map((p, i) => (ids.includes(p.id) ? labels[i] : null)).filter((x): x is string => x !== null)
 
+  /**
+   * Every capability the lab's instruments record, for the mapping question.
+   *
+   * Taken from the instruments rather than the parameter store, because the mapping is
+   * to a capability a master actually has - a name the store knows but nothing records
+   * would be an offer that leads to an empty list. The store supplies the label and the
+   * grouping where it has them, and its absence costs only those.
+   */
+  const capabilities = useMemo(() => {
+    const found = new Map<string, { units: Set<string> }>()
+    for (const inst of instruments) {
+      for (const profile of resolveUnit(inst)?.capability_profiles ?? []) {
+        const name = profile.parameter?.trim()
+        if (!name) continue
+        if (!found.has(name)) found.set(name, { units: new Set() })
+        if (profile.unit?.trim()) found.get(name)!.units.add(profile.unit.trim())
+      }
+    }
+    return [...found.entries()]
+      .map(([standardName, { units }]) => {
+        const known = labParameters.find((p) => p.standardName === standardName)
+        const list = [...units]
+        return {
+          standardName,
+          customName: known?.customName ?? standardName,
+          category: known?.category ?? '',
+          units: list,
+          defaultUnit: known?.defaultUnit ?? list[0] ?? null,
+        }
+      })
+      .sort((a, b) => a.customName.localeCompare(b.customName))
+  }, [instruments, resolveUnit, labParameters])
+
   const chosenParameters = useMemo(
     () =>
       parameters
-        .map((parameter, parameterIndex) => ({ parameter, parameterIndex }))
+        .map((raw, parameterIndex) => ({
+          // The mapping made in this flow overrides whatever the certificate holds,
+          // so every question below - the requirement, the capability to look for -
+          // follows the answer being given now.
+          parameter: mappings[raw.id] ? { ...raw, masterMapping: mappings[raw.id] } : raw,
+          parameterIndex,
+        }))
         .filter(({ parameter }) => paramIds.includes(parameter.id)),
-    [parameters, paramIds],
+    [parameters, paramIds, mappings],
   )
 
   const requiredFor = useMemo(() => {
     const map = new Map<string, RequiredRange[]>()
-    parameters.forEach((p) => map.set(p.id, requiredRanges(p)))
+    parameters.forEach((p) =>
+      map.set(p.id, requirementFor(mappings[p.id] ? { ...p, masterMapping: mappings[p.id] } : p).ranges),
+    )
     return map
-  }, [parameters])
+  }, [parameters, mappings])
 
   /**
    * How an instrument rates against every parameter ticked. The worst answer is the one
@@ -314,19 +584,22 @@ export function MasterAddFlow({
     () =>
       (inst: MasterInstrument): Eligibility & { limiting?: string } => {
         const unit = resolveUnit(inst)
-        const each = chosenParameters.map(({ parameter }) => ({
-          name: parameter.parameterName,
-          fit: eligibilityFor(
-            unit,
-            inst,
-            {
-              name: parameter.parameterName,
-              unit: parameter.parameterUnit,
-              required: requiredFor.get(parameter.id) ?? [],
-            },
-            threshold,
-          ),
-        }))
+        const each = chosenParameters.map(({ parameter }) => {
+          const capability = mappedCapability(parameter)
+          return {
+            name: parameter.parameterName,
+            fit: eligibilityFor(
+              unit,
+              inst,
+              {
+                name: capability.name,
+                unit: capability.unit,
+                required: requiredFor.get(parameter.id) ?? [],
+              },
+              threshold,
+            ),
+          }
+        })
         if (each.length === 0) {
           return eligibilityFor(unit, inst, { name: '', unit: '', required: [] }, threshold)
         }
@@ -349,9 +622,10 @@ export function MasterAddFlow({
         const unit = resolveUnit(inst)
         if (!unit || unit.capability_profiles.length === 0) return 'nothing recorded'
         const servesAll = chosenParameters.every(({ parameter }) => {
-          if (!parameter.parameterName.trim()) return true
+          const capability = mappedCapability(parameter)
+          if (!capability.name.trim()) return true
           return unit.capability_profiles.some((p) =>
-            matchesParameter(p, parameter.parameterName, parameter.parameterUnit, classify),
+            matchesParameter(p, capability.name, capability.unit, classify),
           )
         })
         return servesAll ? 'records them' : 'records something else'
@@ -666,28 +940,32 @@ export function MasterAddFlow({
               ? 'Choosing the parameters first filters the instrument list to those that can serve all of them.'
               : 'Every parameter already has a master.'}
           </p>
+
+          {/* Step 2 - how each is to be measured. Ordinarily nothing to decide; the
+              question is asked so that the other answer is a choice and not a drift. */}
+          {chosenParameters.map(({ parameter }) => (
+            <MeasuredUsing
+              key={parameter.id}
+              parameter={parameter}
+              label={labels[parameters.findIndex((p) => p.id === parameter.id)] ?? parameter.parameterName}
+              capabilities={capabilities}
+              mapping={mappings[parameter.id]}
+              onChange={(next) =>
+                setMappings((current) => {
+                  const copy = { ...current }
+                  if (next) copy[parameter.id] = next
+                  else delete copy[parameter.id]
+                  return copy
+                })
+              }
+            />
+          ))}
         </div>
 
         {/* Step 2 - which instrument */}
         {chosenParameters.length > 0 && (
           <div className="mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              <div>
-                <Label className={LABEL} htmlFor="flow-category">
-                  Category
-                </Label>
-                <SearchableSelect
-                  id="flow-category"
-                  value={category}
-                  options={categories}
-                  disabled={disabled}
-                  onChange={(v) => {
-                    setCategory(v)
-                    setMake(ANY)
-                    setDescription(ANY)
-                  }}
-                />
-              </div>
               <div>
                 <Label className={LABEL} htmlFor="flow-make">
                   Make
@@ -950,6 +1228,7 @@ export function MasterAddFlow({
                     )
                     return {
                       parameterIndex,
+                      masterMapping: mappings[parameter.id],
                       profileId: declaration.profileId,
                       subtype: declaration.subtype,
                       sopReference: declaration.sop,

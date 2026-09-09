@@ -695,10 +695,17 @@ export function requirementFor(parameter: {
   }
 }): { ranges: RequiredRange[]; unit: string; stated: boolean } {
   const mapping = parameter.masterMapping
-  if (mapping && mapping.ranges.length > 0) {
+  if (mapping) {
     // Stated by the engineer against the master, not derived from the unit under test.
     // The caller says so on screen, because the ratio it produces is a check on the
     // instrument and not an independent check on their arithmetic.
+    //
+    // Empty ranges mean it has not been stated yet, and that is returned as it is
+    // rather than falling back to the parameter's own. Once the master measures
+    // something else, the unit under test's numbers are in the wrong units entirely:
+    // judging a 0 to 100 mV source against a requirement of -20 to 60 °C reports it as
+    // out of range, which is arithmetic performed on two different quantities and
+    // means nothing. Nothing stated, nothing judged.
     return { ranges: mapping.ranges, unit: mapping.unit, stated: true }
   }
   return {

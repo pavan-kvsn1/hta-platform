@@ -622,6 +622,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
         ...param,
         masterInstrumentId: inst.id,
         sopReference: assignment.sopReference,
+        masterMapping: assignment.masterMapping,
         masterProfileId: assignment.profileId,
         masterSubtype: assignment.subtype,
         masterAcceptanceReason: assignment.acceptanceReason || undefined,

@@ -58,13 +58,17 @@ describe('when the master measures something else', () => {
   })
 })
 
-describe('a mapping that states no requirement', () => {
-  it('falls back to the unit under test rather than judging against nothing', () => {
+describe('a mapping whose requirement has not been stated yet', () => {
+  it('judges nothing, rather than judging against the wrong units', () => {
+    // Falling back to the unit under test would compare a 0 to 100 mV source against
+    // a requirement of -20 to 60 °C and report it out of range - arithmetic on two
+    // different quantities, which means nothing. Everything downstream already knows
+    // what to do with an empty requirement: it says so and rates nothing.
     const half = { ...throughMillivolts, masterMapping: { ...throughMillivolts.masterMapping, ranges: [] } }
     const { ranges, unit, stated } = requirementFor(half)
-    expect(ranges).toEqual([{ from: -20, to: 60, leastCount: 0.1, accuracy: 0.5 }])
-    expect(unit).toBe('°C')
-    expect(stated).toBe(false)
+    expect(ranges).toEqual([])
+    expect(unit).toBe('mV')
+    expect(stated).toBe(true)
   })
 })
 
