@@ -155,6 +155,9 @@ const ALIASES: Record<string, string> = {
  * to choose it. Kept, and marked as coming from the certificates rather than the
  * registry, so it is clear which are backed by a master and which are not.
  */
+/** The kind that means the quantity itself, not one of its named variants. */
+export const DIRECT_KIND = 'absolute'
+
 const FROM_CERTIFICATES: Omit<ParameterStandard, 'source' | 'measures' | 'kind'>[] = [
   { standardName: 'pH', category: 'Other', units: ['pH'], defaultUnit: 'pH', subtypes: [], aliases: [] },
   { standardName: 'Inductance', category: 'Electrical', units: ['H', 'mH', 'µH'], defaultUnit: 'mH', subtypes: [], aliases: [] },
@@ -190,10 +193,12 @@ const CLASSIFICATION: Record<string, { measures: string; kind: string }> = {
   // difference between two points, which is not the same measurand at all.
   Pressure: { measures: 'pressure', kind: 'any' },
   'Gauge Pressure': { measures: 'pressure', kind: 'gauge' },
-  Vacuum: { measures: 'pressure', kind: 'absolute' },
+  // Vacuum is its own measurement, not a kind of pressure: the instruments that
+  // do it are their own, and a pressure gauge is not a master for it.
+  Vacuum: { measures: 'vacuum', kind: 'any' },
   // Its own kind rather than another 'absolute': the picker keys on measurand and
   // kind, so two parameters sharing both could not be told apart.
-  'Ultra Vacuum': { measures: 'pressure', kind: 'ultra vacuum' },
+  'Ultra Vacuum': { measures: 'vacuum', kind: 'ultra' },
   'Differential Pressure': { measures: 'differential pressure', kind: 'any' },
 
   // Electrical. Volts are volts, but a DC source will not calibrate an AC meter.
@@ -311,6 +316,47 @@ function commonest(values: string[]): string | null {
  * Every parameter a lab can calibrate: those the registry records, plus those only the
  * certificates know about.
  */
+/**
+ * The "just this, plainly" kind, for measurands whose only unspecific option is `any`.
+ *
+ * `any` means the engineer did not say which kind, so any master serves - a Temperature
+ * parameter matches an RTD calibrator and a thermocouple simulator as readily as a
+ * plain thermometer. That is right when nothing was said, and wrong when the engineer
+ * means the quantity itself and no variant of it: there was no way to say so, because
+ * every kind on offer was a variant.
+ *
+ * So each blanket measurand gains one. Pressure already has it - "absolute" there is
+ * Vacuum, a real and different measurement - and measurands with no variants at all
+ * need nothing, since `any` and "plainly" say the same thing when there is nothing
+ * else to be.
+ *
+ * The new standard inherits its units, category and subtypes from the `any` row it
+ * accompanies: it is the same quantity, said more exactly.
+ */
+function directKinds(standards: ParameterStandard[]): ParameterStandard[] {
+  const byMeasurand = new Map<string, ParameterStandard[]>()
+  for (const standard of standards) {
+    const list = byMeasurand.get(standard.measures) ?? []
+    list.push(standard)
+    byMeasurand.set(standard.measures, list)
+  }
+
+  const added: ParameterStandard[] = []
+  for (const [, group] of byMeasurand) {
+    const blanket = group.find((s) => s.kind === 'any')
+    const variants = group.filter((s) => s.kind !== 'any')
+    if (!blanket || variants.length === 0) continue
+    if (variants.some((s) => s.kind === DIRECT_KIND)) continue
+    added.push({
+      ...blanket,
+      standardName: `${blanket.standardName} (Absolute)`,
+      kind: DIRECT_KIND,
+      aliases: [],
+    })
+  }
+  return added
+}
+
 export function deriveParameterStandards(registry: RegistryLike): ParameterStandard[] {
   const units = new Map<string, string[]>()
   const subtypes = new Map<string, Set<string>>()
@@ -357,8 +403,8 @@ export function deriveParameterStandards(registry: RegistryLike): ParameterStand
     (s) => !known.has(s.standardName),
   ).map((s) => ({ ...s, ...classify(s.standardName, s.units), source: 'certificates' }))
 
-  return [...fromRegistry, ...extra].sort((a, b) =>
-    a.category.localeCompare(b.category) || a.standardName.localeCompare(b.standardName),
+  return [...fromRegistry, ...extra, ...directKinds([...fromRegistry, ...extra])].sort(
+    (a, b) => a.category.localeCompare(b.category) || a.standardName.localeCompare(b.standardName),
   )
 }
 

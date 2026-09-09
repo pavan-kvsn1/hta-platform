@@ -28,8 +28,11 @@ const byName = (name: string) => standards.find((s) => s.standardName === name)
 describe('what the registry records', () => {
   it('produces every parameter it names', () => {
     // 47 in the registry; the scope document said 41, which was close and not right.
+    // Seven more are the "(Absolute)" kinds, one for each measurand whose only
+    // unspecific option was `any` - they inherit the blanket row, so they count as
+    // coming from the registry too.
     const fromRegistry = standards.filter((s) => s.source === 'registry')
-    expect(fromRegistry).toHaveLength(47)
+    expect(fromRegistry).toHaveLength(54)
   })
 
   it('collects the units each one is recorded in', () => {
@@ -193,7 +196,10 @@ describe('what a parameter measures, and which kind', () => {
     expect(of('Temperature').measures).toBe('temperature')
     expect(of('Thermocouple').measures).toBe('temperature')
     expect(of('RTD').measures).toBe('temperature')
-    expect(of('Vacuum').measures).toBe('pressure')
+    // Vacuum is its own measurement, not a kind of pressure: the instruments that do
+    // it are their own, and a pressure gauge is not a master for it.
+    expect(of('Vacuum').measures).toBe('vacuum')
+    expect(of('Ultra Vacuum').measures).toBe('vacuum')
   })
 
   it('separates the kinds that are not interchangeable', () => {
@@ -256,14 +262,25 @@ describe('whether a master can serve a parameter', () => {
     expect(servesSameThing(of('DC Current'), of('AC Current'))).toBe(false)
   })
 
-  it('offers a vacuum gauge for a pressure parameter', () => {
-    // It is an absolute pressure gauge reading low, and the name never said so.
-    expect(servesSameThing(of('Pressure'), of('Vacuum'))).toBe(true)
+  it('does not offer a pressure instrument for a vacuum parameter', () => {
+    // Vacuum is measured by its own instruments. A pressure gauge is not one of them,
+    // whatever the two have in common as physics.
+    expect(servesSameThing(of('Pressure'), of('Vacuum'))).toBe(false)
+    expect(servesSameThing(of('Vacuum'), of('Gauge Pressure'))).toBe(false)
   })
 
-  it('does not offer a gauge instrument for a vacuum parameter', () => {
-    // They differ by atmospheric pressure.
-    expect(servesSameThing(of('Vacuum'), of('Gauge Pressure'))).toBe(false)
+  it('offers an ultra vacuum instrument for an unspecified vacuum parameter', () => {
+    expect(servesSameThing(of('Vacuum'), of('Ultra Vacuum'))).toBe(true)
+  })
+
+  it('keeps the named kinds out of a parameter declared as the plain quantity', () => {
+    // "Temperature" says nothing about how, so an RTD calibrator serves it. "Temperature
+    // (Absolute)" says the quantity itself, and it does not.
+    expect(servesSameThing(of('Temperature'), of('RTD'))).toBe(true)
+    expect(servesSameThing(of('Temperature (Absolute)'), of('RTD'))).toBe(false)
+    expect(servesSameThing(of('Temperature (Absolute)'), of('Thermocouple'))).toBe(false)
+    // A master recorded as plain Temperature still serves it.
+    expect(servesSameThing(of('Temperature (Absolute)'), of('Temperature'))).toBe(true)
   })
 
   it('does not offer a flatness master for a length parameter', () => {
