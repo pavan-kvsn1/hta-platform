@@ -276,3 +276,43 @@ The same disagreement appears on 1003 and 44.
 | 44 | LC 0.001 mm; no accuracy stated |
 | 783 | artifact: 10 discrete blocks with per-block deviation |
 | 782 | artifact: **two** capabilities (height 0–370, outside 0–300) |
+
+## Two-part instruments, verified 2026-09-09
+
+Every unit whose make, model or serial names an indicator and a sensor separately - 33
+of 209 - was checked against its calibration certificate. What the certificates show:
+
+**The two halves are added, not chosen between.** 717 HTAIPL/L reads "Indicator
+Accuracy: ±0.01 °C, Sensor Accuracy: ±0.25 °C (upto 300 °C), above ±0.5 °C"; 621
+HTAIPL/L, the same model certified by a lab that prints one figure, reads "± 0.26 °C Up
+to 300 °C & Above 0.51 °C". The standardizer therefore folds a split pair into one
+capability and sums the accuracies band by band.
+
+Certificates stating the halves separately, now folded:
+
+| Asset | Certificate says | Combined |
+|---|---|---|
+| 717 HTAIPL/L | Ind ±0.01, Sen ±0.25 / ±0.5 | ±0.26 / ±0.51 |
+| 620 HTAIPL/L | Ind ±0.01, Sen ±0.26 / ±0.51 | ±0.27 / ±0.52 |
+| 492A HTAIPL/L | Ind ±0.01, Sen ±0.25 / ±0.51 | ±0.26 / ±0.52 |
+| 494B HTAIPL/L | Ind ±0.01, Sen ±0.25 / ±0.5 | ±0.26 / ±0.51 |
+| 430A HTAIPL/L | Indicator ±0.2 & Sensor ±1.6 (upto 600), ±(0.004*t) above | ±1.8, formula band left alone |
+| 580 HTAIPL/L unit A | "Ind: ± 0.4 °C, Sen: ± 0.5 °C" | ±0.9 |
+
+Certificates stating one figure, which is already the combined one - left as they are:
+621, 619, 659, 718, 807, 805, 806, 719, 810 (all ±0.26 / ±0.51), 252 and 878 (±0.26),
+715 (±1.6 up to 600, ±(0.004*t + 0.2) above - the indicator's 0.2 appears inside the
+formula), 352, 354, 351 (±0.3), 1014 and 1015 (±0.8 %rh & ±0.1 °C), 564, 152
+(± 0.4 % FS, ±0.5 °C), 852 (1 %), 791.
+
+Two corrections came out of the reading:
+
+- **966 HTAIPL/L** held ±0.01 °C for -100 to 100 °C. Its certificate reads ±0.11 - a
+  misread that made the instrument eleven times more accurate than it is across its
+  lower range.
+- **189 and 160 HTAIPL/L** stopped at 600 °C. Both certificates state accuracy per
+  calibration point up to 1100 °C (189: 1.75 / 2.25 / 3.00; 160: 1.80 / 2.05 / 2.30 /
+  2.80 / 3.05), so the profiles were refusing work the instruments are certified for.
+
+Not checked, for want of a certificate on file: 430B HTAIPL/L (records no accuracy at
+all), 855 HTAIPL/L, and unit 2 of 784 HTAIPL/L.

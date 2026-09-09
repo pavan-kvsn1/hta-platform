@@ -28325,7 +28325,7 @@
               "unit": "°C",
               "kind": "range",
               "min": 200.0,
-              "max": 600.0,
+              "max": 1100.0,
               "min_inclusive": true,
               "max_inclusive": true,
               "buckets": [
@@ -28342,6 +28342,40 @@
                   "accuracy": {
                     "type": "symmetric",
                     "value": 1.75,
+                    "unit": "°C",
+                    "polarity": "±"
+                  }
+                },
+                {
+                  "id": "B2",
+                  "min": 600.0,
+                  "max": 800.0,
+                  "min_inclusive": false,
+                  "max_inclusive": true,
+                  "least_count": {
+                    "value": 0.1,
+                    "unit": "°C"
+                  },
+                  "accuracy": {
+                    "type": "symmetric",
+                    "value": 2.25,
+                    "unit": "°C",
+                    "polarity": "±"
+                  }
+                },
+                {
+                  "id": "B3",
+                  "min": 800.0,
+                  "max": 1100.0,
+                  "min_inclusive": false,
+                  "max_inclusive": true,
+                  "least_count": {
+                    "value": 0.1,
+                    "unit": "°C"
+                  },
+                  "accuracy": {
+                    "type": "symmetric",
+                    "value": 3.0,
                     "unit": "°C",
                     "polarity": "±"
                   }
@@ -28392,7 +28426,7 @@
               "unit": "°C",
               "kind": "range",
               "min": 200.0,
-              "max": 600.0,
+              "max": 1100.0,
               "min_inclusive": true,
               "max_inclusive": true,
               "buckets": [
@@ -28409,6 +28443,74 @@
                   "accuracy": {
                     "type": "symmetric",
                     "value": 1.8,
+                    "unit": "°C",
+                    "polarity": "±"
+                  }
+                },
+                {
+                  "id": "B2",
+                  "min": 600.0,
+                  "max": 700.0,
+                  "min_inclusive": false,
+                  "max_inclusive": true,
+                  "least_count": {
+                    "value": 0.1,
+                    "unit": "°C"
+                  },
+                  "accuracy": {
+                    "type": "symmetric",
+                    "value": 2.05,
+                    "unit": "°C",
+                    "polarity": "±"
+                  }
+                },
+                {
+                  "id": "B3",
+                  "min": 700.0,
+                  "max": 800.0,
+                  "min_inclusive": false,
+                  "max_inclusive": true,
+                  "least_count": {
+                    "value": 0.1,
+                    "unit": "°C"
+                  },
+                  "accuracy": {
+                    "type": "symmetric",
+                    "value": 2.3,
+                    "unit": "°C",
+                    "polarity": "±"
+                  }
+                },
+                {
+                  "id": "B4",
+                  "min": 800.0,
+                  "max": 1000.0,
+                  "min_inclusive": false,
+                  "max_inclusive": true,
+                  "least_count": {
+                    "value": 0.1,
+                    "unit": "°C"
+                  },
+                  "accuracy": {
+                    "type": "symmetric",
+                    "value": 2.8,
+                    "unit": "°C",
+                    "polarity": "±"
+                  }
+                },
+                {
+                  "id": "B5",
+                  "min": 1000.0,
+                  "max": 1100.0,
+                  "min_inclusive": false,
+                  "max_inclusive": true,
+                  "least_count": {
+                    "value": 0.1,
+                    "unit": "°C"
+                  },
+                  "accuracy": {
+                    "type": "symmetric",
+                    "value": 3.05,
                     "unit": "°C",
                     "polarity": "±"
                   }

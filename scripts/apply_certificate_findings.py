@@ -113,6 +113,53 @@ def profile(pid, parameter, role, unit, lo, hi, buckets, **extra):
 # from the certificate. Each entry names the certificate and what it says, so the
 # correction can be checked against the same page the error came from.
 # ---------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------
+# Bands a capability was recorded without.
+#
+# Some certificates state accuracy per calibration point rather than as one figure.
+# Where only the first few points were transcribed, the profile stops short of what the
+# instrument is certified for - not wrong, but smaller than the truth, so the master is
+# refused for work it can actually do.
+# ---------------------------------------------------------------------------------
+PROFILE_REBANDS = {
+    "189 HTAIPL/L": {
+        "certificate": "Shriram Institute C2/0000074273, ULR CC208325100005291F, page 2",
+        "parameter": "Temperature",
+        "notes": (
+            "The results table carries an Accuracy (+/-) column per point: 1.75 at 200,"
+            " 400 and 600 C, 2.25 at 800, 3.00 at 1100. Only the 1.75 band was recorded,"
+            " so the profile stopped at 600 C and the instrument could not be chosen for"
+            " the 600-1100 C work its certificate covers. Bands run from one calibrated"
+            " point to the next, the last reaching the declared 1100 C."
+        ),
+        "expect": [(200.0, 600.0, 1.75)],
+        "max": 1100.0,
+        "buckets": [
+            (200.0, 600.0, 1.75, 0.1),
+            (600.0, 800.0, 2.25, 0.1),
+            (800.0, 1100.0, 3.00, 0.1),
+        ],
+    },
+    "160 HTAIPL/L": {
+        "certificate": "Shriram Institute C2/0000076877, ULR CC208326100000067F, page 2",
+        "parameter": "Temperature",
+        "notes": (
+            "As 189: 1.80 at 200, 400 and 600 C, then 2.05 at 700, 2.30 at 800, 2.80 at"
+            " 1000 and 3.05 at 1100. Only the 1.80 band was recorded."
+        ),
+        "expect": [(200.0, 600.0, 1.8)],
+        "max": 1100.0,
+        "buckets": [
+            (200.0, 600.0, 1.80, 0.1),
+            (600.0, 700.0, 2.05, 0.1),
+            (700.0, 800.0, 2.30, 0.1),
+            (800.0, 1000.0, 2.80, 0.1),
+            (1000.0, 1100.0, 3.05, 0.1),
+        ],
+    },
+}
+
+
 BUCKET_CORRECTIONS = {
     "966 HTAIPL/L": {
         "certificate": "TSC/25-26/4062-1 (26 May 2025), ULR CC223125000058041F, page 2",
@@ -475,6 +522,63 @@ FINDINGS = {
 }
 
 
+def apply_rebands(by_asset):
+    """Replace a profile's buckets with the full set its certificate states.
+
+    Refuses unless the profile currently holds exactly what the reband was written
+    against, so this can never quietly paper over a different set of figures.
+    """
+    done = 0
+    for asset_no, fix in PROFILE_REBANDS.items():
+        asset = by_asset.get(asset_no)
+        if asset is None:
+            print(f"ERROR: {asset_no} not in the registry")
+            return None
+        profiles = [
+            pr for pr in asset.get("capability_profiles") or []
+            if pr.get("parameter") == fix["parameter"]
+        ]
+        if len(profiles) != 1:
+            print(f"ERROR: {asset_no} has {len(profiles)} {fix['parameter']} profiles")
+            return None
+        prof = profiles[0]
+        found = [
+            (b.get("min"), b.get("max"), (b.get("accuracy") or {}).get("value"))
+            for b in prof.get("buckets") or []
+        ]
+        if found == [tuple(e) for e in fix["expect"]]:
+            unit = (prof.get("unit") or "°C")
+            prof["buckets"] = [
+                {
+                    "id": f"B{i}",
+                    "min": lo,
+                    "max": hi,
+                    "min_inclusive": i == 1,
+                    "max_inclusive": True,
+                    "least_count": {"value": lc, "unit": unit},
+                    "accuracy": sym(acc, unit),
+                }
+                for i, (lo, hi, acc, lc) in enumerate(fix["buckets"], start=1)
+            ]
+            prof["max"] = fix["max"]
+            prof["rebanded"] = {
+                "certificate": fix["certificate"],
+                "verified_on": VERIFIED_ON,
+                "was": [list(e) for e in fix["expect"]],
+                "notes": fix["notes"],
+            }
+            done += 1
+            print(f"  {asset_no:<16} {len(fix['expect'])} band -> {len(fix['buckets'])},"
+                  f" reaching {fix['max']}")
+        elif len(found) == len(fix["buckets"]):
+            print(f"  {asset_no:<16} already rebanded")
+        else:
+            print(f"ERROR: {asset_no} holds {found}, not the {fix['expect']} this reband"
+                  " was written against - re-read the certificate before changing it")
+            return None
+    return done
+
+
 def apply_corrections(by_asset):
     """Apply BUCKET_CORRECTIONS. Returns the count, or None if anything did not match.
 
@@ -547,8 +651,9 @@ def main():
     ranges_fixed = 0
 
     if args.corrections_only:
-        result = apply_corrections(by_asset)
-        if result is None:
+        if apply_corrections(by_asset) is None:
+            return 1
+        if apply_rebands(by_asset) is None:
             return 1
         if not args.check:
             args.registry.write_text(
