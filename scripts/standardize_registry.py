@@ -76,6 +76,30 @@ BUCKET_DROP = {
     "extended_beyond_calibration", "extended_from", "extension_note",
 }
 
+# The master list's SOP REFERENCE column does not always hold a reference. For ten
+# instruments - dry blocks, a surface plate, a current coil, a signal generator, a
+# humidity chamber, optical parallels - it holds the words "AS A SOURCE", which say how
+# the instrument is used rather than under which procedure. Carried through as if it
+# were a reference, it appeared in the certificate's SOP Ref dropdown as something an
+# engineer could pick and sign off.
+#
+# Every real reference this lab writes has the shape NLAB/CAL/<code>/R<nn>, and all 40
+# of them do; this is the only value that does not.
+NOT_A_SOP_REFERENCE = {"AS A SOURCE"}
+
+
+def sop_references(values):
+    """The procedure references among the values, in order, without repeats."""
+    out = []
+    for v in values or []:
+        text = str(v).strip()
+        if not text or text.upper() in NOT_A_SOP_REFERENCE:
+            continue
+        if text not in out:
+            out.append(text)
+    return out
+
+
 PERCENT_OF_CANONICAL = {
     "reading": "reading",
     "rdg": "reading",
@@ -477,7 +501,7 @@ def build(registry, mapping):
             "next_due_on": asset.get("next_due_on"),
             "calibration_state": state["state"],
             "calibration_days": state["days"],
-            "sop_references": asset.get("sop_references") or [],
+            "sop_references": sop_references(asset.get("sop_references")),
             "certificate_file": asset.get("certificate_file"),
             "capability_profiles": profiles_out,
         }

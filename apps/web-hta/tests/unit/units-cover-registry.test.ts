@@ -156,3 +156,30 @@ describe('capabilities the engineer could not tell apart', () => {
     )
   })
 })
+
+describe('the SOP reference list', () => {
+  /**
+   * Ten instruments have "AS A SOURCE" in the master list's SOP REFERENCE column -
+   * dry blocks, a surface plate, a current coil, a signal generator, a humidity
+   * chamber, optical parallels. It says how the instrument is used, not under which
+   * procedure, and carried through as a reference it appeared in the certificate's
+   * SOP Ref dropdown as something an engineer could pick and sign off.
+   */
+  const references = shipped.assets.flatMap((a) =>
+    a.units.flatMap((u) => u.sop_references ?? []),
+  )
+
+  it('holds only procedure references', () => {
+    const odd = [...new Set(references)].filter((r) => !/^NLAB\/CAL\/[A-Z]+\d*\/R\d+$/.test(r))
+    expect(odd).toEqual([])
+  })
+
+  it('leaves the ten with none empty rather than filled with a role', () => {
+    // The panel already handles this: it offers a text box and says no procedure is
+    // recorded against the instrument.
+    const none = shipped.assets.flatMap((a) =>
+      a.units.filter((u) => (u.sop_references ?? []).length === 0).map((u) => `${a.asset_no} u${u.id}`),
+    )
+    expect(none).toHaveLength(10)
+  })
+})

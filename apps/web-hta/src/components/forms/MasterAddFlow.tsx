@@ -612,6 +612,7 @@ export function MasterAddFlow({
   )
 
   const [showUnrecorded, setShowUnrecorded] = useState(false)
+  const [showWithoutSop, setShowWithoutSop] = useState(false)
   const [showOutOfRange, setShowOutOfRange] = useState(false)
   const [declarations, setDeclarations] = useState<Record<string, Declaration>>(
     seed?.declarations ?? {},
@@ -840,11 +841,20 @@ export function MasterAddFlow({
   const census = useMemo(() => {
     const unrecorded = filtered.filter((i) => standing(i) === 'nothing recorded')
     const recorded = filtered.filter((i) => standing(i) === 'records them')
-    return { unrecorded, outOfRange: recorded.filter((i) => rate(i).outOfRange) }
-  }, [filtered, standing, rate])
+    // No procedure on file. Ten instruments in this lab have the words "AS A SOURCE"
+    // where the master list wants a reference - dry blocks, a surface plate, a current
+    // coil - which says how they are used, not under which procedure. A certificate
+    // cites its procedure, so they are set aside like the rest.
+    const withoutSop = recorded.filter(
+      (i) => sopReferencesFor(i, resolveUnit(i)).length === 0,
+    )
+    const rateable = recorded.filter((i) => !withoutSop.includes(i))
+    return { unrecorded, withoutSop, outOfRange: rateable.filter((i) => rate(i).outOfRange) }
+  }, [filtered, standing, rate, resolveUnit])
 
   const outOfRangeCount = census.outOfRange.length
   const unrecordedCount = census.unrecorded.length
+  const withoutSopCount = census.withoutSop.length
 
   /**
    * Rows the filters leave once the two toggles have had their say.
@@ -856,9 +866,10 @@ export function MasterAddFlow({
     () =>
       filtered.filter((i) => {
         if (standing(i) === 'nothing recorded') return showUnrecorded
+        if (census.withoutSop.includes(i)) return showWithoutSop
         return showOutOfRange || !rate(i).outOfRange
       }),
-    [filtered, showOutOfRange, showUnrecorded, standing, rate],
+    [filtered, showOutOfRange, showUnrecorded, showWithoutSop, standing, rate, census],
   )
 
   const shown = useMemo(() => {
@@ -1343,6 +1354,22 @@ export function MasterAddFlow({
                       className="font-semibold text-primary"
                     >
                       {showOutOfRange ? 'hide them' : 'show them'}
+                    </button>
+                    .
+                  </p>
+                )}
+
+                {withoutSopCount > 0 && (
+                  <p className="text-[11px] text-amber-900">
+                    {showWithoutSop ? 'Including ' : 'A further '}
+                    {withoutSopCount} {showWithoutSop ? 'with' : 'have'} no calibration
+                    procedure on file, so the certificate has none to cite &mdash;{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowWithoutSop((v) => !v)}
+                      className="font-semibold text-primary"
+                    >
+                      {showWithoutSop ? 'hide them' : 'show them anyway'}
                     </button>
                     .
                   </p>

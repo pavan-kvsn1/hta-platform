@@ -882,6 +882,8 @@ describe('the SOP reference', () => {
       />,
     )
     pick('Temperature')
+    // An instrument with no procedure on file is set aside now, so reach it first.
+    fireEvent.click(screen.getAllByRole('button', { name: 'show them anyway' })[0])
     pickInstrument('600 HTAIPL/L')
     expect(screen.getByText(/No procedure is recorded against 600 HTAIPL\/L/)).toBeInTheDocument()
   })
@@ -1470,5 +1472,55 @@ describe('a master that falls short on more than one count', () => {
     expect(
       screen.queryByText(/Please select a compatible master instrument/),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('instruments with no calibration procedure on file', () => {
+  /**
+   * Ten instruments have "AS A SOURCE" where the master list wants a procedure
+   * reference - dry blocks, a surface plate, a current coil, a signal generator. That
+   * says how the instrument is used, not under which procedure it was calibrated, so
+   * the registry records no reference for them. A certificate has to cite one, so they
+   * are set aside like the instruments that record no capability.
+   */
+  const NO_SOP = instrument({ id: 55, asset_no: '996 HTAIPL/L', sop_references: [] })
+
+  const show = () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+        coveredBy={new Map()}
+        instruments={[GOOD, NO_SOP]}
+        resolveUnit={() => units.get(68)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+  }
+
+  const listed = (assetNo: string) =>
+    screen.getAllByRole('button').some((b) => b.textContent?.includes(assetNo))
+
+  it('are kept out of the list', () => {
+    show()
+    expect(listed('600 HTAIPL/L')).toBe(true)
+    expect(listed('996 HTAIPL/L')).toBe(false)
+  })
+
+  it('are counted and named, with the reason', () => {
+    show()
+    expect(
+      screen.getByText(/1 have no calibration procedure on file/),
+    ).toBeInTheDocument()
+  })
+
+  it('can still be reached, since one may be the right instrument', () => {
+    show()
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'show them anyway' })[0],
+    )
+    expect(listed('996 HTAIPL/L')).toBe(true)
   })
 })

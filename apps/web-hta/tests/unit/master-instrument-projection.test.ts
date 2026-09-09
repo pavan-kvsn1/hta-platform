@@ -84,6 +84,17 @@ const CERTIFICATE_DESCRIPTIONS = [91, 92, 128]
  */
 const SPLIT_COMPOSITES = [53]
 
+/**
+ * Instruments whose old SOP reference was not a reference.
+ *
+ * The master list's SOP REFERENCE column holds the words "AS A SOURCE" for these ten -
+ * dry blocks, a surface plate, a current coil, a signal generator, a humidity chamber,
+ * optical parallels. It says how the instrument is used, not under which procedure it
+ * was calibrated, and the old list carried it through as though an engineer could cite
+ * it on a certificate. The registry records no reference for them instead.
+ */
+const SOP_WAS_A_ROLE = [14, 35, 39, 103, 111, 205, 206, 207, 208, 209]
+
 describe('the projection reproduces the old list', () => {
   it('covers every instrument, once', () => {
     expect(projected).toHaveLength(legacy.length)
@@ -101,7 +112,7 @@ describe('the projection reproduces the old list', () => {
     ['usage', sameText],
     ['calibrated_at', sameText],
     ['report_no', sameText],
-    ['sop_references', same],
+    ['sop_references', same, SOP_WAS_A_ROLE],
   ])('matches %s', (field, compare, allowed = [] as number[]) => {
     const differing = differences(field as string, compare as (a: unknown, b: unknown) => boolean)
     expect(differing.map((r) => r.id)).toEqual(allowed)

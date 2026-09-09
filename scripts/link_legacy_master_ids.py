@@ -178,8 +178,15 @@ def main():
                         unit[registry_key] = parts
                         filled[registry_key] += 1
 
-            if not unit.get("sop_references") and row.get("sop_references"):
-                unit["sop_references"] = row["sop_references"]
+            # "AS A SOURCE" is not a procedure reference - it is the master list
+            # saying how the instrument is used. The standardizer drops it; refilling
+            # it from the same column here would put it straight back.
+            from_row = [
+                s for s in (row.get("sop_references") or [])
+                if str(s).strip().upper() != "AS A SOURCE"
+            ]
+            if not unit.get("sop_references") and from_row:
+                unit["sop_references"] = from_row
                 filled["sop_references"] += 1
 
             if not unit.get("next_due_on"):

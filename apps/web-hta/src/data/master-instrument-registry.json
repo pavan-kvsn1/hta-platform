@@ -1913,9 +1913,7 @@
           "next_due_on": "2026-01-17",
           "calibration_state": "EXPIRED",
           "calibration_days": 228,
-          "sop_references": [
-            "AS A SOURCE"
-          ],
+          "sop_references": [],
           "certificate_file": "149  HTAIPL L.pdf",
           "capability_profiles": [
             {
@@ -25833,9 +25831,7 @@
           "next_due_on": "2026-09-01",
           "calibration_state": "EXPIRED",
           "calibration_days": 1,
-          "sop_references": [
-            "AS A SOURCE"
-          ],
+          "sop_references": [],
           "certificate_file": "917 HTAIPL L.pdf",
           "capability_profiles": [
             {
@@ -27087,9 +27083,7 @@
           "next_due_on": "2026-06-03",
           "calibration_state": "EXPIRED",
           "calibration_days": 91,
-          "sop_references": [
-            "AS A SOURCE"
-          ],
+          "sop_references": [],
           "certificate_file": "408 HTAIPL L.pdf",
           "capability_profiles": [
             {
@@ -32478,9 +32472,7 @@
           "next_due_on": "2026-02-27",
           "calibration_state": "EXPIRED",
           "calibration_days": 187,
-          "sop_references": [
-            "AS A SOURCE"
-          ],
+          "sop_references": [],
           "certificate_file": "268 HTAIPL L.pdf",
           "capability_profiles": [
             {
@@ -33249,9 +33241,7 @@
           "next_due_on": "2026-03-13",
           "calibration_state": "EXPIRED",
           "calibration_days": 173,
-          "sop_references": [
-            "AS A SOURCE"
-          ],
+          "sop_references": [],
           "certificate_file": "35 HTAIPL L.pdf",
           "capability_profiles": [
             {
@@ -40114,9 +40104,7 @@
           "next_due_on": "2027-01-01",
           "calibration_state": "VALID",
           "calibration_days": 121,
-          "sop_references": [
-            "AS A SOURCE"
-          ],
+          "sop_references": [],
           "certificate_file": "333 HTAIPL L.pdf",
           "capability_profiles": [
             {
@@ -40176,9 +40164,7 @@
           "next_due_on": "2027-01-01",
           "calibration_state": "VALID",
           "calibration_days": 121,
-          "sop_references": [
-            "AS A SOURCE"
-          ],
+          "sop_references": [],
           "certificate_file": "204 HTAIPL L.pdf",
           "capability_profiles": [
             {
@@ -40238,9 +40224,7 @@
           "next_due_on": "2027-01-01",
           "calibration_state": "VALID",
           "calibration_days": 121,
-          "sop_references": [
-            "AS A SOURCE"
-          ],
+          "sop_references": [],
           "certificate_file": "139 HTAIPL L.pdf",
           "capability_profiles": [
             {
@@ -40300,9 +40284,7 @@
           "next_due_on": "2027-01-01",
           "calibration_state": "VALID",
           "calibration_days": 121,
-          "sop_references": [
-            "AS A SOURCE"
-          ],
+          "sop_references": [],
           "certificate_file": "197 HTAIPL L.pdf",
           "capability_profiles": [
             {
@@ -40362,9 +40344,7 @@
           "next_due_on": "2026-12-01",
           "calibration_state": "VALID",
           "calibration_days": 90,
-          "sop_references": [
-            "AS A SOURCE"
-          ],
+          "sop_references": [],
           "certificate_file": null,
           "capability_profiles": [
             {
