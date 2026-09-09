@@ -1300,7 +1300,15 @@ model CalibrationParameterStandard {
   id           String   @id @default(uuid())
   /// The registry's own name, which is what master capabilities are recorded against.
   standardName String   @unique
+  /// How the dropdown groups it. Too coarse to match on - Electrical holds voltage,
+  /// current and resistance together - which is what `measures` and `kind` are for.
   category     String
+  /// What is actually measured. Different measurands never serve each other, however
+  /// alike the units look: flatness is in microns and length in millimetres.
+  measures     String   @default("")
+  /// Which kind of it, where there is more than one: dc against ac, rtd against
+  /// thermocouple, gauge against absolute. "any" where the parameter does not say.
+  kind         String   @default("any")
   units        String[]
   defaultUnit  String?
   /// Curves and types the capability distinguishes - Pt-100, Type K, and so on.

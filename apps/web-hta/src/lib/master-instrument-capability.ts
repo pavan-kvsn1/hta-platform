@@ -370,10 +370,11 @@ function profilesFor(
   unit: RegistryUnit,
   parameter: string,
   parameterUnit?: string | null,
+  classify?: Classify,
 ): CapabilityProfile[] {
   if (!parameter.trim()) return []
   return unit.capability_profiles.filter((profile) =>
-    matchesParameter(profile, parameter, parameterUnit),
+    matchesParameter(profile, parameter, parameterUnit, classify),
   )
 }
 
@@ -396,11 +397,42 @@ function profilesFor(
  * the name decides, as before - a registry that records no unit should not lose its
  * instruments.
  */
+export interface Classification {
+  measures: string
+  kind: string
+}
+
+/**
+ * How to look up what a name measures. Supplied by the caller from the lab's parameter
+ * store; absent where the store has not loaded.
+ */
+export type Classify = (name: string) => Classification | null
+
 export function matchesParameter(
   profile: { parameter: string; unit?: string | null },
   parameterName: string,
   parameterUnit?: string | null,
+  classify?: Classify,
 ): boolean {
+  // Where both names are in the lab's parameter store, the answer is recorded rather
+  // than guessed: the same thing measured, and kinds that agree. This is what stops an
+  // AC source being offered for a DC parameter - both are volts, so no rule based on
+  // the unit could ever have told them apart.
+  if (classify) {
+    const wantedBy = classify(parameterName)
+    const offeredBy = classify(profile.parameter)
+    if (wantedBy && offeredBy) {
+      if (wantedBy.measures !== offeredBy.measures) return false
+      return (
+        wantedBy.kind === 'any' ||
+        offeredBy.kind === 'any' ||
+        wantedBy.kind === offeredBy.kind
+      )
+    }
+  }
+
+  // Nothing classified: the older, rougher rule. A capability that arrives with new
+  // master data before anyone has classified it still has to be findable.
   const wanted = parameterName.trim().toLowerCase()
   const byName = wanted ? profile.parameter.toLowerCase().includes(wanted) : true
 
@@ -691,14 +723,14 @@ export function chooseCapability(
   unit: RegistryUnit,
   parameter: string,
   required: RequiredRange[],
-  options: { threshold?: number; parameterUnit?: string | null } = {},
+  options: { threshold?: number; parameterUnit?: string | null; classify?: Classify } = {},
 ): ChosenCapability | null {
   const wanted = parameter.trim().toLowerCase()
   if (!wanted || required.length === 0) return null
 
   const candidates: ChosenCapability[] = []
   for (const profile of unit.capability_profiles) {
-    if (!matchesParameter(profile, parameter, options.parameterUnit)) continue
+    if (!matchesParameter(profile, parameter, options.parameterUnit, options.classify)) continue
     const curves = (profile.subtypes ?? []).map((s) => s.id)
     const ids: (string | null)[] = curves.length ? curves : [null]
     for (const subtypeId of ids) {

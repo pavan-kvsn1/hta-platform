@@ -28,6 +28,10 @@ export interface CalibrationParameter {
   /** What this lab calls it. */
   customName: string
   category: string
+  /** What is measured - temperature, voltage, pressure. */
+  measures: string
+  /** Which kind of it - dc, ac, rtd, thermocouple, gauge; "any" where unspecified. */
+  kind: string
   units: string[]
   defaultUnit: string | null
   subtypes: string[]
@@ -146,4 +150,35 @@ export function defaultUnitForParameter(
 ): string {
   const known = findParameter(parameterName, parameters)
   return known?.defaultUnit ?? fallback[parameterName]?.defaultUnit ?? ''
+}
+
+/**
+ * What a name measures and which kind it is, for deciding whether a master serves it.
+ *
+ * Both sides of that question go through here - the parameter written on the
+ * certificate, and the capability recorded against the master - because the standards
+ * were seeded from the registry's own names, so a capability called "AC Voltage" finds
+ * the same row an engineer sees. Null for a name in neither, which is the caller's cue
+ * to fall back on the older, rougher rule rather than to refuse.
+ */
+export function classificationOf(
+  written: string,
+  parameters: CalibrationParameter[],
+): { measures: string; kind: string } | null {
+  const found = findParameter(written, parameters)
+  if (!found || !found.measures) return null
+  return { measures: found.measures, kind: found.kind || 'any' }
+}
+
+/**
+ * Whether a master recorded against one parameter can serve another: the same thing
+ * measured, and kinds that agree - "any" agreeing with everything, because a
+ * certificate that does not say which kind it needs can be served by any of them.
+ */
+export function servesSameThing(
+  a: { measures: string; kind: string },
+  b: { measures: string; kind: string },
+): boolean {
+  if (a.measures !== b.measures) return false
+  return a.kind === 'any' || b.kind === 'any' || a.kind === b.kind
 }

@@ -45,6 +45,20 @@ export interface RegistryLike {
 export interface ParameterStandard {
   standardName: string
   category: string
+  /**
+   * What is actually measured. Two parameters with different measurands are never
+   * interchangeable however alike their units look: Flatness is recorded in µm and
+   * Length in mm, and a flatness master cannot calibrate a length gauge.
+   */
+  measures: string
+  /**
+   * Which kind of that measurand, where there is more than one: DC against AC, RTD
+   * against thermocouple, gauge against absolute. "any" means the parameter does not
+   * say - a certificate reading "Temperature" does not record whether the instrument
+   * has an RTD or a thermocouple input, so any kind will serve and the engineer
+   * declares which was used.
+   */
+  kind: string
   units: string[]
   defaultUnit: string | null
   subtypes: string[]
@@ -141,13 +155,147 @@ const ALIASES: Record<string, string> = {
  * to choose it. Kept, and marked as coming from the certificates rather than the
  * registry, so it is clear which are backed by a master and which are not.
  */
-const FROM_CERTIFICATES: Omit<ParameterStandard, 'source'>[] = [
+const FROM_CERTIFICATES: Omit<ParameterStandard, 'source' | 'measures' | 'kind'>[] = [
   { standardName: 'pH', category: 'Other', units: ['pH'], defaultUnit: 'pH', subtypes: [], aliases: [] },
   { standardName: 'Inductance', category: 'Electrical', units: ['H', 'mH', 'µH'], defaultUnit: 'mH', subtypes: [], aliases: [] },
   { standardName: 'Torque', category: 'Mechanical', units: ['Nm', 'kgf·m', 'lbf·ft'], defaultUnit: 'Nm', subtypes: [], aliases: [] },
   { standardName: 'Vibration', category: 'Mechanical', units: ['mm/s', 'm/s²', 'µm'], defaultUnit: 'mm/s', subtypes: [], aliases: [] },
   { standardName: 'Force', category: 'Mechanical', units: ['N', 'kgf', 'lbf'], defaultUnit: 'N', subtypes: [], aliases: [] },
 ]
+
+
+/**
+ * What each parameter measures, and which kind of it.
+ *
+ * This is the fact that decides whether a master can serve a parameter, and it was
+ * never recorded anywhere: it lived inside the registry's parameter name, where nothing
+ * could read it. Matching on the name under-reached ("Vacuum" never appeared for a
+ * Pressure parameter) and matching on the unit over-reached (an AC source was offered
+ * for a DC parameter, both being volts). Neither is the instrument's fault; the fact
+ * simply was not written down. Here it is.
+ *
+ * The rule it feeds: a master serves a parameter when the measurand is the same and
+ * the kinds agree, counting "any" as agreement with everything.
+ */
+const CLASSIFICATION: Record<string, { measures: string; kind: string }> = {
+  // Temperature. The same degrees Celsius reached three different ways, and a
+  // thermocouple simulator cannot drive an RTD input.
+  Temperature: { measures: 'temperature', kind: 'any' },
+  Thermocouple: { measures: 'temperature', kind: 'thermocouple' },
+  RTD: { measures: 'temperature', kind: 'rtd' },
+  'Dew Point Temperature': { measures: 'dew point', kind: 'any' },
+
+  // Pressure. Gauge and absolute differ by atmospheric pressure, so they are different
+  // kinds; a vacuum gauge is an absolute one reading low. Differential pressure is a
+  // difference between two points, which is not the same measurand at all.
+  Pressure: { measures: 'pressure', kind: 'any' },
+  'Gauge Pressure': { measures: 'pressure', kind: 'gauge' },
+  Vacuum: { measures: 'pressure', kind: 'absolute' },
+  'Ultra Vacuum': { measures: 'pressure', kind: 'absolute' },
+  'Differential Pressure': { measures: 'differential pressure', kind: 'any' },
+
+  // Electrical. Volts are volts, but a DC source will not calibrate an AC meter.
+  'DC Voltage': { measures: 'voltage', kind: 'dc' },
+  'AC Voltage': { measures: 'voltage', kind: 'ac' },
+  'DC Current': { measures: 'current', kind: 'dc' },
+  'AC Current': { measures: 'current', kind: 'ac' },
+  Resistance: { measures: 'resistance', kind: 'any' },
+  Capacitance: { measures: 'capacitance', kind: 'any' },
+  Inductance: { measures: 'inductance', kind: 'any' },
+  Frequency: { measures: 'frequency', kind: 'any' },
+  'Three-phase AC Power': { measures: 'power', kind: 'three-phase ac' },
+
+  // Dimensional. All in millimetres or microns, and none of them interchangeable:
+  // flatness and parallelness are geometric tolerances, not lengths.
+  Length: { measures: 'length', kind: 'any' },
+  Thickness: { measures: 'thickness', kind: 'any' },
+  Displacement: { measures: 'displacement', kind: 'any' },
+  Flatness: { measures: 'flatness', kind: 'any' },
+  Parallelness: { measures: 'parallelness', kind: 'any' },
+  'Particle Count': { measures: 'particle count', kind: 'any' },
+  Angle: { measures: 'angle', kind: 'any' },
+  'Level / Inclination': { measures: 'inclination', kind: 'any' },
+
+  // Force and torque. A tension-only load cell cannot push.
+  Force: { measures: 'force', kind: 'any' },
+  'Force (Tension)': { measures: 'force', kind: 'tension' },
+  'Force (Compression)': { measures: 'force', kind: 'compression' },
+  Torque: { measures: 'torque', kind: 'any' },
+  Mass: { measures: 'mass', kind: 'any' },
+  Hardness: { measures: 'hardness', kind: 'any' },
+
+  // Motion. Contact and non-contact tachometers are read differently.
+  Speed: { measures: 'rotational speed', kind: 'any' },
+  'Speed (Contact)': { measures: 'rotational speed', kind: 'contact' },
+  'Speed (Non-Contact)': { measures: 'rotational speed', kind: 'non-contact' },
+  Velocity: { measures: 'velocity', kind: 'any' },
+  'Air Velocity': { measures: 'velocity', kind: 'air' },
+  Acceleration: { measures: 'acceleration', kind: 'any' },
+  Vibration: { measures: 'vibration', kind: 'any' },
+
+  // Flow. One measurand, distinguished by what is flowing. Whether standard flow
+  // (SLPM, Nm3/hr, referred to a stated temperature and pressure) can be compared with
+  // actual volumetric flow is a units question, handled where the numbers are compared.
+  Flow: { measures: 'flow', kind: 'any' },
+  'Air Flow': { measures: 'flow', kind: 'air' },
+  'Liquid Flow': { measures: 'flow', kind: 'liquid' },
+  'Compressed Air Flow': { measures: 'flow', kind: 'compressed air' },
+
+  // Time.
+  Time: { measures: 'time', kind: 'any' },
+  'Time Interval': { measures: 'time', kind: 'any' },
+
+  // Everything else measures its own thing.
+  'Relative Humidity': { measures: 'relative humidity', kind: 'any' },
+  'Moisture Content': { measures: 'moisture content', kind: 'any' },
+  'Sound Pressure Level': { measures: 'sound level', kind: 'any' },
+  'Light Intensity': { measures: 'illuminance', kind: 'any' },
+  Conductivity: { measures: 'conductivity', kind: 'any' },
+  pH: { measures: 'ph', kind: 'any' },
+  CO2: { measures: 'co2', kind: 'any' },
+}
+
+/**
+ * The kind a unit gives away on its own.
+ *
+ * "bar g" says gauge in the unit itself, so there is no need to write it down twice or
+ * to remember it for a parameter that arrives with the next registry update.
+ */
+function kindFromUnit(units: string[]): string | null {
+  const gauge = units.some((u) => /g\s*$/i.test(u.trim()) && /bar|pa/i.test(u))
+  return gauge ? 'gauge' : null
+}
+
+/**
+ * What a parameter measures and which kind it is.
+ *
+ * A parameter nobody has classified measures itself and accepts any kind: it will match
+ * its own name and nothing else, which is the safe answer for something that arrives
+ * with new master data before anyone has looked at it.
+ */
+export function classify(
+  standardName: string,
+  units: string[],
+): { measures: string; kind: string } {
+  const known = CLASSIFICATION[standardName]
+  if (known) return known
+  return { measures: standardName.trim().toLowerCase(), kind: kindFromUnit(units) ?? 'any' }
+}
+
+/**
+ * Whether a master recorded against one parameter can serve another.
+ *
+ * The same measurand, and kinds that agree - where "any" agrees with everything,
+ * because a parameter that does not say which kind it needs can be served by any of
+ * them, and the engineer declares which was used.
+ */
+export function servesSameThing(
+  a: { measures: string; kind: string },
+  b: { measures: string; kind: string },
+): boolean {
+  if (a.measures !== b.measures) return false
+  return a.kind === 'any' || b.kind === 'any' || a.kind === b.kind
+}
 
 /** The unit a parameter is most often recorded in, which makes the better default. */
 function commonest(values: string[]): string | null {
@@ -189,10 +337,12 @@ export function deriveParameterStandards(registry: RegistryLike): ParameterStand
 
   const fromRegistry: ParameterStandard[] = [...units.keys()].map((standardName) => {
     const recorded = units.get(standardName) ?? []
+    const offered = [...new Set(recorded)].sort()
     return {
       standardName,
       category: CATEGORIES[standardName] ?? 'Other',
-      units: [...new Set(recorded)].sort(),
+      ...classify(standardName, offered),
+      units: offered,
       defaultUnit: commonest(recorded),
       subtypes: [...(subtypes.get(standardName) ?? [])].sort(),
       aliases: (aliasesFor.get(standardName) ?? []).sort(),
@@ -203,7 +353,7 @@ export function deriveParameterStandards(registry: RegistryLike): ParameterStand
   const known = new Set(fromRegistry.map((s) => s.standardName))
   const extra: ParameterStandard[] = FROM_CERTIFICATES.filter(
     (s) => !known.has(s.standardName),
-  ).map((s) => ({ ...s, source: 'certificates' }))
+  ).map((s) => ({ ...s, ...classify(s.standardName, s.units), source: 'certificates' }))
 
   return [...fromRegistry, ...extra].sort((a, b) =>
     a.category.localeCompare(b.category) || a.standardName.localeCompare(b.standardName),

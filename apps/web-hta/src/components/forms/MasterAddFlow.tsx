@@ -48,6 +48,8 @@ import {
 import { MasterCapabilityDeclaration } from './MasterCapabilityDeclaration'
 import { MasterBandTable } from './MasterBandTable'
 import { listOf, parameterLabels } from '@/lib/parameter-labels'
+import { classificationOf } from '@/lib/parameter-mapping'
+import { useParameterStore } from '@/lib/stores/parameter-store'
 import { cn } from '@/lib/utils'
 
 const LABEL = 'block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2'
@@ -247,6 +249,19 @@ export function MasterAddFlow({
   onCancel,
   onAdd,
 }: MasterAddFlowProps) {
+  /**
+   * What each name measures, from the lab's parameter store.
+   *
+   * Both sides go through it - the parameter on the certificate and the capability
+   * recorded against the master - so an AC source is no longer offered for a DC
+   * parameter, and a lab renaming a parameter changes nothing about what matches.
+   */
+  const labParameters = useParameterStore((state) => state.parameters)
+  const classify = useMemo(
+    () => (name: string) => classificationOf(name, labParameters),
+    [labParameters],
+  )
+
   const [paramIds, setParamIds] = useState<string[]>(seed?.parameterIds ?? [])
   const [category, setCategory] = useState(ANY)
   const [make, setMake] = useState(ANY)
@@ -336,12 +351,12 @@ export function MasterAddFlow({
         const servesAll = chosenParameters.every(({ parameter }) => {
           if (!parameter.parameterName.trim()) return true
           return unit.capability_profiles.some((p) =>
-            matchesParameter(p, parameter.parameterName, parameter.parameterUnit),
+            matchesParameter(p, parameter.parameterName, parameter.parameterUnit, classify),
           )
         })
         return servesAll ? 'records them' : 'records something else'
       },
-    [resolveUnit, chosenParameters],
+    [resolveUnit, chosenParameters, classify],
   )
 
   // Instruments with no capability recorded at all are set aside rather than folded in:
@@ -584,7 +599,7 @@ export function MasterAddFlow({
                 if (
                   p.parameterName.trim() &&
                   !unit.capability_profiles.some((cp) =>
-                    matchesParameter(cp, p.parameterName, p.parameterUnit),
+                    matchesParameter(cp, p.parameterName, p.parameterUnit, classify),
                   )
                 ) {
                   return false
@@ -902,6 +917,7 @@ export function MasterAddFlow({
               required={requiredFor.get(parameter.id) ?? []}
               sops={sops}
               declaration={declarations[parameter.id] ?? EMPTY_DECLARATION}
+              classify={classify}
               threshold={threshold}
               disabled={disabled}
               onChange={(patch) => setDeclaration(parameter.id, patch)}
@@ -968,6 +984,7 @@ function ParameterDeclaration({
   required,
   sops,
   declaration,
+  classify,
   threshold,
   disabled,
   onChange,
@@ -978,6 +995,8 @@ function ParameterDeclaration({
   required: RequiredRange[]
   sops: string[]
   declaration: Declaration
+  /** What each name measures, so the capability compared is one that can serve it. */
+  classify: (name: string) => { measures: string; kind: string } | null
   threshold: number
   disabled?: boolean
   onChange: (patch: Partial<Declaration>) => void
@@ -992,9 +1011,10 @@ function ParameterDeclaration({
       chooseCapability(unit, parameter.parameterName, required, {
         threshold,
         parameterUnit: parameter.parameterUnit,
+        classify,
       })?.profile ?? null
     )
-  }, [unit, parameter.parameterName, parameter.parameterUnit, declaration.profileId, required, threshold])
+  }, [unit, parameter.parameterName, parameter.parameterUnit, declaration.profileId, required, threshold, classify])
 
   // A capability the registry names but records nothing for: nine of this lab's units
   // are like this, and every table below them has nothing to draw.

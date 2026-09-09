@@ -8,8 +8,10 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  classify,
   deriveParameterStandards,
   resolveStandardName,
+  servesSameThing,
   type RegistryLike,
 } from '../src/calibration-parameters'
 
@@ -164,5 +166,109 @@ describe('an empty or broken registry', () => {
       assets: [{ units: [{ capability_profiles: [{ parameter: '   ' }] }] }],
     })
     expect(odd.every((s) => s.standardName.trim() !== '')).toBe(true)
+  })
+})
+
+describe('what a parameter measures, and which kind', () => {
+  const of = (name: string) => {
+    const found = byName(name)
+    if (!found) throw new Error(`no standard called ${name}`)
+    return { measures: found.measures, kind: found.kind }
+  }
+
+  it('classifies every standard', () => {
+    // An unclassified one would fall back to matching on its own name alone.
+    expect(standards.filter((s) => !s.measures || !s.kind)).toEqual([])
+  })
+
+  it('sees the same measurand behind different names', () => {
+    expect(of('Temperature').measures).toBe('temperature')
+    expect(of('Thermocouple').measures).toBe('temperature')
+    expect(of('RTD').measures).toBe('temperature')
+    expect(of('Vacuum').measures).toBe('pressure')
+  })
+
+  it('separates the kinds that are not interchangeable', () => {
+    expect(of('DC Voltage').kind).toBe('dc')
+    expect(of('AC Voltage').kind).toBe('ac')
+    expect(of('Force (Tension)').kind).toBe('tension')
+    expect(of('Speed (Contact)').kind).toBe('contact')
+  })
+
+  it('says "any" where the parameter does not specify', () => {
+    // A certificate reading "Temperature" does not record the input type.
+    expect(of('Temperature').kind).toBe('any')
+    expect(of('Pressure').kind).toBe('any')
+    expect(of('Force').kind).toBe('any')
+  })
+
+  it('keeps apart the things that only look alike', () => {
+    // All in millimetres or microns; none of them interchangeable.
+    expect(of('Length').measures).toBe('length')
+    expect(of('Flatness').measures).toBe('flatness')
+    expect(of('Thickness').measures).toBe('thickness')
+    // A difference between two pressures is not a pressure.
+    expect(of('Differential Pressure').measures).toBe('differential pressure')
+  })
+
+  it('reads gauge off the unit, for a parameter nobody classified', () => {
+    // "bar g" says it in the unit, so a new registry parameter gets it free.
+    expect(classify('Some New Gauge Thing', ['bar g']).kind).toBe('gauge')
+    expect(classify('Some New Thing', ['bar']).kind).toBe('any')
+  })
+
+  it('lets an unclassified parameter match only itself', () => {
+    const fresh = classify('Widget Count', ['ea'])
+    expect(fresh.measures).toBe('widget count')
+    expect(servesSameThing(fresh, classify('Widget Count', ['ea']))).toBe(true)
+    expect(servesSameThing(fresh, of('Length'))).toBe(false)
+  })
+})
+
+describe('whether a master can serve a parameter', () => {
+  const of = (name: string) => {
+    const found = byName(name)!
+    return { measures: found.measures, kind: found.kind }
+  }
+
+  it('offers a thermocouple for a plain temperature parameter', () => {
+    // The certificate does not say which input type; the engineer declares it.
+    expect(servesSameThing(of('Temperature'), of('Thermocouple'))).toBe(true)
+    expect(servesSameThing(of('Temperature'), of('RTD'))).toBe(true)
+  })
+
+  it('does not offer a thermocouple for an RTD parameter', () => {
+    // A thermocouple simulator cannot drive an RTD input.
+    expect(servesSameThing(of('RTD'), of('Thermocouple'))).toBe(false)
+  })
+
+  it('does not offer an AC source for a DC parameter', () => {
+    // Both are volts, which is why matching on the unit got this wrong.
+    expect(servesSameThing(of('DC Voltage'), of('AC Voltage'))).toBe(false)
+    expect(servesSameThing(of('DC Current'), of('AC Current'))).toBe(false)
+  })
+
+  it('offers a vacuum gauge for a pressure parameter', () => {
+    // It is an absolute pressure gauge reading low, and the name never said so.
+    expect(servesSameThing(of('Pressure'), of('Vacuum'))).toBe(true)
+  })
+
+  it('does not offer a gauge instrument for a vacuum parameter', () => {
+    // They differ by atmospheric pressure.
+    expect(servesSameThing(of('Vacuum'), of('Gauge Pressure'))).toBe(false)
+  })
+
+  it('does not offer a flatness master for a length parameter', () => {
+    expect(servesSameThing(of('Length'), of('Flatness'))).toBe(false)
+  })
+
+  it('does not offer a tension-only cell for a compression parameter', () => {
+    expect(servesSameThing(of('Force (Tension)'), of('Force (Compression)'))).toBe(false)
+    // But a certificate that just says "Force" accepts either.
+    expect(servesSameThing(of('Force'), of('Force (Tension)'))).toBe(true)
+  })
+
+  it('does not offer sound level for pressure, whatever the name says', () => {
+    expect(servesSameThing(of('Pressure'), of('Sound Pressure Level'))).toBe(false)
   })
 })

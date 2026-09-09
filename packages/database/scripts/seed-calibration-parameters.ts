@@ -59,6 +59,8 @@ async function main() {
         create: { ...standard, seedVersion: SEED_VERSION },
         update: {
           category: standard.category,
+          measures: standard.measures,
+          kind: standard.kind,
           units: standard.units,
           defaultUnit: standard.defaultUnit,
           subtypes: standard.subtypes,

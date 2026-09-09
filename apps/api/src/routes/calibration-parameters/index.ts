@@ -36,6 +36,8 @@ function present(row: {
   standard: {
     standardName: string
     category: string
+    measures: string
+    kind: string
     units: string[]
     defaultUnit: string | null
     subtypes: string[]
@@ -48,6 +50,9 @@ function present(row: {
     standardName: row.standard.standardName,
     customName: row.customName,
     category: row.standard.category,
+    /** What is measured, and which kind - what decides whether a master can serve it. */
+    measures: row.standard.measures,
+    kind: row.standard.kind,
     // A tenant's own list wins where it set one; otherwise the standard's.
     units: row.units.length > 0 ? row.units : row.standard.units,
     defaultUnit: row.defaultUnit ?? row.standard.defaultUnit,
