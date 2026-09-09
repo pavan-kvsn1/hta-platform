@@ -168,18 +168,29 @@ export function MasterInstrumentCard({
    * A parameter assigned to it stays even where the capability no longer matches -
    * hiding an answer already given is how a certificate quietly loses one.
    */
-  const relevant = useMemo(
-    () =>
-      parameters
-        .map((param, paramIdx) => ({ param, paramIdx }))
-        .filter(({ param }) => {
-          if (param.masterInstrumentId === instrument.masterInstrumentId) return true
-          if (!param.parameterName || !registryUnit) return true
-          return unitCanMeasure(registryUnit, param.parameterName, param.parameterUnit, classify)
-        }),
-    [parameters, instrument.masterInstrumentId, registryUnit, classify],
-  )
+  const relevant = useMemo(() => {
+    const all = parameters.map((param, paramIdx) => ({ param, paramIdx }))
+    const mine = all.filter(
+      ({ param }) => param.masterInstrumentId === instrument.masterInstrumentId,
+    )
+    // Once the master is against a parameter, that is the card's subject. The others
+    // are not choices to be made here - the add flow asks which parameter a master is
+    // for, and the declaration below is written for that one. Listing the rest put a
+    // second parameter and a second SOP box under a declaration that was never about
+    // it, which reads as one master serving several.
+    if (mine.length > 0) return mine
 
+    // Nothing assigned yet: offer what this master could serve, so the card is not a
+    // dead end.
+    return all.filter(({ param }) => {
+      if (!param.parameterName || !registryUnit) return true
+      return unitCanMeasure(registryUnit, param.parameterName, param.parameterUnit, classify)
+    })
+  }, [parameters, instrument.masterInstrumentId, registryUnit, classify])
+
+  const assigned = relevant.some(
+    ({ param }) => param.masterInstrumentId === instrument.masterInstrumentId,
+  )
   const setAside = parameters.length - relevant.length
   // availableSopReferences is not persisted, so a reloaded draft has none and the
   // dropdown rendered empty. The registry records procedures for all 209 units, so it
@@ -276,14 +287,23 @@ export function MasterInstrumentCard({
                 Parameter &amp; SOP <span className="text-red-500">*</span>
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
-                The parameter this master was used for. Add the master again to declare
-                it against another.
-                {setAside > 0 && (
+                {assigned ? (
                   <>
-                    {' '}
-                    {setAside} other{setAside === 1 ? '' : 's'} on this certificate{' '}
-                    {setAside === 1 ? 'measures' : 'measure'} something this instrument
-                    does not record, and {setAside === 1 ? 'is' : 'are'} not listed.
+                    The parameter this master was used for. Edit above to declare it
+                    against a different one, or add the master again for another.
+                  </>
+                ) : (
+                  <>
+                    Which parameter this master was used for.
+                    {setAside > 0 && (
+                      <>
+                        {' '}
+                        {setAside} other{setAside === 1 ? '' : 's'} on this certificate{' '}
+                        {setAside === 1 ? 'measures' : 'measure'} something this
+                        instrument does not record, and {setAside === 1 ? 'is' : 'are'}{' '}
+                        not listed.
+                      </>
+                    )}
                   </>
                 )}
               </p>
@@ -367,26 +387,12 @@ export function MasterInstrumentCard({
                         name={`master-${index}-assignment`}
                         checked={isAssigned}
                         disabled={isDisabled || disabled}
-                        onChange={() => {
-                          // Whatever this master was against, it is not that any more.
-                          relevant.forEach(({ param: other, paramIdx: otherIdx }) => {
-                            if (otherIdx === paramIdx) return
-                            if (other.masterInstrumentId !== instrument.masterInstrumentId) return
-                            onParameterUpdate(otherIdx, {
-                              ...other,
-                              masterInstrumentId: null,
-                              sopReference: '',
-                              masterProfileId: undefined,
-                              masterSubtype: undefined,
-                              masterAcceptanceReason: undefined,
-                              masterMapping: undefined,
-                            })
-                          })
+                        onChange={() =>
                           onParameterUpdate(paramIdx, {
                             ...param,
                             masterInstrumentId: instrument.masterInstrumentId,
                           })
-                        }}
+                        }
                         className="size-4 border-slate-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
                       />
 

@@ -253,12 +253,14 @@ describe('parameters the master cannot measure', () => {
     useMasterInstrumentStore.getState().loadFromRegistry()
   })
 
+  // Nothing assigned yet, so the card offers what this master could serve - and that
+  // is where a parameter it cannot measure would otherwise appear.
   const renderBoth = (over: Partial<Parameter> = {}) =>
-    renderCard(parameter({ masterInstrumentId: 10 }), {
+    renderCard(parameter({ masterInstrumentId: null }), {
       instrument: calibrator,
       mastersOnCertificate: new Set([10]),
       parameters: [
-        parameter({ masterInstrumentId: 10 }),
+        parameter({ masterInstrumentId: null }),
         parameter({
           id: 'p2',
           parameterName: 'Pressure (Absolute)',
@@ -313,30 +315,34 @@ describe('one parameter per master, on the card', () => {
     parameter({ id: 'p2', parameterName: 'RTD', masterInstrumentId: null }),
   ]
 
-  it('offers a choice, not a set of ticks', () => {
+  it('lists only the parameter it is against, once there is one', () => {
+    // The other is one this master could serve, and is not a choice to be made here:
+    // the flow asks which parameter a master is for, and the declaration below the row
+    // is written for that one. Listing the rest put a second parameter and a second SOP
+    // box under a declaration that was never about it.
     renderCard(two[0], {
       instrument: calibrator,
       mastersOnCertificate: new Set([10]),
       parameters: two,
     })
+    // One row, so one radio and one SOP field. ("RTD" itself appears further down as
+    // one of 1018's capabilities, so the name alone says nothing here.)
+    expect(screen.getAllByRole('radio')).toHaveLength(1)
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
-    expect(screen.getAllByRole('radio').length).toBeGreaterThan(1)
+    expect(screen.getAllByText(/SOP Ref/i)).toHaveLength(1)
   })
 
-  it('lets the one it was against go when another is picked', () => {
+  it('offers the candidates while none is chosen', () => {
     const { onParameterUpdate } = renderCard(two[0], {
       instrument: calibrator,
       mastersOnCertificate: new Set([10]),
-      parameters: two,
+      parameters: two.map((p) => ({ ...p, masterInstrumentId: null })),
     })
-    // The second radio in the list is the second parameter's.
+    expect(screen.getAllByRole('radio')).toHaveLength(2)
     fireEvent.click(screen.getAllByRole('radio')[1])
-
-    const calls = onParameterUpdate.mock.calls
-    // The one it was against is released, with everything read off this master.
-    expect(calls.some(([i, p]) => i === 0 && p.masterInstrumentId === null && p.sopReference === ''))
-      .toBe(true)
-    // And the new one takes it.
-    expect(calls.some(([i, p]) => i === 1 && p.masterInstrumentId === 10)).toBe(true)
+    expect(onParameterUpdate).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ masterInstrumentId: 10 }),
+    )
   })
 })
