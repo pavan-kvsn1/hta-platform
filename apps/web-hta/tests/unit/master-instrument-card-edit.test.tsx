@@ -168,7 +168,7 @@ describe('a capability that serves the parameter under another name', () => {
 
   it('leaves the parameter tickable', () => {
     renderIt(parameter({ masterInstrumentId: 10, rangeMin: '-10', rangeMax: '40' }))
-    expect(screen.getByRole('checkbox')).not.toBeDisabled()
+    expect(screen.getByRole('radio')).not.toBeDisabled()
   })
 
   it('still refuses a parameter the instrument measures nothing like', () => {
@@ -288,5 +288,55 @@ describe('parameters the master cannot measure', () => {
     // An answer already given is not hidden because the capability no longer matches.
     renderBoth({ masterInstrumentId: 10 })
     expect(screen.getByText('Pressure (Absolute)')).toBeInTheDocument()
+  })
+})
+
+describe('one parameter per master, on the card', () => {
+  /**
+   * The add flow asks for one parameter. The card was still offering ticks, so a
+   * master could be spread over several afterwards - and the declaration underneath is
+   * written once per master, so the second parameter inherited the first's capability,
+   * curve and procedure without anyone saying they applied to it.
+   */
+  const calibrator = {
+    ...master,
+    masterInstrumentId: 10,
+    assetNo: '1018 HTAIPL/L',
+  } as unknown as SelectedMasterInstrument
+
+  beforeAll(() => {
+    useMasterInstrumentStore.getState().loadFromRegistry()
+  })
+
+  const two = [
+    parameter({ id: 'p1', parameterName: 'Temperature', masterInstrumentId: 10 }),
+    parameter({ id: 'p2', parameterName: 'RTD', masterInstrumentId: null }),
+  ]
+
+  it('offers a choice, not a set of ticks', () => {
+    renderCard(two[0], {
+      instrument: calibrator,
+      mastersOnCertificate: new Set([10]),
+      parameters: two,
+    })
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
+    expect(screen.getAllByRole('radio').length).toBeGreaterThan(1)
+  })
+
+  it('lets the one it was against go when another is picked', () => {
+    const { onParameterUpdate } = renderCard(two[0], {
+      instrument: calibrator,
+      mastersOnCertificate: new Set([10]),
+      parameters: two,
+    })
+    // The second radio in the list is the second parameter's.
+    fireEvent.click(screen.getAllByRole('radio')[1])
+
+    const calls = onParameterUpdate.mock.calls
+    // The one it was against is released, with everything read off this master.
+    expect(calls.some(([i, p]) => i === 0 && p.masterInstrumentId === null && p.sopReference === ''))
+      .toBe(true)
+    // And the new one takes it.
+    expect(calls.some(([i, p]) => i === 1 && p.masterInstrumentId === 10)).toBe(true)
   })
 })

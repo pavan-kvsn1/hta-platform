@@ -273,10 +273,11 @@ export function MasterInstrumentCard({
           <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
             <div className="bg-slate-100 px-4 py-3 border-b border-slate-200">
               <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-                Parameter &amp; SOP Assignment <span className="text-red-500">*</span>
+                Parameter &amp; SOP <span className="text-red-500">*</span>
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
-                The parameter this master was added for, and any other it also serves.
+                The parameter this master was used for. Add the master again to declare
+                it against another.
                 {setAside > 0 && (
                   <>
                     {' '}
@@ -356,22 +357,37 @@ export function MasterInstrumentCard({
                     className={cn('px-4 py-3', isDisabled && 'opacity-50 bg-slate-50')}
                   >
                     <div className="flex items-center gap-4">
+                      {/* One parameter per master, as the add flow asks it. Ticks let a
+                          master be spread over several, and the declaration underneath -
+                          the capability, the curve, the procedure - is written once per
+                          master, so the second parameter inherited the first's answers
+                          without anyone saying they applied. */}
                       <input
-                        type="checkbox"
+                        type="radio"
+                        name={`master-${index}-assignment`}
                         checked={isAssigned}
                         disabled={isDisabled || disabled}
-                        onChange={(e) => {
+                        onChange={() => {
+                          // Whatever this master was against, it is not that any more.
+                          relevant.forEach(({ param: other, paramIdx: otherIdx }) => {
+                            if (otherIdx === paramIdx) return
+                            if (other.masterInstrumentId !== instrument.masterInstrumentId) return
+                            onParameterUpdate(otherIdx, {
+                              ...other,
+                              masterInstrumentId: null,
+                              sopReference: '',
+                              masterProfileId: undefined,
+                              masterSubtype: undefined,
+                              masterAcceptanceReason: undefined,
+                              masterMapping: undefined,
+                            })
+                          })
                           onParameterUpdate(paramIdx, {
                             ...param,
-                            masterInstrumentId: e.target.checked
-                              ? instrument.masterInstrumentId
-                              : null,
-                            sopReference: e.target.checked ? param.sopReference : '',
-                            masterProfileId: e.target.checked ? param.masterProfileId : undefined,
-                            masterSubtype: e.target.checked ? param.masterSubtype : undefined,
+                            masterInstrumentId: instrument.masterInstrumentId,
                           })
                         }}
-                        className="size-4 rounded border-slate-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
+                        className="size-4 border-slate-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
                       />
 
                       <div className="flex-1 min-w-0">
