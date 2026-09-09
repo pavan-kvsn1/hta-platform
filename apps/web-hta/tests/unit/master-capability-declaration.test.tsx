@@ -222,11 +222,6 @@ describe('a question with one answer', () => {
 describe('two capabilities that look identical', () => {
   // 782 HTAIPL/L is a steel caliper checker: the same blocks read as a height or as an
   // outside measurement, certified separately. Two real capabilities under one name.
-  //
-  // What is NOT here any more is the indicator-and-probe case. A two-part thermometer
-  // reads through both halves at once - the certificate states ±0.01 for the readout
-  // and ±0.25 for the probe and means ±0.26 for the instrument - so the standardizer
-  // adds them into one capability and there is nothing to choose between.
   const twoModes = unit([
     profile({ id: 'P1', parameter: 'Length', role: 'source', unit: 'mm', mode: 'height' }),
     profile({ id: 'P2', parameter: 'Length', role: 'source', unit: 'mm', mode: 'outside' }),
@@ -312,5 +307,50 @@ describe('changing a capability after one is declared', () => {
     const onChange = renderIt(calibrator, { parameterUnit: '°C', profileId: 'P5' })
     fireEvent.click(screen.getByText('RTD').closest('button')!)
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P1' }))
+  })
+})
+
+describe('a thermometer certified in two parts', () => {
+  /**
+   * 717 HTAIPL/L is a readout and a probe, each with its own certified accuracy:
+   * "Indicator Accuracy: ±0.01 °C, Sensor Accuracy: ±0.25 °C (upto 300 °C), above
+   * ±0.5 °C". They stay as the certificate has them - combining them into one figure
+   * is the calibrating lab's call, and some certificates do print one.
+   */
+  const twoPart = unit([
+    profile({ id: 'P1', component: 'indicator', buckets: [bucket(-100, 100, 0.01, 0.01)] }),
+    profile({ id: 'P2', component: 'sensor', buckets: [bucket(-100, 100, 0.1, 0.25)] }),
+  ])
+
+  it('asks which part did the measuring', () => {
+    renderIt(twoPart)
+    expect(screen.getByText('Which part')).toBeInTheDocument()
+    expect(screen.getByText('Indicator')).toBeInTheDocument()
+    expect(screen.getByText('Sensor')).toBeInTheDocument()
+  })
+
+  it('tells them apart by the accuracy each is certified to', () => {
+    renderIt(twoPart)
+    expect(screen.getByText('±0.01 °C')).toBeInTheDocument()
+    expect(screen.getByText('±0.25 °C')).toBeInTheDocument()
+  })
+
+  it('says what the other half is certified to, so one is not read as the whole', () => {
+    // The reading carries both errors. Which figure goes on the certificate is the
+    // engineer's call; what this must not do is let the readout's ±0.01 be taken for
+    // the instrument without the probe's ±0.25 being in front of them.
+    renderIt(twoPart)
+    expect(screen.getByText(/certified separately/i)).toBeInTheDocument()
+  })
+
+  it('declares the one that was picked', () => {
+    const onChange = renderIt(twoPart)
+    fireEvent.click(screen.getByText('Sensor').closest('button')!)
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P2' }))
+  })
+
+  it('answers nothing on the engineer’s behalf', () => {
+    const onChange = renderIt(twoPart)
+    expect(onChange).not.toHaveBeenCalled()
   })
 })

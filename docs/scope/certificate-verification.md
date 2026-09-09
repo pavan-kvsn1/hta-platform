@@ -280,30 +280,36 @@ The same disagreement appears on 1003 and 44.
 ## Two-part instruments, verified 2026-09-09
 
 Every unit whose make, model or serial names an indicator and a sensor separately - 33
-of 209 - was checked against its calibration certificate. What the certificates show:
+of 209 - was checked against its calibration certificate.
 
-**The two halves are added, not chosen between.** 717 HTAIPL/L reads "Indicator
-Accuracy: ±0.01 °C, Sensor Accuracy: ±0.25 °C (upto 300 °C), above ±0.5 °C"; 621
-HTAIPL/L, the same model certified by a lab that prints one figure, reads "± 0.26 °C Up
-to 300 °C & Above 0.51 °C". The standardizer therefore folds a split pair into one
-capability and sums the accuracies band by band.
+**The parts stay as the certificate states them.** Where a certificate gives the two
+halves their own figures, both are recorded and neither is combined into a third number.
+A combined figure is the calibrating lab's to state - several of these certificates do
+print one - and deriving one here would put a value on a calibration certificate that no
+laboratory ever certified.
 
-Certificates stating the halves separately, now folded:
+Certificates stating the halves separately:
 
-| Asset | Certificate says | Combined |
-|---|---|---|
-| 717 HTAIPL/L | Ind ±0.01, Sen ±0.25 / ±0.5 | ±0.26 / ±0.51 |
-| 620 HTAIPL/L | Ind ±0.01, Sen ±0.26 / ±0.51 | ±0.27 / ±0.52 |
-| 492A HTAIPL/L | Ind ±0.01, Sen ±0.25 / ±0.51 | ±0.26 / ±0.52 |
-| 494B HTAIPL/L | Ind ±0.01, Sen ±0.25 / ±0.5 | ±0.26 / ±0.51 |
-| 430A HTAIPL/L | Indicator ±0.2 & Sensor ±1.6 (upto 600), ±(0.004*t) above | ±1.8, formula band left alone |
-| 580 HTAIPL/L unit A | "Ind: ± 0.4 °C, Sen: ± 0.5 °C" | ±0.9 |
+| Asset | Certificate says |
+|---|---|
+| 717 HTAIPL/L | Indicator ±0.01, Sensor ±0.25 (upto 300) / ±0.5 above |
+| 620 HTAIPL/L | Indicator ±0.01, Sensor ±0.26 (upto 300) / ±0.51 above |
+| 492A HTAIPL/L | Indicator ±0.01, Sensor ±0.25 (upto 300) / ±0.51 above |
+| 494B HTAIPL/L | Indicator ±0.01, Sensor ±0.25 (upto 300) / ±0.5 above |
+| 430A HTAIPL/L | Indicator ±0.2 & Sensor ±1.6 (upto 600), ±(0.004*t) above |
+| 580 HTAIPL/L unit A | "Ind: ± 0.4 °C, Sen: ± 0.5 °C" |
 
-Certificates stating one figure, which is already the combined one - left as they are:
-621, 619, 659, 718, 807, 805, 806, 719, 810 (all ±0.26 / ±0.51), 252 and 878 (±0.26),
-715 (±1.6 up to 600, ±(0.004*t + 0.2) above - the indicator's 0.2 appears inside the
-formula), 352, 354, 351 (±0.3), 1014 and 1015 (±0.8 %rh & ±0.1 °C), 564, 152
-(± 0.4 % FS, ±0.5 °C), 852 (1 %), 791.
+Certificates stating one figure for the instrument, recorded as the single figure it is:
+621, 619, 659, 718, 807, 805, 806, 719, 810 (±0.26 up to 300 °C, ±0.51 above), 252 and
+878 (±0.26), 715 (±1.6 up to 600, ±(0.004*t + 0.2) above), 352, 354, 351 (±0.3), 1014
+and 1015 (±0.8 %rh & ±0.1 °C), 564, 152 (±0.4 % FS, ±0.5 °C), 852 (1 %), 791.
+
+Worth noting for whoever states a combined figure: where both forms exist for the same
+model, the combined one matches the sum of the parts. 717's ±0.25 and ±0.01 against
+621's ±0.26 and ±0.51; and 715's certificate writes the pair as one expression,
+"±(0.004*t + 0.2)", where 0.2 is the indicator accuracy 430A's certificate states on its
+own line. That is the labs' arithmetic, recorded here as an observation - the app does
+not perform it.
 
 Two corrections came out of the reading:
 

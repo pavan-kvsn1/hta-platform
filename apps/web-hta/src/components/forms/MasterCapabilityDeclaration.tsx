@@ -430,10 +430,24 @@ export function MasterCapabilityDeclaration({
           <label className={LABEL}>
             {distinguishLabel(candidates)} <span className="text-red-500">*</span>
           </label>
+          {/* Both halves are in the reading path, and the certificate gives each its
+              own figure rather than one for the pair. Which of them the certificate is
+              rated against is the engineer's call - what this must not do is let the
+              readout's figure be taken for the instrument with the probe's out of
+              sight, so both are said here, in the certificate's own words. */}
           <p className="text-[11px] text-slate-500 mb-1.5">
-            {instrumentIsTwoPart
-              ? 'This instrument is a readout and a probe, each calibrated in its own right. Say which one did the measuring.'
-              : `${cap} is recorded more than once against this instrument. They are not the same, so say which was used.`}
+            {instrumentIsTwoPart ? (
+              <>
+                This instrument is a readout and a probe, certified separately &mdash;{' '}
+                {candidates
+                  .map((c) => `${distinguish(c).title.toLowerCase()} ${distinguish(c).detail}`)
+                  .join(', ')}
+                . A reading carries both. Say which one this declaration is rated
+                against.
+              </>
+            ) : (
+              `${cap} is recorded more than once against this instrument. They are not the same, so say which was used.`
+            )}
           </p>
           <div className="flex flex-wrap gap-2 items-center">
             {candidates.map((c) => {

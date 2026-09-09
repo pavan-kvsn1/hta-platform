@@ -119,36 +119,29 @@ describe('capabilities the engineer could not tell apart', () => {
     expect(indistinguishable).toEqual([])
   })
 
-  it('folded each two-part thermometer into the one instrument it is', () => {
+  it('keeps a two-part thermometer as its certificate states it', () => {
     /**
-     * An indicator and its probe are not a choice, they are an instrument.
-     *
-     * Where a certificate states them apart - 717 HTAIPL/L reads "Indicator Accuracy:
-     * ±0.01 °C, Sensor Accuracy: ±0.25 °C (upto 300 °C), above ±0.5 °C" - it states
-     * them to be added: 621 HTAIPL/L, the same model certified by a lab that combines
-     * them, reads "±0.26 °C up to 300 °C & above 0.51 °C". Offering the two separately
-     * would let a master be rated at the readout's ±0.01 when the thing in the
-     * engineer's hand is good to ±0.26.
+     * A readout and a probe are certified separately, and 717 HTAIPL/L's certificate
+     * gives each its own figure: "Indicator Accuracy: ±0.01 °C, Sensor Accuracy:
+     * ±0.25 °C (upto 300 °C), above ±0.5 °C". Both stay. Combining them into a single
+     * number is the calibrating lab's call - some certificates print one - and not a
+     * figure to derive here and ship as though it had been certified.
      */
-    const folded = shipped.assets
-      .flatMap((a) => a.units.flatMap((u) => u.capability_profiles ?? []))
-      .filter((p) => p.parts)
-    expect(folded.length).toBeGreaterThan(0)
-    // Nothing is left half-answered: a component on its own would be a choice again.
-    const loose = shipped.assets
+    const parts = shipped.assets
       .flatMap((a) => a.units.flatMap((u) => u.capability_profiles ?? []))
       .filter((p) => p.component)
-    expect(loose).toEqual([])
+    expect(parts.length).toBeGreaterThan(0)
+    expect(new Set(parts.map((p) => p.component))).toEqual(new Set(['indicator', 'sensor']))
   })
 
-  it('adds the two accuracies rather than picking one', () => {
-    // 717's own certificate is the check: ±0.25 sensor + ±0.01 indicator = ±0.26.
-    const profile = shipped.assets
+  it('carries the figures the certificate gives, unaltered', () => {
+    const profiles = shipped.assets
       .find((a) => a.asset_no.startsWith('717'))!
-      .units[0].capability_profiles.find((p) => p.parameter === 'Temperature')!
-    const band = profile.buckets.find((b) => b.max === 300)!
-    expect(band.accuracy).toMatchObject({ type: 'symmetric', value: 0.26 })
-    expect(profile.parts).toBeDefined()
+      .units[0].capability_profiles.filter((p) => p.parameter === 'Temperature')
+    const sensor = profiles.find((p) => p.component === 'sensor')!
+    const indicator = profiles.find((p) => p.component === 'indicator')!
+    expect(indicator.buckets[0].accuracy).toMatchObject({ value: 0.01 })
+    expect(sensor.buckets.map((b) => (b.accuracy as { value: number }).value)).toEqual([0.25, 0.5])
   })
 
   it('folded the thermocouple simulations onto one capability with its curves', () => {
