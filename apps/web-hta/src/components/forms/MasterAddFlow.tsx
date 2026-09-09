@@ -244,6 +244,38 @@ function matchesQuery(inst: MasterInstrument, query: string): boolean {
   ].some((field) => (field ?? '').toLowerCase().includes(q))
 }
 
+/**
+ * Whether there is anything at all to judge this master against for a parameter.
+ *
+ * Two ways there is not: the instrument records no capability, or it names one and
+ * records no range, least count or accuracy under it. Nineteen profiles in this lab are
+ * the second kind. Either way the certificate ends up asserting a master was fit with
+ * nothing behind the assertion, which is a reviewer's decision and not a silent one -
+ * so the declaration has to carry a reason.
+ *
+ * Shared between the panel that asks for the reason and the button that waits for it,
+ * because a question asked in one place and enforced in another drifts apart.
+ */
+function nothingToRateBy(
+  unit: RegistryUnit | undefined,
+  capability: { name: string; unit: string },
+  required: RequiredRange[],
+  declaration: { profileId?: string; subtype?: string },
+  threshold: number,
+  classify: (name: string) => { measures: string; kind: string } | null,
+): boolean {
+  if (!unit || unit.capability_profiles.length === 0) return true
+  const profile = declaration.profileId
+    ? unit.capability_profiles.find((p) => p.id === declaration.profileId)
+    : chooseCapability(unit, capability.name, required, {
+        threshold,
+        parameterUnit: capability.unit,
+        classify,
+      })?.profile
+  if (!profile) return true
+  return declaredCapability(profile, declaration.subtype).buckets.length === 0
+}
+
 function worstRatioFor(
   unit: RegistryUnit | undefined,
   parameterName: string,
@@ -954,7 +986,30 @@ export function MasterAddFlow({
       [paramId]: { ...EMPTY_DECLARATION, ...current[paramId], ...patch },
     }))
 
-  const canAdd = chosenParameters.length > 0 && chosenInstrument !== null
+  /**
+   * Parameters where this master cannot be rated, and so needs a reason before it can
+   * be added. Nothing else on the certificate says why it was accepted.
+   */
+  const awaitingApproval = chosenParameters.filter(({ parameter }) => {
+    const declaration = declarations[parameter.id] ?? EMPTY_DECLARATION
+    if (
+      !nothingToRateBy(
+        registryUnit,
+        mappedCapability(parameter),
+        requiredFor.get(parameter.id) ?? [],
+        declaration,
+        threshold,
+        classify,
+      )
+    ) {
+      return false
+    }
+    return declaration.reason.trim() === ''
+  })
+
+  /** Far enough along to offer the buttons at all. */
+  const ready = chosenParameters.length > 0 && chosenInstrument !== null
+  const canAdd = ready && awaitingApproval.length === 0
 
   return (
     <div className="bg-section-inner rounded-xl p-5 border border-slate-300 mt-5">
@@ -1237,29 +1292,35 @@ export function MasterAddFlow({
 
               <div className="mt-2 space-y-1">
                 <BadgeLegend />
+
+                {/* Boxed and tinted. These lines say what the list is not showing, and
+                    as grey footnotes under a long list they were read as decoration -
+                    an engineer choosing from twenty rows had no reason to notice that
+                    eight more were being kept back. */}
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 space-y-1">
                 {/* One statement per line. Strung together they read as a paragraph
                     about nothing in particular; apart, each is a fact with a number and
                     the button that acts on it. */}
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-amber-900">
                   {shown.filter((s) => s.fit.usable).length} of {shown.length} can be used;
                   the rest stay, with the reason.
                 </p>
 
                 {hiddenBySearch > 0 && (
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-amber-900">
                     {hiddenBySearch} more hidden by the search.
                   </p>
                 )}
 
                 {chosenIsFilteredOut && chosenInstrument && (
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-amber-900">
                     {chosenInstrument.asset_no} is on the list because you chose it, though
                     the filters above exclude it.
                   </p>
                 )}
 
                 {outOfRangeCount > 0 && (
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-amber-900">
                     {showOutOfRange ? 'Including ' : ''}
                     {outOfRangeCount} {showOutOfRange ? 'that' : 'more'} do not reach the
                     required range &mdash;{' '}
@@ -1275,7 +1336,7 @@ export function MasterAddFlow({
                 )}
 
                 {unrecordedCount > 0 && (
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-amber-900">
                     {/* "A further 8" while those eight are on the list is the same
                         mistake as counting them against the wrong population: it says
                         they are elsewhere when they are right there. */}
@@ -1292,6 +1353,7 @@ export function MasterAddFlow({
                     .
                   </p>
                 )}
+                </div>
               </div>
             </div>
           </Step>
@@ -1347,7 +1409,16 @@ export function MasterAddFlow({
             />
           ))}
 
-        {canAdd && (
+        {ready && awaitingApproval.length > 0 && (
+          <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+            Nothing recorded rates this master against{' '}
+            <b>{listOf(awaitingApproval.map(({ parameter }) => labelOf(parameter.id) || parameter.parameterName))}</b>
+            . Write the reason the reviewer will approve it on, above, and it can be
+            added.
+          </p>
+        )}
+
+        {ready && (
           <div className="flex justify-end gap-2 mt-5">
             <button
               type="button"
@@ -1358,7 +1429,7 @@ export function MasterAddFlow({
             </button>
             <button
               type="button"
-              disabled={disabled}
+              disabled={disabled || !canAdd}
               onClick={() =>
                 onAdd({
                   instrument: chosenInstrument!,
@@ -1376,14 +1447,26 @@ export function MasterAddFlow({
                       threshold,
                       capability.unit,
                     )
+                    // Kept where it is doing work: a short ratio, or nothing to rate
+                    // the master by at all. Carrying it otherwise would put a stale
+                    // sentence on a certificate that no longer needs one.
+                    const carried =
+                      (ratio !== null && ratio < threshold) ||
+                      nothingToRateBy(
+                        registryUnit,
+                        capability,
+                        requiredFor.get(parameter.id) ?? [],
+                        declaration,
+                        threshold,
+                        classify,
+                      )
                     return {
                       parameterIndex,
                       masterMapping: mappings[parameter.id],
                       profileId: declaration.profileId,
                       subtype: declaration.subtype,
                       sopReference: declaration.sop,
-                      acceptanceReason:
-                        ratio !== null && ratio < threshold ? declaration.reason.trim() : '',
+                      acceptanceReason: carried ? declaration.reason.trim() : '',
                     }
                   }),
                 })
@@ -1473,6 +1556,9 @@ function ParameterDeclaration({
     () => worstRatioFor(unit, capability.name, required, threshold, capability.unit),
     [unit, capability.name, capability.unit, required, threshold],
   )
+
+  /** Nothing to judge it by, so the reason below is the only thing carrying it. */
+  const unrateable = nothingToRateBy(unit, capability, required, declaration, threshold, classify)
 
   const sopId = `flow-sop-${parameter.id}`
 
@@ -1575,8 +1661,7 @@ function ParameterDeclaration({
             <p className="text-[11px] text-slate-500">
               {instrument.asset_no} is recorded as measuring {declaredProfile.parameter}, with
               no range, least count or accuracy against it, so there is no least-count match
-              or accuracy ratio to show. It can still be used; the certificate records the
-              declaration above.
+              or accuracy ratio to show. It can still be used, on the reason recorded below.
             </p>
           </div>
         )}
@@ -1628,24 +1713,58 @@ function ParameterDeclaration({
           )}
         </div>
 
-        {worstRatio !== null && worstRatio < threshold && (
+        {/* Two ways a master goes on a certificate without the figures backing it: a
+            ratio short of what the lab asks for, and no figures at all. The first is a
+            judgement against a number; the second has no number, which makes the reason
+            the only thing on the certificate carrying it - so it is required. */}
+        {(unrateable || (worstRatio !== null && worstRatio < threshold)) && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <p className="text-xs font-bold text-amber-800 mb-1">
-              Lowest ratio across your buckets is {worstRatio.toFixed(1)} : 1.
-            </p>
-            <p className="text-[11px] text-amber-800 mb-2">
-              Below the {threshold}:1 the lab asks for
-              {mapping ? ', against the requirement you stated above' : ''}. Usable, with a
-              reason recorded on the certificate.
-            </p>
+            {unrateable ? (
+              <>
+                <p className="text-xs font-bold text-amber-800 mb-1">
+                  Nothing recorded to rate this master by.
+                </p>
+                <p className="text-[11px] text-amber-800 mb-2">
+                  {instrument.asset_no} carries no range, least count or accuracy for{' '}
+                  {capability.name || 'this parameter'}, so neither the least-count match
+                  nor the accuracy ratio can be shown. Say why it is fit for this
+                  calibration &mdash; the reviewer approves the certificate on this, and
+                  it is all they will have.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-bold text-amber-800 mb-1">
+                  Lowest ratio across your buckets is {worstRatio!.toFixed(1)} : 1.
+                </p>
+                <p className="text-[11px] text-amber-800 mb-2">
+                  Below the {threshold}:1 the lab asks for
+                  {mapping ? ', against the requirement you stated above' : ''}. Usable,
+                  with a reason recorded on the certificate.
+                </p>
+              </>
+            )}
+            <label className={LABEL}>
+              Reason for the reviewer{' '}
+              {unrateable && <span className="text-red-500">*</span>}
+            </label>
             <textarea
               rows={2}
               value={declaration.reason}
               disabled={disabled}
               onChange={(e) => onChange({ reason: e.target.value })}
               className="w-full rounded-lg border border-amber-200 bg-white p-2 text-xs"
-              placeholder="e.g. Customer tolerance is wider than the stated accuracy; agreed with the reviewer."
+              placeholder={
+                unrateable
+                  ? 'e.g. Calibrated against its own certificate of 12 Mar 2026, which states ±0.2 °C over the working span.'
+                  : 'e.g. Customer tolerance is wider than the stated accuracy; agreed with the reviewer.'
+              }
             />
+            {unrateable && declaration.reason.trim() === '' && (
+              <p className="text-[11px] text-amber-800 mt-1">
+                The master cannot be added until this is written.
+              </p>
+            )}
           </div>
         )}
     </MasterCapabilityDeclaration>

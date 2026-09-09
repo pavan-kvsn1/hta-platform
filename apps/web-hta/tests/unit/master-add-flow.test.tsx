@@ -584,6 +584,59 @@ describe('instruments with nothing recorded', () => {
     // GOOD serves it; the blank one must not be counted as a second.
     expect(screen.getByText(/1 instrument can do it/)).toBeInTheDocument()
   })
+
+  describe('once one is chosen anyway', () => {
+    // There is no least-count match and no accuracy ratio, so the certificate would
+    // assert the master was fit with nothing at all behind the assertion. That is the
+    // reviewer's call, and it needs something to approve.
+    const chooseIt = () => {
+      const onAdd = withBlank()
+      pick('Temperature')
+      fireEvent.click(screen.getByRole('button', { name: 'show them anyway' }))
+      pickInstrument('165 HTAIPL/L')
+      return onAdd
+    }
+
+    it('asks for the reason the reviewer will approve it on', () => {
+      chooseIt()
+      expect(screen.getByText(/Nothing recorded to rate this master by/)).toBeInTheDocument()
+      expect(screen.getByText(/the reviewer approves the certificate on this/)).toBeInTheDocument()
+    })
+
+    it('will not add the master until it is written', () => {
+      chooseIt()
+      expect(screen.getByRole('button', { name: 'Add this master' })).toBeDisabled()
+      expect(screen.getByText(/Write the reason the reviewer will approve it on/)).toBeInTheDocument()
+    })
+
+    it('adds it once it is, and carries the reason', () => {
+      const onAdd = chooseIt()
+      fireEvent.change(screen.getByPlaceholderText(/Calibrated against its own certificate/), {
+        target: { value: 'Certificate of 12 Mar 2026 states ±0.2 °C over the span.' },
+      })
+      const add = screen.getByRole('button', { name: 'Add this master' })
+      expect(add).not.toBeDisabled()
+      fireEvent.click(add)
+      expect(onAdd.mock.calls[0][0].assignments[0].acceptanceReason).toBe(
+        'Certificate of 12 Mar 2026 states ±0.2 °C over the span.',
+      )
+    })
+
+    it('leaves the cancel button where it was', () => {
+      // Hiding the whole row until the reason is written takes away the way out too.
+      chooseIt()
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    })
+
+    it('asks nothing of an instrument that does record its capability', () => {
+      const onAdd = withBlank()
+      pick('Temperature')
+      pickInstrument('600 HTAIPL/L')
+      expect(screen.queryByText(/Nothing recorded to rate this master by/)).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
+      expect(onAdd.mock.calls[0][0].assignments[0].acceptanceReason).toBe('')
+    })
+  })
 })
 
 describe('a master serving more than one parameter', () => {
