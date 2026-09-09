@@ -168,13 +168,25 @@ export interface CapabilityProfile {
   /**
    * Which half of a two-part instrument this capability belongs to.
    *
-   * A digital thermometer is a readout and a probe, certified separately: the
-   * indicator good to ±0.01 °C, the probe to ±0.25. Both measure temperature, so both
-   * normalize to the same parameter name, and without this the two profiles are
-   * indistinguishable - which is what put two identical "Used as / measuring" choices
-   * on screen for 717 HTAIPL/L.
+   * Set only while the registry is being built. A digital thermometer is a readout and
+   * a probe, and where the certificate states their accuracies apart the standardizer
+   * adds them into one capability and records both under `parts` - so nothing that
+   * ships carries a bare component. They are one instrument, not two to choose from.
    */
   component?: 'indicator' | 'sensor'
+  /**
+   * The certificate's own figures for each half, kept after they were combined.
+   *
+   * 717 HTAIPL/L is certified "Indicator Accuracy: ±0.01 °C, Sensor Accuracy: ±0.25 °C
+   * (upto 300 °C), above ±0.5 °C"; its buckets hold ±0.26 and ±0.51, and this holds
+   * what those were made of, so the certificate can be read back off the profile.
+   */
+  parts?: {
+    indicator: { buckets: CapabilityBucket[] }
+    sensor: { buckets: CapabilityBucket[] }
+    /** Bands where one part's accuracy is a formula and could not be added in. */
+    indicator_not_added_over?: string[]
+  }
   /** Present when kind === 'artifact'. */
   artifact?: ArtifactCapability
 }

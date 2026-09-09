@@ -7,7 +7,7 @@
   },
   "asset_count": 202,
   "unit_count": 209,
-  "profile_count": 366,
+  "profile_count": 360,
   "assets": [
     {
       "id": "149",
@@ -28533,43 +28533,19 @@
                 {
                   "id": "B1",
                   "min": 0.0,
-                  "max": 1000.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": null,
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.2,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ],
-              "component": "indicator"
-            },
-            {
-              "id": "P2",
-              "parameter": "Temperature",
-              "role": "measuring",
-              "unit": "°C",
-              "kind": "range",
-              "min": 0.0,
-              "max": 1000.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": 0.0,
                   "max": 600.0,
                   "min_inclusive": true,
                   "max_inclusive": true,
                   "least_count": null,
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 1.6,
+                    "value": 1.8,
                     "unit": "°C",
-                    "polarity": "±"
+                    "polarity": "±",
+                    "combined_from": {
+                      "sensor": 1.6,
+                      "indicator": 0.2
+                    }
                   }
                 },
                 {
@@ -28593,7 +28569,64 @@
                   }
                 }
               ],
-              "component": "sensor"
+              "parts": {
+                "indicator": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": 0.0,
+                      "max": 1000.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.2,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                "sensor": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": 0.0,
+                      "max": 600.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 1.6,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    },
+                    {
+                      "id": "B2",
+                      "min": 600.0,
+                      "max": 1000.0,
+                      "min_inclusive": false,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "formula",
+                        "expression": "+/-(0.004 x t)",
+                        "percent_of": null,
+                        "percent_value": null,
+                        "digits": null,
+                        "digits_unit": null,
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                }
+              }
             }
           ],
           "legacy_id": 56
@@ -29886,43 +29919,19 @@
                 {
                   "id": "B1",
                   "min": -100.0,
-                  "max": 500.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": null,
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.01,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ],
-              "component": "indicator"
-            },
-            {
-              "id": "P2",
-              "parameter": "Temperature",
-              "role": "measuring",
-              "unit": "°C",
-              "kind": "range",
-              "min": -100.0,
-              "max": 500.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -100.0,
                   "max": 300.0,
                   "min_inclusive": true,
                   "max_inclusive": true,
                   "least_count": null,
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 0.25,
+                    "value": 0.26,
                     "unit": "°C",
-                    "polarity": "±"
+                    "polarity": "±",
+                    "combined_from": {
+                      "sensor": 0.25,
+                      "indicator": 0.01
+                    }
                   }
                 },
                 {
@@ -29937,13 +29946,71 @@
                   },
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 0.51,
+                    "value": 0.52,
                     "unit": "°C",
-                    "polarity": "±"
+                    "polarity": "±",
+                    "combined_from": {
+                      "sensor": 0.51,
+                      "indicator": 0.01
+                    }
                   }
                 }
               ],
-              "component": "sensor"
+              "parts": {
+                "indicator": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -100.0,
+                      "max": 500.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.01,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                "sensor": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -100.0,
+                      "max": 300.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.25,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    },
+                    {
+                      "id": "B2",
+                      "min": 300.0,
+                      "max": 500.0,
+                      "min_inclusive": false,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.51,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                }
+              }
             }
           ],
           "legacy_id": 72
@@ -29999,43 +30066,19 @@
                 {
                   "id": "B1",
                   "min": -100.0,
-                  "max": 500.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": null,
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.01,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ],
-              "component": "indicator"
-            },
-            {
-              "id": "P2",
-              "parameter": "Temperature",
-              "role": "measuring",
-              "unit": "°C",
-              "kind": "range",
-              "min": -100.0,
-              "max": 500.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -100.0,
                   "max": 300.0,
                   "min_inclusive": true,
                   "max_inclusive": true,
                   "least_count": null,
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 0.25,
+                    "value": 0.26,
                     "unit": "°C",
-                    "polarity": "±"
+                    "polarity": "±",
+                    "combined_from": {
+                      "sensor": 0.25,
+                      "indicator": 0.01
+                    }
                   }
                 },
                 {
@@ -30050,13 +30093,71 @@
                   },
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 0.5,
+                    "value": 0.51,
                     "unit": "°C",
-                    "polarity": "±"
+                    "polarity": "±",
+                    "combined_from": {
+                      "sensor": 0.5,
+                      "indicator": 0.01
+                    }
                   }
                 }
               ],
-              "component": "sensor"
+              "parts": {
+                "indicator": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -100.0,
+                      "max": 500.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.01,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                "sensor": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -100.0,
+                      "max": 300.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.25,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    },
+                    {
+                      "id": "B2",
+                      "min": 300.0,
+                      "max": 500.0,
+                      "min_inclusive": false,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.5,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                }
+              }
             }
           ],
           "legacy_id": 73
@@ -30216,43 +30317,19 @@
                 {
                   "id": "B1",
                   "min": -100.0,
-                  "max": 500.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": null,
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.01,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ],
-              "component": "indicator"
-            },
-            {
-              "id": "P2",
-              "parameter": "Temperature",
-              "role": "measuring",
-              "unit": "°C",
-              "kind": "range",
-              "min": -100.0,
-              "max": 500.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -100.0,
                   "max": 300.0,
                   "min_inclusive": true,
                   "max_inclusive": true,
                   "least_count": null,
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 0.25,
+                    "value": 0.26,
                     "unit": "°C",
-                    "polarity": "±"
+                    "polarity": "±",
+                    "combined_from": {
+                      "sensor": 0.25,
+                      "indicator": 0.01
+                    }
                   }
                 },
                 {
@@ -30267,13 +30344,71 @@
                   },
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 0.5,
+                    "value": 0.51,
                     "unit": "°C",
-                    "polarity": "±"
+                    "polarity": "±",
+                    "combined_from": {
+                      "sensor": 0.5,
+                      "indicator": 0.01
+                    }
                   }
                 }
               ],
-              "component": "sensor"
+              "parts": {
+                "indicator": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -100.0,
+                      "max": 500.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.01,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                "sensor": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -100.0,
+                      "max": 300.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.25,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    },
+                    {
+                      "id": "B2",
+                      "min": 300.0,
+                      "max": 500.0,
+                      "min_inclusive": false,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.5,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                }
+              }
             }
           ],
           "legacy_id": 75
@@ -30329,43 +30464,19 @@
                 {
                   "id": "B1",
                   "min": -100.0,
-                  "max": 500.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": null,
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.01,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
-                }
-              ],
-              "component": "indicator"
-            },
-            {
-              "id": "P2",
-              "parameter": "Temperature",
-              "role": "measuring",
-              "unit": "°C",
-              "kind": "range",
-              "min": -100.0,
-              "max": 500.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -100.0,
                   "max": 300.0,
                   "min_inclusive": true,
                   "max_inclusive": true,
                   "least_count": null,
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 0.26,
+                    "value": 0.27,
                     "unit": "°C",
-                    "polarity": "±"
+                    "polarity": "±",
+                    "combined_from": {
+                      "sensor": 0.26,
+                      "indicator": 0.01
+                    }
                   }
                 },
                 {
@@ -30380,13 +30491,71 @@
                   },
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 0.51,
+                    "value": 0.52,
                     "unit": "°C",
-                    "polarity": "±"
+                    "polarity": "±",
+                    "combined_from": {
+                      "sensor": 0.51,
+                      "indicator": 0.01
+                    }
                   }
                 }
               ],
-              "component": "sensor"
+              "parts": {
+                "indicator": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -100.0,
+                      "max": 500.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.01,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                "sensor": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -100.0,
+                      "max": 300.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": null,
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.26,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    },
+                    {
+                      "id": "B2",
+                      "min": 300.0,
+                      "max": 500.0,
+                      "min_inclusive": false,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.51,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                }
+              }
             }
           ],
           "legacy_id": 76
@@ -31283,7 +31452,7 @@
                   },
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 0.01,
+                    "value": 0.11,
                     "unit": "°C",
                     "polarity": "±"
                   }
@@ -31695,44 +31864,60 @@
                   },
                   "accuracy": {
                     "type": "symmetric",
-                    "value": 0.4,
+                    "value": 0.9,
                     "unit": "°C",
-                    "polarity": "±"
+                    "polarity": "±",
+                    "combined_from": {
+                      "sensor": 0.5,
+                      "indicator": 0.4
+                    }
                   }
                 }
               ],
-              "component": "indicator"
-            },
-            {
-              "id": "P2",
-              "parameter": "Temperature",
-              "role": "measuring",
-              "unit": "°C",
-              "kind": "range",
-              "min": -100.0,
-              "max": 150.0,
-              "min_inclusive": true,
-              "max_inclusive": true,
-              "buckets": [
-                {
-                  "id": "B1",
-                  "min": -100.0,
-                  "max": 150.0,
-                  "min_inclusive": true,
-                  "max_inclusive": true,
-                  "least_count": {
-                    "value": 0.1,
-                    "unit": "°C"
-                  },
-                  "accuracy": {
-                    "type": "symmetric",
-                    "value": 0.5,
-                    "unit": "°C",
-                    "polarity": "±"
-                  }
+              "parts": {
+                "indicator": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -100.0,
+                      "max": 150.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.4,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
+                },
+                "sensor": {
+                  "buckets": [
+                    {
+                      "id": "B1",
+                      "min": -100.0,
+                      "max": 150.0,
+                      "min_inclusive": true,
+                      "max_inclusive": true,
+                      "least_count": {
+                        "value": 0.1,
+                        "unit": "°C"
+                      },
+                      "accuracy": {
+                        "type": "symmetric",
+                        "value": 0.5,
+                        "unit": "°C",
+                        "polarity": "±"
+                      }
+                    }
+                  ]
                 }
-              ],
-              "component": "sensor"
+              }
             }
           ],
           "legacy_id": 90

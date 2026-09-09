@@ -185,6 +185,86 @@ def calibration_state(status):
     return {"state": "UNKNOWN", "days": None}
 
 
+def accuracy_at(profile, low, high):
+    """The profile's symmetric accuracy over a band, where it has one.
+
+    Returns None where the band is not covered or the accuracy is a formula or a class -
+    those do not reduce to a number and must not be added to one.
+    """
+    for b in profile.get("buckets") or []:
+        lo, hi = b.get("min"), b.get("max")
+        if lo is None or hi is None:
+            continue
+        if lo <= low and hi >= high:
+            acc = b.get("accuracy") or {}
+            if acc.get("type") == "symmetric" and isinstance(acc.get("value"), (int, float)):
+                return acc["value"]
+            return None
+    return None
+
+
+def combine_components(members):
+    """Fold an indicator and its probe into the one instrument they are.
+
+    A digital thermometer is a readout and a sensor, and the certificate that states
+    them apart states them to be added: 717 HTAIPL/L reads "Indicator Accuracy: +/-0.01
+    C, Sensor Accuracy: +/-0.25 C (upto 300 C), above +/-0.5 C", and 621 HTAIPL/L - the
+    same model, certified by a lab that combines them - reads "+/-0.26 C up to 300 C &
+    above 0.51 C". 0.25 + 0.01. 0.5 + 0.01.
+
+    So the two are not a choice. Offering them as one would let an engineer rate a
+    master at the indicator's +/-0.01 when the instrument they are actually holding is
+    good to +/-0.26 - a ratio twenty-six times better than the truth, on a certificate.
+    The sensor's banding is kept, the indicator's accuracy is added into each band, and
+    both figures stay on the profile as `parts` so the certificate can still be read
+    back off it.
+
+    Where either side is a formula or a class, nothing is added: the band keeps what it
+    had and says which part is missing from it, because a number and an expression do
+    not combine into a number.
+    """
+    components = [m for m in members if m.get("component")]
+    if len(components) < 2:
+        return members
+
+    by_component = {}
+    for m in components:
+        by_component.setdefault(m["component"], []).append(m)
+    if set(by_component) != {"indicator", "sensor"}:
+        return members
+    if any(len(v) != 1 for v in by_component.values()):
+        return members
+
+    indicator = by_component["indicator"][0]
+    sensor = by_component["sensor"][0]
+
+    combined = dict(sensor)
+    combined.pop("component", None)
+    buckets = []
+    incomplete = []
+    for b in sensor.get("buckets") or []:
+        b = dict(b)
+        acc = b.get("accuracy") or {}
+        add = accuracy_at(indicator, b.get("min"), b.get("max"))
+        if acc.get("type") == "symmetric" and isinstance(acc.get("value"), (int, float)) and add is not None:
+            b["accuracy"] = dict(acc)
+            b["accuracy"]["value"] = round(acc["value"] + add, 10)
+            b["accuracy"]["combined_from"] = {"sensor": acc["value"], "indicator": add}
+        elif add is None:
+            incomplete.append(f"{b.get('min')}..{b.get('max')}")
+        buckets.append(b)
+    combined["buckets"] = buckets
+    combined["parts"] = {
+        "indicator": {"buckets": indicator.get("buckets") or []},
+        "sensor": {"buckets": sensor.get("buckets") or []},
+    }
+    if incomplete:
+        combined["parts"]["indicator_not_added_over"] = incomplete
+
+    rest = [m for m in members if m is not indicator and m is not sensor]
+    return [combined, *rest]
+
+
 def group_profiles(profiles):
     """Collapse per-subtype profiles into one profile carrying a subtypes[] array.
 
@@ -205,10 +285,6 @@ def group_profiles(profiles):
             prof["kind"],
             prof["unit"],
             prof.get("mode"),
-            # An indicator and its probe both measure Temperature, and folding them
-            # into one profile would average away the difference between a readout
-            # good to 0.01 and a sensor good to 0.25.
-            prof.get("component"),
         )
         if key not in grouped:
             grouped[key] = []
@@ -217,7 +293,7 @@ def group_profiles(profiles):
 
     out = []
     for key in order:
-        members = grouped[key]
+        members = combine_components(grouped[key])
         subtyped = [p for p in members if p.get("subtype")]
 
         # Profiles without a subtype stay as they are. More than one in a group would

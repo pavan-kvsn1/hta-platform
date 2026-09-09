@@ -105,6 +105,32 @@ def profile(pid, parameter, role, unit, lo, hi, buckets, **extra):
 # Certificate-verified findings, keyed by asset_no.
 # --------------------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------------
+# Corrections to figures already in the registry.
+#
+# FINDINGS above fills assets that had no capability at all and refuses to touch one
+# that does. This is the other case: a figure that is there and is wrong, read again
+# from the certificate. Each entry names the certificate and what it says, so the
+# correction can be checked against the same page the error came from.
+# ---------------------------------------------------------------------------------
+BUCKET_CORRECTIONS = {
+    "966 HTAIPL/L": {
+        "certificate": "TSC/25-26/4062-1 (26 May 2025), ULR CC223125000058041F, page 2",
+        "parameter": "Temperature",
+        "notes": (
+            "The certificate reads 'Accuracy: +/-0.11 C for (-100 to 100 C), +/-0.26 C for"
+            " (100 to 300 C) & above +/-0.51 C'. The registry held 0.01 for the first band"
+            " - a misread of 0.11, and one that made the instrument look eleven times more"
+            " accurate than it is over the whole of its lower range. The other two bands"
+            " match the certificate and are left alone."
+        ),
+        "buckets": [
+            {"min": -100.0, "max": 100.0, "was": 0.01, "accuracy": sym(0.11, "°C")},
+        ],
+    },
+}
+
+
 FINDINGS = {
     "909 HTAIPL/L": {
         "certificate": "TransCal TSC/25-26/4881-1 (cal 09 Jun 2025, due 08 Jun 2026)",
@@ -449,14 +475,90 @@ FINDINGS = {
 }
 
 
+def apply_corrections(by_asset):
+    """Apply BUCKET_CORRECTIONS. Returns the count, or None if anything did not match.
+
+    Refuses on a value it was not written against: a correction that silently overwrites
+    whatever it finds is indistinguishable from a fresh error.
+    """
+    corrected = 0
+    for asset_no, fix in BUCKET_CORRECTIONS.items():
+        asset = by_asset.get(asset_no)
+        if asset is None:
+            print(f"ERROR: {asset_no} not in the registry")
+            return None
+        profiles = [
+            pr for pr in asset.get("capability_profiles") or []
+            if pr.get("parameter") == fix["parameter"]
+        ]
+        if len(profiles) != 1:
+            print(f"ERROR: {asset_no} has {len(profiles)} {fix['parameter']} profiles;"
+                  " expected exactly one to correct")
+            return None
+        for want in fix["buckets"]:
+            match = [
+                b for b in profiles[0].get("buckets") or []
+                if b.get("min") == want["min"] and b.get("max") == want["max"]
+            ]
+            if len(match) != 1:
+                print(f"ERROR: {asset_no} has no single bucket {want['min']}..{want['max']}")
+                return None
+            bucket = match[0]
+            current = (bucket.get("accuracy") or {}).get("value")
+            if current == want["accuracy"]["value"]:
+                print(f"  {asset_no:<16} {want['min']}..{want['max']} already corrected")
+                continue
+            if current != want["was"]:
+                print(f"ERROR: {asset_no} bucket {want['min']}..{want['max']} holds"
+                      f" {current}, not the {want['was']} this correction was written"
+                      " against - re-read the certificate before changing it")
+                return None
+            bucket["accuracy"] = want["accuracy"]
+            bucket["accuracy_corrected"] = {
+                "from": current,
+                "certificate": fix["certificate"],
+                "verified_on": VERIFIED_ON,
+                "notes": fix["notes"],
+            }
+            corrected += 1
+            print(f"  {asset_no:<16} {want['min']}..{want['max']} accuracy"
+                  f" {current} -> {want['accuracy']['value']}")
+    return corrected
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
     parser.add_argument("--check", action="store_true", help="report without writing")
+    # FINDINGS is a one-shot fill and refuses to run twice. A correction is not: it
+    # names the figure it expects to find and can be re-run against a registry that
+    # already has it, so it needs a way in that does not go through that guard.
+    parser.add_argument(
+        "--corrections-only",
+        action="store_true",
+        help="apply BUCKET_CORRECTIONS and skip the one-shot profile fill",
+    )
     args = parser.parse_args()
 
     registry = json.loads(args.registry.read_text(encoding="utf-8"))
     by_asset = {a.get("asset_no"): a for a in registry["assets"]}
+
+    profiles_added = 0
+    ranges_fixed = 0
+
+    if args.corrections_only:
+        result = apply_corrections(by_asset)
+        if result is None:
+            return 1
+        if not args.check:
+            args.registry.write_text(
+                json.dumps(registry, indent=2, ensure_ascii=False) + chr(10),
+                encoding="utf-8",
+            )
+            print(f"written to {args.registry}")
+        else:
+            print("--check: nothing written")
+        return 0
 
     missing = [k for k in FINDINGS if k not in by_asset]
     if missing:
@@ -470,9 +572,6 @@ def main():
         print("ERROR: refusing to overwrite existing capability_profiles on: "
               + ", ".join(occupied))
         return 1
-
-    profiles_added = 0
-    ranges_fixed = 0
 
     for asset_no, finding in FINDINGS.items():
         asset = by_asset[asset_no]
@@ -515,9 +614,12 @@ def main():
               f"{'  [range_parsed corrected]' if finding.get('range_parsed_fix') else ''}"
               f"{'  [artifact]' if finding.get('capability_kind') else ''}")
 
+    if apply_corrections(by_asset) is None:
+        return 1
+
     print()
     print(f"{len(FINDINGS)} assets, {profiles_added} profiles added, "
-          f"{ranges_fixed} range_parsed corrections")
+          f"{ranges_fixed} range_parsed corrections, {corrected} accuracy corrections")
 
     if args.check:
         print("\n--check: nothing written")

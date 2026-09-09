@@ -220,77 +220,41 @@ describe('a question with one answer', () => {
 })
 
 describe('two capabilities that look identical', () => {
-  // 717 HTAIPL/L is a readout and a probe sold and certified as one instrument: both
-  // measure temperature over the same span, the indicator to ±0.01 and the sensor to
-  // ±0.25. Before the registry carried the component they were two profiles with
-  // nothing to tell them apart, and the role question rendered twice.
-  const twoPart = unit([
-    profile({
-      id: 'P1',
-      component: 'indicator',
-      buckets: [bucket(-100, 100, 0.01, 0.01)],
-    }),
-    profile({
-      id: 'P2',
-      component: 'sensor',
-      buckets: [bucket(-100, 100, 0.1, 0.25)],
-    }),
+  // 782 HTAIPL/L is a steel caliper checker: the same blocks read as a height or as an
+  // outside measurement, certified separately. Two real capabilities under one name.
+  //
+  // What is NOT here any more is the indicator-and-probe case. A two-part thermometer
+  // reads through both halves at once - the certificate states ±0.01 for the readout
+  // and ±0.25 for the probe and means ±0.26 for the instrument - so the standardizer
+  // adds them into one capability and there is nothing to choose between.
+  const twoModes = unit([
+    profile({ id: 'P1', parameter: 'Length', role: 'source', unit: 'mm', mode: 'height' }),
+    profile({ id: 'P2', parameter: 'Length', role: 'source', unit: 'mm', mode: 'outside' }),
   ])
 
+  it('asks which was used, named by what differs', () => {
+    renderIt(twoModes, { parameterName: 'Length', parameterUnit: 'mm' })
+    expect(screen.getByText('Measured as')).toBeInTheDocument()
+    expect(screen.getByText('height')).toBeInTheDocument()
+    expect(screen.getByText('outside')).toBeInTheDocument()
+  })
+
   it('asks the role once, not once per profile', () => {
-    // The role is settled - both profiles are measuring - so it is stated once in the
-    // summary and never offered as a choice. It used to be offered twice, identically.
-    renderIt(twoPart)
-    expect(screen.queryAllByText('measuring')).toHaveLength(1)
+    renderIt(twoModes, { parameterName: 'Length', parameterUnit: 'mm' })
     expect(
-      screen.queryAllByRole('button').filter((b) => b.textContent?.includes('it read the value')),
+      screen.queryAllByRole('button').filter((b) => b.textContent?.includes('it produced the value')),
     ).toHaveLength(0)
   })
 
-  it('asks which part did the measuring', () => {
-    renderIt(twoPart)
-    expect(screen.getByText('Which part')).toBeInTheDocument()
-    expect(screen.getByText('Indicator')).toBeInTheDocument()
-    expect(screen.getByText('Sensor')).toBeInTheDocument()
-  })
-
-  it('tells them apart by the accuracy, which is what differs', () => {
-    renderIt(twoPart)
-    expect(screen.getByText('±0.01 °C')).toBeInTheDocument()
-    expect(screen.getByText('±0.25 °C')).toBeInTheDocument()
-  })
-
-  it('says why the question is being asked', () => {
-    renderIt(twoPart)
-    expect(screen.getByText(/readout and a probe, each calibrated in its own right/)).toBeInTheDocument()
-  })
-
   it('declares the one that was picked', () => {
-    const onChange = renderIt(twoPart)
-    fireEvent.click(screen.getByText('Sensor').closest('button')!)
+    const onChange = renderIt(twoModes, { parameterName: 'Length', parameterUnit: 'mm' })
+    fireEvent.click(screen.getByText('outside').closest('button')!)
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P2' }))
   })
 
   it('answers nothing on the engineer’s behalf', () => {
-    // Two real capabilities and no way to rank them: picking one would put a figure on
-    // the certificate that nobody chose.
-    const onChange = renderIt(twoPart)
+    const onChange = renderIt(twoModes, { parameterName: 'Length', parameterUnit: 'mm' })
     expect(onChange).not.toHaveBeenCalled()
-  })
-
-  it('names the faces of a checker by the mode the certificate stated', () => {
-    // 782 HTAIPL/L, a steel caliper checker: the same blocks read as height or as an
-    // outside measurement, certified separately.
-    renderIt(
-      unit([
-        profile({ id: 'P1', parameter: 'Length', role: 'source', unit: 'mm', mode: 'height' }),
-        profile({ id: 'P2', parameter: 'Length', role: 'source', unit: 'mm', mode: 'outside' }),
-      ]),
-      { parameterName: 'Length', parameterUnit: 'mm' },
-    )
-    expect(screen.getByText('Measured as')).toBeInTheDocument()
-    expect(screen.getByText('height')).toBeInTheDocument()
-    expect(screen.getByText('outside')).toBeInTheDocument()
   })
 
   it('does not ask about a record that holds nothing', () => {
