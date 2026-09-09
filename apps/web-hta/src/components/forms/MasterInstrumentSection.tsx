@@ -142,6 +142,7 @@ export function MasterInstrumentCard({
     [instruments, instrument.masterInstrumentId],
   )
 
+
   // The same instrument in the registry, addressed by the id the certificate already
   // holds. Every instrument now comes from the registry, so this resolves unless a
   // certificate references one that has since been removed from the master list.
@@ -156,6 +157,30 @@ export function MasterInstrumentCard({
     [getUnitForInstrument, instrument.masterInstrumentId, instrument.assetNo],
   )
 
+  /**
+   * The parameters worth listing against this master.
+   *
+   * Not every parameter on the certificate. A thermometer offered "Pressure - not
+   * supported by this instrument", greyed out and unclickable, which is a row that
+   * exists only to be refused. What belongs here is what this master serves, or could:
+   * the ones already assigned to it, and the ones it records a capability for.
+   *
+   * A parameter assigned to it stays even where the capability no longer matches -
+   * hiding an answer already given is how a certificate quietly loses one.
+   */
+  const relevant = useMemo(
+    () =>
+      parameters
+        .map((param, paramIdx) => ({ param, paramIdx }))
+        .filter(({ param }) => {
+          if (param.masterInstrumentId === instrument.masterInstrumentId) return true
+          if (!param.parameterName || !registryUnit) return true
+          return unitCanMeasure(registryUnit, param.parameterName, param.parameterUnit, classify)
+        }),
+    [parameters, instrument.masterInstrumentId, registryUnit, classify],
+  )
+
+  const setAside = parameters.length - relevant.length
   // availableSopReferences is not persisted, so a reloaded draft has none and the
   // dropdown rendered empty. The registry records procedures for all 209 units, so it
   // is the fallback when neither the saved master nor the loaded list carries them.
@@ -252,11 +277,19 @@ export function MasterInstrumentCard({
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
                 The parameter this master was added for, and any other it also serves.
+                {setAside > 0 && (
+                  <>
+                    {' '}
+                    {setAside} other{setAside === 1 ? '' : 's'} on this certificate{' '}
+                    {setAside === 1 ? 'measures' : 'measure'} something this instrument
+                    does not record, and {setAside === 1 ? 'is' : 'are'} not listed.
+                  </>
+                )}
               </p>
             </div>
 
             <div className="divide-y divide-slate-100">
-              {parameters.map((param, paramIdx) => {
+              {relevant.map(({ param, paramIdx }) => {
                 const isAssigned = param.masterInstrumentId === instrument.masterInstrumentId
                 // "Assigned to another instrument" only holds when that other instrument
                 // is actually on this certificate. A reference to a master that has since

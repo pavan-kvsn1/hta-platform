@@ -213,19 +213,19 @@ describe('a parameter with a stale reference to a removed master', () => {
   const line = (re: RegExp) =>
     screen.queryAllByText((_c, el) => re.test(el?.textContent ?? '')).length > 0
 
-  it('names the reason that blocks it, not the one that does not', () => {
+  it('names the reason that blocks it', () => {
+    // Assigned to this master, and no longer something it measures - a parameter
+    // renamed after the master was chosen. It stays on the card, since the answer was
+    // given, and says what is wrong with it.
     renderCard(
-      // Humidity: 1018 records nothing like it. The id points at a master that is not
-      // on this certificate.
       parameter({
         parameterName: 'Relative Humidity',
         parameterUnit: '%RH',
-        masterInstrumentId: 999,
+        masterInstrumentId: 10,
       }),
       { instrument: calibrator, mastersOnCertificate: new Set([10]) },
     )
     expect(line(/Not supported by this instrument/)).toBe(true)
-    expect(line(/no longer on this certificate/)).toBe(false)
   })
 
   it('still says so where nothing else is wrong', () => {
@@ -234,5 +234,59 @@ describe('a parameter with a stale reference to a removed master', () => {
       { instrument: calibrator, mastersOnCertificate: new Set([10]) },
     )
     expect(line(/no longer on this certificate/)).toBe(true)
+  })
+})
+
+describe('parameters the master cannot measure', () => {
+  /**
+   * A thermometer's card offered "Pressure - not supported by this instrument", greyed
+   * out and unclickable: a row that exists only to be refused. What belongs on the card
+   * is what the master serves, or could.
+   */
+  const calibrator = {
+    ...master,
+    masterInstrumentId: 10,
+    assetNo: '1018 HTAIPL/L',
+  } as unknown as SelectedMasterInstrument
+
+  beforeAll(() => {
+    useMasterInstrumentStore.getState().loadFromRegistry()
+  })
+
+  const renderBoth = (over: Partial<Parameter> = {}) =>
+    renderCard(parameter({ masterInstrumentId: 10 }), {
+      instrument: calibrator,
+      mastersOnCertificate: new Set([10]),
+      parameters: [
+        parameter({ masterInstrumentId: 10 }),
+        parameter({
+          id: 'p2',
+          parameterName: 'Pressure (Absolute)',
+          parameterUnit: 'bar',
+          masterInstrumentId: null,
+          ...over,
+        }),
+      ],
+    })
+
+  it('leaves them off the card', () => {
+    renderBoth()
+    expect(screen.getByText('Temperature')).toBeInTheDocument()
+    expect(screen.queryByText('Pressure (Absolute)')).not.toBeInTheDocument()
+  })
+
+  it('says how many were left off, so none vanish quietly', () => {
+    renderBoth()
+    // The sentence wraps the count in its own element, so the parent matches too.
+    expect(
+      screen.getAllByText((_c, el) => /1 other on this certificate/.test(el?.textContent ?? ''))
+        .length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('keeps one that is assigned to this master anyway', () => {
+    // An answer already given is not hidden because the capability no longer matches.
+    renderBoth({ masterInstrumentId: 10 })
+    expect(screen.getByText('Pressure (Absolute)')).toBeInTheDocument()
   })
 })
