@@ -1422,9 +1422,10 @@ describe('a master that falls short on more than one count', () => {
    * each reads as two problems wanting two instruments.
    */
   const both = instrument({ id: 77, asset_no: '777 HTAIPL/L' })
-  // Least count 0.5 against a required 0.1, and accuracy 0.5 against a required 0.5:
-  // coarser than it can write down, and a ratio of 1.0 against the lab's 4.
-  const coarse = unitWith('Temperature', -50, 200, 0.5, 0.5)
+  // Least count 0.5 against a required 0.1: coarser than it can write down. Accuracy
+  // 0.25 against a required 0.5: a ratio of 2, short of the lab's 4 but above 1, so the
+  // master is not refused outright and both faults are still worth naming.
+  const coarse = unitWith('Temperature', -50, 200, 0.5, 0.25)
 
   const show = () => {
     render(
@@ -1447,7 +1448,7 @@ describe('a master that falls short on more than one count', () => {
   it('names both faults', () => {
     show()
     expect(screen.getByText(/least count is coarser than required/)).toBeInTheDocument()
-    expect(screen.getByText(/accuracy ratio is 1.0 : 1/)).toBeInTheDocument()
+    expect(screen.getByText(/accuracy ratio is 2.0 : 1/)).toBeInTheDocument()
   })
 
   it('asks for another instrument once, not once per fault', () => {
@@ -1564,6 +1565,13 @@ describe('a master finer than the unit, but not by the margin the lab asks', () 
     expect(
       screen.queryByText('Please select a compatible master instrument.'),
     ).not.toBeInTheDocument()
+  })
+
+  it('does not restate the ratio the table already shows', () => {
+    show(thinUnit)
+    expect(screen.queryByText(/accuracy ratio is/)).not.toBeInTheDocument()
+    // The figure itself is still there, in its own column.
+    expect(screen.getAllByText(/2\.0 : 1/).length).toBeGreaterThan(0)
   })
 
   it('still refuses where the least count cannot resolve the reading', () => {

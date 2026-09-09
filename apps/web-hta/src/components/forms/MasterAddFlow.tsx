@@ -1740,6 +1740,7 @@ function ParameterDeclaration({
             subtypeId={declaration.subtype}
             required={required}
             threshold={threshold}
+            verdicts={!(worstRatio !== null && worstRatio <= 1)}
           />
         )}
 

@@ -40,6 +40,15 @@ interface MasterBandTableProps {
   subtypeId?: string | null
   required: RequiredRange[]
   threshold?: number
+  /**
+   * Whether to spell out what is wrong underneath the table.
+   *
+   * Off where the caller has already said it. A master no finer than the thing it is
+   * checking is refused outright above this table, and repeating "the accuracy ratio is
+   * 1.0 : 1 ... please select a compatible master instrument" beneath it says the same
+   * thing twice in two voices.
+   */
+  verdicts?: boolean
 }
 
 /**
@@ -78,20 +87,24 @@ function Verdicts({
    */
   const onlyTheRatio = !leastCount && ratiosOf(required, bands).every((r) => r > 1)
 
+  // Where the ratio is the only fault, the figure is already in the table's own column
+  // and naming it again in a sentence only delays what to do about it.
+  if (onlyTheRatio) {
+    return (
+      <p className="text-xs mt-1.5 text-amber-700">
+        If a finer master is available, use it. If this one has to be used, record why
+        below &mdash; the reviewer approves the certificate on that.
+      </p>
+    )
+  }
+
   return (
     <>
       {leastCount}
       {accuracy}
-      {onlyTheRatio ? (
-        <p className="text-xs mt-1.5 text-amber-700">
-          If a finer master is available, use it. If this one has to be used, record why
-          below &mdash; the reviewer approves the certificate on that.
-        </p>
-      ) : (
-        <p className="text-xs mt-1.5 text-red-600">
-          Please select a compatible master instrument.
-        </p>
-      )}
+      <p className="text-xs mt-1.5 text-red-600">
+        Please select a compatible master instrument.
+      </p>
     </>
   )
 }
@@ -163,6 +176,7 @@ export function MasterBandTable({
   subtypeId,
   required,
   threshold = DEFAULT_ACCURACY_RATIO,
+  verdicts = true,
 }: MasterBandTableProps) {
   const declared = declaredCapability(profile, subtypeId)
   const bands = [...declared.buckets].sort((a, b) => (a.min ?? 0) - (b.min ?? 0))
@@ -287,7 +301,9 @@ export function MasterBandTable({
           <tbody className="divide-y divide-slate-100">{rows}</tbody>
         </table>
       </div>
-      <Verdicts required={required} bands={bands} declared={declared} threshold={threshold} />
+      {verdicts && (
+        <Verdicts required={required} bands={bands} declared={declared} threshold={threshold} />
+      )}
     </div>
   )
 }
