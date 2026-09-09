@@ -37,6 +37,8 @@ interface MasterCapabilityComparisonProps {
     bins: { binMin: string; binMax: string; leastCount: string; accuracy: string }[]
     masterProfileId?: string
     masterSubtype?: string
+    /** What the engineer wrote for the reviewer when the master fell short. */
+    masterAcceptanceReason?: string
   }
   /** The ratio this lab expects. Defaults to the common 4:1. */
   threshold?: number
@@ -201,7 +203,11 @@ export function MasterCapabilityComparison({
         </table>
       </div>
 
-      <Verdict suitability={suitability} threshold={threshold} />
+      <Verdict
+        suitability={suitability}
+        threshold={threshold}
+        reason={parameter.masterAcceptanceReason}
+      />
     </div>
   )
 }
@@ -281,45 +287,76 @@ function Row({
   )
 }
 
+/**
+ * What the comparison came to, in the same terms the add flow used.
+ *
+ * The card was answering in its own words - "please select a compatible master
+ * instrument, or record why this one was accepted" - to an engineer who had already
+ * done one of those and could not do the other here. Where the flow asked for the
+ * reviewer's approval, the card shows what was written; where the flow refused the
+ * master outright, the card says the same thing rather than offering a choice.
+ */
 function Verdict({
   suitability,
   threshold,
+  reason,
 }: {
   suitability: AssignmentSuitability
   threshold: number
+  reason?: string
 }) {
+  const approval = reason?.trim() ? (
+    <span className="block mt-1.5 border-l-2 border-current/30 pl-2 italic">
+      For the reviewer: {reason.trim()}
+    </span>
+  ) : (
+    <span className="block mt-1.5 font-semibold">
+      Nothing was recorded for the reviewer. Edit this master to write it.
+    </span>
+  )
+
   if (!suitability.covered) {
     return (
       <Note tone="red">
-        Part of the required range falls outside every band this capability records.
-        Please select a compatible master instrument.
+        Part of the range being calibrated falls outside every band this capability
+        records, so there is nothing to check those points against.
       </Note>
     )
   }
   if (!suitability.resolvable) {
     return (
       <Note tone="red">
-        This instrument&rsquo;s least count is coarser than the parameter requires &mdash;
-        readings would be recorded finer than it can actually read. Please select a
-        compatible master instrument.
+        This master cannot resolve the reading the certificate asks for &mdash; a finer
+        digit would be one nobody read.
       </Note>
     )
   }
   if (suitability.worstRatio === null) {
     return (
-      <Note tone="slate">
-        Accuracy for this band is recorded as a class, so it cannot be compared as a
-        number. Check the ratio by hand.
+      <Note tone="amber">
+        The accuracy recorded for this band gives no figure to compare against, so the
+        ratio could not be worked out. The reviewer approves that from the
+        instrument&rsquo;s own certificate.
+        {approval}
+      </Note>
+    )
+  }
+  if (suitability.worstRatio <= 1) {
+    return (
+      <Note tone="red">
+        At {suitability.worstRatio.toFixed(1)}:1 this master is no finer than what it is
+        checking, so a reading near the limit cannot decide pass from fail. It should be
+        replaced.
       </Note>
     )
   }
   if (!suitability.meetsThreshold) {
     return (
       <Note tone="amber">
-        At {suitability.worstRatio.toFixed(1)}:1 this master is close to the unit&rsquo;s
-        own accuracy, so a reading near the limit may not decide pass or fail. The lab
-        asks for {threshold}:1. Please select a compatible master instrument, or record
-        why this one was accepted.
+        At {suitability.worstRatio.toFixed(1)}:1 it is finer than the unit under test but
+        short of the {threshold}:1 the lab asks for, so it stands on the
+        reviewer&rsquo;s approval.
+        {approval}
       </Note>
     )
   }

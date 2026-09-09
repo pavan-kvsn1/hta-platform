@@ -86,7 +86,23 @@ describe('MasterCapabilityComparison', () => {
     ])
     render(<MasterCapabilityComparison unit={marginal} parameter={parameter} />)
     expect(screen.getByText('1.7 : 1')).toBeInTheDocument()
-    expect(screen.getByText(/may not decide pass or fail/i)).toBeInTheDocument()
+    expect(screen.getByText(/short of the 4:1 the lab asks for/i)).toBeInTheDocument()
+    // Nothing was written for the reviewer, and the card says so rather than implying
+    // the engineer could write it here.
+    expect(screen.getByText(/Nothing was recorded for the reviewer/i)).toBeInTheDocument()
+  })
+
+  it('shows what the reviewer was given, where there is one', () => {
+    const marginal = unit([
+      { ...(temperature.capability_profiles[0] as object), buckets: [bucket(-100, 100, 0.1, 0.3)] },
+    ])
+    render(
+      <MasterCapabilityComparison
+        unit={marginal}
+        parameter={{ ...parameter, masterAcceptanceReason: 'Customer tolerance is wider.' }}
+      />,
+    )
+    expect(screen.getByText(/Customer tolerance is wider/)).toBeInTheDocument()
   })
 
   it('stops on a least count the instrument cannot resolve', () => {
@@ -95,7 +111,7 @@ describe('MasterCapabilityComparison', () => {
     ])
     render(<MasterCapabilityComparison unit={coarse} parameter={parameter} />)
     expect(screen.getByText('Not Compatible')).toBeInTheDocument()
-    expect(screen.getByText(/finer than it can actually read/i)).toBeInTheDocument()
+    expect(screen.getByText(/cannot resolve the reading/i)).toBeInTheDocument()
   })
 
   it('reports a range the instrument does not reach', () => {
@@ -129,7 +145,7 @@ describe('MasterCapabilityComparison', () => {
     expect(within(rows[0]).getByText('10.0 : 1')).toBeInTheDocument()
     // The second bin is the weak one, and the verdict follows it rather than the first.
     expect(within(rows[1]).getByText('1.3 : 1')).toBeInTheDocument()
-    expect(screen.getByText(/may not decide pass or fail/i)).toBeInTheDocument()
+    expect(screen.getByText(/short of the 4:1 the lab asks for/i)).toBeInTheDocument()
   })
 
   it('says so when the accuracy cannot be compared as a number', () => {
@@ -141,7 +157,7 @@ describe('MasterCapabilityComparison', () => {
     ])
     render(<MasterCapabilityComparison unit={classAcc} parameter={parameter} />)
     expect(screen.getByText('Not comparable')).toBeInTheDocument()
-    expect(screen.getByText(/recorded as a class/i)).toBeInTheDocument()
+    expect(screen.getByText(/gives no figure to compare against/i)).toBeInTheDocument()
   })
 
   it('names the part of the parameter that is missing, not all three', () => {
