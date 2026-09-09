@@ -965,10 +965,16 @@ export function MasterAddFlow({
     setDeclarations({})
   }
 
+  /**
+   * One parameter per master.
+   *
+   * Held as a list because everything below reads it as one - a master serving two
+   * parameters was the earlier arrangement, and the declaration, the requirement and
+   * the verdict are all still written per parameter. Clicking the chosen one again
+   * clears it; a radio can otherwise only be changed, never unset.
+   */
   const toggleParameter = (id: string) => {
-    setParamIds((current) =>
-      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
-    )
+    setParamIds((current) => (current.includes(id) ? [] : [id]))
     // The instrument list is rated against the parameters ticked, so a change to them
     // invalidates a choice made under the old set.
     forgetChoice()
@@ -1065,11 +1071,11 @@ export function MasterAddFlow({
         {/* Step 1 - what this master is for */}
         <div className="mb-6">
           <label className={LABEL}>
-            Used for which parameters <span className="text-red-500">*</span>
+            Used for which parameter <span className="text-red-500">*</span>
           </label>
           <p className="text-[11px] text-slate-500 mb-1.5">
-            Tick every parameter this master was used for &mdash; a universal calibrator
-            can serve several. Each one is declared separately below.
+            The parameter this master was used for. Add the master again to declare it
+            against another.
           </p>
           <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
             {parameters.map((p, i) => {
@@ -1112,11 +1118,12 @@ export function MasterAddFlow({
                   )}
                 >
                   <input
-                    type="checkbox"
+                    type="radio"
+                    name={`master-${index}-parameter`}
                     checked={on}
                     disabled={disabled || !!covered}
                     onChange={() => toggleParameter(p.id)}
-                    className="size-4 rounded border-slate-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
+                    className="size-4 border-slate-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
                   />
                   <span className="flex-1 min-w-0">
                     <span className="block text-xs font-semibold text-slate-800">

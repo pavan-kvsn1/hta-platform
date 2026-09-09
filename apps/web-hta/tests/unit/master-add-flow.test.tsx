@@ -114,11 +114,20 @@ function renderFlow(over: Record<string, unknown> = {}) {
   return { onAdd, onCancel }
 }
 
-/** The parameter step ticks, since one master can serve several. */
-const pick = (label: string | RegExp) =>
-  fireEvent.click(
-    within(screen.getByText(label).closest('label')!).getByRole('checkbox'),
-  )
+/**
+ * The parameter step is one choice, so it is a radio.
+ *
+ * Found by the control rather than by the text alone: a parameter's name also appears
+ * in the declaration panel further down, where the instrument's other capabilities are
+ * listed, and "Pressure" there is a different thing from "Pressure" here.
+ */
+const pick = (label: string | RegExp) => {
+  const row = screen
+    .getAllByText(label)
+    .map((el) => el.closest('label'))
+    .find((el) => el?.querySelector('input[type="radio"]'))
+  fireEvent.click(within(row!).getByRole('radio'))
+}
 
 /** Counts sit in <b> inside the sentence, so a regex has to see the whole paragraph. */
 const paragraph = (re: RegExp) =>
@@ -135,7 +144,7 @@ const pickInstrument = (assetNo: string) =>
 describe('step 1 - what the master is for', () => {
   it('asks for the parameter first, and nothing else', () => {
     renderFlow()
-    expect(screen.getByText(/Used for which parameters/i)).toBeInTheDocument()
+    expect(screen.getByText(/Used for which parameter/i)).toBeInTheDocument()
     expect(screen.queryByText('Instrument')).not.toBeInTheDocument()
     expect(screen.queryByText(/Instrument Selected/i)).not.toBeInTheDocument()
   })
@@ -157,7 +166,7 @@ describe('step 1 - what the master is for', () => {
     renderFlow({ coveredBy: new Map([['p1', '600 HTAIPL/L']]) })
     expect(screen.getByText(/already assigned to 600 HTAIPL\/L/)).toBeInTheDocument()
     expect(
-      within(screen.getByText('Temperature').closest('label')!).getByRole('checkbox'),
+      within(screen.getByText('Temperature').closest('label')!).getByRole('radio'),
     ).toBeDisabled()
   })
 })
@@ -659,7 +668,7 @@ describe('instruments with nothing recorded', () => {
   })
 })
 
-describe('a master serving more than one parameter', () => {
+describe('choosing which parameter the master is for', () => {
   // A universal calibrator sources temperature and reads pressure on the same
   // certificate, so the parameter step ticks rather than picks.
   const bothUnit = {
@@ -698,38 +707,36 @@ describe('a master serving more than one parameter', () => {
     return onAdd
   }
 
-  it('takes both parameters at once', () => {
+  it('takes one parameter, not both', () => {
+    // A master is added for one parameter and added again for another. Picking a
+    // second replaces the first rather than joining it.
     renderBoth()
     pick('Temperature')
     pick('Pressure')
-    expect(screen.getByText('Temperature and Pressure')).toBeInTheDocument()
-    expect(screen.getByText(/1 of 1 can be used/)).toBeInTheDocument()
+    expect(screen.queryByText('Temperature and Pressure')).not.toBeInTheDocument()
+    expect(paragraph(/those recording Pressure/)).toBeInTheDocument()
   })
 
-  it('declares each parameter separately, naming which is which', () => {
+  it('declares the one it was picked for, naming which', () => {
     renderBoth()
-    pick('Temperature')
     pick('Pressure')
     pickInstrument('900 HTAIPL/L')
-    // One panel per parameter, each with its own requirement and procedure.
-    expect(
-      screen.getByRole('group', { name: /Compatibility - For Temperature/i }),
-    ).toBeInTheDocument()
     expect(
       screen.getByRole('group', { name: /Compatibility - For Pressure/i }),
     ).toBeInTheDocument()
-    expect(screen.getAllByText('Required of the master')).toHaveLength(2)
-    expect(screen.getAllByLabelText(/SOP Ref/i)).toHaveLength(2)
+    expect(screen.queryByRole('group', { name: /Compatibility - For Temperature/i }))
+      .not.toBeInTheDocument()
+    expect(screen.getAllByText('Required of the master')).toHaveLength(1)
+    expect(screen.getAllByLabelText(/SOP Ref/i)).toHaveLength(1)
   })
 
-  it('reports one assignment per parameter', () => {
+  it('reports the one assignment', () => {
     const onAdd = renderBoth()
-    pick('Temperature')
     pick('Pressure')
     pickInstrument('900 HTAIPL/L')
     fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
     expect(onAdd.mock.calls[0][0].assignments.map((a: { parameterIndex: number }) => a.parameterIndex))
-      .toEqual([0, 1])
+      .toEqual([1])
   })
 
   it('drops the chosen instrument when the parameters change under it', () => {
@@ -1050,7 +1057,7 @@ describe('a certificate that calibrates one parameter twice', () => {
   it('names which of the two each panel is about', () => {
     renderTwice()
     fireEvent.click(
-      within(screen.getByText('Temperature (-10 to 40 °C)').closest('label')!).getByRole('checkbox'),
+      within(screen.getByText('Temperature (-10 to 40 °C)').closest('label')!).getByRole('radio'),
     )
     expect(screen.getByText(/Measured using — for Temperature \(-10 to 40 °C\)/)).toBeInTheDocument()
   })
@@ -1060,7 +1067,7 @@ describe('a certificate that calibrates one parameter twice', () => {
     // parameter's name.
     renderTwice()
     fireEvent.click(
-      within(screen.getByText('Temperature (0 to 100 °C)').closest('label')!).getByRole('checkbox'),
+      within(screen.getByText('Temperature (0 to 100 °C)').closest('label')!).getByRole('radio'),
     )
     expect(screen.getByText(/0 to 100 °C, binned across 2 ranges/)).toBeInTheDocument()
   })
