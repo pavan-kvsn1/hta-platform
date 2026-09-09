@@ -1236,7 +1236,9 @@ describe('several units under one asset number', () => {
   ]
   const twinUnits = new Map<number, RegistryUnit>([
     [126, unitWith('Temperature', -50, 200, 0.1, 0.05)],
-    [127, unitWith('Temperature', -50, 200, 0.1, 0.5)],
+    // Different figures from its twin, and both comfortably usable: which unit gets
+    // reported is what this is about, not whether either can be accepted.
+    [127, unitWith('Temperature', -50, 200, 0.1, 0.1)],
   ])
 
   const renderTwins = () => {
@@ -1287,10 +1289,6 @@ describe('several units under one asset number', () => {
     )
     pick('Temperature')
     fireEvent.click(twinRows()[1])
-    // This twin's ratio falls short of the lab's threshold, so the reviewer's approval
-    // is required before it can be added.
-    const reason = screen.queryByPlaceholderText(/Customer tolerance|Calibrated against/)
-    if (reason) fireEvent.change(reason, { target: { value: 'Agreed with the reviewer.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
     expect(onAdd.mock.calls[0][0].instrument.id).toBe(127)
   })
@@ -1590,5 +1588,54 @@ describe('a master finer than the unit, but not by the margin the lab asks', () 
     expect(onAdd.mock.calls[0][0].assignments[0].acceptanceReason).toBe(
       'Customer tolerance is wider; agreed with the reviewer.',
     )
+  })
+})
+
+describe('a master no finer than the thing it is checking', () => {
+  /**
+   * At 1 : 1 the master's own error is as large as the tolerance it is checking, so a
+   * reading near the limit cannot decide pass from fail - whoever signs it. There is
+   * nothing for a reviewer to weigh, so nothing is asked: no box, no Add, and a
+   * sentence saying why.
+   */
+  const FLAT = instrument({ id: 92, asset_no: '902 HTAIPL/L' })
+  // Required accuracy is ±0.5; so is the master's.
+  const flatUnit = unitWith('Temperature', -50, 200, 0.1, 0.5)
+
+  const show = () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+        coveredBy={new Map()}
+        instruments={[FLAT]}
+        resolveUnit={() => flatUnit}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('902 HTAIPL/L')
+  }
+
+  it('says so plainly', () => {
+    show()
+    expect(
+      screen.getByText(/no finer than what it is checking/),
+    ).toBeInTheDocument()
+  })
+
+  it('asks for no approval, because there is nothing to approve', () => {
+    show()
+    expect(screen.queryByText(/For the reviewer/)).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/Customer tolerance/)).not.toBeInTheDocument()
+  })
+
+  it('cannot be added at all', () => {
+    show()
+    expect(screen.getByRole('button', { name: 'Add this master' })).toBeDisabled()
+    expect(screen.getByText(/It cannot be used here/)).toBeInTheDocument()
+    // The way out stays.
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
   })
 })

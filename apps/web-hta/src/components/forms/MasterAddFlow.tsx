@@ -1003,9 +1003,29 @@ export function MasterAddFlow({
     return declaration.reason.trim() === ''
   })
 
+  /**
+   * Parameters this master cannot serve at all.
+   *
+   * A ratio at or below 1 : 1 means the master's own error is as large as the tolerance
+   * it is checking. There is nothing for a reviewer to weigh - the reading cannot
+   * decide pass from fail whoever signs it - so this one is not offered for approval,
+   * it is refused.
+   */
+  const unusable = chosenParameters.filter(({ parameter }) => {
+    const capability = mappedCapability(parameter)
+    const ratio = worstRatioFor(
+      registryUnit,
+      capability.name,
+      requiredFor.get(parameter.id) ?? [],
+      threshold,
+      capability.unit,
+    )
+    return ratio !== null && ratio <= 1
+  })
+
   /** Far enough along to offer the buttons at all. */
   const ready = chosenParameters.length > 0 && chosenInstrument !== null
-  const canAdd = ready && awaitingApproval.length === 0
+  const canAdd = ready && awaitingApproval.length === 0 && unusable.length === 0
 
   return (
     <div className="bg-section-inner rounded-xl p-5 border border-slate-300 mt-5">
@@ -1310,14 +1330,17 @@ export function MasterAddFlow({
               </div>
               </div>
 
-              <div className="mt-2 space-y-1">
+              {/* The list, the legend and the counts are three parts of one pane, so
+                  they sit on one rhythm: the same gap under the list as between the
+                  legend and the box beneath it. */}
+              <div className="mt-3 space-y-3">
                 <BadgeLegend />
 
                 {/* Boxed and tinted. These lines say what the list is not showing, and
                     as grey footnotes under a long list they were read as decoration -
                     an engineer choosing from twenty rows had no reason to notice that
                     eight more were being kept back. */}
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 space-y-1">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 space-y-1.5">
                 {/* One statement per line. Strung together they read as a paragraph
                     about nothing in particular; apart, each is a fact with a number and
                     the button that acts on it. */}
@@ -1445,7 +1468,16 @@ export function MasterAddFlow({
             />
           ))}
 
-        {ready && awaitingApproval.length > 0 && (
+        {ready && unusable.length > 0 && (
+          <p className="mt-5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-800">
+            This master is no finer than what it would be checking for{' '}
+            <b>{listOf(unusable.map(({ parameter }) => labelOf(parameter.id) || parameter.parameterName))}</b>
+            &mdash; its own error is as large as the tolerance. It cannot be used here.
+            Choose another instrument.
+          </p>
+        )}
+
+        {ready && unusable.length === 0 && awaitingApproval.length > 0 && (
           <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
             This master needs the reviewer&rsquo;s approval for{' '}
             <b>{listOf(awaitingApproval.map(({ parameter }) => labelOf(parameter.id) || parameter.parameterName))}</b>
@@ -1752,7 +1784,22 @@ function ParameterDeclaration({
             ratio short of what the lab asks for, and no figures at all. The first is a
             judgement against a number; the second has no number, which makes the reason
             the only thing on the certificate carrying it - so it is required. */}
-        {(unrateable || (worstRatio !== null && worstRatio < threshold)) && (
+        {/* No finer than the thing it is checking. Nothing to approve, so nothing is
+            asked - the master simply cannot be used for this parameter. */}
+        {worstRatio !== null && worstRatio <= 1 && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+            <p className="text-xs font-bold text-red-800 mb-1">
+              This master is no finer than what it is checking.
+            </p>
+            <p className="text-[11px] text-red-800">
+              At {worstRatio.toFixed(1)} : 1 its own error is as large as the tolerance
+              being checked, so a reading near the limit cannot decide pass from fail.
+              Choose another instrument for {label || 'this parameter'}.
+            </p>
+          </div>
+        )}
+
+        {(unrateable || (worstRatio !== null && worstRatio > 1 && worstRatio < threshold)) && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
             {unrateable ? (
               <>
