@@ -244,6 +244,7 @@ interface ApiParameter {
   sopReference: string | null
   masterInstrumentId: string | null
   /** How the master was used - declared by the engineer, absent until they declare it. */
+  parameterSubtype?: string | null
   masterProfileId?: string | null
   masterSubtype?: string | null
   masterAcceptanceReason?: string | null
@@ -377,6 +378,7 @@ function transformDraftToApiShape(draft: any): ApiCertificate {
       fieldSchema: p.field_schema ?? p.fieldSchema ?? null,
       sopReference: p.sop_reference || null,
       masterInstrumentId: p.master_instrument_id || null,
+      parameterSubtype: p.parameter_subtype ?? p.parameterSubtype ?? null,
       // Camel from the API (raw Prisma), snake from the offline draft store.
       masterProfileId: p.master_profile_id ?? p.masterProfileId ?? null,
       masterSubtype: p.master_subtype ?? p.masterSubtype ?? null,
@@ -469,6 +471,7 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     errorFormula: param.errorFormula || 'A-B',
     showAfterAdjustment: param.showAfterAdjustment || false,
     masterInstrumentId: param.masterInstrumentId ? parseInt(param.masterInstrumentId) : null,
+    parameterSubtype: param.parameterSubtype || undefined,
     masterProfileId: param.masterProfileId || undefined,
     masterSubtype: param.masterSubtype || undefined,
     masterAcceptanceReason: param.masterAcceptanceReason || undefined,

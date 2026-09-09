@@ -191,7 +191,9 @@ const CLASSIFICATION: Record<string, { measures: string; kind: string }> = {
   Pressure: { measures: 'pressure', kind: 'any' },
   'Gauge Pressure': { measures: 'pressure', kind: 'gauge' },
   Vacuum: { measures: 'pressure', kind: 'absolute' },
-  'Ultra Vacuum': { measures: 'pressure', kind: 'absolute' },
+  // Its own kind rather than another 'absolute': the picker keys on measurand and
+  // kind, so two parameters sharing both could not be told apart.
+  'Ultra Vacuum': { measures: 'pressure', kind: 'ultra vacuum' },
   'Differential Pressure': { measures: 'differential pressure', kind: 'any' },
 
   // Electrical. Volts are volts, but a DC source will not calibrate an AC meter.
@@ -243,7 +245,7 @@ const CLASSIFICATION: Record<string, { measures: string; kind: string }> = {
 
   // Time.
   Time: { measures: 'time', kind: 'any' },
-  'Time Interval': { measures: 'time', kind: 'any' },
+  'Time Interval': { measures: 'time', kind: 'interval' },
 
   // Everything else measures its own thing.
   'Relative Humidity': { measures: 'relative humidity', kind: 'any' },

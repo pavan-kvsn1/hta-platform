@@ -154,6 +154,8 @@ const createCertificateSchema = z.object({
   parameters: z.array(z.object({
     parameterName: z.string(),
     parameterUnit: z.string().default(''),
+    // Which curve or type the unit under test is - Pt-100, Type K.
+    parameterSubtype: z.string().optional().nullable(),
     rangeMin: z.string().optional().nullable(),
     rangeMax: z.string().optional().nullable(),
     rangeUnit: z.string().optional().nullable(),
@@ -754,6 +756,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               fieldSchema: buildFieldSchema(param),
               sopReference: param.sopReference || null,
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
+              parameterSubtype: param.parameterSubtype || null,
               masterProfileId: param.masterProfileId || null,
               masterSubtype: param.masterSubtype || null,
               masterAcceptanceReason: param.masterAcceptanceReason || null,
@@ -1188,6 +1191,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               fieldSchema: buildFieldSchema(param) ?? Prisma.DbNull,
               sopReference: param.sopReference || null,
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
+              parameterSubtype: param.parameterSubtype || null,
               masterProfileId: param.masterProfileId || null,
               masterSubtype: param.masterSubtype || null,
               masterAcceptanceReason: param.masterAcceptanceReason || null,
@@ -2768,6 +2772,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         masterInstrumentId: param.masterInstrumentId ? parseInt(param.masterInstrumentId) : null,
         // Undefined rather than '' when never declared, so the UI can tell "not yet
         // declared" from a declaration of nothing.
+        parameterSubtype: param.parameterSubtype ?? undefined,
         masterProfileId: param.masterProfileId ?? undefined,
         masterSubtype: param.masterSubtype ?? undefined,
         masterAcceptanceReason: param.masterAcceptanceReason ?? undefined,

@@ -182,3 +182,92 @@ export function servesSameThing(
   if (a.measures !== b.measures) return false
   return a.kind === 'any' || b.kind === 'any' || a.kind === b.kind
 }
+
+/** One thing this lab measures, for the first question the UUC section asks. */
+export interface Measurand {
+  /** The key parameters share - 'temperature', 'voltage'. */
+  measures: string
+  /** What to call it on screen. */
+  label: string
+  category: string
+}
+
+/** Title case for a measurand key that has no parameter named after it. */
+function titleCase(key: string): string {
+  return key
+    .split(' ')
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(' ')
+}
+
+/**
+ * The distinct things this lab measures.
+ *
+ * Fewer than the parameters: temperature is one thing measured three ways, pressure one
+ * thing in four kinds. Asking what is measured before asking which kind turns a flat
+ * list of near-twins into two short questions, and makes the second one - which decides
+ * what masters are offered - something the engineer is actually asked rather than
+ * something they fall into.
+ *
+ * The label prefers the parameter that names the measurand outright, so temperature
+ * reads "Temperature" rather than a manufactured word; where no parameter does - there
+ * is no plain "Voltage", only DC and AC - the key is used.
+ */
+export function measurandsOf(parameters: CalibrationParameter[]): Measurand[] {
+  const seen = new Map<string, Measurand>()
+  for (const parameter of parameters) {
+    const measures = parameter.measures || parameter.standardName.toLowerCase()
+    const existing = seen.get(measures)
+    // The one that does not specify a kind is the one that names the measurand.
+    if (!existing) {
+      seen.set(measures, {
+        measures,
+        label: parameter.kind === 'any' ? parameter.customName : titleCase(measures),
+        category: parameter.category,
+      })
+    } else if (parameter.kind === 'any') {
+      existing.label = parameter.customName
+    }
+  }
+  return [...seen.values()]
+}
+
+/**
+ * The kinds of one measurand, in the order they should be offered.
+ *
+ * One entry means there is nothing to ask: the caller shows no second question, exactly
+ * as the master declaration does not ask a question with one answer.
+ */
+export function kindsFor(
+  measures: string,
+  parameters: CalibrationParameter[],
+): CalibrationParameter[] {
+  return parameters.filter(
+    (p) => (p.measures || p.standardName.toLowerCase()) === measures,
+  )
+}
+
+/** The parameter a measurand and kind resolve to - what the certificate stores. */
+export function standardFor(
+  measures: string,
+  kind: string,
+  parameters: CalibrationParameter[],
+): CalibrationParameter | null {
+  return (
+    kindsFor(measures, parameters).find((p) => (p.kind || 'any') === kind) ?? null
+  )
+}
+
+/**
+ * The kind to start on when a measurand is chosen.
+ *
+ * The one that does not specify, where there is one - a certificate should not claim
+ * the instrument is a thermocouple because thermocouple happened to sort first.
+ */
+export function defaultKindFor(
+  measures: string,
+  parameters: CalibrationParameter[],
+): CalibrationParameter | null {
+  const kinds = kindsFor(measures, parameters)
+  return kinds.find((p) => (p.kind || 'any') === 'any') ?? kinds[0] ?? null
+}

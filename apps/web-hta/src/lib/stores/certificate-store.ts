@@ -50,6 +50,14 @@ export interface Parameter {
   id: string
   parameterName: string
   parameterUnit: string
+  /**
+   * Which curve or type the unit under test is - Pt-100, Type K.
+   *
+   * The counterpart of masterSubtype: one says what was measured, the other what
+   * measured it. Only meaningful where the parameter records curves at all, which is
+   * four of the fifty-two.
+   */
+  parameterSubtype?: string
   rangeMin: string
   rangeMax: string
   rangeUnit: string

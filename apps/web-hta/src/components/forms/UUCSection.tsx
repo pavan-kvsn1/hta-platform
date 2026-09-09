@@ -15,9 +15,14 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useParameterStore } from '@/lib/stores/parameter-store'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import {
+  defaultKindFor,
   defaultUnitForParameter,
-  groupByCategory,
+  findParameter,
+  kindsFor,
+  measurandsOf,
+  standardFor,
   unitsForParameter,
 } from '@/lib/parameter-mapping'
 import { numberProblem, rangeProblem } from '@/lib/parameter-validation'
@@ -180,30 +185,59 @@ function ParameterCard({
    */
   const { parameters: labParameters } = useParameterStore()
 
-  const parameterGroups = useMemo(() => {
-    if (labParameters.length === 0) {
-      return [
-        {
-          category: '',
-          parameters: PARAMETER_TYPES.map((type) => ({
-            id: type,
-            customName: PARAMETER_CONFIG[type].label,
-            standardName: type,
-            value: type,
-          })),
-        },
-      ]
-    }
-    return groupByCategory(labParameters).map((group) => ({
-      category: group.category,
-      parameters: group.parameters.map((p) => ({
-        id: p.id,
-        customName: p.customName,
-        standardName: p.standardName,
-        value: p.customName,
-      })),
-    }))
-  }, [labParameters])
+  /**
+   * The parameter as three questions rather than one list of fifty-two.
+   *
+   * Twenty-five of those fifty-two are near-twins - Pressure against Gauge Pressure
+   * against Vacuum, DC Voltage against AC Voltage - and choosing between them decides
+   * which masters are offered. As a flat list that choice was something an engineer
+   * fell into; asked in order it is something they answer.
+   *
+   * The kind is only asked where there is more than one, and the curve only where the
+   * chosen kind records any - the same rule as the master declaration.
+   */
+  const measurands = useMemo(() => measurandsOf(labParameters), [labParameters])
+
+  /** The parameter this certificate names, where the lab's list knows it. */
+  const selected = useMemo(
+    () => findParameter(parameter.parameterName, labParameters),
+    [parameter.parameterName, labParameters],
+  )
+
+  const kinds = useMemo(
+    () => (selected ? kindsFor(selected.measures, labParameters) : []),
+    [selected, labParameters],
+  )
+
+  const curves = selected?.subtypes ?? []
+
+  const chooseMeasurand = (measures: string) => {
+    const next = defaultKindFor(measures, labParameters)
+    if (!next) return
+    onUpdate({
+      ...parameter,
+      parameterName: next.customName,
+      parameterUnit: next.defaultUnit ?? '',
+      // The old curve belongs to the old parameter.
+      parameterSubtype: undefined,
+    })
+  }
+
+  const chooseKind = (kind: string) => {
+    if (!selected) return
+    const next = standardFor(selected.measures, kind, labParameters)
+    if (!next) return
+    onUpdate({
+      ...parameter,
+      parameterName: next.customName,
+      // Keep the unit where the new kind still offers it - °C is °C whether the
+      // sensor is an RTD or a thermocouple.
+      parameterUnit: next.units.includes(parameter.parameterUnit)
+        ? parameter.parameterUnit
+        : (next.defaultUnit ?? ''),
+      parameterSubtype: undefined,
+    })
+  }
 
   /**
    * The units on offer for the parameter as written on this certificate.
@@ -393,38 +427,113 @@ function ParameterCard({
             <Label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">
               Parameter Type <span className="text-red-500">*</span>
             </Label>
-            <Select
-              value={parameter.parameterName || '__select__'}
-              onValueChange={(value) => value !== '__select__' && handleParameterTypeChange(value)}
-            >
-              <SelectTrigger className="rounded-lg border-slate-300 bg-white">
-                <SelectValue placeholder="Select parameter type..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__select__" disabled>Select parameter type...</SelectItem>
-                {/* A parameter saved before this list existed, or since renamed, is
-                    kept at the top so the certificate still reads as it was written. */}
-                {parameter.parameterName &&
-                  !parameterGroups.some((g) =>
-                    g.parameters.some((p) => p.value === parameter.parameterName),
-                  ) && (
-                    <SelectItem value={parameter.parameterName}>
-                      {parameter.parameterName} (not in this lab&rsquo;s list)
+            {labParameters.length === 0 ? (
+              // Before the lab's list arrives, the table the form shipped with. A slow
+              // fetch must not cost an engineer the ability to fill in a certificate.
+              <Select
+                value={parameter.parameterName || '__select__'}
+                onValueChange={(value) =>
+                  value !== '__select__' && handleParameterTypeChange(value)
+                }
+              >
+                <SelectTrigger className="rounded-lg border-slate-300 bg-white">
+                  <SelectValue placeholder="Select parameter type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__select__" disabled>
+                    Select parameter type...
+                  </SelectItem>
+                  {PARAMETER_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {PARAMETER_CONFIG[type].label}
                     </SelectItem>
-                  )}
-                {parameterGroups.map((group) => (
-                  <SelectGroup key={group.category || 'all'}>
-                    {group.category && <SelectLabel>{group.category}</SelectLabel>}
-                    {group.parameters.map((p) => (
-                      <SelectItem key={p.id} value={p.value}>
-                        {p.customName}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <SearchableSelect
+                value={selected?.measures ?? parameter.parameterName ?? ''}
+                onChange={chooseMeasurand}
+                placeholder="Select parameter..."
+                className="h-9 rounded-lg"
+                options={[
+                  // A parameter written before this list existed, or since renamed
+                  // away, is kept so the certificate still reads as it was written.
+                  ...(parameter.parameterName && !selected
+                    ? [
+                        {
+                          value: parameter.parameterName,
+                          label: parameter.parameterName,
+                          detail: 'not in this lab\u2019s list',
+                          pinned: true,
+                        },
+                      ]
+                    : []),
+                  ...measurands.map((m) => ({
+                    value: m.measures,
+                    label: m.label,
+                    detail: m.category,
+                  })),
+                ]}
+              />
+            )}
           </div>
+          {/* Which kind, asked only where the measurand has more than one. Choosing
+              between Pressure and Gauge Pressure decides which masters are offered,
+              so it is asked rather than fallen into. */}
+          {kinds.length > 1 && (
+            <div>
+              <Label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">
+                Kind <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={selected?.kind ?? '__select__'}
+                onValueChange={(value) => value !== '__select__' && chooseKind(value)}
+              >
+                <SelectTrigger className="rounded-lg border-slate-300 bg-white h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {kinds.map((k) => (
+                    <SelectItem key={k.id} value={k.kind}>
+                      {k.customName}
+                      {k.kind === 'any' && (
+                        <span className="text-slate-400"> &mdash; not specified</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* The curve, asked only where the chosen kind records any. */}
+          {curves.length > 0 && (
+            <div>
+              <Label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">
+                Sensor type
+              </Label>
+              <Select
+                value={parameter.parameterSubtype || '__none__'}
+                onValueChange={(value) =>
+                  updateField('parameterSubtype', value === '__none__' ? '' : value)
+                }
+              >
+                <SelectTrigger className="rounded-lg border-slate-300 bg-white h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not stated</SelectItem>
+                  {curves.map((curve) => (
+                    <SelectItem key={curve} value={curve}>
+                      {curve}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
             <Label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">
               Unit <span className="text-red-500">*</span>

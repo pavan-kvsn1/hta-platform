@@ -7,7 +7,11 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
+  defaultKindFor,
   defaultUnitForParameter,
+  kindsFor,
+  measurandsOf,
+  standardFor,
   findParameter,
   groupByCategory,
   toCustomName,
@@ -21,6 +25,8 @@ const parameter = (over: Partial<CalibrationParameter>): CalibrationParameter =>
   standardName: 'RTD',
   customName: 'RTD',
   category: 'Temperature',
+  measures: 'temperature',
+  kind: 'any',
   units: ['°C'],
   defaultUnit: '°C',
   subtypes: ['Pt-100'],
@@ -181,5 +187,68 @@ describe('the unit chosen with a parameter', () => {
 
   it('is empty rather than a guess when nothing says', () => {
     expect(defaultUnitForParameter('Blancmange', LIST, SHIPPED)).toBe('')
+  })
+})
+
+describe('asking what is measured before asking which kind', () => {
+  // As seeded: temperature is one thing measured three ways, voltage has no plain
+  // entry at all, pressure has four.
+  const SEEDED: CalibrationParameter[] = [
+    parameter({ id: 't', standardName: 'Temperature', customName: 'Temperature', measures: 'temperature', kind: 'any', subtypes: [] }),
+    parameter({ id: 'tc', standardName: 'Thermocouple', customName: 'Thermocouple', measures: 'temperature', kind: 'thermocouple', subtypes: ['Type K', 'Type J'] }),
+    parameter({ id: 'rtd', standardName: 'RTD', customName: 'Platinum RTD', measures: 'temperature', kind: 'rtd', subtypes: ['Pt-100'] }),
+    parameter({ id: 'dcv', standardName: 'DC Voltage', customName: 'DC Voltage', measures: 'voltage', kind: 'dc', category: 'Electrical' }),
+    parameter({ id: 'acv', standardName: 'AC Voltage', customName: 'AC Voltage', measures: 'voltage', kind: 'ac', category: 'Electrical' }),
+    parameter({ id: 'ph', standardName: 'pH', customName: 'pH', measures: 'ph', kind: 'any', category: 'Other' }),
+  ]
+
+  it('collapses the near-twins into one thing measured', () => {
+    // Six parameters, three things measured.
+    expect(measurandsOf(SEEDED).map((m) => m.measures)).toEqual(['temperature', 'voltage', 'ph'])
+  })
+
+  it('names it after the parameter that names it outright', () => {
+    expect(measurandsOf(SEEDED)[0].label).toBe('Temperature')
+  })
+
+  it('falls back to the key where no parameter names it', () => {
+    // There is no plain "Voltage" - only DC and AC.
+    expect(measurandsOf(SEEDED)[1].label).toBe('Voltage')
+  })
+
+  it('offers every kind of the chosen measurand', () => {
+    expect(kindsFor('temperature', SEEDED).map((p) => p.kind)).toEqual([
+      'any', 'thermocouple', 'rtd',
+    ])
+  })
+
+  it('leaves nothing to ask where a measurand has one kind', () => {
+    // The caller shows no second question, as the master declaration does not.
+    expect(kindsFor('ph', SEEDED)).toHaveLength(1)
+  })
+
+  it('resolves a measurand and kind to what the certificate stores', () => {
+    expect(standardFor('temperature', 'rtd', SEEDED)?.standardName).toBe('RTD')
+    expect(standardFor('voltage', 'ac', SEEDED)?.standardName).toBe('AC Voltage')
+  })
+
+  it('is null for a pair nothing offers', () => {
+    expect(standardFor('temperature', 'gauge', SEEDED)).toBeNull()
+  })
+
+  it('starts on the kind that claims nothing', () => {
+    // Choosing temperature must not silently record a thermocouple because it sorts
+    // first.
+    expect(defaultKindFor('temperature', SEEDED)?.standardName).toBe('Temperature')
+  })
+
+  it('starts on the first where none claims nothing', () => {
+    // Voltage is only ever DC or AC; one of them has to be the starting point.
+    expect(defaultKindFor('voltage', SEEDED)?.standardName).toBe('DC Voltage')
+  })
+
+  it('carries the curves of the chosen kind', () => {
+    expect(standardFor('temperature', 'rtd', SEEDED)?.subtypes).toEqual(['Pt-100'])
+    expect(standardFor('temperature', 'any', SEEDED)?.subtypes).toEqual([])
   })
 })

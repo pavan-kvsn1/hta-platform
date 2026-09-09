@@ -140,6 +140,14 @@ describe('the list as a whole', () => {
     expect(new Set(names).size).toBe(names.length)
   })
 
+  it('gives each measurand-and-kind pair to one parameter only', () => {
+    // The UUC picker asks what is measured and then which kind, so two parameters
+    // sharing both answers would be indistinguishable in it.
+    const pairs = standards.map((s) => `${s.measures}|${s.kind}`)
+    const clashing = pairs.filter((p, i) => pairs.indexOf(p) !== i)
+    expect([...new Set(clashing)]).toEqual([])
+  })
+
   it('claims no alias twice, so a name resolves to one standard', () => {
     const aliases = standards.flatMap((s) => s.aliases.map((a) => a.toLowerCase()))
     expect(new Set(aliases).size).toBe(aliases.length)

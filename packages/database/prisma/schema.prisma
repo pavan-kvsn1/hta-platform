@@ -641,6 +641,10 @@ model Parameter {
   certificateId       String
   parameterName       String
   parameterUnit       String
+  /// Which curve or type the unit under test is - Pt-100, Type K. The counterpart of
+  /// masterSubtype, which records the same about the master that measured it. Null
+  /// where the parameter has no curves, and on anything written before it was asked.
+  parameterSubtype    String?
   rangeMin            String?
   rangeMax            String?
   rangeUnit           String?
