@@ -446,10 +446,11 @@ export function unitCanMeasure(
   unit: RegistryUnit,
   parameter: string,
   parameterUnit?: string | null,
+  classify?: Classify,
 ): boolean {
   if (unit.capability_profiles.length === 0) return true
   if (!parameter.trim()) return true
-  return profilesFor(unit, parameter, parameterUnit).length > 0
+  return profilesFor(unit, parameter, parameterUnit, classify).length > 0
 }
 
 /**
@@ -465,8 +466,9 @@ export function unitCoversRange(
   requiredMin: number,
   requiredMax: number,
   parameterUnit?: string | null,
+  classify?: Classify,
 ): boolean {
-  const profiles = profilesFor(unit, parameter, parameterUnit)
+  const profiles = profilesFor(unit, parameter, parameterUnit, classify)
   if (profiles.length === 0) return true
 
   for (const profile of profiles) {

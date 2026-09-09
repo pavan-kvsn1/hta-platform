@@ -133,3 +133,60 @@ describe('a card that cannot be edited', () => {
     expect(screen.queryByTitle('Remove')).not.toBeInTheDocument()
   })
 })
+
+describe('a capability that serves the parameter under another name', () => {
+  /**
+   * 1018 HTAIPL/L records RTD, Thermocouple, DC Voltage, DC Current and Resistance.
+   * It records nothing called "Temperature", but RTD measures temperature and the flow
+   * knows it - a Temperature parameter is declared against the RTD capability at
+   * 6.7 : 1.
+   *
+   * The card judged the same pairing by asking whether the capability's name contains
+   * the parameter's. "RTD" does not contain "temperature", so the master declared on
+   * one screen came back "Not supported by this instrument" on the next.
+   */
+  const calibrator = {
+    ...master,
+    masterInstrumentId: 10,
+    assetNo: '1018 HTAIPL/L',
+    description: 'Thermocouple RTD Calibrator',
+  } as unknown as SelectedMasterInstrument
+
+  beforeAll(() => {
+    useMasterInstrumentStore.getState().loadFromRegistry()
+  })
+
+  const renderIt = (param: Parameter) =>
+    renderCard(param, { instrument: calibrator, mastersOnCertificate: new Set([10]) })
+
+  it('does not call it unsupported', () => {
+    renderIt(parameter({ masterInstrumentId: 10, rangeMin: '-10', rangeMax: '40' }))
+    expect(
+      screen.queryByText('Not supported by this instrument'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('leaves the parameter tickable', () => {
+    renderIt(parameter({ masterInstrumentId: 10, rangeMin: '-10', rangeMax: '40' }))
+    expect(screen.getByRole('checkbox')).not.toBeDisabled()
+  })
+
+  it('still refuses a parameter the instrument measures nothing like', () => {
+    renderIt(
+      parameter({
+        masterInstrumentId: 10,
+        parameterName: 'Relative Humidity',
+        parameterUnit: '%RH',
+        rangeMin: '10',
+        rangeMax: '90',
+      }),
+    )
+    // The sentence sits beside the range in one line, so match on the line - and it
+    // matches the wrapping elements too, hence "all".
+    expect(
+      screen.getAllByText((_c, el) =>
+        /Not supported by this instrument/.test(el?.textContent ?? ''),
+      ).length,
+    ).toBeGreaterThan(0)
+  })
+})

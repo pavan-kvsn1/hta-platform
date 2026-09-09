@@ -34,6 +34,8 @@ import {
   STATUS_CONFIG,
 } from '@/lib/master-instruments'
 import { requiredRanges, unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
+import { useParameterStore } from '@/lib/stores/parameter-store'
+import { classificationOf } from '@/lib/parameter-mapping'
 import { MasterCapabilityComparison } from '@/components/forms/MasterCapabilityComparison'
 import { MasterCapabilityDeclaration } from '@/components/forms/MasterCapabilityDeclaration'
 import {
@@ -121,6 +123,19 @@ export function MasterInstrumentCard({
   disabled = false,
 }: MasterInstrumentCardProps) {
   const { instruments, getUnitForInstrument } = useMasterInstrumentStore()
+
+  /**
+   * What each name measures, read from the lab's own parameter list.
+   *
+   * The add flow judges a capability through this - it is how "RTD" is known to serve
+   * a Temperature parameter - and this card has to reach the same verdict, or the
+   * master declared on one screen is refused on the next.
+   */
+  const labParameters = useParameterStore((state) => state.parameters)
+  const classify = useMemo(
+    () => (name: string) => classificationOf(name, labParameters),
+    [labParameters],
+  )
 
   const listed = useMemo(
     () => instruments.find((inst) => inst.id === instrument.masterInstrumentId) ?? null,
@@ -254,17 +269,34 @@ export function MasterInstrumentCard({
                   claimedByOther && mastersOnCertificate.has(param.masterInstrumentId!)
                 const isDangling = claimedByOther && !isAssignedToOther
 
+                // The same test the add flow makes. Without the unit and the lab's
+                // classification this fell back to asking whether the capability's name
+                // contains the parameter's - and "RTD" does not contain "temperature",
+                // so 1018 was declared with a 6.7 : 1 ratio on one screen and marked
+                // "Not supported by this instrument" on the next.
                 const isCompatible =
                   !param.parameterName || !registryUnit
                     ? true
-                    : unitCanMeasure(registryUnit, param.parameterName)
+                    : unitCanMeasure(
+                        registryUnit,
+                        param.parameterName,
+                        param.parameterUnit,
+                        classify,
+                      )
 
                 const rangeMin = param.rangeMin ? parseFloat(param.rangeMin) : null
                 const rangeMax = param.rangeMax ? parseFloat(param.rangeMax) : null
                 const isRangeCovered =
                   rangeMin === null || rangeMax === null || !param.parameterName || !registryUnit
                     ? true
-                    : unitCoversRange(registryUnit, param.parameterName, rangeMin, rangeMax)
+                    : unitCoversRange(
+                        registryUnit,
+                        param.parameterName,
+                        rangeMin,
+                        rangeMax,
+                        param.parameterUnit,
+                        classify,
+                      )
 
                 const rangeStr = param.rangeMin && param.rangeMax
                   ? `${param.rangeMin} to ${param.rangeMax} ${param.parameterUnit}`

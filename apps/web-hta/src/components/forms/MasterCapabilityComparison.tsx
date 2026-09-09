@@ -185,6 +185,11 @@ export function MasterCapabilityComparison({
               <th className={TH}>Band used</th>
               <th className={TH}>Least count</th>
               <th className={TH}>Accuracy &plusmn;</th>
+              {/* The two verdicts, one column each, as the add flow has them. Sharing a
+                  cell ran them together - "Compatible10.0 : 1" - and hid that they are
+                  two separate judgements: whether the reading can be written down at
+                  all, and whether the master is enough finer to be worth trusting. */}
+              <th className={TH}>Least count</th>
               <th className={TH}>Accuracy ratio</th>
             </tr>
           </thead>
@@ -248,11 +253,15 @@ function Row({
       </td>
       <td className={TD}>{accuracy !== null ? num(accuracy) : '—'}</td>
       <td className="px-3 py-2">
-        {range.leastCount && (
-          <span className={cn(PILL, lcTone, 'mr-1.5')}>
+        {range.leastCount ? (
+          <span className={cn(PILL, lcTone)}>
             {range.leastCount === 'coarser' ? 'Not Compatible' : 'Compatible'}
           </span>
+        ) : (
+          <span className="text-slate-400">&mdash;</span>
         )}
+      </td>
+      <td className="px-3 py-2">
         {range.accuracyRatio === null ? (
           <span className={cn(PILL, 'bg-slate-200 text-slate-600')}>Not comparable</span>
         ) : (
