@@ -6,6 +6,9 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
+  addConversionColumn,
+  conversionColumnMissing,
+  errorConfigProblem,
   createDefaultFieldDefinitions,
   createDefaultErrorConfig,
   createField,
@@ -673,5 +676,69 @@ describe('a row rebuilt on reload', () => {
   it('still uses the configured column when it is an entered one', () => {
     const plain: ErrorConfig = { ...errorConfig, masterFieldId: 'm1' }
     expect(resultValues(legacyRow, fields, plain).m1).toBe('25')
+  })
+})
+
+describe('a master that measures something else', () => {
+  // A thermocouple indicator in °C calibrated with a millivolt source. Section 03
+  // declared the mapping; Section 05 is where the millivolts become degrees.
+  const mapping = { parameter: 'DC Voltage', unit: 'mV' }
+  const base: FieldDefinition[] = [
+    { id: 'm1', name: 'Standard Meter Reading', group: 'master', type: 'numeric', unit: '°C', order: 0 },
+    { id: 'u1', name: 'UUC Reading', group: 'uuc', type: 'numeric', unit: '°C', order: 0 },
+  ]
+  const config: ErrorConfig = { masterFieldId: 'm1', uucFieldId: 'u1', formula: 'A-B', unit: '°C' }
+
+  it('sees that the readings have nowhere to be converted', () => {
+    expect(conversionColumnMissing(base, mapping, '°C')).toBe(true)
+  })
+
+  it('is satisfied once a master formula lands in the parameter’s unit', () => {
+    const withColumn = [
+      ...base,
+      { id: 'm2', name: 'Converted', group: 'master', type: 'expression', unit: '°C', order: 1 } as FieldDefinition,
+    ]
+    expect(conversionColumnMissing(withColumn, mapping, '°C')).toBe(false)
+  })
+
+  it('asks for nothing when the master reads the same unit after all', () => {
+    // Declared as a mapping, but to a capability read in °C. Nothing to convert.
+    expect(conversionColumnMissing(base, { parameter: 'Temperature', unit: '°C' }, '°C')).toBe(false)
+    expect(conversionColumnMissing(base, null, '°C')).toBe(false)
+  })
+
+  it('puts the reading in the master’s unit and the conversion in the parameter’s', () => {
+    const next = addConversionColumn(base, config, mapping, '°C')
+    expect(next.fields.find((f) => f.id === 'm1')!.unit).toBe('mV')
+    const converted = next.fields.find((f) => f.type === 'expression')!
+    expect(converted).toMatchObject({ group: 'master', unit: '°C', name: 'Converted to °C' })
+  })
+
+  it('leaves the expression empty rather than inventing one', () => {
+    // The relationship is a thermocouple table. An identity would compute, and be wrong.
+    const next = addConversionColumn(base, config, mapping, '°C')
+    expect(next.fields.find((f) => f.type === 'expression')!.expression).toBeUndefined()
+  })
+
+  it('takes the error from the converted column, in the parameter’s unit', () => {
+    const next = addConversionColumn(base, config, mapping, '°C')
+    const converted = next.fields.find((f) => f.type === 'expression')!
+    expect(next.errorConfig).toMatchObject({
+      masterFieldId: converted.id,
+      uucFieldId: 'u1',
+      unit: '°C',
+    })
+    expect(errorConfigProblem(next.fields, next.errorConfig)).toBeNull()
+  })
+
+  it('keeps columns the engineer already built', () => {
+    const extra = [
+      ...base,
+      { id: 'm9', name: 'Ambient', group: 'master', type: 'numeric', unit: '°C', order: 1 } as FieldDefinition,
+    ]
+    const next = addConversionColumn(extra, config, mapping, '°C')
+    expect(next.fields.find((f) => f.id === 'm9')).toBeDefined()
+    // Only the reading the error was taken from is restated in millivolts.
+    expect(next.fields.find((f) => f.id === 'm9')!.unit).toBe('°C')
   })
 })

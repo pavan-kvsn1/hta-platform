@@ -518,6 +518,7 @@ function ResultsTable({
           fields={parameter.fieldDefinitions}
           errorConfig={parameter.errorConfig}
           parameterUnit={parameter.parameterUnit}
+          mapping={parameter.masterMapping}
           disabled={disabled}
           // First row with anything in it, so a formula previews against real readings
           // rather than an invented example. Undefined when nothing is entered yet, in

@@ -111,6 +111,90 @@ export function createDefaultErrorConfig(
   }
 }
 
+/**
+ * Where a master measures a different quantity, described in the master's own terms.
+ *
+ * Declared in Section 03; Section 05 needs it because the readings arrive in that unit
+ * and have to be brought back into the parameter's before an error means anything.
+ */
+export interface ConversionMapping {
+  parameter: string
+  unit: string
+}
+
+/**
+ * Whether the schema still reads as though the master measured the parameter itself.
+ *
+ * True when a mapping says the readings arrive in another unit and no column yet
+ * carries them back. The two units being equal is not a mapping worth converting - a
+ * master reading °C for a °C parameter is the ordinary case, however it was declared.
+ */
+export function conversionColumnMissing(
+  fields: FieldDefinition[],
+  mapping: ConversionMapping | null | undefined,
+  parameterUnit: string,
+): boolean {
+  const from = (mapping?.unit ?? '').trim()
+  const to = parameterUnit.trim()
+  if (!from || !to || from.toLowerCase() === to.toLowerCase()) return false
+  return !fields.some(
+    (f) =>
+      f.group === 'master' &&
+      f.type === 'expression' &&
+      f.unit.trim().toLowerCase() === to.toLowerCase(),
+  )
+}
+
+/**
+ * Lay out the master side for a mapped parameter: read in its unit, converted in the
+ * parameter's, and the error taken from the converted column.
+ *
+ * The expression itself is left empty. It is a thermocouple table or a calibration
+ * certificate's own polynomial, and inventing one - even an identity - would produce a
+ * column that computes and is wrong, which is worse than a column that says it is not
+ * finished. Existing columns are kept: an engineer may have built several, and this
+ * adds the missing piece rather than replacing their work.
+ */
+export function addConversionColumn(
+  fields: FieldDefinition[],
+  errorConfig: ErrorConfig,
+  mapping: ConversionMapping,
+  parameterUnit: string,
+): { fields: FieldDefinition[]; errorConfig: ErrorConfig } {
+  const masterReadings = fields.filter((f) => f.group === 'master' && f.type === 'numeric')
+  const source =
+    masterReadings[0] ??
+    ({ ...createField('master', fields), name: 'Standard Meter Reading' } as FieldDefinition)
+
+  const converted: FieldDefinition = {
+    ...createField('master', fields),
+    name: `Converted to ${parameterUnit}`,
+    type: 'expression',
+    unit: parameterUnit,
+    order: fields.filter((f) => f.group === 'master').length + 1,
+  }
+
+  // The reading itself is in the master's unit, whatever it said before: that is what
+  // the engineer will be typing into it.
+  const next = fields.map((f) =>
+    f.id === source.id ? { ...f, unit: mapping.unit } : f,
+  )
+  if (!masterReadings.length) next.push({ ...source, unit: mapping.unit })
+  next.push(converted)
+
+  const uuc = fields.find((f) => f.id === errorConfig.uucFieldId)
+  return {
+    fields: next,
+    errorConfig: {
+      ...errorConfig,
+      masterFieldId: converted.id,
+      uucFieldId:
+        uuc?.id ?? fields.find((f) => f.group === 'uuc' && f.type === 'numeric')?.id ?? '',
+      unit: parameterUnit,
+    },
+  }
+}
+
 export function createField(group: FieldGroup, fields: FieldDefinition[]): FieldDefinition {
   const siblings = fields.filter((f) => f.group === group)
   return {

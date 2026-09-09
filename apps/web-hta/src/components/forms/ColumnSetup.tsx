@@ -20,11 +20,14 @@
 import { useState } from 'react'
 import { ArrowLeftRight, ChevronDown, ChevronRight, Plus, X, AlertTriangle } from 'lucide-react'
 import {
+  addConversionColumn,
+  conversionColumnMissing,
   createField,
   detectExpressionCycles,
   errorConfigProblem,
   errorFieldCandidates,
   removeField,
+  type ConversionMapping,
   type ErrorConfig,
   type FieldDefinition,
   type FieldGroup,
@@ -47,6 +50,14 @@ interface ColumnSetupProps {
   fields: FieldDefinition[]
   errorConfig: ErrorConfig
   parameterUnit: string
+  /**
+   * Set where Section 03 said the master measures something else.
+   *
+   * The readings then arrive in that master's unit, and a column has to bring them
+   * back into the parameter's before the error means anything - which is this
+   * section's business, since it is the section that owns expression columns.
+   */
+  mapping?: ConversionMapping | null
   disabled?: boolean
   /** First row of entered values, so a formula can be previewed against real data. */
   sampleValues?: Record<string, string>
@@ -59,6 +70,7 @@ export function ColumnSetup({
   fields,
   errorConfig,
   parameterUnit,
+  mapping,
   disabled,
   sampleValues,
   precision,
@@ -69,6 +81,11 @@ export function ColumnSetup({
   // Why the chosen pair cannot be subtracted - mismatched units above all, since an
   // error between two different quantities would still print as a number.
   const errorProblem = errorConfigProblem(fields, errorConfig)
+
+  // A mapped master whose readings have nowhere to be converted. Offered rather than
+  // done for them: the schema may already have been built by hand, and rewriting
+  // someone's columns underneath them is not a favour.
+  const needsConversion = conversionColumnMissing(fields, mapping, parameterUnit)
 
   const masterFields = fields.filter((f) => f.group === 'master')
   const uucFields = fields.filter((f) => f.group === 'uuc')
@@ -265,6 +282,29 @@ export function ColumnSetup({
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               {warning}
             </p>
+          )}
+
+          {needsConversion && mapping && (
+            <div className="rounded-md border border-sky-200 bg-sky-50 px-2.5 py-2">
+              <p className="text-xs text-sky-900">
+                This parameter is measured through {mapping.parameter}, so the master
+                reads in <b>{mapping.unit}</b> while the parameter is in{' '}
+                <b>{parameterUnit || 'its own unit'}</b>. Add a formula column to convert
+                the reading, and the error is taken from that.
+              </p>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => {
+                  const next = addConversionColumn(fields, errorConfig, mapping, parameterUnit)
+                  onChange(next.fields, next.errorConfig)
+                  setWarning(null)
+                }}
+                className="mt-2 rounded-md border border-sky-300 bg-white px-2.5 py-1 text-xs font-semibold text-sky-900 disabled:opacity-50"
+              >
+                Add the conversion column
+              </button>
+            </div>
           )}
 
           {cycles.length > 0 && (

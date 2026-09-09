@@ -261,6 +261,36 @@ describe('ColumnSetup', () => {
     return { ...render(<ColumnSetup {...props} />), props }
   }
 
+  const expand = () => fireEvent.click(screen.getByRole('button', { expanded: false }))
+
+  it('says the master reads in another unit, and offers to bridge it', () => {
+    renderSetup({ mapping: { parameter: 'DC Voltage', unit: 'mV' }, parameterUnit: '°C' })
+    expand()
+    expect(screen.getByText(/measured through DC Voltage/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Add the conversion column' }),
+    ).toBeInTheDocument()
+  })
+
+  it('adds the column and points the error at it', () => {
+    const { props } = renderSetup({
+      mapping: { parameter: 'DC Voltage', unit: 'mV' },
+      parameterUnit: '°C',
+    })
+    expand()
+    fireEvent.click(screen.getByRole('button', { name: 'Add the conversion column' }))
+    const [nextFields, nextConfig] = props.onChange.mock.calls[0]
+    const converted = nextFields.find((f: FieldDefinition) => f.type === 'expression' && f.group === 'master')
+    expect(converted.unit).toBe('°C')
+    expect(nextConfig.masterFieldId).toBe(converted.id)
+  })
+
+  it('says nothing where the master measures the parameter itself', () => {
+    renderSetup()
+    expand()
+    expect(screen.queryByText(/Add the conversion column/)).not.toBeInTheDocument()
+  })
+
   it('shows only its heading while collapsed', () => {
     renderSetup()
     expect(
