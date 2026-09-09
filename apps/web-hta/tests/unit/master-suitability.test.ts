@@ -9,12 +9,13 @@ import { describe, it, expect } from 'vitest'
 import {
   DEFAULT_ACCURACY_RATIO,
   bucketForRange,
+  chooseCapability,
   declaredCapability,
   evaluateSuitability,
   requiredRanges,
   type RequiredRange,
 } from '@/lib/master-instrument-capability'
-import type { CapabilityProfile } from '@/lib/master-instrument-registry'
+import type { CapabilityProfile, RegistryUnit } from '@/lib/master-instrument-registry'
 import registryData from '@/data/master-instrument-registry.json'
 import type { MasterInstrumentRegistry } from '@/lib/master-instrument-registry'
 
@@ -233,5 +234,75 @@ describe('against the real registry', () => {
       accuracy: 1,
     })
     expect(found).toBe(b)
+  })
+})
+
+describe('an instrument certified in two parts', () => {
+  /**
+   * The reading passes through the readout and the probe, so the instrument can be no
+   * better than the worse of the two figures its certificate states.
+   *
+   * Ranking by the best of them rated 717 HTAIPL/L on its readout's ±0.01 while
+   * 621 - the same model, whose certificate prints one combined figure - was rated on
+   * ±0.26. Same instrument, twenty-six times the flattery, decided by nothing more
+   * than how the certificate was typed.
+   */
+  const band = (min: number, max: number, lc: number, acc: number) => ({
+    id: `B${min}`,
+    min,
+    max,
+    min_inclusive: true,
+    max_inclusive: true,
+    least_count: { value: lc, unit: '°C' },
+    accuracy: { type: 'symmetric', value: acc, unit: '°C', polarity: '±' },
+  })
+  const profile = (over: Record<string, unknown>) =>
+    ({
+      id: 'P',
+      parameter: 'Temperature',
+      role: 'measuring',
+      unit: '°C',
+      min: -100,
+      max: 500,
+      buckets: [band(-100, 500, 0.1, 0.25)],
+      subtypes: [],
+      ...over,
+    }) as never
+
+  const twoPart = {
+    capability_profiles: [
+      profile({ id: 'P1', component: 'indicator', buckets: [band(-100, 500, 0.01, 0.01)] }),
+      profile({ id: 'P2', component: 'sensor', buckets: [band(-100, 500, 0.1, 0.25)] }),
+    ],
+  } as unknown as RegistryUnit
+
+  const required = [{ from: 0, to: 100, leastCount: 0.1, accuracy: 0.5 }]
+
+  it('is rated on its coarser half, not its flattering one', () => {
+    const chosen = chooseCapability(twoPart, 'Temperature', required, { parameterUnit: '°C' })
+    expect(chosen?.profile.component).toBe('sensor')
+    expect(chosen?.suitability.worstRatio).toBeCloseTo(2, 5)
+  })
+
+  it('reads the same as the sibling whose certificate prints one figure', () => {
+    // 621's ±0.26 against 717's parts: near enough the same instrument, and it should
+    // not matter to the list which way its certificate was written.
+    const combined = {
+      capability_profiles: [profile({ id: 'P1', buckets: [band(-100, 500, 0.1, 0.26)] })],
+    } as unknown as RegistryUnit
+    const parts = chooseCapability(twoPart, 'Temperature', required, { parameterUnit: '°C' })
+    const one = chooseCapability(combined, 'Temperature', required, { parameterUnit: '°C' })
+    // 2.0 against 1.92 - the 0.01 the two certificates differ by, and nothing else.
+    expect(Math.abs(parts!.suitability.worstRatio! - one!.suitability.worstRatio!)).toBeLessThan(0.1)
+    // Rating on the readout instead would have said 50 : 1.
+    const readout = evaluateSuitability(twoPart.capability_profiles[0], required, {})
+    expect(readout.worstRatio).toBeGreaterThan(25)
+  })
+
+  it('leaves a single-capability instrument alone', () => {
+    const plain = {
+      capability_profiles: [profile({ id: 'P1' })],
+    } as unknown as RegistryUnit
+    expect(chooseCapability(plain, 'Temperature', required, { parameterUnit: '°C' })?.profile.id).toBe('P1')
   })
 })

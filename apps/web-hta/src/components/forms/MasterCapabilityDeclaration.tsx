@@ -335,7 +335,16 @@ export function MasterCapabilityDeclaration({
     onChange({ profileId: next.id, subtype: nextCurve })
   }
 
-  // An indicator-and-probe pair, which the unit's own serial number spells out.
+  /**
+   * A readout and a probe, which the unit's own model and serial spell out.
+   *
+   * Said for every such instrument, not only the ones whose certificate itemised the
+   * two figures. Otherwise 717 announces itself as a two-part instrument and 621 -
+   * the same model, one combined figure on its certificate - says nothing, and the
+   * engineer is left to wonder whether the difference is in the instrument or in how
+   * the app happens to know it.
+   */
+  const twoPart = unit?.model_parts ?? unit?.serial_parts ?? null
   const instrumentIsTwoPart = candidates.some((c) => c.component)
 
   const settled: [string, string][] = []
@@ -423,6 +432,17 @@ export function MasterCapabilityDeclaration({
             ))}
           </div>
         </div>
+      )}
+
+      {twoPart && !instrumentIsTwoPart && profile && (
+        <p className="text-[11px] text-slate-500">
+          A readout and a probe &mdash;{' '}
+          {[unit?.model_parts?.ind, unit?.serial_parts?.ind].filter(Boolean).join(' · ')}
+          {' and '}
+          {[unit?.model_parts?.sen, unit?.serial_parts?.sen].filter(Boolean).join(' · ')}
+          . The certificate states one figure for the pair, which is what the comparison
+          below is against.
+        </p>
       )}
 
       {cap && role && candidates.length > 1 && (

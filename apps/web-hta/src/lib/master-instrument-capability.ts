@@ -788,7 +788,7 @@ export function chooseCapability(
   const wanted = parameter.trim().toLowerCase()
   if (!wanted || required.length === 0) return null
 
-  const candidates: ChosenCapability[] = []
+  let candidates: ChosenCapability[] = []
   for (const profile of unit.capability_profiles) {
     if (!matchesParameter(profile, parameter, options.parameterUnit, options.classify)) continue
     const curves = (profile.subtypes ?? []).map((s) => s.id)
@@ -802,6 +802,29 @@ export function chooseCapability(
     }
   }
   if (candidates.length === 0) return null
+
+  /**
+   * A two-part instrument is represented by its coarser half.
+   *
+   * A reading passes through the readout and the probe, so the instrument can be no
+   * better than the worse of the two figures its certificate states. Ranking by the
+   * best of them rated 717 HTAIPL/L on its readout's ±0.01 while 621 - the same model,
+   * whose certificate happens to print one combined figure - was rated on ±0.26. Same
+   * instrument, twenty-six times the flattery, decided by how its certificate was
+   * typed.
+   *
+   * This picks which certified figure stands for the instrument; it does not make one
+   * up, and the declaration still records whichever half the engineer states it against.
+   */
+  const parts = candidates.filter((c) => c.profile.component)
+  if (parts.length > 1) {
+    const coarsest = parts.reduce((worst, c) =>
+      (c.suitability.worstRatio ?? Infinity) < (worst.suitability.worstRatio ?? Infinity)
+        ? c
+        : worst,
+    )
+    candidates = candidates.filter((c) => !c.profile.component || c === coarsest)
+  }
 
   const rank = (c: ChosenCapability) => [
     c.suitability.covered ? 0 : 1,
