@@ -713,16 +713,22 @@ export function MasterAddFlow({
     [resolveUnit, chosenParameters, classify],
   )
 
-  // Instruments with no capability recorded at all are set aside rather than folded in:
-  // in this lab the same handful would otherwise pad every parameter's list, and for a
-  // parameter few instruments serve they would be most of it.
-  const pool = useMemo(() => {
-    if (chosenParameters.length === 0) return []
-    const capable = instruments.filter((i) => standing(i) === 'records them')
-    return showUnrecorded
-      ? [...capable, ...instruments.filter((i) => standing(i) === 'nothing recorded')]
-      : capable
-  }, [instruments, chosenParameters, standing, showUnrecorded])
+  /**
+   * Every instrument the list could hold, before any of it is hidden.
+   *
+   * Instruments recording something else are out for good - they are counted in their
+   * own sentence above. The ones recording nothing are in here even while the toggle
+   * hides them, because the count of what is being hidden has to be a count of these
+   * same instruments: taking them out of the pool meant that number came from the whole
+   * lab instead, and "a further 8" bore no relation to a list filtered to one make.
+   */
+  const pool = useMemo(
+    () =>
+      chosenParameters.length === 0
+        ? []
+        : instruments.filter((i) => standing(i) !== 'records something else'),
+    [instruments, chosenParameters, standing],
+  )
 
   /**
    * What the list is, and what it leaves out.
@@ -748,8 +754,6 @@ export function MasterAddFlow({
     }
     return { recording, otherParameters, unrecorded }
   }, [instruments, chosenParameters, standing])
-
-  const unrecordedCount = groups.unrecorded
 
   const categories: SearchableOption[] = useMemo(
     () => [
@@ -809,26 +813,40 @@ export function MasterAddFlow({
   )
 
   /**
-   * Instruments whose capability does not span the required range.
+   * One census of the filtered list, which every number underneath it comes from.
    *
-   * They cannot be used - the row was already disabled - and for a Temperature
-   * parameter of -20 to 60 there are fifteen of them among seventy-six. Listing them
-   * put the instruments that can do the job further down a list mostly made of ones
-   * that cannot. They are counted underneath instead, and a near miss is worth seeing,
-   * so they are one click away rather than gone.
+   * Three counts over three different populations read as arithmetic that does not
+   * work: "14 of 23 can be used" beside "6 more do not reach the range" and "a further
+   * 8 record nothing", where the 23 had been through the make and description filters
+   * and the 6 and the 8 had not. Partitioned here instead, so what is listed plus what
+   * each line says is hidden is exactly what the filters left.
+   *
+   * The order matters. An instrument recording nothing has no range to fall short of,
+   * so it belongs to that group and not to the out-of-range one; counting it in both
+   * would overstate the total by the size of the overlap.
    */
-  const outOfRangeCount = useMemo(
-    () =>
-      chosenParameters.length === 0
-        ? 0
-        : pool.filter((inst) => rate(inst).outOfRange).length,
-    [pool, chosenParameters, rate],
-  )
+  const census = useMemo(() => {
+    const unrecorded = filtered.filter((i) => standing(i) === 'nothing recorded')
+    const recorded = filtered.filter((i) => standing(i) === 'records them')
+    return { unrecorded, outOfRange: recorded.filter((i) => rate(i).outOfRange) }
+  }, [filtered, standing, rate])
 
-  /** Rows the filters leave, before the search runs over them. */
+  const outOfRangeCount = census.outOfRange.length
+  const unrecordedCount = census.unrecorded.length
+
+  /**
+   * Rows the filters leave once the two toggles have had their say.
+   *
+   * A near miss is worth seeing and an instrument with nothing recorded may still be
+   * the right one, so both are a click away rather than gone.
+   */
   const beforeSearch = useMemo(
-    () => filtered.filter((i) => showOutOfRange || !rate(i).outOfRange),
-    [filtered, showOutOfRange, rate],
+    () =>
+      filtered.filter((i) => {
+        if (standing(i) === 'nothing recorded') return showUnrecorded
+        return showOutOfRange || !rate(i).outOfRange
+      }),
+    [filtered, showOutOfRange, showUnrecorded, standing, rate],
   )
 
   const shown = useMemo(() => {
@@ -1258,8 +1276,12 @@ export function MasterAddFlow({
 
                 {unrecordedCount > 0 && (
                   <p className="text-[11px] text-slate-500">
-                    A further {unrecordedCount} record no capability at all, so there is
-                    nothing to rate them by &mdash;{' '}
+                    {/* "A further 8" while those eight are on the list is the same
+                        mistake as counting them against the wrong population: it says
+                        they are elsewhere when they are right there. */}
+                    {showUnrecorded ? 'Including ' : 'A further '}
+                    {unrecordedCount} {showUnrecorded ? 'that record' : 'record'} no
+                    capability at all, so there is nothing to rate them by &mdash;{' '}
                     <button
                       type="button"
                       onClick={() => setShowUnrecorded((v) => !v)}

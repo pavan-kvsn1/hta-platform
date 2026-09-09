@@ -1237,3 +1237,88 @@ describe('the instrument list', () => {
     expect(within(rows[0]).getByText('Acc.').className).toContain('green')
   })
 })
+
+describe('the counts under the list', () => {
+  /**
+   * They have to add up.
+   *
+   * Each was taken over its own population once - the total after the make and
+   * description filters, the out-of-range count over the unfiltered pool, the
+   * unrecorded count over the whole lab - so "14 of 23 can be used" sat beside "6 more
+   * do not reach the required range" and "a further 8 record nothing" and described no
+   * list that exists.
+   */
+  const reach = instrument({ id: 1, asset_no: '1 HTAIPL/L', make: 'Fluke' })
+  const short = instrument({ id: 2, asset_no: '2 HTAIPL/L', make: 'Fluke' })
+  const blank = instrument({ id: 3, asset_no: '3 HTAIPL/L', make: 'Fluke' })
+  // Same three shapes again under another make, so a filter has something to remove.
+  const otherMake = [4, 5, 6].map((id) =>
+    instrument({ id, asset_no: `${id} HTAIPL/L`, make: 'Masibus' }),
+  )
+
+  const units = new Map<number, RegistryUnit>([
+    [1, unitWith('Temperature', -50, 200, 0.1, 0.05)],
+    [2, unitWith('Temperature', -20, 40, 0.1, 0.05)],
+    [3, { capability_profiles: [] } as unknown as RegistryUnit],
+    [4, unitWith('Temperature', -50, 200, 0.1, 0.05)],
+    [5, unitWith('Temperature', -20, 40, 0.1, 0.05)],
+    [6, { capability_profiles: [] } as unknown as RegistryUnit],
+  ])
+
+  const renderList = () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+        coveredBy={new Map()}
+        instruments={[reach, short, blank, ...otherMake]}
+        resolveUnit={(inst) => units.get(inst.id)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+  }
+
+  /** The three numbers on screen: listed, out of range, recording nothing. */
+  const counts = () => {
+    const of = paragraph(/can be used/).textContent!.match(/(\d+) of (\d+)/)!
+    const range = screen.queryByText((_c, el) =>
+      el?.tagName === 'P' && /do not reach the required range/.test(el.textContent ?? ''),
+    )
+    const none = screen.queryByText((_c, el) =>
+      el?.tagName === 'P' && /record no capability at all/.test(el.textContent ?? ''),
+    )
+    const num = (el: HTMLElement | null) => (el ? Number(el.textContent!.match(/(\d+)/)![1]) : 0)
+    return { usable: Number(of[1]), listed: Number(of[2]), range: num(range), none: num(none) }
+  }
+
+  it('account for every instrument the filters left', () => {
+    renderList()
+    const c = counts()
+    // Four record temperature, two record nothing: six in all.
+    expect(c.listed + c.range + c.none).toBe(6)
+  })
+
+  it('move a group into the list rather than counting it twice', () => {
+    renderList()
+    const before = counts()
+    fireEvent.click(screen.getByRole('button', { name: 'show them' }))
+    const after = counts()
+    expect(after.listed).toBe(before.listed + before.range)
+    expect(after.range).toBe(before.range)
+    expect(after.listed + after.none).toBe(6)
+  })
+
+  it('count what a filter removed, not what the whole lab holds', () => {
+    // Filtering to one make halves every group. The out-of-range and unrecorded counts
+    // used to ignore the filter entirely and keep reporting the lab's figures.
+    renderList()
+    fireEvent.click(screen.getByLabelText('Make'))
+    fireEvent.click(screen.getByRole('option', { name: 'Fluke' }))
+    const c = counts()
+    expect(c.listed + c.range + c.none).toBe(3)
+    expect(c.range).toBe(1)
+    expect(c.none).toBe(1)
+  })
+})
