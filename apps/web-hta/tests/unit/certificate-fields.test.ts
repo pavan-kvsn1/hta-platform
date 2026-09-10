@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   addConversionColumn,
+  rangeCoverage,
   conversionColumnMissing,
   errorConfigProblem,
   createDefaultFieldDefinitions,
@@ -740,5 +741,84 @@ describe('a master that measures something else', () => {
     expect(next.fields.find((f) => f.id === 'm9')).toBeDefined()
     // Only the reading the error was taken from is restated in millivolts.
     expect(next.fields.find((f) => f.id === 'm9')!.unit).toBe('°C')
+  })
+})
+
+describe('whether the readings cover the range claimed', () => {
+  /**
+   * A certificate states a range and shows the points read within it. If none falls
+   * inside the range being claimed, the certificate covers a span nothing was measured
+   * at - true of every line on it, and worthless.
+   */
+  const fields: FieldDefinition[] = [
+    { id: 'm1', name: 'Standard', group: 'master', type: 'numeric', unit: '°C', order: 0 },
+    { id: 'u1', name: 'UUC', group: 'uuc', type: 'numeric', unit: '°C', order: 0 },
+  ]
+  const config: ErrorConfig = { masterFieldId: 'm1', uucFieldId: 'u1', formula: 'A-B', unit: '°C' }
+  const row = (id: string, uuc: string): CalibrationResultRow => ({
+    id,
+    pointNumber: 1,
+    values: { m1: uuc, u1: uuc },
+    errorObserved: null,
+    isOutOfLimit: false,
+  })
+
+  const operating = { rangeMin: '0', rangeMax: '100', operatingMin: '20', operatingMax: '40' }
+
+  it('checks the operating range where the unit declares one', () => {
+    const c = rangeCoverage(operating, [row('r1', '25')], fields, config)
+    expect(c.source).toBe('operating range')
+    expect(c.from).toBe(20)
+    expect(c.to).toBe(40)
+    expect(c.satisfied).toBe(true)
+    expect(c.inside).toEqual(['r1'])
+  })
+
+  it('fails where every reading sits outside it', () => {
+    const c = rangeCoverage(operating, [row('r1', '5'), row('r2', '90')], fields, config)
+    expect(c.satisfied).toBe(false)
+    expect(c.inside).toEqual([])
+  })
+
+  it('falls back to the range being calibrated where there is no operating range', () => {
+    const c = rangeCoverage(
+      { ...operating, operatingRangeNotApplicable: true },
+      [row('r1', '90')],
+      fields,
+      config,
+    )
+    expect(c.source).toBe('range being calibrated')
+    expect(c.from).toBe(0)
+    expect(c.to).toBe(100)
+    expect(c.satisfied).toBe(true)
+  })
+
+  it('reads the unit under test, not the master', () => {
+    // The certificate is about what the unit read; the master is what it is judged
+    // against. A master inside the range with the unit outside it proves nothing.
+    const rows = [{ ...row('r1', '25'), values: { m1: '25', u1: '90' } }]
+    expect(rangeCoverage(operating, rows, fields, config).satisfied).toBe(false)
+  })
+
+  it('counts a converted reading, since that is still the reading', () => {
+    const withExpression: FieldDefinition[] = [
+      ...fields.filter((f) => f.id !== 'u1'),
+      { id: 'u1', name: 'Converted', group: 'uuc', type: 'expression', unit: '°C', order: 1, expression: '{m1} * 2' },
+    ]
+    const rows = [{ ...row('r1', ''), values: { m1: '15' } }]
+    expect(rangeCoverage(operating, rows, withExpression, config).satisfied).toBe(true)
+  })
+
+  it('asks nothing of an empty table', () => {
+    // A red mark on a table nobody has filled in is noise, not a finding.
+    const c = rangeCoverage(operating, [], fields, config)
+    expect(c.checked).toBe(false)
+    expect(c.satisfied).toBe(true)
+  })
+
+  it('asks nothing where no range was stated', () => {
+    const c = rangeCoverage({ operatingRangeNotApplicable: true }, [row('r1', '25')], fields, config)
+    expect(c.checked).toBe(false)
+    expect(c.satisfied).toBe(true)
   })
 })

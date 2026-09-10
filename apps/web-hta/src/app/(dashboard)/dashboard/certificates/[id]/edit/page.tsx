@@ -18,6 +18,7 @@ import {
 } from '@/components/forms'
 import { FeedbackTimeline, type InternalRequestItem } from '@/components/feedback/shared'
 import { useCertificateStore, CertificateFormData, Parameter, CalibrationResult, ensureParameterFields } from '@/lib/stores/certificate-store'
+import { rangeCoverage } from '@/lib/certificate-fields'
 import { readStoredFieldSchema } from '@/lib/certificate-fields'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -149,7 +150,16 @@ const isResultsSectionComplete = (formData: CertificateFormData) =>
   formData.parameters.length > 0 &&
   formData.parameters.every((parameter) =>
     parameter.results.length > 0 &&
-    parameter.results.every((result) => isResultComplete(parameter, result))
+    parameter.results.every((result) => isResultComplete(parameter, result)) &&
+    // And the readings have to reach the range the certificate claims. A certificate
+    // covering a span nothing was read at says nothing about that span, so this holds
+    // the section back rather than warning about it.
+    rangeCoverage(
+      parameter,
+      parameter.resultRows,
+      parameter.fieldDefinitions,
+      parameter.errorConfig,
+    ).satisfied
   )
 
 const isRemarksSectionComplete = (formData: CertificateFormData) =>

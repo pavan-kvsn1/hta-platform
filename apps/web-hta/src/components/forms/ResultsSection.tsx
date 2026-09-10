@@ -5,6 +5,10 @@ import { CheckCircle, AlertTriangle, Info } from 'lucide-react'
 import { ColumnSetup } from '@/components/forms/ColumnSetup'
 import { DynamicResultsTable } from '@/components/forms/DynamicResultsTable'
 import type { ErrorConfig, FieldDefinition } from '@/lib/certificate-fields'
+import { rangeCoverage } from '@/lib/certificate-fields'
+
+/** A range bound as it reads, without a float's tail. */
+const bound = (value: number) => String(Number(value.toFixed(6)))
 import {
   Select,
   SelectContent,
@@ -318,6 +322,18 @@ function ResultsTable({
    * signing rather than something to print: the certificate and the PDF show the
    * failure verdict only.
    */
+  /**
+   * Whether the readings reach into the range this certificate claims to cover.
+   *
+   * Recomputed rather than stored: it depends on the rows, on the range, and on which
+   * column the error is taken from, and any of the three can change under it.
+   */
+  const coverage = useMemo(
+    () =>
+      rangeCoverage(parameter, parameter.resultRows, parameter.fieldDefinitions, parameter.errorConfig),
+    [parameter],
+  )
+
   const rowWarning = useCallback(
     (row: { values: Record<string, string> }): string | null => {
       const masterRaw = row.values[parameter.errorConfig.masterFieldId] ?? ''
@@ -532,12 +548,52 @@ function ResultsTable({
           onChange={onSchemaChange}
         />
 
+        {/* Whether the readings reach into the range the certificate claims. Stated
+            under the table it is about, and only once there is something to say. */}
+        {coverage.checked && (
+          <p
+            className={cn(
+              'mt-2 rounded-lg border px-3 py-2 text-[11px]',
+              coverage.satisfied
+                ? 'border-slate-200 bg-slate-50 text-slate-600'
+                : 'border-red-200 bg-red-50 text-red-800',
+            )}
+          >
+            {coverage.satisfied ? (
+              <>
+                {coverage.inside.length} of {parameter.resultRows.length}{' '}
+                {coverage.inside.length === 1 ? 'point falls' : 'points fall'} within the{' '}
+                {coverage.source}, {bound(coverage.from)} to {bound(coverage.to)}{' '}
+                {parameter.parameterUnit}.
+              </>
+            ) : (
+              <>
+                No point falls within the {coverage.source},{' '}
+                <b>
+                  {bound(coverage.from)} to {bound(coverage.to)} {parameter.parameterUnit}
+                </b>
+                . A certificate that covers a span nothing was read at says nothing about
+                it, so at least one reading has to land inside before this can be
+                submitted.
+              </>
+            )}
+          </p>
+        )}
+
         <DynamicResultsTable
           fields={parameter.fieldDefinitions}
           rows={parameter.resultRows}
           errorConfig={parameter.errorConfig}
           precision={defaultPrecision}
           getWarning={rowWarning}
+          outsideRange={
+            // Marked only where the rule is not yet met. Once one reading lands inside,
+            // the others being outside is ordinary - a certificate is not required to
+            // read only within the operating range, only to reach it.
+            coverage.checked && !coverage.satisfied
+              ? (row) => !coverage.inside.includes(row.id)
+              : undefined
+          }
           precisionFor={(_field, row) => {
             // The parameter section describes the UUC, so its least count - blanket or
             // per bin - is the UUC's resolution. Bins are picked by the row's reading,

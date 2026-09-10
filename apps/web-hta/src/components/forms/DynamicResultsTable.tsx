@@ -80,6 +80,14 @@ interface DynamicResultsTableProps {
    * ResultsSection; without it no row is marked.
    */
   getWarning?: (row: CalibrationResultRow) => string | null
+  /**
+   * Whether a row's reading sits outside the range the certificate claims to cover.
+   *
+   * Supplied only while no reading reaches it, since that is the state worth pointing
+   * at. Once one lands inside, the rest being outside is ordinary - a certificate has
+   * to reach its range, not stay within it.
+   */
+  outsideRange?: (row: CalibrationResultRow) => boolean
 }
 
 function byOrder(a: FieldDefinition, b: FieldDefinition) {
@@ -100,6 +108,7 @@ export function DynamicResultsTable({
   onOpenImages,
   getLimit,
   getWarning,
+  outsideRange,
 }: DynamicResultsTableProps) {
   const masterFields = fields.filter((f) => f.group === 'master').sort(byOrder)
   const uucFields = fields.filter((f) => f.group === 'uuc').sort(byOrder)
@@ -226,6 +235,14 @@ export function DynamicResultsTable({
                 >
                   <td className="px-4 py-2 text-xs tabular-nums text-slate-400">
                     {String(row.pointNumber).padStart(2, '0')}
+                    {outsideRange?.(row) && (
+                      <span
+                        className="ml-1 font-bold text-red-500"
+                        title="Outside the range this certificate covers"
+                      >
+                        &times;
+                      </span>
+                    )}
                   </td>
 
                   {ordered.map((field) => {

@@ -436,3 +436,38 @@ describe('ColumnSetup error computation', () => {
     expect(screen.getAllByText('Type')).toHaveLength(2)
   })
 })
+
+describe('rows outside the range the certificate covers', () => {
+  /**
+   * Marked only while no reading reaches the range. Once one lands inside, the rest
+   * being outside is ordinary - a certificate has to reach its range, not stay within
+   * it - and marking them then would be scolding the engineer for normal work.
+   */
+  it('marks the rows that miss it', () => {
+    render(
+      <DynamicResultsTable
+        fields={fields}
+        rows={rows}
+        errorConfig={errorConfig}
+        onChange={vi.fn()}
+        outsideRange={(row) => row.id === 'r1'}
+      />,
+    )
+    const marks = screen.getAllByTitle('Outside the range this certificate covers')
+    expect(marks).toHaveLength(1)
+  })
+
+  it('marks nothing when not asked to', () => {
+    render(
+      <DynamicResultsTable
+        fields={fields}
+        rows={rows}
+        errorConfig={errorConfig}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryAllByTitle('Outside the range this certificate covers'),
+    ).toHaveLength(0)
+  })
+})

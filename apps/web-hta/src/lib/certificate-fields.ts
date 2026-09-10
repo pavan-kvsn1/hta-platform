@@ -660,6 +660,85 @@ export function resolveRowValues(
 }
 
 /** Error for a row, or null when either referenced field is missing or non-numeric. */
+/**
+ * Whether the readings cover the range the certificate claims to cover.
+ *
+ * A certificate states a range and then shows the points read within it. If none of
+ * those points falls inside the range being claimed, the certificate covers a span
+ * nothing was actually measured at - true of every line on it, and worthless.
+ *
+ * Which range depends on what the unit under test declared. Where it has an operating
+ * range, that is the span it is used over and the one the readings must reach. Where it
+ * declares none, the range being calibrated stands in.
+ *
+ * The reading is the unit under test's, not the master's: the certificate is about what
+ * the unit read, and the master's figure is what it is being judged against. Expression
+ * columns count - a converted reading is still the reading.
+ */
+export interface RangeCoverage {
+  /** Whether the rule applies at all: it needs a range and at least one row. */
+  checked: boolean
+  /** The span the readings have to reach into. */
+  from: number
+  to: number
+  /** Where the span came from, for saying so on screen. */
+  source: 'operating range' | 'range being calibrated'
+  /** Row ids whose reading falls inside it. */
+  inside: string[]
+  /** True where at least one does, or where the rule does not apply. */
+  satisfied: boolean
+}
+
+export function rangeCoverage(
+  parameter: {
+    rangeMin?: string
+    rangeMax?: string
+    operatingMin?: string
+    operatingMax?: string
+    operatingRangeNotApplicable?: boolean
+  },
+  rows: CalibrationResultRow[],
+  fields: FieldDefinition[],
+  errorConfig: ErrorConfig | null | undefined,
+): RangeCoverage {
+  const num = (v?: string) => {
+    const parsed = parseFloat((v ?? '').trim())
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  const useOperating =
+    !parameter.operatingRangeNotApplicable &&
+    num(parameter.operatingMin) !== null &&
+    num(parameter.operatingMax) !== null
+
+  const from = useOperating ? num(parameter.operatingMin) : num(parameter.rangeMin)
+  const to = useOperating ? num(parameter.operatingMax) : num(parameter.rangeMax)
+  const source: RangeCoverage['source'] = useOperating
+    ? 'operating range'
+    : 'range being calibrated'
+
+  // Nothing stated to check against, or nothing entered yet. Not a failure - there is
+  // simply no question to answer, and a red mark on an empty table is only noise.
+  if (from === null || to === null || rows.length === 0) {
+    return { checked: false, from: from ?? 0, to: to ?? 0, source, inside: [], satisfied: true }
+  }
+
+  const low = Math.min(from, to)
+  const high = Math.max(from, to)
+  const uucField = fields.find((f) => f.id === errorConfig?.uucFieldId)
+
+  const inside = uucField
+    ? rows
+        .filter((row) => {
+          const value = parseFloat(resolveRowValues(row, fields)[uucField.id] ?? '')
+          return Number.isFinite(value) && value >= low && value <= high
+        })
+        .map((row) => row.id)
+    : []
+
+  return { checked: true, from: low, to: high, source, inside, satisfied: inside.length > 0 }
+}
+
 export function computeRowError(
   row: CalibrationResultRow,
   fields: FieldDefinition[],
