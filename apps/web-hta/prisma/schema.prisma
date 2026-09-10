@@ -466,6 +466,13 @@ model Certificate {
   dueDateAdjustment             Int                           @default(0)
   calibrationDueDate            DateTime?
   dueDateNotApplicable          Boolean                       @default(false)
+  /// How the due date is written on the certificate.
+  ///
+  /// A date means different things in different places - 02/09/2026 is September in
+  /// Bangalore and February in Boston - and a certificate crossing a border has to be
+  /// read the way its reader reads. The stored date does not change; only how it is
+  /// printed.
+  calibrationDueDateFormat      String                        @default("DD/MM/YYYY")
   /// Where the unit under test has no serial number or no instrument id of its own -
   /// a bare sensor, a fixture built in house. The field is not left blank, because a
   /// blank reads as unfinished; it is marked and the certificate prints "Not

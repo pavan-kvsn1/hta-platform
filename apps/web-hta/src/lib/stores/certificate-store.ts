@@ -225,6 +225,13 @@ export interface CertificateFormData {
   dueDateAdjustment: -3 | -2 | -1 | 0  // Adjustment in days (negative only)
   calibrationDueDate: string
   dueDateNotApplicable: boolean  // If true, due date shows as "Not Applicable" on certificate
+  /**
+   * How the due date is written on the certificate.
+   *
+   * 02/09/2026 is September in Bangalore and February in Boston. The stored date does
+   * not change; only how it is printed.
+   */
+  calibrationDueDateFormat: string
   customerName: string
   customerAddress: string
   customerAccountId: string
@@ -630,6 +637,7 @@ const initialFormData: CertificateFormData = {
   dueDateAdjustment: 0,
   calibrationDueDate: '', // Generated on client side to avoid hydration mismatch
   dueDateNotApplicable: false,
+  calibrationDueDateFormat: 'DD/MM/YYYY',
   customerName: '',
   customerAddress: '',
   customerAccountId: '',

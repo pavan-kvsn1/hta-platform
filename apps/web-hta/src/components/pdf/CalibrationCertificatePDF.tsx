@@ -51,6 +51,10 @@ import {
   CUSTOMER_ACKNOWLEDGMENT_TEXT,
   PDFSignatureData,
 } from './pdf-utils'
+import {
+  DEFAULT_DATE_FORMAT,
+  formatCertificateDate,
+} from '@/lib/certificate-date-format'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 import { resolveCalibrationPrecision } from '@/lib/utils/calibration-precision'
 import {
@@ -867,7 +871,15 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
             </View>
             <View style={styles.customerValueCellRight}>
               <Text style={styles.customerValue}>
-                {(hasFailedCalibrationPoints || data.dueDateNotApplicable) ? 'Not Applicable' : formatDateDDMMYYYY(data.calibrationDueDate)}
+                {(hasFailedCalibrationPoints || data.dueDateNotApplicable)
+                  ? 'Not Applicable'
+                  /* The due date is written the way the lab asked. The other dates on
+                     the certificate are not: this is the one a customer reads against
+                     their own calendar, and the one they said crosses borders. */
+                  : formatCertificateDate(
+                      data.calibrationDueDate,
+                      data.calibrationDueDateFormat || DEFAULT_DATE_FORMAT,
+                    )}
               </Text>
             </View>
           </View>

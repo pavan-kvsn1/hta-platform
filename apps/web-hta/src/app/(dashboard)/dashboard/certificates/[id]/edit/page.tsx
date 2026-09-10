@@ -210,6 +210,7 @@ interface ApiCertificate {
   uucMake: string | null
   uucModel: string | null
   uucSerialNumber: string | null
+  calibrationDueDateFormat?: string
   uucSerialNumberNotApplicable?: boolean
   uucInstrumentId: string | null
   uucInstrumentIdNotApplicable?: boolean
@@ -636,6 +637,7 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     uucDescription: apiData.uucDescription || '',
     uucMake: apiData.uucMake || '',
     uucModel: apiData.uucModel || '',
+    calibrationDueDateFormat: apiData.calibrationDueDateFormat || 'DD/MM/YYYY',
     uucSerialNumber: apiData.uucSerialNumber || '',
     uucSerialNumberNotApplicable: apiData.uucSerialNumberNotApplicable || false,
     uucInstrumentId: apiData.uucInstrumentId || '',
