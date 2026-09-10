@@ -320,8 +320,15 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
           </div>
         </div>
 
-        {/* Date and Tenure Row */}
-        <div className={cn("grid gap-4", isNewCertificate ? "grid-cols-1 md:grid-cols-4" : "grid-cols-1")}>
+        {/* Date and Tenure Row
+            Five cards on a draft, two once the dates are settled - the date and time
+            cards only appear while a certificate can still be dated. */}
+        <div
+          className={cn(
+            'grid gap-4',
+            isNewCertificate ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-5' : 'grid-cols-1 md:grid-cols-2',
+          )}
+        >
           {/* Date of Calibration - Only editable for DRAFT */}
           {isNewCertificate && (
             <div className="bg-white rounded-xl p-4 border border-slate-200">
@@ -393,6 +400,46 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
               Default: 12 Mo
             </p>
           </div>
+
+          {/* How the due date is written on the certificate.
+              02/09/2026 is September here and February in Boston, and a certificate
+              that leaves the lab has to be read the way its reader reads.
+
+              A card among the others rather than a control tucked into the due date
+              panel: it is a choice the engineer makes about this certificate, and it
+              reads as one when it is labelled like every choice beside it. The caption
+              shows the result, where tenure's shows its default. */}
+          <div className="bg-white rounded-xl p-4 border border-slate-200">
+            <Label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+              Due Date Format
+            </Label>
+            <Select
+              value={formData.calibrationDueDateFormat || DEFAULT_DATE_FORMAT}
+              disabled={formData.dueDateNotApplicable}
+              onValueChange={(value) => setFormField('calibrationDueDateFormat', value)}
+            >
+              <SelectTrigger className="w-full rounded-xl border-slate-300 h-9 px-3 disabled:bg-slate-50 disabled:text-slate-400">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DATE_FORMATS.map((format) => (
+                  <SelectItem key={format} value={format}>
+                    {format}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-2 text-[10px] text-slate-400 font-bold uppercase">
+              {formData.dueDateNotApplicable
+                ? 'No due date'
+                : formData.calibrationDueDate
+                  ? `On PDF: ${formatCertificateDate(
+                      formData.calibrationDueDate,
+                      formData.calibrationDueDateFormat || DEFAULT_DATE_FORMAT,
+                    )}`
+                  : 'Set a calibration date first'}
+            </p>
+          </div>
         </div>
 
         {/* Calculated Due Date */}
@@ -426,44 +473,14 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                   {formData.dueDateNotApplicable ? 'Not Applicable' : formatDate(formData.calibrationDueDate)}
                 </p>
                 {!formData.dueDateNotApplicable && (
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="text-xs text-slate-500">
-                      Based on calibration date + tenure
-                      {formData.dueDateAdjustment < 0 && (
-                        <span className="text-amber-600 font-semibold ml-1">
-                          ({formData.dueDateAdjustment} days)
-                        </span>
-                      )}
-                    </p>
-
-                    {/* How it is written on the certificate. 02/09/2026 is September
-                        here and February in Boston, and a certificate that leaves the
-                        lab has to be read the way its reader reads.
-
-                        On the same line as the caption that explains the date, rather
-                        than in the column opposite: it describes the date above it, and
-                        a row of its own bought nothing but height. */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-slate-400">printed as</span>
-                      <Select
-                        value={formData.calibrationDueDateFormat || DEFAULT_DATE_FORMAT}
-                        onValueChange={(value) => setFormField('calibrationDueDateFormat', value)}
-                      >
-                        <SelectTrigger className="h-7 w-auto gap-1 rounded-md border-slate-200 bg-white px-2 py-0">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DATE_FORMATS.map((format) => (
-                            <SelectItem key={format} value={format}>
-                              {formData.calibrationDueDate
-                                ? formatCertificateDate(formData.calibrationDueDate, format)
-                                : format}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  <p className="text-xs text-slate-500">
+                    Based on calibration date + tenure
+                    {formData.dueDateAdjustment < 0 && (
+                      <span className="text-amber-600 font-semibold ml-1">
+                        ({formData.dueDateAdjustment} days)
+                      </span>
+                    )}
+                  </p>
                 )}
               </div>
             </div>
