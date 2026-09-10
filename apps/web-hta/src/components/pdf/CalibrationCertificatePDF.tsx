@@ -320,8 +320,10 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     minHeight: 14,
   },
+  /* The UUC and master tables share the customer table's columns - 20/30/18/32 -
+     so the three stack down the page on the same four verticals. */
   uucLabelCell: {
-    width: '18%',
+    width: '20%',
     paddingTop: 5,
     paddingBottom: 1,
     paddingLeft: 3,
@@ -331,7 +333,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   uucValueCell: {
-    width: '32%',
+    width: '30%',
     paddingTop: 5,
     paddingBottom: 1,
     paddingLeft: 3,
@@ -341,7 +343,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   uucLabelCellRight: {
-    width: '15%',
+    width: '18%',
     paddingTop: 5,
     paddingBottom: 1,
     paddingLeft: 3,
@@ -351,7 +353,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   uucValueCellRight: {
-    width: '35%',
+    width: '32%',
     paddingTop: 5,
     paddingBottom: 1,
     paddingLeft: 3,
@@ -417,7 +419,7 @@ const styles = StyleSheet.create({
   },
   /** A value that runs to the table's edge, with no cell to its right. */
   uucValueCellWide: {
-    width: '82%',
+    width: '80%',
     paddingTop: 5,
     paddingBottom: 1,
     paddingLeft: 3,
@@ -558,7 +560,7 @@ const styles = StyleSheet.create({
     minHeight: 14,
   },
   masterLabelCell: {
-    width: '18%',
+    width: '20%',
     paddingTop: 4,
     paddingBottom: 0,
     paddingLeft: 2,
@@ -568,7 +570,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   masterValueCell: {
-    width: '32%',
+    width: '30%',
     paddingTop: 4,
     paddingBottom: 0,
     paddingLeft: 2,
@@ -1680,7 +1682,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                   <View style={styles.masterLabelCell}>
                     <Text style={styles.masterLabel}>Calibrated At</Text>
                   </View>
-                  <View style={[styles.masterValueCell, { width: '82%', borderRightWidth: 0 }]}>
+                  <View style={[styles.masterValueCell, { width: '80%', borderRightWidth: 0 }]}>
                     <Text style={styles.masterValue}>{master.calibratedAt || '-'}</Text>
                   </View>
                 </View>
