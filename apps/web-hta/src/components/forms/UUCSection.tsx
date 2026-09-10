@@ -785,74 +785,118 @@ function ParameterCard({
               </div>
             )}
 
-            {/* Bins table */}
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
-              {/* Table header */}
-              <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr] gap-2 bg-slate-100 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">
-                <div className="w-12">Bin</div>
-                <div>From {displayUnit && `(${displayUnit})`}</div>
-                <div>To {displayUnit && `(${displayUnit})`}</div>
-                <div>Accuracy {parameter.accuracyType === 'ABSOLUTE' && displayUnit ? `(± ${displayUnit})` : '(%)'}</div>
-                <div>Decimal Points {displayUnit && `(${displayUnit})`}</div>
+            {/* Bins table
+                Built like Section 05's results table, so the two read as one system:
+                a real table rather than two grids that can drift apart, the field name
+                over its unit, row numbers in tabular figures, and one rule between rows.
+
+                What it does not borrow is that table's red row. There, red means a
+                reading failed its accuracy limit - a verdict on measured data. Here
+                nothing passes or fails; the bins are being declared. The only thing
+                that can be wrong is an entry, and that is said on the field it is
+                wrong on. */}
+            <div className="overflow-hidden rounded-lg border border-slate-200">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-section-inner">
+                    {/* One row, unit inline. Five short columns do not need the second
+                        header row the results table uses for its field names. */}
+                    <tr>
+                      <th className="w-12 px-4 py-1.5 text-left text-xs font-semibold text-slate-700">
+                        Sl.
+                      </th>
+                      {[
+                        ['From', displayUnit],
+                        ['To', displayUnit],
+                        [
+                          'Accuracy',
+                          parameter.accuracyType === 'ABSOLUTE' ? `± ${displayUnit}` : '%',
+                        ],
+                        ['Decimal Points', displayUnit],
+                      ].map(([heading, unit]) => (
+                        <th
+                          key={heading}
+                          className="px-3 py-1.5 text-left text-xs font-semibold text-slate-700"
+                        >
+                          {heading}
+                          {unit && <span className="font-normal text-slate-500"> ({unit})</span>}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {(parameter.bins || []).map((bin, binIndex) => {
+                      const errors = getBinValidationErrors(bin)
+                      return (
+                        <tr key={bin.id} className="transition-colors hover:bg-slate-50/70">
+                          <td className="px-4 py-2 align-top text-xs tabular-nums text-slate-400">
+                            {String(binIndex + 1).padStart(2, '0')}
+                          </td>
+                          <td className="px-3 py-2 align-top">
+                            <Input
+                              type="text"
+                              value={bin.binMin}
+                              onChange={(e) => updateBin(binIndex, 'binMin', e.target.value)}
+                              placeholder="Min"
+                              aria-invalid={errors.minError !== null}
+                              className={cn(
+                                'h-8 rounded-lg py-1.5 text-xs tabular-nums',
+                                errors.minError
+                                  ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                                  : 'border-slate-200',
+                              )}
+                            />
+                            {errors.minError && (
+                              <p className="mt-1 text-[10px] font-medium text-red-600">
+                                {errors.minError}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 align-top">
+                            <Input
+                              type="text"
+                              value={bin.binMax}
+                              onChange={(e) => updateBin(binIndex, 'binMax', e.target.value)}
+                              placeholder="Max"
+                              aria-invalid={errors.maxError !== null}
+                              className={cn(
+                                'h-8 rounded-lg py-1.5 text-xs tabular-nums',
+                                errors.maxError
+                                  ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                                  : 'border-slate-200',
+                              )}
+                            />
+                            {errors.maxError && (
+                              <p className="mt-1 text-[10px] font-medium text-red-600">
+                                {errors.maxError}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 align-top">
+                            <Input
+                              type="text"
+                              value={bin.accuracy}
+                              onChange={(e) => updateBin(binIndex, 'accuracy', e.target.value)}
+                              placeholder="e.g., 0.5"
+                              className="h-8 rounded-lg border-slate-200 py-1.5 text-xs tabular-nums"
+                            />
+                          </td>
+                          <td className="px-3 py-2 align-top">
+                            <Input
+                              type="text"
+                              value={bin.leastCount}
+                              onChange={(e) => updateBin(binIndex, 'leastCount', e.target.value)}
+                              placeholder="e.g., 0.1"
+                              className="h-8 rounded-lg border-slate-200 py-1.5 text-xs tabular-nums"
+                            />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
-              {/* Table rows */}
-              {(parameter.bins || []).map((bin, binIndex) => {
-                const errors = getBinValidationErrors(bin)
-                return (
-                  <div
-                    key={bin.id}
-                    className="grid grid-cols-[auto_1fr_1fr_1fr_1fr] gap-2 px-3 py-2 border-t border-slate-100 items-start"
-                  >
-                    <div className="w-12 text-xs font-bold text-slate-600 pt-2">#{binIndex + 1}</div>
-                    <div className="space-y-1">
-                      <Input
-                        type="text"
-                        value={bin.binMin}
-                        onChange={(e) => updateBin(binIndex, 'binMin', e.target.value)}
-                        placeholder="Min"
-                        className={`rounded-lg text-xs py-1.5 h-8 ${
-                          errors.minError
-                            ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
-                            : 'border-slate-200'
-                        }`}
-                      />
-                      {errors.minError && (
-                        <p className="text-[9px] text-red-500 font-medium">{errors.minError}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <Input
-                        type="text"
-                        value={bin.binMax}
-                        onChange={(e) => updateBin(binIndex, 'binMax', e.target.value)}
-                        placeholder="Max"
-                        className={`rounded-lg text-xs py-1.5 h-8 ${
-                          errors.maxError
-                            ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
-                            : 'border-slate-200'
-                        }`}
-                      />
-                      {errors.maxError && (
-                        <p className="text-[9px] text-red-500 font-medium">{errors.maxError}</p>
-                      )}
-                    </div>
-                    <Input
-                      type="text"
-                      value={bin.accuracy}
-                      onChange={(e) => updateBin(binIndex, 'accuracy', e.target.value)}
-                      placeholder="e.g., ±0.5"
-                      className="rounded-lg border-slate-300 text-xs py-1.5 h-8"
-                    />
-                    <Input
-                      type="text"
-                      value={bin.leastCount}
-                      onChange={(e) => updateBin(binIndex, 'leastCount', e.target.value)}
-                      placeholder="e.g., 0.1"
-                      className="rounded-lg border-slate-300 text-xs py-1.5 h-8"
-                    />
-                  </div>
-                )
-              })}
             </div>
           </div>
         )}
