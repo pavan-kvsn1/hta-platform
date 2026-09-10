@@ -1802,3 +1802,36 @@ describe('a master whose accuracy was never recorded', () => {
     expect(screen.getByRole('button', { name: 'Add this master' })).toBeDisabled()
   })
 })
+
+describe('reopening a master saved against several parameters', () => {
+  /**
+   * Masters added before the flow asked for one parameter can be against two. Reopening
+   * drew a "measured using" panel for each, which is the arrangement this step no
+   * longer offers - and the panels disagreed about which requirement the instrument was
+   * being judged against.
+   */
+  const both = [
+    parameter({ id: 'p1', parameterName: 'Temperature', rangeMin: '-10', rangeMax: '40' }),
+    parameter({ id: 'p2', parameterName: 'Temperature', rangeMin: '0', rangeMax: '100' }),
+  ]
+
+  it('opens on one of them, not both', () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={both}
+        coveredBy={new Map()}
+        instruments={[GOOD]}
+        resolveUnit={() => units.get(68)}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+        seed={{
+          parameterIds: ['p1', 'p2'],
+          instrumentId: 68,
+          declarations: {},
+        }}
+      />,
+    )
+    expect(screen.getAllByText(/Measured using/)).toHaveLength(1)
+  })
+})

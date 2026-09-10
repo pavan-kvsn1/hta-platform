@@ -595,7 +595,16 @@ export function MasterAddFlow({
     [labParameters],
   )
 
-  const [paramIds, setParamIds] = useState<string[]>(seed?.parameterIds ?? [])
+  /**
+   * The parameter this master is for. One, held in a list because the steps below all
+   * read it as one.
+   *
+   * A master saved before the flow asked for a single parameter can arrive against
+   * several - and reopening it drew a "measured using" panel for each, which is the
+   * multi-parameter arrangement this step no longer offers. It opens on the first;
+   * committing releases the rest, which is what one parameter per master means.
+   */
+  const [paramIds, setParamIds] = useState<string[]>(seed?.parameterIds.slice(0, 1) ?? [])
   const [category, setCategory] = useState(ANY)
   const [make, setMake] = useState(ANY)
   const [description, setDescription] = useState(ANY)
