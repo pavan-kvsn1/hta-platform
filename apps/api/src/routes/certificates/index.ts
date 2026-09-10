@@ -17,6 +17,7 @@ import certificateImagesRoutes from './images/index.js'
 import { detectCertificateChanges, generateChangeSummary } from '../../lib/change-detection.js'
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
 import { writeCertificateEditSession } from '../../lib/activity-audit.js'
+import { resolveParameterIndexes } from '../../lib/master-parameter-link.js'
 import type { EmailDeliverySummary } from '@hta/shared'
 
 // Type for Prisma transaction client
@@ -835,15 +836,16 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Create master instrument links
       if (body.masterInstruments && body.masterInstruments.length > 0) {
-        for (const mi of body.masterInstruments) {
+        const links = resolveParameterIndexes(
+          body.masterInstruments,
+          body.parameters ?? [],
+        )
+        for (const [entryIndex, mi] of body.masterInstruments.entries()) {
           if (mi.masterInstrumentId) {
             await tx.certificateMasterInstrument.create({
               data: {
                 certificateId: cert.id,
-                parameterId:
-                  mi.parameterIndex !== undefined
-                    ? (parameterIds[mi.parameterIndex] ?? null)
-                    : null,
+                parameterId: parameterIds[links[entryIndex]] ?? null,
                 masterInstrumentId: String(mi.masterInstrumentId),
                 category: mi.category || null,
                 description: mi.description || null,
@@ -1289,15 +1291,13 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Create master instrument links
       if (masterInstruments && masterInstruments.length > 0) {
-        for (const mi of masterInstruments) {
+        const links = resolveParameterIndexes(masterInstruments, parameters ?? [])
+        for (const [entryIndex, mi] of masterInstruments.entries()) {
           if (mi.masterInstrumentId && mi.masterInstrumentId > 0) {
             await tx.certificateMasterInstrument.create({
               data: {
                 certificateId: cert.id,
-                parameterId:
-                  mi.parameterIndex !== undefined
-                    ? (parameterIds[mi.parameterIndex] ?? null)
-                    : null,
+                parameterId: parameterIds[links[entryIndex]] ?? null,
                 masterInstrumentId: String(mi.masterInstrumentId),
                 category: mi.category || null,
                 description: mi.description || null,

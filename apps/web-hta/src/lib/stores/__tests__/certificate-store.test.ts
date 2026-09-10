@@ -565,7 +565,11 @@ describe('certificate-store', () => {
       expect(result.current.formData.parameters[0].results[0].isOutOfLimit).toBe(true)
     })
 
-    it('uses the matching bucket precision when calculating error', () => {
+    it('rounds the error to the readings, not to the bucket least count', () => {
+      // The least count is what the instrument can be read to, so it governs the
+      // readings. The error is their difference, and rounding it to the bucket threw
+      // away a difference both readings were precise enough to show - 0.00006 read as
+      // a flat 0.0001, and elsewhere as 0.
       const { result } = renderHook(() => useCertificateStore())
 
       const parameter: Parameter = {
@@ -606,7 +610,7 @@ describe('certificate-store', () => {
         result.current.calculateError(0, 0)
       })
 
-      expect(result.current.formData.parameters[0].results[0].errorObserved).toBe(0.0001)
+      expect(result.current.formData.parameters[0].results[0].errorObserved).toBe(0.00006)
     })
 
     it('does not calculate error if readings are invalid', () => {

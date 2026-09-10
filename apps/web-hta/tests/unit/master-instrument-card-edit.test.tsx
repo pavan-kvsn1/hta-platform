@@ -55,9 +55,13 @@ const parameter = (over: Partial<Parameter> = {}) =>
 function renderCard(param: Parameter, over: Record<string, unknown> = {}) {
   const onEdit = vi.fn()
   const onParameterUpdate = vi.fn()
+  // The card reads its siblings to tell which parameter is its own; a lone card is
+  // its own only sibling, whichever instrument the case under test puts in it.
+  const only = (over.instrument ?? master) as SelectedMasterInstrument
   render(
     <MasterInstrumentCard
       instrument={master}
+      siblings={[only]}
       index={0}
       onRemove={vi.fn()}
       onEdit={onEdit}

@@ -28,6 +28,7 @@ import { useCertificateStore, SelectedMasterInstrument, Parameter } from '@/lib/
 import { ImageUploadGallery, GalleryImage } from './ImageUploadGallery'
 import { useCertificateImages } from '@/lib/hooks/useCertificateImages'
 import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
+import { parameterIdFor } from '@/lib/master-parameter-link'
 import {
   InstrumentStatus,
   getDisplayValue,
@@ -56,6 +57,8 @@ interface MasterInstrumentCardProps {
    *  was used, since the instrument is as much a part of the answer. */
   onEdit: () => void
   parameters: Parameter[]
+  /** Every master entry on the certificate, so this one can tell which is its own. */
+  siblings: SelectedMasterInstrument[]
   /** Master ids on this certificate, to tell a real assignment from a dangling one. */
   mastersOnCertificate: Set<number>
   onParameterUpdate: (paramIndex: number, parameter: Parameter) => void
@@ -115,6 +118,7 @@ export function MasterInstrumentCard({
   onRemove,
   onEdit,
   parameters,
+  siblings,
   mastersOnCertificate,
   onParameterUpdate,
   certificateId,
@@ -171,11 +175,10 @@ export function MasterInstrumentCard({
    */
   const relevant = useMemo(() => {
     const all = parameters.map((param, paramIdx) => ({ param, paramIdx }))
-    // The entry names its parameter. Entries saved before it did fall back to the
-    // instrument, which is right for every certificate that uses an instrument once.
-    const mine = instrument.parameterId
-      ? all.filter(({ param }) => param.id === instrument.parameterId)
-      : all.filter(({ param }) => param.masterInstrumentId === instrument.masterInstrumentId)
+    // One entry, one parameter, decided in one place - so an entry whose link a save
+    // dropped cannot fall back to claiming every parameter its instrument serves.
+    const linked = parameterIdFor(instrument, siblings, parameters)
+    const mine = linked ? all.filter(({ param }) => param.id === linked) : []
     // Once the master is against a parameter, that is the card's subject. The others
     // are not choices to be made here - the add flow asks which parameter a master is
     // for, and the declaration below is written for that one. Listing the rest put a
@@ -189,7 +192,7 @@ export function MasterInstrumentCard({
       if (!param.parameterName || !registryUnit) return true
       return unitCanMeasure(registryUnit, param.parameterName, param.parameterUnit, classify)
     })
-  }, [parameters, instrument.masterInstrumentId, registryUnit, classify])
+  }, [parameters, instrument, siblings, registryUnit, classify])
 
   const assigned = relevant.some(
     ({ param }) => param.masterInstrumentId === instrument.masterInstrumentId,
@@ -204,11 +207,10 @@ export function MasterInstrumentCard({
 
   /** The parameter this master is against, told apart from any namesake by its range. */
   const serves = useMemo(() => {
-    const mine = instrument.parameterId
-      ? parameters.find((p) => p.id === instrument.parameterId)
-      : parameters.find((p) => p.masterInstrumentId === instrument.masterInstrumentId)
+    const linked = parameterIdFor(instrument, siblings, parameters)
+    const mine = linked ? parameters.find((p) => p.id === linked) : undefined
     return mine ? parameterLabel(mine, parameters) : ''
-  }, [parameters, instrument.parameterId, instrument.masterInstrumentId])
+  }, [parameters, instrument, siblings])
 
   return (
     <div className="bg-section-inner rounded-xl p-5 border border-slate-300">
@@ -646,10 +648,9 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     parameter: Parameter,
     among: { m: SelectedMasterInstrument; index: number }[],
   ) =>
-    among.find(({ m }) =>
-      m.parameterId
-        ? m.parameterId === parameter.id
-        : parameter.masterInstrumentId === m.masterInstrumentId,
+    among.find(
+      ({ m }) =>
+        parameterIdFor(m, formData.masterInstruments, formData.parameters) === parameter.id,
     )
 
   const assetOf = (m: SelectedMasterInstrument) => m.assetNo || String(m.masterInstrumentId)
@@ -684,9 +685,8 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     if (!master || master.masterInstrumentId <= 0) return undefined
     // The entry's own parameter, so reopening a thermometer used for two spans returns
     // to the span it was declared against rather than to whichever came first.
-    const mine = master.parameterId
-      ? formData.parameters.filter((p) => p.id === master.parameterId)
-      : formData.parameters.filter((p) => p.masterInstrumentId === master.masterInstrumentId)
+    const linked = parameterIdFor(master, formData.masterInstruments, formData.parameters)
+    const mine = linked ? formData.parameters.filter((p) => p.id === linked) : []
     return {
       parameterIds: mine.map((p) => p.id),
       instrumentId: master.masterInstrumentId,
@@ -751,9 +751,8 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
       formData.parameters.forEach((p, i) => {
         // Only what this entry was against. Matching on the instrument would let one
         // card release the parameter of another card holding the same instrument.
-        const wasMine = previous.parameterId
-          ? p.id === previous.parameterId
-          : p.masterInstrumentId === previous.masterInstrumentId
+        const wasMine =
+          parameterIdFor(previous, formData.masterInstruments, formData.parameters) === p.id
         if (!wasMine || keeping.has(i)) return
         setParameter(i, {
           ...p,
@@ -869,6 +868,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
                 setEditingIndex(index)
               }}
               parameters={formData.parameters}
+              siblings={formData.masterInstruments}
               mastersOnCertificate={mastersOnCertificate}
               onParameterUpdate={setParameter}
               certificateId={certificateId}

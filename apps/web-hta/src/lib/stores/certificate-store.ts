@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { apiFetch } from '@/lib/api-client'
+import { parameterIdFor } from '@/lib/master-parameter-link'
 import {
   errorPrecision,
   resolveCalibrationPrecision,
@@ -1185,12 +1186,18 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
       // their ids do not survive it.
       const requestBody = {
         ...formData,
-        masterInstruments: formData.masterInstruments.map((m) => ({
-          ...m,
-          parameterIndex: m.parameterId
-            ? formData.parameters.findIndex((p) => p.id === m.parameterId)
-            : undefined,
-        })),
+        masterInstruments: formData.masterInstruments.map((m) => {
+          // Resolved, not read straight off the entry, so what is saved is the
+          // parameter the card showed on this entry - including where the link was
+          // lost in an earlier save and the card worked it out by position.
+          const linked = parameterIdFor(m, formData.masterInstruments, formData.parameters)
+          return {
+            ...m,
+            parameterIndex: linked
+              ? formData.parameters.findIndex((p) => p.id === linked)
+              : undefined,
+          }
+        }),
         clientUpdatedAt: formData.serverUpdatedAt,
       }
 
