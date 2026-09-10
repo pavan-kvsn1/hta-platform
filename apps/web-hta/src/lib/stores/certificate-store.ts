@@ -161,6 +161,19 @@ export interface CalibrationResult {
 // Selected master instrument for the certificate (snapshot at time of selection)
 export interface SelectedMasterInstrument {
   id: string
+  /**
+   * The parameter this master was declared for, by the parameter's own id.
+   *
+   * A parameter naming an instrument was enough while an instrument appeared once on a
+   * certificate. It is not: the same thermometer can be the master for two temperature
+   * spans, and then two entries carry the same instrument id and neither can say which
+   * span it was declared against - so the second span could not be assigned at all, and
+   * both entries reported the first one's parameter as their own.
+   *
+   * Absent on entries saved before this was recorded; those still resolve by instrument
+   * id, which is right for every certificate that uses an instrument once.
+   */
+  parameterId?: string
   masterInstrumentId: number // Reference to the master list
   category: string // Instrument category (Electro-Technical, Thermal, Mechanical, etc.)
   /**
@@ -843,14 +856,19 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
       // is how a certificate ends up naming a master it no longer carries - the
       // assignment row can never be ticked and nothing on screen says why. Only clear
       // it when no remaining master carries the same id.
-      const orphaned =
-        removed.masterInstrumentId > 0 &&
-        !masterInstruments.some((m) => m.masterInstrumentId === removed.masterInstrumentId)
-      const parameters = orphaned
+      // The entry names its parameter, so removing one of two entries holding the same
+      // instrument releases only its own. Entries saved before that was recorded fall
+      // back to the instrument, and then only where no remaining entry carries it.
+      const parameters = removed.parameterId
         ? state.formData.parameters.map((p) =>
-            p.masterInstrumentId === removed.masterInstrumentId ? withoutMaster(p) : p,
+            p.id === removed.parameterId ? withoutMaster(p) : p,
           )
-        : state.formData.parameters
+        : removed.masterInstrumentId > 0 &&
+            !masterInstruments.some((m) => m.masterInstrumentId === removed.masterInstrumentId)
+          ? state.formData.parameters.map((p) =>
+              p.masterInstrumentId === removed.masterInstrumentId ? withoutMaster(p) : p,
+            )
+          : state.formData.parameters
 
       return {
         formData: { ...state.formData, masterInstruments, parameters },
@@ -1110,8 +1128,17 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
       const method = certificateId ? 'PUT' : 'POST'
 
       // Include clientUpdatedAt for optimistic concurrency control
+      // The form links a master to its parameter by the parameter's own id; the API
+      // takes a position, because it rewrites the parameter rows on every save and
+      // their ids do not survive it.
       const requestBody = {
         ...formData,
+        masterInstruments: formData.masterInstruments.map((m) => ({
+          ...m,
+          parameterIndex: m.parameterId
+            ? formData.parameters.findIndex((p) => p.id === m.parameterId)
+            : undefined,
+        })),
         clientUpdatedAt: formData.serverUpdatedAt,
       }
 

@@ -161,6 +161,8 @@ const isConclusionSectionComplete = (formData: CertificateFormData) =>
 
 interface ApiMasterInstrument {
   id: string
+  /** Which parameter this entry was declared for, by position; -1 where unrecorded. */
+  parameterIndex?: number
   masterInstrumentId: string
   sopReference: string
   category: string | null
@@ -559,6 +561,12 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
 
         return {
           id: generateId(),
+          // The API answers with a position, since the parameters have only just been
+          // written; the form works in the parameters' own ids.
+          parameterId:
+            mi.parameterIndex !== undefined && mi.parameterIndex >= 0
+              ? parameters[mi.parameterIndex]?.id
+              : undefined,
           masterInstrumentId: parseInt(mi.masterInstrumentId) || 0,
           category: mi.category || '',
           description: mi.description || '',

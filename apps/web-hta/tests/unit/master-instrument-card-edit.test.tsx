@@ -387,3 +387,44 @@ describe('two parameters of the same name', () => {
     expect(screen.queryByText(/Temperature \(-10 to 40/)).not.toBeInTheDocument()
   })
 })
+
+describe('the same instrument used for two parameters', () => {
+  /**
+   * 781 HTAIPL/L is the master for both temperature spans on a certificate, so it is
+   * on it twice. A parameter used to name the instrument, and two entries carried the
+   * same instrument id - so neither could say which span it was declared against, both
+   * cards reported the first span as their own, and the second span could not be
+   * assigned at all, since writing that instrument id on it would have said nothing new.
+   *
+   * The entry names its parameter now.
+   */
+  const spans = [
+    parameter({ id: 'p1', rangeMin: '-10', rangeMax: '40', masterInstrumentId: LEGACY_ID }),
+    parameter({ id: 'p2', rangeMin: '0', rangeMax: '100', masterInstrumentId: LEGACY_ID }),
+  ]
+  const second = { ...master, id: 'mi-2', parameterId: 'p2' } as unknown as SelectedMasterInstrument
+  const first = { ...master, parameterId: 'p1' } as unknown as SelectedMasterInstrument
+
+  beforeAll(() => {
+    useMasterInstrumentStore.getState().loadFromRegistry()
+  })
+
+  it('gives each entry its own span', () => {
+    renderCard(spans[0], { instrument: first, parameters: spans })
+    expect(screen.getAllByText(/Temperature \(-10 to 40 °C\)/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Temperature \(0 to 100 °C\)/)).not.toBeInTheDocument()
+  })
+
+  it('and the second entry the other', () => {
+    renderCard(spans[1], { instrument: second, parameters: spans })
+    expect(screen.getAllByText(/Temperature \(0 to 100 °C\)/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Temperature \(-10 to 40 °C\)/)).not.toBeInTheDocument()
+  })
+
+  it('falls back to the instrument where the entry names no parameter', () => {
+    // Saved before the link was recorded, and right for a certificate that uses an
+    // instrument once.
+    renderCard(spans[0], { instrument: master, parameters: [spans[0]] })
+    expect(screen.getAllByText(/Temperature/).length).toBeGreaterThan(0)
+  })
+})

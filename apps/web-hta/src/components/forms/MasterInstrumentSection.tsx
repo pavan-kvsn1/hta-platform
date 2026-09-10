@@ -171,9 +171,11 @@ export function MasterInstrumentCard({
    */
   const relevant = useMemo(() => {
     const all = parameters.map((param, paramIdx) => ({ param, paramIdx }))
-    const mine = all.filter(
-      ({ param }) => param.masterInstrumentId === instrument.masterInstrumentId,
-    )
+    // The entry names its parameter. Entries saved before it did fall back to the
+    // instrument, which is right for every certificate that uses an instrument once.
+    const mine = instrument.parameterId
+      ? all.filter(({ param }) => param.id === instrument.parameterId)
+      : all.filter(({ param }) => param.masterInstrumentId === instrument.masterInstrumentId)
     // Once the master is against a parameter, that is the card's subject. The others
     // are not choices to be made here - the add flow asks which parameter a master is
     // for, and the declaration below is written for that one. Listing the rest put a
@@ -202,11 +204,11 @@ export function MasterInstrumentCard({
 
   /** The parameter this master is against, told apart from any namesake by its range. */
   const serves = useMemo(() => {
-    const mine = parameters.find(
-      (p) => p.masterInstrumentId === instrument.masterInstrumentId,
-    )
+    const mine = instrument.parameterId
+      ? parameters.find((p) => p.id === instrument.parameterId)
+      : parameters.find((p) => p.masterInstrumentId === instrument.masterInstrumentId)
     return mine ? parameterLabel(mine, parameters) : ''
-  }, [parameters, instrument.masterInstrumentId])
+  }, [parameters, instrument.parameterId, instrument.masterInstrumentId])
 
   return (
     <div className="bg-section-inner rounded-xl p-5 border border-slate-300">
@@ -656,9 +658,11 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
   const seedFor = (index: number): FlowSeed | undefined => {
     const master = formData.masterInstruments[index]
     if (!master || master.masterInstrumentId <= 0) return undefined
-    const mine = formData.parameters.filter(
-      (p) => p.masterInstrumentId === master.masterInstrumentId,
-    )
+    // The entry's own parameter, so reopening a thermometer used for two spans returns
+    // to the span it was declared against rather than to whichever came first.
+    const mine = master.parameterId
+      ? formData.parameters.filter((p) => p.id === master.parameterId)
+      : formData.parameters.filter((p) => p.masterInstrumentId === master.masterInstrumentId)
     return {
       parameterIds: mine.map((p) => p.id),
       instrumentId: master.masterInstrumentId,
@@ -678,8 +682,15 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
 
   const commit = (result: FlowResult) => {
     const inst = result.instrument
+    // Which parameter this entry is for. Without it, two entries carrying the same
+    // instrument - one thermometer used for two temperature spans - are indistinguish-
+    // able, and the second span cannot be assigned at all.
+    const forParameter =
+      formData.parameters[result.assignments[0]?.parameterIndex ?? -1]?.id
+
     const selected: SelectedMasterInstrument = {
       id: `mi-${inst.id}-${Date.now()}`,
+      parameterId: forParameter,
       masterInstrumentId: inst.id,
       category: inst.type,
       description: inst.instrument_desc,
@@ -714,7 +725,12 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     const keeping = new Set(result.assignments.map((a) => a.parameterIndex))
     if (previous && previous.masterInstrumentId > 0) {
       formData.parameters.forEach((p, i) => {
-        if (p.masterInstrumentId !== previous.masterInstrumentId || keeping.has(i)) return
+        // Only what this entry was against. Matching on the instrument would let one
+        // card release the parameter of another card holding the same instrument.
+        const wasMine = previous.parameterId
+          ? p.id === previous.parameterId
+          : p.masterInstrumentId === previous.masterInstrumentId
+        if (!wasMine || keeping.has(i)) return
         setParameter(i, {
           ...p,
           masterInstrumentId: null,

@@ -216,6 +216,16 @@ const createCertificateSchema = z.object({
   })).optional(),
   masterInstruments: z.array(z.object({
     masterInstrumentId: z.union([z.string(), z.number()]).optional(),
+    /**
+     * Which parameter this entry was declared for, by its position in `parameters`.
+     *
+     * A parameter naming an instrument was enough while an instrument appeared once.
+     * It is not: the same thermometer can be the master for two temperature spans, and
+     * then two entries carry the same instrument id and neither can say which span it
+     * was declared against. Position, because the parameters are being written in the
+     * same request and have no ids until they are.
+     */
+    parameterIndex: z.number().int().min(0).optional(),
     category: z.string().optional().nullable(),
     description: z.string().optional().nullable(),
     make: z.string().optional().nullable(),
@@ -747,6 +757,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       // Create parameters and results
+      // Parameter rows in the order they were sent, so a master entry can name one.
+      const parameterIds: string[] = []
       if (body.parameters && body.parameters.length > 0) {
         for (let i = 0; i < body.parameters.length; i++) {
           const param = body.parameters[i]
@@ -784,6 +796,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               sortOrder: i,
             },
           })
+          parameterIds.push(createdParam.id)
 
           // Create calibration results
           if (param.results && param.results.length > 0) {
@@ -810,6 +823,10 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             await tx.certificateMasterInstrument.create({
               data: {
                 certificateId: cert.id,
+                parameterId:
+                  mi.parameterIndex !== undefined
+                    ? (parameterIds[mi.parameterIndex] ?? null)
+                    : null,
                 masterInstrumentId: String(mi.masterInstrumentId),
                 category: mi.category || null,
                 description: mi.description || null,
@@ -1184,6 +1201,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         where: { certificateId: id },
       })
 
+      // Parameter rows in the order they were sent, so a master entry can name one.
+      const parameterIds: string[] = []
+
       // Create new parameters and results
       if (parameters && parameters.length > 0) {
         for (let i = 0; i < parameters.length; i++) {
@@ -1222,6 +1242,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               sortOrder: i,
             },
           })
+          parameterIds.push(createdParam.id)
 
           if (param.results && param.results.length > 0) {
             await tx.calibrationResult.createMany({
@@ -1247,6 +1268,10 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             await tx.certificateMasterInstrument.create({
               data: {
                 certificateId: cert.id,
+                parameterId:
+                  mi.parameterIndex !== undefined
+                    ? (parameterIds[mi.parameterIndex] ?? null)
+                    : null,
                 masterInstrumentId: String(mi.masterInstrumentId),
                 category: mi.category || null,
                 description: mi.description || null,
@@ -2815,6 +2840,12 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       })),
       masterInstruments: certificate.masterInstruments.map((mi: (typeof certificate.masterInstruments)[number]) => ({
         id: mi.id,
+        // Which parameter this entry was declared for, as a position in `parameters`.
+        // The rows are ordered by sortOrder above, so the position is the one the
+        // client sent and the one it will send back.
+        parameterIndex: mi.parameterId
+          ? certificate.parameters.findIndex((p: { id: string }) => p.id === mi.parameterId)
+          : -1,
         masterInstrumentId: parseInt(mi.masterInstrumentId) || 0,
         category: mi.category || '',
         description: mi.description || '',
