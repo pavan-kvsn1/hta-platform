@@ -953,7 +953,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucDescription}
               onChange={(e) => setFormField('uucDescription', e.target.value)}
               placeholder="e.g., Temp/Humidity Sensor"
-              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary"
             />
           </div>
           <div>
@@ -965,7 +965,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucMake}
               onChange={(e) => setFormField('uucMake', e.target.value)}
               placeholder="e.g., Dwyer"
-              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary"
             />
           </div>
           <div>
@@ -977,7 +977,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucModel}
               onChange={(e) => setFormField('uucModel', e.target.value)}
               placeholder="e.g., RHP-2011"
-              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary"
             />
           </div>
           <div>
@@ -989,7 +989,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucSerialNumber}
               onChange={(e) => setFormField('uucSerialNumber', e.target.value)}
               placeholder="e.g., 0010"
-              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary"
             />
           </div>
           <div>
@@ -1001,7 +1001,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucInstrumentId}
               onChange={(e) => setFormField('uucInstrumentId', e.target.value)}
               placeholder="e.g., VRSF/ENG/HVC020-TRH"
-              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary"
             />
           </div>
           <div>
@@ -1013,7 +1013,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucLocationName}
               onChange={(e) => setFormField('uucLocationName', e.target.value)}
               placeholder="e.g., Return Air Duct"
-              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary"
             />
           </div>
         </div>
@@ -1028,7 +1028,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
             value={formData.uucMachineName}
             onChange={(e) => setFormField('uucMachineName', e.target.value)}
             placeholder="e.g., AHU-30, VRSF-GF-AHU-030"
-            className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
+            className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary"
           />
         </div>
 

@@ -203,7 +203,7 @@ export function EnvironmentalSection({ feedbackSlot, disabled, accordionStatus, 
                 onChange={(e) => setFormField('ambientTemperature', e.target.value)}
                 placeholder={requirements.tempReference.toString()}
                 className={cn(
-                  "w-32 rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-bold text-center",
+                  "w-32 rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary text-center",
                   tempValidation.isValid === false && "border-red-300 bg-red-50"
                 )}
               />
@@ -247,7 +247,7 @@ export function EnvironmentalSection({ feedbackSlot, disabled, accordionStatus, 
                 onChange={(e) => setFormField('relativeHumidity', e.target.value)}
                 placeholder="50"
                 className={cn(
-                  "w-32 rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-bold text-center",
+                  "w-32 rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary text-center",
                   rhValidation.isValid === false && "border-red-300 bg-red-50"
                 )}
               />

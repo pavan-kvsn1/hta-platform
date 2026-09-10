@@ -123,7 +123,7 @@ export function ReviewerSelect({
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'w-full justify-between h-9 text-xs px-3 rounded-xl font-medium border-slate-300',
+          'w-full justify-between h-9 text-xs px-3 rounded-xl border-slate-300',
           error && 'border-red-500 focus:ring-red-500',
           !selectedReviewer && 'text-slate-400'
         )}

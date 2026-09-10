@@ -115,7 +115,7 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                   onChange={(e) => setFormField('certificateNumber', e.target.value)}
                   placeholder="e.g., HTA/12345/24/01"
                   className={cn(
-                    "w-full rounded-xl border-slate-300 h-9 pl-12 pr-12 focus:ring-primary focus:border-primary font-semibold text-xs md:text-xs",
+                    "w-full rounded-xl border-slate-300 h-9 pl-12 pr-12 focus:ring-primary focus:border-primary text-xs md:text-xs",
                     numberExists === true && "border-amber-500 focus:border-amber-500 focus:ring-amber-500 font-semibold text-xs md:text-xs",
                     numberExists === false && formData.certificateNumber.length >= 3 && "border-green-500 focus:border-green-500 focus:ring-green-500"
                   )}
@@ -288,7 +288,7 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
               value={formData.srfNumber}
               onChange={(e) => setFormField('srfNumber', e.target.value)}
               placeholder="Enter SRF Number"
-              className="w-full rounded-xl border-slate-300 h-9 px-3 focus:ring-primary focus:border-primary font-semibold text-xs md:text-xs"
+              className="w-full rounded-xl border-slate-300 h-9 px-3 focus:ring-primary focus:border-primary text-xs md:text-xs"
             />
           </div>
           <div className="bg-white rounded-xl p-4 border border-slate-200">
@@ -299,7 +299,7 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
               value={formData.srfDate}
               onChange={(val) => setFormField('srfDate', val)}
               placeholder="Select SRF date"
-              className="w-full rounded-xl border-slate-300 h-9 px-3 font-semibold text-xs"
+              className="w-full rounded-xl border-slate-300 h-9 px-3 text-xs"
             />
           </div>
         </div>
@@ -331,7 +331,7 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                   type="time"
                   value={formData.calibrationStartTime}
                   onChange={(e) => setFormField('calibrationStartTime', e.target.value)}
-                  className="w-full rounded-xl border-slate-300 h-9 px-3 focus:ring-primary focus:border-primary font-semibold text-xs md:text-xs"
+                  className="w-full rounded-xl border-slate-300 h-9 px-3 focus:ring-primary focus:border-primary text-xs md:text-xs"
                 />
               </div>
               <div className="bg-white rounded-xl p-4 border border-slate-200">
@@ -342,7 +342,7 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                   type="time"
                   value={formData.calibrationEndTime}
                   onChange={(e) => setFormField('calibrationEndTime', e.target.value)}
-                  className="w-full rounded-xl border-slate-300 h-9 px-3 focus:ring-primary focus:border-primary font-semibold text-xs md:text-xs"
+                  className="w-full rounded-xl border-slate-300 h-9 px-3 focus:ring-primary focus:border-primary text-xs md:text-xs"
                 />
                 <p className="mt-2 text-[10px] text-slate-400 font-bold uppercase">
                   Hours: {formatCalibrationHours(formData.calibrationStartTime, formData.calibrationEndTime)}

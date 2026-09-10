@@ -843,7 +843,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
             type="button"
             onClick={() => setFlowOpen(true)}
             disabled={disabled}
-            className="mt-5 w-full h-9 rounded-xl border-2 border-dashed border-slate-300 bg-white text-xs font-semibold text-slate-500 hover:border-primary hover:text-primary transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+            className="mt-5 w-full h-9 rounded-xl border-2 border-dashed border-slate-300 bg-white text-xs text-slate-500 hover:border-primary hover:text-primary transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
           >
             <Plus className="size-4" />
             {committed.length === 0 ? 'Add Master Instrument' : 'Add Another Master Instrument'}
