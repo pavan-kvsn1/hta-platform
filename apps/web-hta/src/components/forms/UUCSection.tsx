@@ -445,7 +445,7 @@ function ParameterCard({
                   value !== '__select__' && handleParameterTypeChange(value)
                 }
               >
-                <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white">
+                <SelectTrigger className="w-full h-9 rounded-lg border-slate-300 bg-white">
                   <SelectValue placeholder="Select parameter type..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -499,7 +499,7 @@ function ParameterCard({
                 value={selected?.kind ?? '__select__'}
                 onValueChange={(value) => value !== '__select__' && chooseKind(value)}
               >
-                <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white h-9 text-xs">
+                <SelectTrigger className="w-full h-9 rounded-lg border-slate-300 bg-white h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -528,7 +528,7 @@ function ParameterCard({
                   updateField('parameterSubtype', value === '__none__' ? '' : value)
                 }
               >
-                <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white h-9 text-xs">
+                <SelectTrigger className="w-full h-9 rounded-lg border-slate-300 bg-white h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -552,7 +552,7 @@ function ParameterCard({
               onValueChange={(value) => value !== '__select__' && updateField('parameterUnit', value)}
               disabled={availableUnits.length === 0}
             >
-              <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white disabled:opacity-50">
+              <SelectTrigger className="w-full h-9 rounded-lg border-slate-300 bg-white disabled:opacity-50">
                 <SelectValue placeholder={availableUnits.length === 0 ? "Select parameter first" : "Select unit..."} />
               </SelectTrigger>
               <SelectContent>
@@ -653,7 +653,7 @@ function ParameterCard({
                 value={parameter.accuracyType}
                 onValueChange={(value) => updateField('accuracyType', value as AccuracyType)}
               >
-                <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white text-xs">
+                <SelectTrigger className="w-full h-9 rounded-lg border-slate-300 bg-white text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -733,7 +733,7 @@ function ParameterCard({
                   value={String(parameter.bins?.length || 2)}
                   onValueChange={(value) => handleBinCountChange(parseInt(value, 10))}
                 >
-                  <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white">
+                  <SelectTrigger className="w-full h-9 rounded-lg border-slate-300 bg-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -755,7 +755,7 @@ function ParameterCard({
                   value={parameter.accuracyType}
                   onValueChange={(value) => updateField('accuracyType', value as AccuracyType)}
                 >
-                  <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white text-xs">
+                  <SelectTrigger className="w-full h-9 rounded-lg border-slate-300 bg-white text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
