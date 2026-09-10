@@ -3,6 +3,7 @@ import { safeJsonParse } from '@/lib/utils/safe-json'
 import { resolveCertificateTat } from '@/lib/utils/certificate-tat'
 import { notFound } from 'next/navigation'
 import { TokenReviewClient } from './TokenReviewClient'
+import { masterEntryForView } from '@/lib/master-entry-for-view'
 
 // Render at runtime, not build time (needs database)
 export const dynamic = 'force-dynamic'
@@ -278,14 +279,7 @@ export default async function CustomerReviewPage({
         isOutOfLimit: r.isOutOfLimit,
       })),
     })),
-    masterInstruments: certificate.masterInstruments.map((mi) => ({
-      id: mi.id,
-      description: mi.description,
-      make: mi.make,
-      model: mi.model,
-      serialNumber: mi.serialNumber,
-      calibrationDueDate: mi.calibrationDueDate,
-    })),
+    masterInstruments: certificate.masterInstruments.map(masterEntryForView),
   }
 
   // Serialize signatures

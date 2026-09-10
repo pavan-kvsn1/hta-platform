@@ -7,6 +7,7 @@ import { AdminAuthorizationClient } from './AdminAuthorizationClient'
 import type { ParameterBin } from '@/lib/stores/certificate-store'
 import type { SignatureInfo } from '@/components/certificates'
 import type { CertificateFormData } from './AdminAuthContent'
+import { masterEntryForView } from '@/lib/master-entry-for-view'
 
 // Render at runtime, not build time (needs database)
 export const dynamic = 'force-dynamic'
@@ -230,14 +231,7 @@ async function getCertificateData(id: string) {
         isOutOfLimit: result.isOutOfLimit || false,
       })),
     })),
-    masterInstruments: certificate.masterInstruments.map((mi) => ({
-      id: mi.id,
-      description: mi.description || '',
-      make: mi.make || '',
-      model: mi.model || '',
-      serialNumber: mi.serialNumber || '',
-      calibrationDueDate: mi.calibrationDueDate || '',
-    })),
+    masterInstruments: certificate.masterInstruments.map(masterEntryForView),
   }
 
   return {

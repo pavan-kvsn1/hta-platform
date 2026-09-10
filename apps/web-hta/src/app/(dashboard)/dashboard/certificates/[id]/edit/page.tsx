@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
+import { masterEntryFromApi } from '@/lib/master-entry-from-api'
 import { SectionUnlockRequest } from '@/components/engineer/SectionUnlockRequest'
 import { ConflictResolutionDialog } from '@/components/certificates'
 import { apiFetch } from '@/lib/api-client'
@@ -186,6 +187,12 @@ interface ApiMasterInstrument {
   calibratedAt: string | null
   reportNo: string | null
   calibrationDueDate: string | null
+  /** The specification as the certificate recorded it when the master was chosen. */
+  capabilityParameter?: string | null
+  masterLeastCount?: string | null
+  masterLeastCountUnit?: string | null
+  masterAccuracy?: string | null
+  masterAccuracyUnit?: string | null
 }
 
 interface ApiCertificate {
@@ -572,33 +579,7 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
   }
 
   const masterInstruments = apiData.masterInstruments && apiData.masterInstruments.length > 0
-    ? apiData.masterInstruments.map((mi) => {
-        const dueDate = mi.calibrationDueDate ? new Date(mi.calibrationDueDate) : null
-        const now = new Date()
-        const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-
-        return {
-          id: generateId(),
-          // The API answers with a position, since the parameters have only just been
-          // written; the form works in the parameters' own ids.
-          parameterId:
-            mi.parameterIndex !== undefined && mi.parameterIndex >= 0
-              ? parameters[mi.parameterIndex]?.id
-              : undefined,
-          masterInstrumentId: parseInt(mi.masterInstrumentId) || 0,
-          category: mi.category || '',
-          description: mi.description || '',
-          make: mi.make || '',
-          model: mi.model || '',
-          assetNo: mi.assetNo || '',
-          serialNumber: mi.serialNumber || '',
-          calibratedAt: mi.calibratedAt || '',
-          reportNo: mi.reportNo || '',
-          calibrationDueDate: mi.calibrationDueDate || '',
-          isExpired: dueDate ? dueDate < now : false,
-          isExpiringSoon: dueDate ? (dueDate >= now && dueDate <= thirtyDaysFromNow) : false,
-        }
-      })
+    ? apiData.masterInstruments.map((mi) => masterEntryFromApi(mi, parameters, generateId))
     : [{
         id: generateId(),
         masterInstrumentId: 0,

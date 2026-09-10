@@ -6,6 +6,7 @@ import { InternalRequestClient } from './InternalRequestClient'
 import { CustomerRequestView } from './CustomerRequestView'
 import { OfflineCodeRequestClient } from './OfflineCodeRequestClient'
 import { DesktopVpnRequestClient } from './DesktopVpnRequestClient'
+import { masterEntryForView } from '@/lib/master-entry-for-view'
 
 // Render at runtime, not build time (needs database)
 export const dynamic = 'force-dynamic'
@@ -401,14 +402,7 @@ export default async function RequestDetailPage({ params, searchParams }: Props)
             isOutOfLimit: r.isOutOfLimit,
           })),
         })),
-        masterInstruments: cert.masterInstruments.map((mi) => ({
-          id: mi.id,
-          description: mi.description,
-          make: mi.make,
-          model: mi.model,
-          serialNumber: mi.serialNumber,
-          calibrationDueDate: mi.calibrationDueDate,
-        })),
+        masterInstruments: cert.masterInstruments.map(masterEntryForView),
       }}
       assignee={{
         id: cert.createdBy.id,
