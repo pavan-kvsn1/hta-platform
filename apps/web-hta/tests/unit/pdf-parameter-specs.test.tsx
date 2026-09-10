@@ -100,7 +100,7 @@ describe('a certificate covering one parameter', () => {
   const texts = () => textsIn(certificateWith([temperature]))
 
   it('prints no banner, since there is nothing to tell apart', () => {
-    expect(texts().some((t) => t.includes('PARAMETER UNDER TEST'))).toBe(false)
+    expect(texts().some((t) => t.includes('PARAMETER UNDER CALIBRATION ASSESSMENT'))).toBe(false)
   })
 
   it('still prints that parameter own specification', () => {
@@ -121,8 +121,8 @@ describe('a certificate covering two parameters', () => {
 
   it('gives each parameter its own banner', () => {
     const all = texts()
-    expect(all).toContain('PARAMETER UNDER TEST : Temperature')
-    expect(all).toContain('PARAMETER UNDER TEST : Pressure')
+    expect(all).toContain('PARAMETER UNDER CALIBRATION ASSESSMENT : Temperature')
+    expect(all).toContain('PARAMETER UNDER CALIBRATION ASSESSMENT : Pressure')
   })
 
   it('states each least count under its own banner', () => {

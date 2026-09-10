@@ -1164,7 +1164,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                   <View style={[styles.bannerRow, { minHeight: dynamicHeight(14) }]}>
                     <View style={styles.bannerCell}>
                       <Text style={styles.bannerText}>
-                        PARAMETER UNDER TEST : {spec.name}
+                        PARAMETER UNDER CALIBRATION ASSESSMENT : {spec.name}
                       </Text>
                     </View>
                   </View>
@@ -1256,7 +1256,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                   <View style={[styles.bannerRow, { minHeight: dynamicHeight(14) }]}>
                     <View style={styles.bannerCell}>
                       <Text style={styles.bannerText}>
-                        PARAMETER UNDER TEST : {spec.name}
+                        PARAMETER UNDER CALIBRATION ASSESSMENT : {spec.name}
                       </Text>
                     </View>
                   </View>
