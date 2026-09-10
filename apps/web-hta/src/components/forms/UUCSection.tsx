@@ -621,10 +621,15 @@ function ParameterCard({
 
           {/* Operating Range */}
           <div className="space-y-2">
-            <Label className="text-[10px] font-bold text-slate-400 uppercase">
-              Operating Range {displayUnit && <span className="text-slate-500">({displayUnit})</span>}
-              {parameter.requiresBinning && <span className="text-blue-500 ml-1">(divided into bins below)</span>}
-            </Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-[10px] font-bold text-slate-400 uppercase">
+                Operating Range {displayUnit && <span className="text-slate-500">({displayUnit})</span>}
+              </Label>
+              <NotApplicable
+                checked={parameter.operatingRangeNotApplicable ?? false}
+                onChange={(v) => updateField('operatingRangeNotApplicable', v)}
+              />
+            </div>
             <div className="flex items-center gap-2">
               <Input
                 type="text"
@@ -644,10 +649,11 @@ function ParameterCard({
                 className="w-full rounded-lg border-slate-300 text-xs py-2 disabled:bg-slate-50 disabled:text-slate-400"
               />
             </div>
-            <NotApplicable
-              checked={parameter.operatingRangeNotApplicable ?? false}
-              onChange={(v) => updateField('operatingRangeNotApplicable', v)}
-            />
+            {parameter.requiresBinning && !parameter.operatingRangeNotApplicable && (
+              /* Under the inputs, not in the label - the label row now ends with the
+                 tick, and this note is long enough to collide with it. */
+              <p className="text-[10px] text-blue-500">Divided into bins below</p>
+            )}
             {parameter.operatingRangeNotApplicable && (
               /* The rule this choice carries, said where the choice is made. The range
                  being calibrated stands in for the operating one, and a certificate
@@ -955,7 +961,7 @@ function NotApplicable({
   label?: string
 }) {
   return (
-    <label className="mt-1.5 flex cursor-pointer items-center gap-1.5">
+    <label className="flex shrink-0 cursor-pointer items-center gap-1.5">
       <input
         type="checkbox"
         checked={checked}
@@ -963,7 +969,7 @@ function NotApplicable({
         onChange={(e) => onChange(e.target.checked)}
         className="size-3.5 rounded border-slate-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
       />
-      <span className="text-[10px] font-medium text-slate-500">{label}</span>
+      <span className="whitespace-nowrap text-[10px] font-medium text-slate-500">{label}</span>
     </label>
   )
 }
@@ -1080,9 +1086,16 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
             />
           </div>
           <div>
-            <Label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Serial Number <span className="text-red-500">*</span>
-            </Label>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Serial Number <span className="text-red-500">*</span>
+              </Label>
+              <NotApplicable
+                checked={formData.uucSerialNumberNotApplicable ?? false}
+                disabled={disabled}
+                onChange={(v) => setFormField('uucSerialNumberNotApplicable', v)}
+              />
+            </div>
             <Input
               type="text"
               value={formData.uucSerialNumberNotApplicable ? '' : formData.uucSerialNumber}
@@ -1091,16 +1104,18 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               placeholder={formData.uucSerialNumberNotApplicable ? 'Not Applicable' : 'e.g., 0010'}
               className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary disabled:bg-slate-50 disabled:text-slate-400"
             />
-            <NotApplicable
-              checked={formData.uucSerialNumberNotApplicable ?? false}
-              disabled={disabled}
-              onChange={(v) => setFormField('uucSerialNumberNotApplicable', v)}
-            />
           </div>
           <div>
-            <Label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Instrument ID <span className="text-red-500">*</span>
-            </Label>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Instrument ID <span className="text-red-500">*</span>
+              </Label>
+              <NotApplicable
+                checked={formData.uucInstrumentIdNotApplicable ?? false}
+                disabled={disabled}
+                onChange={(v) => setFormField('uucInstrumentIdNotApplicable', v)}
+              />
+            </div>
             <Input
               type="text"
               value={formData.uucInstrumentIdNotApplicable ? '' : formData.uucInstrumentId}
@@ -1110,11 +1125,6 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
                 formData.uucInstrumentIdNotApplicable ? 'Not Applicable' : 'e.g., VRSF/ENG/HVC020-TRH'
               }
               className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary disabled:bg-slate-50 disabled:text-slate-400"
-            />
-            <NotApplicable
-              checked={formData.uucInstrumentIdNotApplicable ?? false}
-              disabled={disabled}
-              onChange={(v) => setFormField('uucInstrumentIdNotApplicable', v)}
             />
           </div>
           <div>
