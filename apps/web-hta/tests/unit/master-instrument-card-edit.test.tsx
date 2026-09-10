@@ -346,3 +346,44 @@ describe('one parameter per master, on the card', () => {
     )
   })
 })
+
+describe('two parameters of the same name', () => {
+  /**
+   * A certificate calibrating one instrument over two spans has two parameters called
+   * Temperature and a master for each. Both cards said "Master Instrument N" and both
+   * rows said "Temperature", so which master was for which span could not be read
+   * anywhere without opening them and comparing ranges.
+   */
+  const twoSpans = [
+    parameter({ id: 'p1', rangeMin: '-10', rangeMax: '40', masterInstrumentId: LEGACY_ID }),
+    parameter({ id: 'p2', rangeMin: '0', rangeMax: '100', masterInstrumentId: null }),
+  ]
+
+  beforeAll(() => {
+    useMasterInstrumentStore.getState().loadFromRegistry()
+  })
+
+  it('tells them apart by range on the row', () => {
+    renderCard(twoSpans[0], { parameters: twoSpans })
+    expect(screen.getByText('Temperature (-10 to 40 °C)')).toBeInTheDocument()
+  })
+
+  it('says on the outside which one the master is for', () => {
+    renderCard(twoSpans[0], { parameters: twoSpans })
+    // Parent elements carry the same text, hence "all".
+    expect(
+      screen.getAllByText((_c, el) =>
+        /Master Instrument 1\s*—\s*Temperature \(-10 to 40 °C\)/.test(
+          el?.textContent?.replace(/\s+/g, ' ') ?? '',
+        ),
+      ).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('leaves a lone parameter alone', () => {
+    // Nothing to be confused with, so no range is added. ("Temperature" also appears
+    // as one of the instrument's capabilities further down.)
+    renderCard(twoSpans[0], { parameters: [twoSpans[0]] })
+    expect(screen.queryByText(/Temperature \(-10 to 40/)).not.toBeInTheDocument()
+  })
+})

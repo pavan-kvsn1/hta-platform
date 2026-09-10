@@ -34,6 +34,7 @@ import {
   STATUS_CONFIG,
 } from '@/lib/master-instruments'
 import { requiredRanges, unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
+import { parameterLabel } from '@/lib/parameter-labels'
 import { useParameterStore } from '@/lib/stores/parameter-store'
 import { classificationOf } from '@/lib/parameter-mapping'
 import { MasterCapabilityComparison } from '@/components/forms/MasterCapabilityComparison'
@@ -199,11 +200,28 @@ export function MasterInstrumentCard({
     ? instrument.availableSopReferences
     : sopReferencesFor(listed, registryUnit)
 
+  /** The parameter this master is against, told apart from any namesake by its range. */
+  const serves = useMemo(() => {
+    const mine = parameters.find(
+      (p) => p.masterInstrumentId === instrument.masterInstrumentId,
+    )
+    return mine ? parameterLabel(mine, parameters) : ''
+  }, [parameters, instrument.masterInstrumentId])
+
   return (
     <div className="bg-section-inner rounded-xl p-5 border border-slate-300">
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
           Master Instrument {index + 1}
+          {/* Which parameter it is for, on the outside of the card. A certificate with
+              two Temperature parameters has two masters, and "Master Instrument 1" and
+              "Master Instrument 2" say nothing about which is which without opening
+              both. */}
+          {serves && (
+            <span className="ml-2 normal-case font-semibold text-slate-500">
+              &mdash; {serves}
+            </span>
+          )}
         </span>
         {!disabled && (
           <button
@@ -398,8 +416,13 @@ export function MasterInstrumentCard({
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
+                          {/* Told apart from a namesake by its range, as the add flow
+                              does. A certificate calibrating one instrument over two
+                              spans has two parameters called Temperature, and their two
+                              masters both said "Temperature" - so which master was for
+                              which span could not be read anywhere. */}
                           <p className="text-xs font-semibold text-slate-800 truncate">
-                            {param.parameterName || `Parameter ${paramIdx + 1}`}
+                            {parameterLabel(param, parameters) || `Parameter ${paramIdx + 1}`}
                           </p>
                           {!isCompatible && !isAssignedToOther && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-700">
