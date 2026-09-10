@@ -178,13 +178,16 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                     className="peer sr-only"
                   />
                   <div className={cn(
-                    "p-4 rounded-xl border-2 bg-white transition-all text-center",
+                    // Icon and label on one line. Stacked and centred, the pair stood
+                    // as tall as three form fields for what is one either/or.
+                    "px-4 py-3 rounded-xl border-2 bg-white transition-all",
+                    "flex items-center justify-center gap-2",
                     formData.calibratedAt === 'LAB'
                       ? "border-primary bg-primary/5"
                       : "border-slate-300"
                   )}>
                     <FlaskConical className={cn(
-                      "size-6 mx-auto mb-2",
+                      "size-5 shrink-0",
                       formData.calibratedAt === 'LAB' ? "text-primary" : "text-slate-400"
                     )} />
                     <span className={cn(
@@ -206,13 +209,14 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                     className="peer sr-only"
                   />
                   <div className={cn(
-                    "p-4 rounded-xl border-2 bg-white transition-all text-center",
+                    "px-4 py-3 rounded-xl border-2 bg-white transition-all",
+                    "flex items-center justify-center gap-2",
                     formData.calibratedAt === 'SITE'
                       ? "border-primary bg-primary/5"
                       : "border-slate-300"
                   )}>
                     <Factory className={cn(
-                      "size-6 mx-auto mb-2",
+                      "size-5 shrink-0",
                       formData.calibratedAt === 'SITE' ? "text-primary" : "text-slate-400"
                     )} />
                     <span className={cn(
