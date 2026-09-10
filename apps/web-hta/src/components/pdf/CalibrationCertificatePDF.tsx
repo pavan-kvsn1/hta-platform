@@ -1622,7 +1622,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                         <Text style={styles.masterLabel}>Used for UUC Parameters</Text>
                       </View>
                       <View style={styles.halfValueCell}>
-                        <Text style={styles.masterLabel}>Range Used</Text>
+                        <Text style={styles.masterLabel}>Range</Text>
                       </View>
                     </View>
                     {group.uses.map((use, useIdx) => (
