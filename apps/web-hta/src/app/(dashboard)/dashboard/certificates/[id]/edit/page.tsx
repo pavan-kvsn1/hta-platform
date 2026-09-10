@@ -65,8 +65,8 @@ const isParameterComplete = (parameter: Parameter) => {
     hasFilledValue(parameter.parameterUnit) &&
     hasFilledValue(parameter.rangeMin) &&
     hasFilledValue(parameter.rangeMax) &&
-    hasFilledValue(parameter.operatingMin) &&
-    hasFilledValue(parameter.operatingMax)
+    (parameter.operatingRangeNotApplicable || hasFilledValue(parameter.operatingMin)) &&
+    (parameter.operatingRangeNotApplicable || hasFilledValue(parameter.operatingMax))
 
   if (!baseFieldsComplete) return false
 
@@ -104,8 +104,10 @@ const isUucSectionComplete = (formData: CertificateFormData) =>
   hasFilledValue(formData.uucDescription) &&
   hasFilledValue(formData.uucMake) &&
   hasFilledValue(formData.uucModel) &&
-  hasFilledValue(formData.uucSerialNumber) &&
-  hasFilledValue(formData.uucInstrumentId) &&
+  // Marked "not applicable" is an answer. A bare sensor has no serial, and the
+  // section could otherwise never be finished for one.
+  (hasFilledValue(formData.uucSerialNumber) || formData.uucSerialNumberNotApplicable) &&
+  (hasFilledValue(formData.uucInstrumentId) || formData.uucInstrumentIdNotApplicable) &&
   hasFilledValue(formData.uucLocationName) &&
   hasFilledValue(formData.uucMachineName) &&
   formData.parameters.length > 0 &&
@@ -198,7 +200,9 @@ interface ApiCertificate {
   uucMake: string | null
   uucModel: string | null
   uucSerialNumber: string | null
+  uucSerialNumberNotApplicable?: boolean
   uucInstrumentId: string | null
+  uucInstrumentIdNotApplicable?: boolean
   uucLocationName: string | null
   uucMachineName: string | null
   ambientTemperature: string | null
@@ -230,6 +234,7 @@ interface ApiParameter {
   rangeUnit: string | null
   operatingMin: string | null
   operatingMax: string | null
+  operatingRangeNotApplicable?: boolean
   operatingUnit: string | null
   leastCountValue: string | null
   leastCountUnit: string | null
@@ -462,6 +467,7 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     rangeMin: param.rangeMin || '',
     rangeMax: param.rangeMax || '',
     rangeUnit: param.rangeUnit || '',
+    operatingRangeNotApplicable: param.operatingRangeNotApplicable || false,
     operatingMin: param.operatingMin || '',
     operatingMax: param.operatingMax || '',
     operatingUnit: param.operatingUnit || '',
@@ -621,7 +627,9 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     uucMake: apiData.uucMake || '',
     uucModel: apiData.uucModel || '',
     uucSerialNumber: apiData.uucSerialNumber || '',
+    uucSerialNumberNotApplicable: apiData.uucSerialNumberNotApplicable || false,
     uucInstrumentId: apiData.uucInstrumentId || '',
+    uucInstrumentIdNotApplicable: apiData.uucInstrumentIdNotApplicable || false,
     uucLocationName: apiData.uucLocationName || '',
     uucMachineName: apiData.uucMachineName || '',
     ambientTemperature: apiData.ambientTemperature || '',

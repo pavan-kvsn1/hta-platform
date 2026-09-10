@@ -430,11 +430,11 @@ function ParameterCard({
       {/* Fields wrapped in white card */}
       <div className="bg-white rounded-xl p-4 border border-slate-200">
         <div className="grid grid-cols-1 gap-6">
-          {/* Parameter Type (35%), Unit (20%), and Master Instrument Link (35%) */}
+          {/* Parameter Group (35%), Unit (20%), and Master Instrument Link (35%) */}
         <div className={cn('grid grid-cols-1 gap-4', identityColumns)}>
           <div>
             <Label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">
-              Parameter Type <span className="text-red-500">*</span>
+              Parameter Group <span className="text-red-500">*</span>
             </Label>
             {labParameters.length === 0 ? (
               // Before the lab's list arrives, the table the form shipped with. A slow
@@ -487,13 +487,17 @@ function ParameterCard({
               />
             )}
           </div>
-          {/* Which kind, asked only where the measurand has more than one. Choosing
-              between Pressure and Gauge Pressure decides which masters are offered,
-              so it is asked rather than fallen into. */}
+          {/* Which parameter within the group, asked only where the group has more
+              than one. Choosing between Pressure and Gauge Pressure decides which
+              masters are offered, so it is asked rather than fallen into.
+
+              The two fields are called Parameter Group and Parameter on screen; in the
+              code the first is the measurand and the second its kind, which is what the
+              standards table stores. */}
           {kinds.length > 1 && (
             <div>
               <Label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">
-                Kind <span className="text-red-500">*</span>
+                Parameter <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={selected?.kind ?? '__select__'}
@@ -624,20 +628,38 @@ function ParameterCard({
             <div className="flex items-center gap-2">
               <Input
                 type="text"
-                value={parameter.operatingMin}
+                value={parameter.operatingRangeNotApplicable ? '' : parameter.operatingMin}
                 onChange={(e) => updateField('operatingMin', e.target.value)}
-                placeholder="Min"
-                className="w-full rounded-lg border-slate-300 text-xs py-2"
+                disabled={parameter.operatingRangeNotApplicable}
+                placeholder={parameter.operatingRangeNotApplicable ? 'N/A' : 'Min'}
+                className="w-full rounded-lg border-slate-300 text-xs py-2 disabled:bg-slate-50 disabled:text-slate-400"
               />
               <span className="text-slate-400 text-xs font-bold shrink-0">to</span>
               <Input
                 type="text"
-                value={parameter.operatingMax}
+                value={parameter.operatingRangeNotApplicable ? '' : parameter.operatingMax}
                 onChange={(e) => updateField('operatingMax', e.target.value)}
-                placeholder="Max"
-                className="w-full rounded-lg border-slate-300 text-xs py-2"
+                disabled={parameter.operatingRangeNotApplicable}
+                placeholder={parameter.operatingRangeNotApplicable ? 'N/A' : 'Max'}
+                className="w-full rounded-lg border-slate-300 text-xs py-2 disabled:bg-slate-50 disabled:text-slate-400"
               />
             </div>
+            <NotApplicable
+              checked={parameter.operatingRangeNotApplicable ?? false}
+              onChange={(v) => updateField('operatingRangeNotApplicable', v)}
+            />
+            {parameter.operatingRangeNotApplicable && (
+              /* The rule this choice carries, said where the choice is made. The range
+                 being calibrated stands in for the operating one, and a certificate
+                 that covers a span nothing was read at says nothing about it. */
+              <p className="text-[10px] text-slate-500">
+                At least one calibration point must fall within{' '}
+                <b className="text-slate-600">
+                  {parameter.rangeMin || '—'} to {parameter.rangeMax || '—'} {displayUnit}
+                </b>
+                , the range being calibrated. Checked in Section 05.
+              </p>
+            )}
           </div>
         </div>
 
@@ -913,6 +935,39 @@ interface UUCSectionProps {
   hasFeedback?: boolean
 }
 
+/**
+ * "Not applicable", for a field the unit under test genuinely does not have.
+ *
+ * A bare sensor has no serial number of its own; a fixture built in house has no
+ * instrument id. Typing "Not Available" into the box - which the label used to ask for
+ * - puts a sentence where a serial belongs and leaves the certificate unable to tell
+ * an absent number from an unfinished form. This says which it is.
+ */
+function NotApplicable({
+  checked,
+  onChange,
+  disabled,
+  label = 'Not applicable',
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+  label?: string
+}) {
+  return (
+    <label className="mt-1.5 flex cursor-pointer items-center gap-1.5">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="size-3.5 rounded border-slate-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
+      />
+      <span className="text-[10px] font-medium text-slate-500">{label}</span>
+    </label>
+  )
+}
+
 export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedback }: UUCSectionProps = {}) {
   const { formData, setFormField, setParameter, addParameter, removeParameter, setParameterMasterInstrument, certificateId, saveDraft } = useCertificateStore()
 
@@ -1026,26 +1081,40 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
           </div>
           <div>
             <Label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Serial Number <span className="text-red-500">*</span> <span className="normal-case font-normal text-slate-400">(If not found, enter "Not Available")</span>
+              Serial Number <span className="text-red-500">*</span>
             </Label>
             <Input
               type="text"
-              value={formData.uucSerialNumber}
+              value={formData.uucSerialNumberNotApplicable ? '' : formData.uucSerialNumber}
               onChange={(e) => setFormField('uucSerialNumber', e.target.value)}
-              placeholder="e.g., 0010"
-              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary"
+              disabled={disabled || formData.uucSerialNumberNotApplicable}
+              placeholder={formData.uucSerialNumberNotApplicable ? 'Not Applicable' : 'e.g., 0010'}
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary disabled:bg-slate-50 disabled:text-slate-400"
+            />
+            <NotApplicable
+              checked={formData.uucSerialNumberNotApplicable ?? false}
+              disabled={disabled}
+              onChange={(v) => setFormField('uucSerialNumberNotApplicable', v)}
             />
           </div>
           <div>
             <Label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Instrument ID <span className="text-red-500">*</span> <span className="normal-case font-normal text-slate-400">(If not found, enter "Not Available")</span>
+              Instrument ID <span className="text-red-500">*</span>
             </Label>
             <Input
               type="text"
-              value={formData.uucInstrumentId}
+              value={formData.uucInstrumentIdNotApplicable ? '' : formData.uucInstrumentId}
               onChange={(e) => setFormField('uucInstrumentId', e.target.value)}
-              placeholder="e.g., VRSF/ENG/HVC020-TRH"
-              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary"
+              disabled={disabled || formData.uucInstrumentIdNotApplicable}
+              placeholder={
+                formData.uucInstrumentIdNotApplicable ? 'Not Applicable' : 'e.g., VRSF/ENG/HVC020-TRH'
+              }
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary disabled:bg-slate-50 disabled:text-slate-400"
+            />
+            <NotApplicable
+              checked={formData.uucInstrumentIdNotApplicable ?? false}
+              disabled={disabled}
+              onChange={(v) => setFormField('uucInstrumentIdNotApplicable', v)}
             />
           </div>
           <div>

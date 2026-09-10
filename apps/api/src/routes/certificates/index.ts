@@ -133,6 +133,11 @@ const createCertificateSchema = z.object({
   dueDateAdjustment: z.number().optional().default(0),
   calibrationDueDate: z.string().optional().nullable(),
   dueDateNotApplicable: z.boolean().optional().default(false),
+  // Fields the unit under test genuinely does not have - a bare sensor with no serial,
+  // a fixture built in house with no instrument id. Marked rather than left blank,
+  // because a blank reads as unfinished and the section can never be completed.
+  uucSerialNumberNotApplicable: z.boolean().optional().default(false),
+  uucInstrumentIdNotApplicable: z.boolean().optional().default(false),
   customerName: z.string().min(1),
   customerAddress: z.string().optional(),
   customerContactName: z.string().optional(),
@@ -156,6 +161,9 @@ const createCertificateSchema = z.object({
     parameterUnit: z.string().default(''),
     // Which curve or type the unit under test is - Pt-100, Type K.
     parameterSubtype: z.string().optional().nullable(),
+    // Where the parameter declares no operating range. The measured range then stands
+    // in for it, and at least one calibration point has to fall inside that.
+    operatingRangeNotApplicable: z.boolean().optional().default(false),
     // How a master measuring something else serves this parameter. Validated rather
     // than passed through: both ends of this are ours, and a malformed requirement
     // would silently disable the comparison it exists to feed.
@@ -733,6 +741,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           dueDateAdjustment: body.dueDateAdjustment || 0,
           calibrationDueDate: body.calibrationDueDate ? new Date(body.calibrationDueDate) : null,
           dueDateNotApplicable: body.dueDateNotApplicable || false,
+          uucSerialNumberNotApplicable: body.uucSerialNumberNotApplicable || false,
+          uucInstrumentIdNotApplicable: body.uucInstrumentIdNotApplicable || false,
           customerName: body.customerName,
           customerAddress: body.customerAddress,
           customerContactName: body.customerContactName,
@@ -787,6 +797,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               sopReference: param.sopReference || null,
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
               parameterSubtype: param.parameterSubtype || null,
+              operatingRangeNotApplicable: param.operatingRangeNotApplicable || false,
               masterMapping: param.masterMapping
                 ? (param.masterMapping as Prisma.InputJsonValue)
                 : Prisma.DbNull,
@@ -1121,6 +1132,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       dueDateAdjustment,
       calibrationDueDate,
       dueDateNotApplicable,
+      uucSerialNumberNotApplicable,
+      uucInstrumentIdNotApplicable,
       customerName,
       customerAddress,
       customerContactName,
@@ -1165,6 +1178,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           dueDateAdjustment: dueDateAdjustment || 0,
           calibrationDueDate: calibrationDueDate ? new Date(calibrationDueDate) : null,
           dueDateNotApplicable: dueDateNotApplicable || false,
+          uucSerialNumberNotApplicable: uucSerialNumberNotApplicable || false,
+          uucInstrumentIdNotApplicable: uucInstrumentIdNotApplicable || false,
           customerName,
           customerAddress,
           customerContactName,
@@ -1233,6 +1248,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
               sopReference: param.sopReference || null,
               masterInstrumentId: param.masterInstrumentId ? String(param.masterInstrumentId) : null,
               parameterSubtype: param.parameterSubtype || null,
+              operatingRangeNotApplicable: param.operatingRangeNotApplicable || false,
               masterMapping: param.masterMapping
                 ? (param.masterMapping as Prisma.InputJsonValue)
                 : Prisma.DbNull,
@@ -2784,6 +2800,8 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       dueDateAdjustment: certificate.dueDateAdjustment || 0,
       calibrationDueDate: certificate.calibrationDueDate?.toISOString().split('T')[0] || '',
       dueDateNotApplicable: certificate.dueDateNotApplicable || false,
+      uucSerialNumberNotApplicable: certificate.uucSerialNumberNotApplicable || false,
+      uucInstrumentIdNotApplicable: certificate.uucInstrumentIdNotApplicable || false,
       customerName: certificate.customerName || '',
       customerAddress: certificate.customerAddress || '',
       customerContactName: certificate.customerContactName || '',
@@ -2822,6 +2840,7 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         // Undefined rather than '' when never declared, so the UI can tell "not yet
         // declared" from a declaration of nothing.
         parameterSubtype: param.parameterSubtype ?? undefined,
+        operatingRangeNotApplicable: param.operatingRangeNotApplicable || false,
         masterMapping: (param.masterMapping as Record<string, unknown> | null) ?? undefined,
         masterProfileId: param.masterProfileId ?? undefined,
         masterSubtype: param.masterSubtype ?? undefined,

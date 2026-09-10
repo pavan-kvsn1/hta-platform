@@ -921,7 +921,15 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
               <Text style={styles.uucLabel}>Id. No.</Text>
             </View>
             <View style={styles.uucValueCellRight}>
-              <Text style={styles.uucValue}>{data.uucSerialNumber || data.uucInstrumentId || '-'}</Text>
+              {/* A dash reads as "we did not fill this in". Where the engineer has
+                  said the unit has no number of its own, the certificate says so. */}
+              <Text style={styles.uucValue}>
+                {data.uucSerialNumber ||
+                  data.uucInstrumentId ||
+                  (data.uucSerialNumberNotApplicable && data.uucInstrumentIdNotApplicable
+                    ? 'Not Applicable'
+                    : '-')}
+              </Text>
             </View>
           </View>
 

@@ -100,6 +100,15 @@ export interface Parameter {
   operatingMin: string
   operatingMax: string
   operatingUnit: string
+  /**
+   * Where the unit under test declares no operating range of its own.
+   *
+   * Left blank the fields read as unfinished and the section can never be completed.
+   * Marked, the measured range stands in for the operating one - and at least one
+   * calibration point has to fall inside it, or the certificate covers a span nothing
+   * was read at.
+   */
+  operatingRangeNotApplicable?: boolean
   leastCountValue: string
   leastCountUnit: string
   accuracyValue: string
@@ -227,7 +236,11 @@ export interface CertificateFormData {
   uucMake: string
   uucModel: string
   uucSerialNumber: string
+  /** A bare sensor has no serial of its own; marked rather than left blank. */
+  uucSerialNumberNotApplicable?: boolean
   uucInstrumentId: string
+  /** As above, for a fixture with no instrument id. */
+  uucInstrumentIdNotApplicable?: boolean
   uucLocationName: string
   uucMachineName: string
   parameters: Parameter[]
@@ -355,6 +368,7 @@ const createDefaultParameter = (): Parameter => {
   rangeUnit: '', // Deprecated - using parameterUnit instead
   operatingMin: '',
   operatingMax: '',
+  operatingRangeNotApplicable: false,
   operatingUnit: '', // Deprecated - using parameterUnit instead
   leastCountValue: '',
   leastCountUnit: '', // Deprecated - using parameterUnit instead
@@ -627,7 +641,9 @@ const initialFormData: CertificateFormData = {
   uucMake: '',
   uucModel: '',
   uucSerialNumber: '',
+  uucSerialNumberNotApplicable: false,
   uucInstrumentId: '',
+  uucInstrumentIdNotApplicable: false,
   uucLocationName: '',
   uucMachineName: '',
   parameters: [createDefaultParameter()],

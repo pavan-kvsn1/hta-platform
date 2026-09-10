@@ -683,3 +683,36 @@ describe('useCertificateStore — saveDraft', () => {
     expect(result.error).toBe('Network error')
   })
 })
+
+describe('fields the unit under test does not have', () => {
+  /**
+   * A bare sensor has no serial number of its own; a fixture built in house has no
+   * instrument id; a working standard may declare no operating range. The label used
+   * to ask for the words "Not Available" typed into the box, which puts a sentence
+   * where a serial belongs and leaves the form unable to tell an absent number from an
+   * unfinished one.
+   */
+  beforeEach(() => {
+    useCertificateStore.getState().resetForm()
+  })
+
+  it('starts with nothing marked', () => {
+    const { formData } = useCertificateStore.getState()
+    expect(formData.uucSerialNumberNotApplicable).toBe(false)
+    expect(formData.uucInstrumentIdNotApplicable).toBe(false)
+    expect(formData.parameters[0].operatingRangeNotApplicable).toBe(false)
+  })
+
+  it('remembers which field was marked', () => {
+    useCertificateStore.getState().setFormField('uucSerialNumberNotApplicable', true)
+    expect(useCertificateStore.getState().formData.uucSerialNumberNotApplicable).toBe(true)
+    expect(useCertificateStore.getState().formData.uucInstrumentIdNotApplicable).toBe(false)
+  })
+
+  it('marks the operating range on the parameter, not the certificate', () => {
+    // Each parameter declares its own range, so each answers this for itself.
+    const store = useCertificateStore.getState()
+    store.setParameter(0, { ...store.formData.parameters[0], operatingRangeNotApplicable: true })
+    expect(useCertificateStore.getState().formData.parameters[0].operatingRangeNotApplicable).toBe(true)
+  })
+})

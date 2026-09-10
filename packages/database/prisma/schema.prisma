@@ -467,6 +467,12 @@ model Certificate {
   dueDateAdjustment             Int                           @default(0)
   calibrationDueDate            DateTime?
   dueDateNotApplicable          Boolean                       @default(false)
+  /// Where the unit under test has no serial number or no instrument id of its own -
+  /// a bare sensor, a fixture built in house. The field is not left blank, because a
+  /// blank reads as unfinished; it is marked and the certificate prints "Not
+  /// Applicable".
+  uucSerialNumberNotApplicable  Boolean                       @default(false)
+  uucInstrumentIdNotApplicable  Boolean                       @default(false)
   customerName                  String?
   customerAddress               String?
   uucDescription                String?
@@ -639,6 +645,10 @@ model ReviewFeedback {
 model Parameter {
   id                  String                        @id @default(uuid())
   certificateId       String
+  /// Where the unit under test declares no operating range of its own. The measured
+  /// range then stands in for it, and at least one calibration point has to fall
+  /// inside that - otherwise the certificate covers a span nothing was read at.
+  operatingRangeNotApplicable Boolean               @default(false)
   parameterName       String
   parameterUnit       String
   /// Which curve or type the unit under test is - Pt-100, Type K. The counterpart of
