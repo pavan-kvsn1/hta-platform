@@ -295,6 +295,12 @@ function ResultsTable({
     // Master or UUC field the engineer adds is checked too.
     const numericFields = parameter.fieldDefinitions.filter((f) => f.type === 'numeric')
     let count = 0
+    // What the failing readings were measured against, so the message can say it. The
+    // count came from each row's own bin while the message quoted the finest least
+    // count across all of them - so a reading judged against nought decimals was told
+    // it should have two.
+    const expected = new Set<number>()
+
     parameter.resultRows.forEach((row) => {
       const masterRaw = row.values[parameter.errorConfig.masterFieldId] ?? ''
       const masterReading = parseFloat(masterRaw)
@@ -303,10 +309,13 @@ function ResultsTable({
         : { precision: getDefaultPrecision(parameter) }
 
       numericFields.forEach((field) => {
-        if (!validatePrecision(row.values[field.id] ?? '', precision)) count++
+        if (!validatePrecision(row.values[field.id] ?? '', precision)) {
+          count++
+          expected.add(precision)
+        }
       })
     })
-    return count
+    return { count, expected: [...expected].sort((a, b) => a - b) }
   }, [parameter])
 
   /**
@@ -495,14 +504,18 @@ function ResultsTable({
         )}
 
         {/* Precision violation alert */}
-        {precisionViolations > 0 && (
+        {precisionViolations.count > 0 && (
           <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800">
             <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
             <div>
               <span className="font-bold">Precision Warning:</span>{' '}
-              {precisionViolations} reading{precisionViolations !== 1 ? 's have' : ' has'} more decimal places than the least count allows.
+              {precisionViolations.count} reading{precisionViolations.count !== 1 ? 's have' : ' has'} more decimal places than the least count allows.
               <span className="text-amber-600 ml-1">
-                (Expected: {defaultPrecision} decimal{defaultPrecision !== 1 ? 's' : ''} based on least count)
+                (Expected:{' '}
+                {precisionViolations.expected
+                  .map((p) => `${p} decimal${p !== 1 ? 's' : ''}`)
+                  .join(' or ')}{' '}
+                based on the least count where they were read)
               </span>
             </div>
           </div>

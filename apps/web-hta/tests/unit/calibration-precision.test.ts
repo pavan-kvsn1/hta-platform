@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  decimalsWritten,
+  errorPrecision,
   formatToCalibrationPrecision,
   getPrecisionFromLeastCount,
   resolveCalibrationPrecision,
@@ -55,5 +57,43 @@ describe('calibration precision', () => {
     expect(formatToCalibrationPrecision(25, 4)).toBe('25.0000')
     expect(formatToCalibrationPrecision(0.1, 4)).toBe('0.1000')
     expect(formatToCalibrationPrecision(null, 4)).toBe('-')
+  })
+})
+
+describe('what the error is rounded to', () => {
+  /**
+   * The least count is the smallest division the instrument can show, so it governs
+   * what can be read and written down. The error is a difference of two readings, not
+   * a reading, and is good to whatever they were good to.
+   *
+   * Rounding it to the least count threw the finding away: on a bin resolving to one
+   * degree, an error of -0.41 became -0, was normalised to 0, and the certificate
+   * reported no error where there was one.
+   */
+  it('counts the decimals a reading was written to', () => {
+    expect(decimalsWritten('90.41')).toBe(2)
+    expect(decimalsWritten('90')).toBe(0)
+    expect(decimalsWritten('90.4100')).toBe(4)
+    expect(decimalsWritten('')).toBe(0)
+    expect(decimalsWritten(null)).toBe(0)
+  })
+
+  it('takes the wider of the two readings', () => {
+    // 90 minus 90.41 is good to two decimals, not to none.
+    expect(errorPrecision('90', '90.41')).toBe(2)
+    expect(errorPrecision('20.0', '20.00')).toBe(2)
+    expect(errorPrecision('20', '20')).toBe(0)
+  })
+
+  it('keeps an error the bin would have rounded away', () => {
+    // Bin 6 of the certificate this came from resolves to 1 degree.
+    expect(roundToCalibrationPrecision(-0.41, errorPrecision('90.00', '90.41'))).toBe(-0.41)
+    expect(roundToCalibrationPrecision(-0.41, 0)).toBe(0)
+  })
+
+  it('still tidies what floating point leaves behind', () => {
+    // 40.00 - 40.11 is -0.10999999999999943.
+    const raw = 40.0 - 40.11
+    expect(roundToCalibrationPrecision(raw, errorPrecision('40.00', '40.11'))).toBe(-0.11)
   })
 })

@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import { apiFetch } from '@/lib/api-client'
-import { resolveCalibrationPrecision, roundToCalibrationPrecision } from '@/lib/utils/calibration-precision'
+import {
+  errorPrecision,
+  resolveCalibrationPrecision,
+  roundToCalibrationPrecision,
+} from '@/lib/utils/calibration-precision'
 import {
   createDefaultErrorConfig,
   createDefaultFieldDefinitions,
@@ -472,11 +476,23 @@ export const recomputeResultRow = (
   ]
   const masterValue = parseFloat(masterRaw)
   const { limit } = calculateErrorLimit(parameter, masterValue)
-  const { precision } = resolveCalibrationPrecision(parameter, masterRaw)
+
+  // Rounded to what the readings were written to, not to the instrument's least count.
+  // The least count is the smallest division the instrument can show, so it governs
+  // what can be read; the error is a difference of two readings and is good to whatever
+  // they were good to. Rounding it to the least count threw the finding away - on a bin
+  // resolving to 1 degree, an error of -0.41 became 0 and the certificate reported no
+  // error where there was one.
+  //
+  // The verdict never used the rounded figure and does not now: it is the true error
+  // that either exceeds the limit or does not.
+  const uucRaw = resolveRowValues(row, parameter.fieldDefinitions ?? [])[
+    parameter.errorConfig.uucFieldId
+  ]
 
   return {
     ...row,
-    errorObserved: roundToCalibrationPrecision(error, precision),
+    errorObserved: roundToCalibrationPrecision(error, errorPrecision(masterRaw, uucRaw)),
     isOutOfLimit: limit !== null && Math.abs(error) > limit,
   }
 }
@@ -980,12 +996,15 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
       // Calculate limit based on accuracy type
       const { limit } = calculateErrorLimit(parameter, standardReading)
       const isOutOfLimit = limit !== null && Math.abs(errorObserved) > limit
-      const { precision } = resolveCalibrationPrecision(parameter, result.standardReading)
 
       const newResults = [...parameter.results]
       newResults[resultIndex] = {
         ...result,
-        errorObserved: roundToCalibrationPrecision(errorObserved, precision),
+        // As above: the readings' precision, not the instrument's least count.
+        errorObserved: roundToCalibrationPrecision(
+          errorObserved,
+          errorPrecision(result.standardReading, result.beforeAdjustment),
+        ),
         isOutOfLimit,
       }
       newParameters[parameterIndex] = { ...parameter, results: newResults }

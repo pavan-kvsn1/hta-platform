@@ -103,6 +103,30 @@ export function resolveCalibrationPrecision(
   }
 }
 
+/**
+ * How many decimals a reading was written to.
+ *
+ * The error is a difference of two readings, not a reading, so the instrument's least
+ * count has no say over it - that is the smallest division the instrument can show, and
+ * it constrains what can be read and written down. Rounding the error to it threw the
+ * finding away: on a bin resolving to 1 degree, an error of -0.41 became -0, and the
+ * certificate reported no error where there was one.
+ *
+ * What the difference is good to is what the readings were good to, so this counts them
+ * and the wider of the two wins. Floating point still needs tidying - 40.00 minus 40.11
+ * is -0.10999999999999943 - and this is the honest number to tidy to.
+ */
+export function decimalsWritten(value: string | number | null | undefined): number {
+  const text = String(value ?? '').trim()
+  if (!text) return 0
+  const dot = text.indexOf('.')
+  return dot === -1 ? 0 : text.length - dot - 1
+}
+
+export function errorPrecision(...readings: (string | number | null | undefined)[]): number {
+  return clampPrecision(Math.max(0, ...readings.map(decimalsWritten)))
+}
+
 export function roundToCalibrationPrecision(value: number, precision: number): number {
   if (!Number.isFinite(value)) return value
 
