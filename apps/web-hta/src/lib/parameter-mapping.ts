@@ -213,7 +213,17 @@ function titleCase(key: string): string {
  * reads "Temperature" rather than a manufactured word; where no parameter does - there
  * is no plain "Voltage", only DC and AC - the key is used.
  */
-export function measurandsOf(parameters: CalibrationParameter[]): Measurand[] {
+export interface Groupable {
+  standardName: string
+  customName: string
+  category: string
+  /** What is measured. Empty falls back to the standard name. */
+  measures?: string
+  /** Which kind of it; 'any' where unspecified. */
+  kind?: string
+}
+
+export function measurandsOf(parameters: Groupable[]): Measurand[] {
   const seen = new Map<string, Measurand>()
   for (const parameter of parameters) {
     const measures = parameter.measures || parameter.standardName.toLowerCase()

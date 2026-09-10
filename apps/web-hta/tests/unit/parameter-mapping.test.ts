@@ -252,3 +252,38 @@ describe('asking what is measured before asking which kind', () => {
     expect(standardFor('temperature', 'any', SEEDED)?.subtypes).toEqual([])
   })
 })
+
+describe('grouping a list that is not the lab’s parameters', () => {
+  /**
+   * The master mapping groups the capabilities its instruments actually record, not
+   * everything the lab can name - offering a parameter no master has would lead to an
+   * empty list. Those entries carry only what the store knew about them, so the
+   * grouping has to work on the smaller shape.
+   */
+  const capabilities = [
+    { standardName: 'Voltage DC', customName: 'DC Voltage', category: 'Electrical', measures: 'voltage', kind: 'dc' },
+    { standardName: 'Voltage AC', customName: 'AC Voltage', category: 'Electrical', measures: 'voltage', kind: 'ac' },
+    { standardName: 'Temperature', customName: 'Temperature', category: 'Temperature', measures: 'temperature', kind: 'any' },
+  ]
+
+  it('groups capabilities the same way it groups parameters', () => {
+    expect(measurandsOf(capabilities).map((m) => m.measures)).toEqual(['voltage', 'temperature'])
+  })
+
+  it('names a group after the capability that names no kind', () => {
+    expect(measurandsOf(capabilities)[1].label).toBe('Temperature')
+  })
+
+  it('falls back to the key where every capability names a kind', () => {
+    expect(measurandsOf(capabilities)[0].label).toBe('Voltage')
+  })
+
+  it('leaves a capability the store does not know as a group of its own', () => {
+    // measures falls back to the standard name, so nothing is silently folded in.
+    const unknown = [
+      ...capabilities,
+      { standardName: 'Blancmange', customName: 'Blancmange', category: '', measures: 'blancmange', kind: 'any' },
+    ]
+    expect(measurandsOf(unknown).map((m) => m.measures)).toContain('blancmange')
+  })
+})

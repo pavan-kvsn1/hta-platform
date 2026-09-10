@@ -5,12 +5,13 @@
  * the point: it is what lets the instrument list rate each asset against the parameter
  * in hand instead of listing the whole lab.
  */
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MasterAddFlow } from '@/components/forms/MasterAddFlow'
 import type { Parameter } from '@/lib/stores/certificate-store'
 import type { MasterInstrument } from '@/lib/master-instruments'
 import type { RegistryUnit } from '@/lib/master-instrument-registry'
+import { useParameterStore } from '@/lib/stores/parameter-store'
 
 const bucket = (min: number, max: number, lc: number, acc: number) => ({
   id: `B${min}`,
@@ -1123,6 +1124,21 @@ describe('a master that measures something else', () => {
   const goDifferent = () =>
     fireEvent.click(screen.getByText('through a different parameter').closest('button')!)
 
+  /**
+   * Pick the mapped capability the way the engineer does: what is measured, then which
+   * kind of it. The second question appears only where the group holds more than one -
+   * voltage holds DC and AC, so it does here.
+   */
+  const mapTo = (group: RegExp, kind?: RegExp) => {
+    fireEvent.click(screen.getByPlaceholderText(/What the master measures/i))
+    fireEvent.click(screen.getByRole('option', { name: group }))
+    // Only where the group holds more than one, which is the rule on screen too.
+    const second = screen.queryByPlaceholderText(/Which kind of it/i)
+    if (!kind || !second) return
+    fireEvent.click(second)
+    fireEvent.click(screen.getByRole('option', { name: kind }))
+  }
+
   it('asks how it is measured, and says the ordinary answer costs nothing', () => {
     renderMapped()
     expect(screen.getByText(/Measured using/i)).toBeInTheDocument()
@@ -1150,8 +1166,7 @@ describe('a master that measures something else', () => {
   it('offers the voltage source once the parameter is mapped to it', () => {
     renderMapped()
     goDifferent()
-    fireEvent.click(screen.getByPlaceholderText(/Which capability will measure it/i))
-    fireEvent.click(screen.getByRole('option', { name: /DC Voltage/ }))
+    mapTo(/DC Voltage/)
     expect(
       screen.getAllByRole('button').some((b) => b.textContent?.includes('711 HTAIPL/L')),
     ).toBe(true)
@@ -1160,8 +1175,7 @@ describe('a master that measures something else', () => {
   it('carries the mapping onto the certificate, not just the profile it resolved to', () => {
     const onAdd = renderMapped()
     goDifferent()
-    fireEvent.click(screen.getByPlaceholderText(/Which capability will measure it/i))
-    fireEvent.click(screen.getByRole('option', { name: /DC Voltage/ }))
+    mapTo(/DC Voltage/)
     pickInstrument('711 HTAIPL/L')
     fireEvent.click(screen.getByRole('button', { name: 'Add this master' }))
     expect(onAdd.mock.calls[0][0].assignments[0].masterMapping).toMatchObject({
@@ -1182,8 +1196,7 @@ describe('a master that measures something else', () => {
 
   const mapToVolts = () => {
     goDifferent()
-    fireEvent.click(screen.getByPlaceholderText(/Which capability will measure it/i))
-    fireEvent.click(screen.getByRole('option', { name: /DC Voltage/ }))
+    mapTo(/DC Voltage/)
   }
 
   it('says what is missing is the mapping, not Section 02', () => {
@@ -1223,6 +1236,82 @@ describe('a master that measures something else', () => {
     stateRequirement('0', '100', '0.01', '0.02')
     pickInstrument('711 HTAIPL/L')
     expect(screen.getAllByText(/Assess and Verify.*For Temperature/i).length).toBeGreaterThan(0)
+  })
+
+  describe('a group that holds more than one kind', () => {
+    /**
+     * Section 02 asks what is measured before asking which kind of it, and the mapping
+     * now asks the same way. One flat list put DC and AC next to each other as if they
+     * were unrelated capabilities and asked the engineer to tell near-twins apart with
+     * nothing to separate them.
+     */
+    const AC_AND_DC = {
+      capability_profiles: [
+        { ...VOLTS.capability_profiles[0] },
+        { ...VOLTS.capability_profiles[0], id: 'P2', parameter: 'AC Voltage' },
+      ],
+    }
+
+    /**
+     * The lab's list is what says these two are kinds of one thing. Without it each
+     * capability falls back to a group of its own, which is the right answer for a
+     * name nobody knows and the wrong one here.
+     */
+    const seedStore = () =>
+      useParameterStore.setState({
+        parameters: [
+          {
+            id: 'dc', standardName: 'DC Voltage', customName: 'DC Voltage',
+            category: 'Electrical', measures: 'voltage', kind: 'dc',
+            units: ['mV'], defaultUnit: 'mV', subtypes: [], aliases: [],
+            source: 'registry', active: true,
+          },
+          {
+            id: 'ac', standardName: 'AC Voltage', customName: 'AC Voltage',
+            category: 'Electrical', measures: 'voltage', kind: 'ac',
+            units: ['mV'], defaultUnit: 'mV', subtypes: [], aliases: [],
+            source: 'registry', active: true,
+          },
+        ],
+      })
+
+    afterEach(() => useParameterStore.setState({ parameters: [] }))
+
+    const renderBoth = () => {
+      seedStore()
+      render(
+        <MasterAddFlow
+          index={1}
+          parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+          coveredBy={new Map()}
+          instruments={[GOOD, CALIBRATOR]}
+          resolveUnit={(inst) => (inst.id === 90 ? AC_AND_DC : units.get(inst.id))}
+          onCancel={vi.fn()}
+          onAdd={vi.fn()}
+        />,
+      )
+      pick('Temperature')
+      goDifferent()
+    }
+
+    it('offers one Voltage group rather than two near-twins', () => {
+      renderBoth()
+      fireEvent.click(screen.getByPlaceholderText(/What the master measures/i))
+      expect(screen.getAllByRole('option', { name: /Voltage/ })).toHaveLength(1)
+    })
+
+    it('asks which kind of it once the group is chosen', () => {
+      renderBoth()
+      expect(screen.queryByPlaceholderText(/Which kind of it/i)).not.toBeInTheDocument()
+      mapTo(/Voltage/)
+      expect(screen.getByPlaceholderText(/Which kind of it/i)).toBeInTheDocument()
+    })
+
+    it('lands on a kind that the group can be read as, not on nothing', () => {
+      renderBoth()
+      mapTo(/Voltage/, /AC Voltage/)
+      expect(screen.getByPlaceholderText(/Which kind of it/i)).toHaveValue('AC Voltage')
+    })
   })
 
   it('goes back to the ordinary case when the answer is changed back', () => {

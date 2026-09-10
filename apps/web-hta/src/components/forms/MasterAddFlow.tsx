@@ -51,7 +51,7 @@ import {
 import { MasterCapabilityDeclaration } from './MasterCapabilityDeclaration'
 import { MasterBandTable } from './MasterBandTable'
 import { listOf, parameterLabels } from '@/lib/parameter-labels'
-import { classificationOf, type CalibrationParameter } from '@/lib/parameter-mapping'
+import { classificationOf, measurandsOf, type CalibrationParameter } from '@/lib/parameter-mapping'
 import { useParameterStore } from '@/lib/stores/parameter-store'
 import { cn } from '@/lib/utils'
 
@@ -387,6 +387,18 @@ function requirementSummary(ranges: RequiredRange[], unit: string): string {
  * So it is asked outright, as two answers rather than a dropdown that might drift. The
  * ordinary answer costs a glance; the other opens the questions it needs and no more.
  */
+interface Capability {
+  standardName: string
+  customName: string
+  category: string
+  /** What is measured - temperature, voltage. */
+  measures: string
+  /** Which kind of it - dc, rtd, gauge; 'any' where unspecified. */
+  kind: string
+  units: string[]
+  defaultUnit: string | null
+}
+
 function MeasuredUsing({
   parameter,
   label,
@@ -397,13 +409,35 @@ function MeasuredUsing({
   parameter: Parameter
   label: string
   /** Every capability the lab's instruments record, with a label where one is known. */
-  capabilities: { standardName: string; customName: string; category: string; units: string[]; defaultUnit: string | null }[]
+  capabilities: Capability[]
   mapping?: MasterMapping
   onChange: (mapping: MasterMapping | undefined) => void
 }) {
   const own = requirementFor({ ...parameter, masterMapping: undefined })
   const mapped = capabilities.find((c) => c.standardName === mapping?.parameter)
   const range = mapping?.ranges[0]
+
+  /**
+   * The same two questions Section 02 asks, over what the masters actually record.
+   *
+   * One flat list of capabilities put "Gauge Pressure", "Absolute Pressure" and
+   * "Differential Pressure" next to each other as if they were unrelated, and asked
+   * the engineer to pick between near-twins with nothing to separate them. Grouping
+   * first turns it into what is measured, then which kind of it - and the second
+   * question disappears where the group holds only one.
+   */
+  const groups = useMemo(() => measurandsOf(capabilities), [capabilities])
+  const kinds = useMemo(
+    () => (mapped ? capabilities.filter((c) => c.measures === mapped.measures) : []),
+    [capabilities, mapped],
+  )
+
+  /** Choosing a group lands on the kind that names no kind, where there is one. */
+  const chooseGroup = (measures: string) => {
+    const within = capabilities.filter((c) => c.measures === measures)
+    const next = within.find((c) => c.kind === 'any') ?? within[0]
+    if (next) set({ parameter: next.standardName, unit: next.defaultUnit ?? '' })
+  }
 
   const set = (patch: Partial<MasterMapping>) =>
     onChange({
@@ -472,23 +506,43 @@ function MeasuredUsing({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
             <div>
               <label className={LABEL}>
-                Master parameter <span className="text-red-500">*</span>
+                Parameter group <span className="text-red-500">*</span>
               </label>
               <SearchableSelect
-                value={mapping.parameter}
-                placeholder="Which capability will measure it..."
+                value={mapped?.measures ?? ''}
+                placeholder="What the master measures..."
                 className="h-9 rounded-lg"
-                options={capabilities.map((capability) => ({
-                  value: capability.standardName,
-                  label: capability.customName,
-                  detail: capability.category,
+                options={groups.map((group) => ({
+                  value: group.measures,
+                  label: group.label,
+                  detail: group.category,
                 }))}
-                onChange={(value) => {
-                  const next = capabilities.find((c) => c.standardName === value)
-                  set({ parameter: value, unit: next?.defaultUnit ?? '' })
-                }}
+                onChange={chooseGroup}
               />
             </div>
+            {/* Asked only where the group holds more than one, as in Section 02 -
+                a question with one answer is not a question. */}
+            {kinds.length > 1 && (
+              <div>
+                <label className={LABEL}>
+                  Parameter <span className="text-red-500">*</span>
+                </label>
+                <SearchableSelect
+                  value={mapping.parameter}
+                  placeholder="Which kind of it..."
+                  className="h-9 rounded-lg"
+                  options={kinds.map((kind) => ({
+                    value: kind.standardName,
+                    label: kind.customName,
+                    detail: kind.kind === 'any' ? 'not specified' : undefined,
+                  }))}
+                  onChange={(value) => {
+                    const next = capabilities.find((c) => c.standardName === value)
+                    set({ parameter: value, unit: next?.defaultUnit ?? '' })
+                  }}
+                />
+              </div>
+            )}
             <div>
               <label className={LABEL}>
                 Unit <span className="text-red-500">*</span>
@@ -690,6 +744,11 @@ export function MasterAddFlow({
           standardName,
           customName: known?.customName ?? standardName,
           category: known?.category ?? '',
+          // What it measures and which kind of it, so the mapping can ask the same
+          // two questions Section 02 asks. A capability the store does not know is a
+          // group of its own, which is what the fallback here amounts to.
+          measures: known?.measures || standardName.toLowerCase(),
+          kind: known?.kind || 'any',
           units: list,
           defaultUnit: known?.defaultUnit ?? list[0] ?? null,
         }
