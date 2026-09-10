@@ -579,7 +579,11 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
   }
 
   const masterInstruments = apiData.masterInstruments && apiData.masterInstruments.length > 0
-    ? apiData.masterInstruments.map((mi) => masterEntryFromApi(mi, parameters, generateId))
+    ? apiData.masterInstruments.map((mi) =>
+        // The parameter rows' own ids, so an entry naming one can be matched to the
+        // form's parameter at the same position - the form gives its own fresh ids.
+        masterEntryFromApi(mi, parameters, generateId, new Date(), apiData.parameters.map((p) => p.id)),
+      )
     : [{
         id: generateId(),
         masterInstrumentId: 0,

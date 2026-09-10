@@ -34,6 +34,35 @@ describe('opening a master entry the API sent', () => {
     expect(masterEntryFromApi({ parameterIndex: 1 }, parameters, id).parameterId).toBe('p2')
   })
 
+  it('matches the row own parameter id, which is what GET /:id sends', () => {
+    // The fault this pins: the save round-trip answers with a position and GET /:id
+    // answers with the row. Reading only the position lost the link on every load,
+    // so the PDF could not say which parameter a master was used for.
+    expect(
+      masterEntryFromApi({ parameterId: 'db-2' }, parameters, id, new Date(), ['db-1', 'db-2'])
+        .parameterId,
+    ).toBe('p2')
+  })
+
+  it('prefers the position where both are sent', () => {
+    expect(
+      masterEntryFromApi(
+        { parameterIndex: 0, parameterId: 'db-2' },
+        parameters,
+        id,
+        new Date(),
+        ['db-1', 'db-2'],
+      ).parameterId,
+    ).toBe('p1')
+  })
+
+  it('names no parameter for a row id the certificate no longer holds', () => {
+    expect(
+      masterEntryFromApi({ parameterId: 'gone' }, parameters, id, new Date(), ['db-1'])
+        .parameterId,
+    ).toBeUndefined()
+  })
+
   it('names no parameter where the API sends none', () => {
     expect(masterEntryFromApi({}, parameters, id).parameterId).toBeUndefined()
     expect(masterEntryFromApi({ parameterIndex: -1 }, parameters, id).parameterId).toBeUndefined()

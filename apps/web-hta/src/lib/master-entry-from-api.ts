@@ -8,6 +8,8 @@ import type { SelectedMasterInstrument } from '@/lib/stores/certificate-store'
  */
 export interface ApiMasterEntry {
   parameterIndex?: number
+  /** The parameter row's own id, which is what GET /:id sends. */
+  parameterId?: string | null
   masterInstrumentId?: string | number
   category?: string | null
   description?: string | null
@@ -32,23 +34,37 @@ export interface ApiMasterEntry {
  * certificate keeps it, the API sends it, and the form silently drops it - which is
  * how the master's least count reached the database and never reached the PDF.
  */
+/** Where this entry's parameter sits among the parameters, or -1. */
+function positionOf(entry: ApiMasterEntry, apiParameterIds: string[]): number {
+  if (entry.parameterIndex !== undefined && entry.parameterIndex >= 0) {
+    return entry.parameterIndex
+  }
+  return entry.parameterId ? apiParameterIds.indexOf(entry.parameterId) : -1
+}
+
 export function masterEntryFromApi(
   entry: ApiMasterEntry,
   parameters: { id: string }[],
   newId: () => string,
   now: Date = new Date(),
+  /**
+   * The parameter rows' own ids, in the order they were sent.
+   *
+   * The form gives its parameters fresh ids on load, so a database id on the entry
+   * means nothing to it. This is the bridge: the row's id says which parameter, this
+   * says where it sits, and the form's own id is taken from there.
+   */
+  apiParameterIds: string[] = [],
 ): SelectedMasterInstrument {
   const due = entry.calibrationDueDate ? new Date(entry.calibrationDueDate) : null
   const thirtyDays = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
   return {
     id: newId(),
-    // The API answers with a position, since the parameters have only just been
-    // written; the form works in the parameters' own ids.
-    parameterId:
-      entry.parameterIndex !== undefined && entry.parameterIndex >= 0
-        ? parameters[entry.parameterIndex]?.id
-        : undefined,
+    // Two endpoints, two shapes. The save round-trip answers with a position, since
+    // the parameters have only just been written; GET /:id answers with the row and
+    // its own parameter id. Reading only the position lost the link on every load.
+    parameterId: parameters[positionOf(entry, apiParameterIds)]?.id,
     masterInstrumentId: parseInt(String(entry.masterInstrumentId ?? '')) || 0,
     category: entry.category || '',
     description: entry.description || '',
