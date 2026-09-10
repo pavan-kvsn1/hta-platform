@@ -248,6 +248,18 @@ const createCertificateSchema = z.object({
     reportNo: z.string().optional().nullable(),
     calibrationDueDate: z.string().optional().nullable(),
     sopReference: z.string().optional(),
+    /**
+     * What the master's own certificate says, as it read when the master was chosen.
+     *
+     * Snapshotted rather than looked up: the registry is regenerated as instruments
+     * are recalibrated, and a reissued certificate must print the numbers it was
+     * issued with.
+     */
+    capabilityParameter: z.string().optional().nullable(),
+    masterLeastCount: z.string().optional().nullable(),
+    masterLeastCountUnit: z.string().optional().nullable(),
+    masterAccuracy: z.string().optional().nullable(),
+    masterAccuracyUnit: z.string().optional().nullable(),
   })).optional(),
 })
 
@@ -857,6 +869,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
                 reportNo: mi.reportNo || null,
                 calibrationDueDate: mi.calibrationDueDate || null,
                 sopReference: mi.sopReference || '',
+                capabilityParameter: mi.capabilityParameter || null,
+                masterLeastCount: mi.masterLeastCount || null,
+                masterLeastCountUnit: mi.masterLeastCountUnit || null,
+                masterAccuracy: mi.masterAccuracy || null,
+                masterAccuracyUnit: mi.masterAccuracyUnit || null,
               },
             })
           }
@@ -1309,6 +1326,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
                 reportNo: mi.reportNo || null,
                 calibrationDueDate: mi.calibrationDueDate || null,
                 sopReference: mi.sopReference || '',
+                capabilityParameter: mi.capabilityParameter || null,
+                masterLeastCount: mi.masterLeastCount || null,
+                masterLeastCountUnit: mi.masterLeastCountUnit || null,
+                masterAccuracy: mi.masterAccuracy || null,
+                masterAccuracyUnit: mi.masterAccuracyUnit || null,
               },
             })
           }
@@ -2887,6 +2909,13 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         calibratedAt: mi.calibratedAt || '',
         reportNo: mi.reportNo || '',
         calibrationDueDate: mi.calibrationDueDate || '',
+        // The spec as it read when this master was chosen. Absent on certificates
+        // written before it was recorded, which the PDF says rather than hides.
+        capabilityParameter: mi.capabilityParameter || '',
+        masterLeastCount: mi.masterLeastCount || '',
+        masterLeastCountUnit: mi.masterLeastCountUnit || '',
+        masterAccuracy: mi.masterAccuracy || '',
+        masterAccuracyUnit: mi.masterAccuracyUnit || '',
         isExpired: false,
         isExpiringSoon: false,
       })),

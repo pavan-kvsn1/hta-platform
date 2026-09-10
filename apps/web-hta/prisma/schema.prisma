@@ -707,6 +707,21 @@ model CertificateMasterInstrument {
   reportNo           String?
   calibrationDueDate String?
   sopReference       String
+  /**
+   * What the master's own certificate says, snapshotted when it was chosen.
+   *
+   * These live on the capability profile in the master registry, which is regenerated
+   * as instruments are recalibrated - so reading them live would make a reissued
+   * certificate print numbers the original never carried. A certificate records what
+   * was true at calibration, so it holds its own copy.
+   *
+   * Null on certificates written before this existed; the PDF prints "Not recorded".
+   */
+  capabilityParameter String?
+  masterLeastCount    String?
+  masterLeastCountUnit String?
+  masterAccuracy      String?
+  masterAccuracyUnit  String?
   certificate        Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
   parameter          Parameter?  @relation(fields: [parameterId], references: [id])
 

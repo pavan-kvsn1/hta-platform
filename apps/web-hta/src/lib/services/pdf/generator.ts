@@ -267,6 +267,18 @@ export async function fetchCertificateForPDF(certificateId: string): Promise<{
       calibratedAt: mi.calibratedAt || '',
       reportNo: mi.reportNo || '',
       calibrationDueDate: mi.calibrationDueDate || '',
+      // What the master's own certificate said when it was chosen. Empty on
+      // certificates written before it was recorded - the PDF says "Not recorded"
+      // rather than reading today's registry and printing a number this certificate
+      // was never issued with.
+      // Which parameter this entry was declared for. The PDF groups entries by
+      // instrument, so it needs the link rather than a position in a list.
+      parameterId: mi.parameterId || '',
+      capabilityParameter: mi.capabilityParameter || '',
+      masterLeastCount: mi.masterLeastCount || '',
+      masterLeastCountUnit: mi.masterLeastCountUnit || '',
+      masterAccuracy: mi.masterAccuracy || '',
+      masterAccuracyUnit: mi.masterAccuracyUnit || '',
       isExpired: false,
       isExpiringSoon: false,
     })),

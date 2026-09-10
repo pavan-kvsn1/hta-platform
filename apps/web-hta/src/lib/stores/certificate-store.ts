@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { apiFetch } from '@/lib/api-client'
 import { parameterIdFor } from '@/lib/master-parameter-link'
+import { masterSpecFor, EMPTY_SNAPSHOT } from '@/lib/master-spec-snapshot'
+import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
 import {
   errorPrecision,
   resolveCalibrationPrecision,
@@ -207,6 +209,19 @@ export interface SelectedMasterInstrument {
   isExpired: boolean
   isExpiringSoon: boolean
   availableSopReferences?: string[] // NEW: SOP options from instrument's sop_references array
+  /**
+   * What the master's own certificate says, snapshotted when it was chosen.
+   *
+   * Written at save from the registry, and read from the certificate thereafter. The
+   * registry is regenerated as instruments are recalibrated, so a reissue that looked
+   * it up live would print figures the original never carried. Absent on certificates
+   * written before this existed, which the PDF reports rather than filling in.
+   */
+  capabilityParameter?: string
+  masterLeastCount?: string
+  masterLeastCountUnit?: string
+  masterAccuracy?: string
+  masterAccuracyUnit?: string
 }
 
 export interface CertificateFormData {
@@ -707,6 +722,31 @@ const initialFormData: CertificateFormData = {
 }
 
 // Certificate store - manages certificate form data and state
+/**
+ * The master's own least count and accuracy, taken from the registry at save time.
+ *
+ * Copied onto the certificate rather than looked up when it is printed: the registry
+ * is regenerated as instruments are recalibrated, and a certificate reissued next year
+ * must carry the figures it was issued with.
+ *
+ * The span is the master's own - the mapped one where it measures something else, the
+ * parameter's otherwise - because a master's resolution changes across its range.
+ */
+function masterSpecSnapshot(
+  entry: SelectedMasterInstrument,
+  parameter: Parameter | undefined,
+) {
+  if (!parameter) return EMPTY_SNAPSHOT
+
+  const unit = useMasterInstrumentStore.getState().getUnitByLegacyId(entry.masterInstrumentId)
+  const mapped = parameter.masterMapping?.ranges?.[0]
+  const from = mapped ? mapped.from : Number(parameter.rangeMin)
+  const to = mapped ? mapped.to : Number(parameter.rangeMax)
+  const range = Number.isFinite(from) && Number.isFinite(to) ? { from, to } : null
+
+  return masterSpecFor(unit, parameter.masterProfileId, parameter.masterSubtype, range)
+}
+
 export const useCertificateStore = create<CertificateStore>((set, get) => ({
   formData: initialFormData,
   isDirty: false,

@@ -322,6 +322,56 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     fontFamily: 'Helvetica-Bold',
   },
+  /**
+   * A banner introducing a block, and a column header. Flat fills rather than
+   * gradients: react-pdf has no gradient, and a solid tint survives the photocopier
+   * and the fax machine a calibration certificate ends up going through.
+   */
+  bannerRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#000',
+    backgroundColor: '#eef2f7',
+    minHeight: 14,
+  },
+  bannerCell: {
+    width: '100%',
+    padding: 3,
+    justifyContent: 'center',
+  },
+  bannerText: {
+    fontSize: 8.5,
+    fontFamily: 'Helvetica-Bold',
+    letterSpacing: 0.3,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#000',
+    backgroundColor: '#dde5ee',
+    minHeight: 14,
+  },
+  /** The label and value halves of a two-column block - the SOP and used-for tables. */
+  halfLabelCell: {
+    width: '45%',
+    padding: 3,
+    borderRightWidth: 0.5,
+    borderRightColor: '#000',
+    justifyContent: 'center',
+  },
+  halfValueCell: {
+    width: '55%',
+    padding: 3,
+    justifyContent: 'center',
+  },
+  /** A value that runs to the table's edge, with no cell to its right. */
+  uucValueCellWide: {
+    width: '82%',
+    padding: 3,
+    justifyContent: 'center',
+  },
   uucValue: {
     fontSize: 8.5,
   },
@@ -752,25 +802,85 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
     return p.accuracyValue ? [`± ${p.accuracyValue} ${unit}`] : []
   }
 
-  // Derive combined values from parameters (as arrays for multi-line rendering)
-  const leastCountLines = data.parameters
-    .flatMap(getLeastCount)
-    .filter(Boolean)
+  /**
+   * Each parameter's own specification.
+   *
+   * These used to be flattened across every parameter into two stacked lists, so a
+   * certificate covering temperature and pressure printed four least-count lines and
+   * four accuracy lines with nothing saying which belonged to which - the reader
+   * inferred it from the unit, and a binned parameter broke even that by contributing
+   * four lines where its neighbour contributed one.
+   */
+  const parameterSpecs = data.parameters.map((p) => ({
+    id: p.id,
+    name: p.parameterName || '',
+    range:
+      p.rangeMin && p.rangeMax ? `${p.rangeMin} to ${p.rangeMax} ${p.parameterUnit}` : '-',
+    operatingRange: p.operatingRangeNotApplicable
+      ? 'Not Applicable'
+      : p.operatingMin && p.operatingMax
+        ? `${p.operatingMin} to ${p.operatingMax} ${p.parameterUnit}`
+        : '-',
+    leastCountLines: getLeastCount(p),
+    accuracyLines: getAccuracy(p),
+    sopReference: p.sopReference || '',
+  }))
 
-  const operatingRangeStr = data.parameters
-    .filter(p => p.operatingMin && p.operatingMax)
-    .map(p => `${p.operatingMin} to ${p.operatingMax} ${p.parameterUnit}`)
-    .join(', ') || '-'
+  /**
+   * A heading that can only have one answer is not a heading, so a certificate with a
+   * single parameter prints no banners and the SOP stays one sentence.
+   */
+  const oneParameter = parameterSpecs.length <= 1
 
-  const accuracyLines = data.parameters
-    .flatMap(getAccuracy)
-    .filter(Boolean)
+  /**
+   * The masters, one table per physical instrument.
+   *
+   * An entry is one instrument used for one parameter, so a thermometer covering two
+   * spans arrives as two entries. Printing a table each would repeat its make, model
+   * and certificate number; grouping prints the instrument once and lists what it was
+   * used for underneath.
+   */
+  const masterGroups = (() => {
+    const byInstrument = new Map<string, {
+      entry: typeof data.masterInstruments[0]
+      /** Distinct capabilities, in the order they were used. */
+      capabilities: { parameter: string; leastCount: string; accuracy: string }[]
+      uses: { parameter: string; range: string }[]
+    }>()
 
-  // Get unique SOP references from parameters
-  const sopReferences = data.parameters
-    .filter(p => p.sopReference)
-    .map(p => p.sopReference)
-    .filter((v, i, a) => a.indexOf(v) === i)
+    data.masterInstruments
+      .filter((m) => m.masterInstrumentId)
+      .forEach((entry) => {
+        const key = String(entry.masterInstrumentId)
+        const group = byInstrument.get(key) ?? { entry, capabilities: [], uses: [] }
+
+        // "Not recorded" rather than a dash: a dash reads as a field nobody filled in,
+        // and this is a master whose own certificate states no resolution - or one
+        // chosen before the certificate kept a copy.
+        const leastCount = entry.masterLeastCount
+          ? `${entry.masterLeastCount} ${entry.masterLeastCountUnit ?? ''}`.trim()
+          : 'Not recorded'
+        const accuracy = entry.masterAccuracy
+          ? `± ${entry.masterAccuracy} ${entry.masterAccuracyUnit ?? ''}`.trim()
+          : 'Not recorded'
+        const capability = entry.capabilityParameter || ''
+
+        if (!group.capabilities.some((c) => c.parameter === capability)) {
+          group.capabilities.push({ parameter: capability, leastCount, accuracy })
+        }
+
+        // Which parameter this entry served, by the link the certificate stores.
+        // A position would break the moment two entries hold the same instrument.
+        const served = parameterSpecs.find((spec) => spec.id === entry.parameterId)
+        if (served) {
+          group.uses.push({ parameter: served.name, range: served.range })
+        }
+
+        byInstrument.set(key, group)
+      })
+
+    return [...byInstrument.values()]
+  })()
 
   // Check if any calibration point has failed (isOutOfLimit)
   // If any point fails, due date should be "Not Applicable"
@@ -945,49 +1055,80 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
             </View>
           </View>
 
-          {/* Row 4: Least Count / Accuracy (multi-line for binned parameters) */}
+          {/* Row 4: Calibrated at, running the width of the table */}
           <View style={[styles.uucRow, { minHeight: dynamicHeight(14) }]}>
             <View style={styles.uucLabelCell}>
-              <Text style={styles.uucLabel}>Least Count</Text>
-            </View>
-            <View style={styles.uucValueCell}>
-              {leastCountLines.length > 0 ? (
-                leastCountLines.map((line, idx) => (
-                  <Text key={idx} style={styles.uucValue}>{line}</Text>
-                ))
-              ) : (
-                <Text style={styles.uucValue}>-</Text>
-              )}
-            </View>
-            <View style={styles.uucLabelCellRight}>
-              <Text style={styles.uucLabel}>Accuracy</Text>
-            </View>
-            <View style={styles.uucValueCellRight}>
-              {accuracyLines.length > 0 ? (
-                accuracyLines.map((line, idx) => (
-                  <Text key={idx} style={styles.uucValue}>{line}</Text>
-                ))
-              ) : (
-                <Text style={styles.uucValue}>-</Text>
-              )}
-            </View>
-          </View>
-
-          {/* Row 5: Operating Range / Calibrated at */}
-          <View style={[styles.uucRowLast, { minHeight: dynamicHeight(14) }]}>
-            <View style={styles.uucLabelCell}>
-              <Text style={styles.uucLabel}>Operating Range</Text>
-            </View>
-            <View style={styles.uucValueCell}>
-              <Text style={styles.uucValue}>{operatingRangeStr}</Text>
-            </View>
-            <View style={styles.uucLabelCellRight}>
               <Text style={styles.uucLabel}>Calibrated at</Text>
             </View>
-            <View style={styles.uucValueCellRight}>
+            <View style={styles.uucValueCellWide}>
               <Text style={styles.uucValue}>{data.calibratedAt === 'LAB' ? 'Lab' : 'Site'}</Text>
             </View>
           </View>
+
+          {/* One block per parameter: what it is, over what span, to what resolution.
+              A single-parameter certificate skips the banner - there is nothing to
+              tell apart - and reads as two more rows of the table above. */}
+          {parameterSpecs.map((spec, specIdx) => {
+            const isLast = specIdx === parameterSpecs.length - 1
+            return (
+              <React.Fragment key={spec.id}>
+                {!oneParameter && (
+                  <View style={[styles.bannerRow, { minHeight: dynamicHeight(14) }]}>
+                    <View style={styles.bannerCell}>
+                      <Text style={styles.bannerText}>
+                        PARAMETER UNDER TEST : {spec.name}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+                <View style={[styles.uucRow, { minHeight: dynamicHeight(14) }]}>
+                  <View style={styles.uucLabelCell}>
+                    <Text style={styles.uucLabel}>Range</Text>
+                  </View>
+                  <View style={styles.uucValueCell}>
+                    <Text style={styles.uucValue}>{spec.range}</Text>
+                  </View>
+                  <View style={styles.uucLabelCellRight}>
+                    <Text style={styles.uucLabel}>Operating Range</Text>
+                  </View>
+                  <View style={styles.uucValueCellRight}>
+                    <Text style={styles.uucValue}>{spec.operatingRange}</Text>
+                  </View>
+                </View>
+                <View
+                  style={[
+                    isLast ? styles.uucRowLast : styles.uucRow,
+                    { minHeight: dynamicHeight(14) },
+                  ]}
+                >
+                  <View style={styles.uucLabelCell}>
+                    <Text style={styles.uucLabel}>Least Count</Text>
+                  </View>
+                  <View style={styles.uucValueCell}>
+                    {spec.leastCountLines.length > 0 ? (
+                      spec.leastCountLines.map((line, idx) => (
+                        <Text key={idx} style={styles.uucValue}>{line}</Text>
+                      ))
+                    ) : (
+                      <Text style={styles.uucValue}>-</Text>
+                    )}
+                  </View>
+                  <View style={styles.uucLabelCellRight}>
+                    <Text style={styles.uucLabel}>Accuracy</Text>
+                  </View>
+                  <View style={styles.uucValueCellRight}>
+                    {spec.accuracyLines.length > 0 ? (
+                      spec.accuracyLines.map((line, idx) => (
+                        <Text key={idx} style={styles.uucValue}>{line}</Text>
+                      ))
+                    ) : (
+                      <Text style={styles.uucValue}>-</Text>
+                    )}
+                  </View>
+                </View>
+              </React.Fragment>
+            )
+          })}
         </View>
 
         {/* ================================================================ */}
@@ -1004,14 +1145,51 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
         {/* ================================================================ */}
         {/* SECTION F: CALIBRATION PROCEDURE REFERENCE */}
         {/* ================================================================ */}
-        <View style={[styles.infoLine, { marginBottom: dynamicMargin(5) }]} wrap={false}>
-          <Text style={styles.infoLabel}>Calibration procedure reference :</Text>
-          <Text style={styles.infoValue}>
-            {sopReferences.length > 0
-              ? `HTA Cal Procedure ${sopReferences.join(', ')}`
-              : '-'}
-          </Text>
-        </View>
+        {oneParameter ? (
+          /* One parameter, one procedure - a sentence says it without a table. */
+          <View style={[styles.infoLine, { marginBottom: dynamicMargin(5) }]} wrap={false}>
+            <Text style={styles.infoLabel}>Calibration procedure reference :</Text>
+            <Text style={styles.infoValue}>
+              {parameterSpecs[0]?.sopReference
+                ? `HTA Cal Procedure ${parameterSpecs[0].sopReference}`
+                : '-'}
+            </Text>
+          </View>
+        ) : (
+          /* Two or more, and the joined sentence stopped saying which procedure
+             covered which parameter. One block each answers it. */
+          <View style={{ marginBottom: dynamicMargin(5) }} wrap={false}>
+            <Text style={[styles.infoLabel, { marginBottom: dynamicMargin(3) }]}>
+              Calibration procedure reference :
+            </Text>
+            <View style={styles.uucTable}>
+              {parameterSpecs.map((spec, specIdx) => (
+                <React.Fragment key={spec.id}>
+                  <View style={[styles.bannerRow, { minHeight: dynamicHeight(14) }]}>
+                    <View style={styles.bannerCell}>
+                      <Text style={styles.bannerText}>
+                        PARAMETER UNDER TEST : {spec.name}
+                      </Text>
+                    </View>
+                  </View>
+                  <View
+                    style={[
+                      specIdx === parameterSpecs.length - 1 ? styles.uucRowLast : styles.uucRow,
+                      { minHeight: dynamicHeight(14) },
+                    ]}
+                  >
+                    <View style={styles.halfLabelCell}>
+                      <Text style={styles.uucLabel}>HTA Calibration SOP Reference</Text>
+                    </View>
+                    <View style={styles.halfValueCell}>
+                      <Text style={styles.uucValue}>{spec.sopReference || '-'}</Text>
+                    </View>
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* ================================================================ */}
         {/* SECTION G: CALIBRATION DATA TABLES (per parameter) */}
@@ -1325,11 +1503,11 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
         <View style={[styles.masterSection, { marginBottom: dynamicMargin(8) }]} wrap={false} break={shouldBreakBefore('master-instruments', layoutPlan)}>
           <Text style={[styles.masterHeader, { marginBottom: dynamicMargin(4) }]}>MASTER INSTRUMENTS USED DETAILS:-</Text>
 
-          {data.masterInstruments
-            .filter(m => m.masterInstrumentId)
-            .map((master, _idx) => (
+          {masterGroups.map((group) => {
+            const master = group.entry
+            const oneCapability = group.capabilities.length <= 1
+            return (
               <View key={master.id} style={styles.masterTable}>
-                {/* Row 1: Inst. Description / Make */}
                 <View style={[styles.masterRow, { minHeight: dynamicHeight(14) }]}>
                   <View style={styles.masterLabelCell}>
                     <Text style={styles.masterLabel}>Inst. Description</Text>
@@ -1345,7 +1523,6 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                   </View>
                 </View>
 
-                {/* Row 2: Model / Sl. No. */}
                 <View style={[styles.masterRow, { minHeight: dynamicHeight(14) }]}>
                   <View style={styles.masterLabelCell}>
                     <Text style={styles.masterLabel}>Model</Text>
@@ -1361,7 +1538,6 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                   </View>
                 </View>
 
-                {/* Row 3: Calibration Due / Certificate No. */}
                 <View style={[styles.masterRow, { minHeight: dynamicHeight(14) }]}>
                   <View style={styles.masterLabelCell}>
                     <Text style={styles.masterLabel}>Calibration Due</Text>
@@ -1377,8 +1553,44 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                   </View>
                 </View>
 
-                {/* Row 4: Calibrated At (spans or paired with empty) */}
-                <View style={[styles.masterRowLast, { minHeight: dynamicHeight(14) }]}>
+                {/* What the instrument resolves to and is accurate to, from its own
+                    certificate. An instrument with two capabilities has two sets in
+                    different units, so each gets a banner; with one there is nothing
+                    to tell apart and the row stands on its own. */}
+                {group.capabilities.map((capability, capIdx) => (
+                  <React.Fragment key={`${capability.parameter}-${capIdx}`}>
+                    {!oneCapability && (
+                      <View style={[styles.bannerRow, { minHeight: dynamicHeight(14) }]}>
+                        <View style={styles.bannerCell}>
+                          <Text style={styles.bannerText}>
+                            Master Parameter Used : {capability.parameter || '-'}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                    <View style={[styles.masterRow, { minHeight: dynamicHeight(14) }]}>
+                      <View style={styles.masterLabelCell}>
+                        <Text style={styles.masterLabel}>Least Count</Text>
+                      </View>
+                      <View style={styles.masterValueCell}>
+                        <Text style={styles.masterValue}>{capability.leastCount}</Text>
+                      </View>
+                      <View style={styles.masterLabelCellRight}>
+                        <Text style={styles.masterLabel}>Accuracy</Text>
+                      </View>
+                      <View style={styles.masterValueCellRight}>
+                        <Text style={styles.masterValue}>{capability.accuracy}</Text>
+                      </View>
+                    </View>
+                  </React.Fragment>
+                ))}
+
+                <View
+                  style={[
+                    oneParameter ? styles.masterRowLast : styles.masterRow,
+                    { minHeight: dynamicHeight(14) },
+                  ]}
+                >
                   <View style={styles.masterLabelCell}>
                     <Text style={styles.masterLabel}>Calibrated At</Text>
                   </View>
@@ -1386,8 +1598,41 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                     <Text style={styles.masterValue}>{master.calibratedAt || '-'}</Text>
                   </View>
                 </View>
+
+                {/* Which parameters on this certificate it was used for. Dropped where
+                    there is only one - the certificate is about that one thing, and a
+                    heading with a single answer says nothing. */}
+                {!oneParameter && group.uses.length > 0 && (
+                  <>
+                    <View style={[styles.headerRow, { minHeight: dynamicHeight(14) }]}>
+                      <View style={styles.halfLabelCell}>
+                        <Text style={styles.masterLabel}>Used for UUC Parameters</Text>
+                      </View>
+                      <View style={styles.halfValueCell}>
+                        <Text style={styles.masterLabel}>Range Used</Text>
+                      </View>
+                    </View>
+                    {group.uses.map((use, useIdx) => (
+                      <View
+                        key={`${use.parameter}-${useIdx}`}
+                        style={[
+                          useIdx === group.uses.length - 1 ? styles.masterRowLast : styles.masterRow,
+                          { minHeight: dynamicHeight(14) },
+                        ]}
+                      >
+                        <View style={styles.halfLabelCell}>
+                          <Text style={styles.masterValue}>{use.parameter || '-'}</Text>
+                        </View>
+                        <View style={styles.halfValueCell}>
+                          <Text style={styles.masterValue}>{use.range}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
               </View>
-            ))}
+            )
+          })}
         </View>
 
         {/* Keep the entire conclusion/signature group on the same PDF page. */}
