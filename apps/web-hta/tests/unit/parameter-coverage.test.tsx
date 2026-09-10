@@ -15,6 +15,9 @@ const param = (over: Partial<Parameters<typeof ParameterCoverage>[0]['parameters
   rangeMin: '-20',
   rangeMax: '60',
   masterInstrumentId: null as number | null,
+  // A master is half the answer; the section also wants the procedure. Assigned
+  // parameters in these fixtures carry one unless a test is about its absence.
+  sopReference: 'NLAB/CAL/T01/R01',
   ...over,
 })
 
@@ -38,7 +41,7 @@ describe('ParameterCoverage', () => {
         assetByInstrumentId={new Map([[7, '600 HTAIPL/L']])}
       />,
     )
-    expect(screen.getByText('1 of 2 parameters assigned')).toBeInTheDocument()
+    expect(screen.getByText('1 of 2 parameters ready')).toBeInTheDocument()
   })
 
   it('names the master a parameter is assigned to', () => {
@@ -88,7 +91,7 @@ describe('ParameterCoverage', () => {
       />,
     )
     // Not "All 1 parameters have a master".
-    expect(screen.getByText(/The parameter has a master/i)).toBeInTheDocument()
+    expect(screen.getByText(/The parameter has a master and a procedure/i)).toBeInTheDocument()
   })
 
   it('reports completion for several', () => {
@@ -131,7 +134,7 @@ describe('ParameterCoverage', () => {
         assetByInstrumentId={new Map([[68, '252 HTAIPL/L']])}
       />,
     )
-    expect(screen.getByText('0 of 1 parameter assigned')).toBeInTheDocument()
+    expect(screen.getByText('0 of 1 parameter ready')).toBeInTheDocument()
     expect(screen.getByText(/no longer on this certificate/i)).toBeInTheDocument()
   })
 
@@ -143,5 +146,50 @@ describe('ParameterCoverage', () => {
   it('renders nothing when the certificate has no parameters', () => {
     const { container } = render(<ParameterCoverage parameters={[]} />)
     expect(container).toBeEmptyDOMElement()
+  })
+})
+
+describe('a parameter with a master but no procedure', () => {
+  /**
+   * The section wants both. This panel used to report only the master, so it could say
+   * "complete" while the section header said otherwise - leaving the engineer to hunt
+   * for a field nothing on screen named.
+   */
+  const assets = new Map([[68, '600 HTAIPL/L']])
+
+  it('does not count it as ready', () => {
+    render(
+      <ParameterCoverage
+        parameters={[param({ masterInstrumentId: 68, sopReference: '' })]}
+        assetByInstrumentId={assets}
+      />,
+    )
+    expect(screen.getByText('0 of 1 parameter ready')).toBeInTheDocument()
+  })
+
+  it('says which half is missing, on the parameter and in the summary', () => {
+    render(
+      <ParameterCoverage
+        parameters={[param({ masterInstrumentId: 68, sopReference: '   ' })]}
+        assetByInstrumentId={assets}
+      />,
+    )
+    // Once on the parameter's own card, once in the summary beneath.
+    expect(screen.getByText(/Assigned to 600 HTAIPL\/L — no SOP reference/)).toBeInTheDocument()
+    expect(
+      screen.getAllByText((_c, el) => /has a master but no SOP reference/.test(el?.textContent ?? ''))
+        .length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('calls it complete once both are there', () => {
+    render(
+      <ParameterCoverage
+        parameters={[param({ masterInstrumentId: 68 })]}
+        assetByInstrumentId={assets}
+      />,
+    )
+    expect(screen.getByText('1 of 1 parameter ready')).toBeInTheDocument()
+    expect(screen.getByText(/a master and a procedure/i)).toBeInTheDocument()
   })
 })

@@ -18,6 +18,8 @@ interface CoverageParameter {
   rangeMin: string
   rangeMax: string
   masterInstrumentId: number | null
+  /** The procedure the calibration was carried out under, which the section requires. */
+  sopReference?: string
 }
 
 interface ParameterCoverageProps {
@@ -50,8 +52,16 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
   // section is finished when nothing on screen can be ticked.
   const isCovered = (p: CoverageParameter) =>
     p.masterInstrumentId !== null && assetByInstrumentId.has(p.masterInstrumentId)
+
+  // A master is half the answer. The section also wants the procedure each calibration
+  // was carried out under, and this panel used to say "complete" while the section
+  // header said otherwise - leaving the engineer to hunt for a field nothing named.
+  const hasProcedure = (p: CoverageParameter) => (p.sopReference ?? '').trim() !== ''
+
   const missing = parameters.filter((p) => !isCovered(p))
-  const complete = missing.length === 0
+  const withoutProcedure = parameters.filter((p) => isCovered(p) && !hasProcedure(p))
+  const done = parameters.filter((p) => isCovered(p) && hasProcedure(p))
+  const complete = missing.length === 0 && withoutProcedure.length === 0
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 mb-6">
@@ -60,14 +70,15 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
           Parameter Coverage
         </p>
         <p className="text-xs text-slate-500">
-          {parameters.length - missing.length} of {parameters.length}{' '}
-          {parameters.length === 1 ? 'parameter' : 'parameters'} assigned
+          {done.length} of {parameters.length}{' '}
+          {parameters.length === 1 ? 'parameter' : 'parameters'} ready
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {parameters.map((p, i) => {
           const covered = isCovered(p)
+          const ready = covered && hasProcedure(p)
           const asset = covered ? assetByInstrumentId.get(p.masterInstrumentId!) : null
           const range =
             p.rangeMin && p.rangeMax
@@ -79,7 +90,7 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
               key={p.id}
               className={cn(
                 'rounded-xl border px-3 py-2.5',
-                covered ? 'border-green-100 bg-green-50' : 'border-amber-200 bg-amber-50',
+                ready ? 'border-green-100 bg-green-50' : 'border-amber-200 bg-amber-50',
               )}
             >
               <div className="flex items-baseline justify-between gap-2">
@@ -91,14 +102,16 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
               <p
                 className={cn(
                   'text-xs mt-0.5 font-medium',
-                  covered ? 'text-green-700' : 'text-amber-700',
+                  ready ? 'text-green-700' : 'text-amber-700',
                 )}
               >
-                {covered
-                  ? `Assigned to ${asset}`
-                  : p.masterInstrumentId !== null
+                {!covered
+                  ? p.masterInstrumentId !== null
                     ? 'Assigned to a master no longer on this certificate'
-                    : 'No master assigned'}
+                    : 'No master assigned'
+                  : ready
+                    ? `Assigned to ${asset}`
+                    : `Assigned to ${asset} — no SOP reference`}
               </p>
             </div>
           )
@@ -125,15 +138,31 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
                 {parameters.length === 1
                   ? 'The parameter has'
                   : `All ${parameters.length} parameters have`}{' '}
-                a master.
+                a master and a procedure.
               </b>{' '}
               This section is complete.
             </>
           ) : (
             <>
-              <b>{joinNames(missing.map((p) => nameOf(p)))}</b>{' '}
-              {missing.length === 1 ? 'has' : 'have'} no master instrument assigned. Every
-              parameter needs one before this certificate can be submitted.
+              {missing.length > 0 && (
+                <>
+                  <b>{joinNames(missing.map((p) => nameOf(p)))}</b>{' '}
+                  {missing.length === 1 ? 'has' : 'have'} no master instrument assigned.
+                </>
+              )}
+              {missing.length > 0 && withoutProcedure.length > 0 && ' '}
+              {withoutProcedure.length > 0 && (
+                <>
+                  <b>{joinNames(withoutProcedure.map((p) => nameOf(p)))}</b>{' '}
+                  {withoutProcedure.length === 1 ? 'has' : 'have'} a master but no SOP
+                  reference &mdash; open{' '}
+                  {withoutProcedure.length === 1 ? 'its master below' : 'their masters below'}{' '}
+                  and record the procedure.
+                </>
+              )}
+              {missing.length > 0 && withoutProcedure.length === 0 && (
+                <> Every parameter needs one before this certificate can be submitted.</>
+              )}
             </>
           )}
         </span>
