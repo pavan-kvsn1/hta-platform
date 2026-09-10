@@ -1199,6 +1199,14 @@ export default function EditCertificatePage() {
   const [isTopFeedbackExpanded, setIsTopFeedbackExpanded] = useState(true)
   const [currentRevision, setCurrentRevision] = useState(1)
   const [reviewerName, setReviewerName] = useState<string | null>(null)
+
+  /**
+   * Whether this certificate has ever been sent to a reviewer.
+   *
+   * DRAFT is the only status a certificate has before its first submission, and it
+   * never returns to it - a certificate sent back comes back as REVISION_REQUIRED.
+   */
+  const submittedAtLeastOnce = formData.status !== 'DRAFT'
   const [isChatExpanded, setIsChatExpanded] = useState(true)
   const [isFieldChangeLogsExpanded, setIsFieldChangeLogsExpanded] = useState(true)
   const [fieldChangeRequests, setFieldChangeRequests] = useState<FieldChangeRequest[]>([])
@@ -1938,8 +1946,15 @@ export default function EditCertificatePage() {
         </div>
       </div>
 
-      {/* Right Panel - Chat, Unlock & Field Change Logs */}
-      {(formData.status === 'REVISION_REQUIRED' || reviewerName) && (
+      {/* Right Panel - Chat, Unlock & Field Change Logs.
+          Only once the certificate has been sent to the reviewer. A draft has nobody
+          on the other end of the chat: an engineer can name a reviewer while still
+          drafting, which showed that reviewer as "Online" with a message box, before
+          they had been told the certificate exists. The other two panels are empty on
+          a draft anyway - unlock requests are for REVISION_REQUIRED, and there are no
+          field change requests until a reviewer has asked for one - so the whole rail
+          goes and the form takes the width. */}
+      {submittedAtLeastOnce && (
         <div className="w-[340px] flex-shrink-0 flex flex-col gap-2.5 p-2.5 pl-0 h-full overflow-hidden">
 
           {/* ===== CHAT SECTION ===== */}
