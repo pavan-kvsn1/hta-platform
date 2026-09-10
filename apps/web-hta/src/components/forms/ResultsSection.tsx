@@ -25,6 +25,14 @@ import {
 } from '@/lib/stores/certificate-store'
 import { cn } from '@/lib/utils'
 import { useCertificateImages } from '@/lib/hooks/useCertificateImages'
+import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
+import { declaredCapability } from '@/lib/master-instrument-capability'
+import {
+  masterResolution,
+  uucResolution,
+  precisionOf,
+  type ReadingResolution,
+} from '@/lib/utils/reading-resolution'
 import { ReadingImageModal, ReadingImage } from './ReadingImageModal'
 
 const POINT_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20]
@@ -62,38 +70,6 @@ function getStepFromPrecision(precision: number): string {
 }
 
 // Format a number with specified precision
-
-// Get least count and precision for a reading (considering binning)
-function getLeastCountInfo(
-  parameter: Parameter,
-  standardReading: number
-): { leastCount: string; precision: number; binIndex: number | null } {
-  // For binned parameters, find the appropriate bin
-  if (parameter.requiresBinning && parameter.bins.length > 0) {
-    for (let i = 0; i < parameter.bins.length; i++) {
-      const bin = parameter.bins[i]
-      const binMin = parseFloat(bin.binMin)
-      const binMax = parseFloat(bin.binMax)
-
-      if (!isNaN(binMin) && !isNaN(binMax) && standardReading >= binMin && standardReading <= binMax) {
-        const precision = getPrecisionFromLeastCount(bin.leastCount)
-        return { leastCount: bin.leastCount, precision, binIndex: i }
-      }
-    }
-    // If no bin matches but we have bins, use the first bin's least count as default
-    if (parameter.bins[0]?.leastCount) {
-      return {
-        leastCount: parameter.bins[0].leastCount,
-        precision: getPrecisionFromLeastCount(parameter.bins[0].leastCount),
-        binIndex: null
-      }
-    }
-  }
-
-  // Non-binned parameter - use parameter's least count
-  const precision = getPrecisionFromLeastCount(parameter.leastCountValue)
-  return { leastCount: parameter.leastCountValue, precision, binIndex: null }
-}
 
 // Get default precision for parameter (when no reading entered yet)
 function getDefaultPrecision(parameter: Parameter): number {
@@ -254,6 +230,55 @@ function ResultsTable({
   onAddRow,
   onRemoveRow,
 }: ResultsTableProps) {
+  /**
+   * The capability the master was declared against, resolved once.
+   *
+   * The master's resolution is not on the certificate - it lives on the profile in the
+   * registry, and until this was plumbed through the master's columns borrowed the
+   * UUC's. An empty list means no capability was declared, which the helper reports as
+   * a different answer from a bucket that states no least count.
+   */
+  const getUnitByLegacyId = useMasterInstrumentStore((state) => state.getUnitByLegacyId)
+  const masterBuckets = useMemo(() => {
+    if (!parameter.masterInstrumentId || !parameter.masterProfileId) return []
+    const unit = getUnitByLegacyId(parameter.masterInstrumentId)
+    const profile = (unit?.capability_profiles ?? []).find(
+      (candidate) => candidate.id === parameter.masterProfileId,
+    )
+    if (!profile) return []
+    return declaredCapability(profile, parameter.masterSubtype).buckets
+  }, [
+    parameter.masterInstrumentId,
+    parameter.masterProfileId,
+    parameter.masterSubtype,
+    getUnitByLegacyId,
+  ])
+
+  /** Both resolutions for one row, each read off its own instrument. */
+  const resolutionsFor = useCallback(
+    (row: { values: Record<string, string> }) => {
+      const master = Number(row.values[parameter.errorConfig.masterFieldId])
+      const uuc = Number(row.values[parameter.errorConfig.uucFieldId])
+      return {
+        master: masterResolution(masterBuckets, master),
+        // The UUC's bins are picked by the master reading, as the limit is - the bins
+        // divide the range being calibrated, and the master says where in it the point
+        // sits. A UUC reading that drifted is still that point of the range.
+        uuc: uucResolution(parameter, Number.isFinite(master) ? master : uuc),
+      }
+    },
+    [masterBuckets, parameter],
+  )
+
+  /** Which instrument a column belongs to, so it is judged by that one. */
+  const resolutionForField = useCallback(
+    (field: FieldDefinition, row: { values: Record<string, string> }): ReadingResolution => {
+      const { master, uuc } = resolutionsFor(row)
+      return field.group === 'master' ? master : uuc
+    },
+    [resolutionsFor],
+  )
+
   // Count out-of-limit points
   // Counts come from resultRows, which is the source of truth once a parameter has a
   // field schema. `results` is a projection kept in step for the PDF and API paths.
@@ -289,34 +314,52 @@ function ResultsTable({
     return count
   }, [parameter])
 
-  // Count precision violations
+  /**
+   * Readings written to more decimals than their own instrument can show.
+   *
+   * Per column, not per row: the two instruments have their own resolutions, and
+   * judging the master's columns by the UUC's told a thermometer resolving to 0.001
+   * off for writing its third decimal.
+   *
+   * A column whose resolution nobody recorded is not judged at all. Counting it
+   * against the other instrument's number would be inventing a resolution.
+   */
   const precisionViolations = useMemo(() => {
     // Covers every numeric column, not just the two the legacy shape had, so an extra
     // Master or UUC field the engineer adds is checked too.
     const numericFields = parameter.fieldDefinitions.filter((f) => f.type === 'numeric')
     let count = 0
-    // What the failing readings were measured against, so the message can say it. The
-    // count came from each row's own bin while the message quoted the finest least
-    // count across all of them - so a reading judged against nought decimals was told
-    // it should have two.
-    const expected = new Set<number>()
+    // What the failing readings were measured against, said per instrument, so a
+    // reading judged against nought decimals is not told it should have two.
+    const expected = { master: new Set<number>(), uuc: new Set<number>() }
+    const unrecorded = { master: false, uuc: false }
 
     parameter.resultRows.forEach((row) => {
-      const masterRaw = row.values[parameter.errorConfig.masterFieldId] ?? ''
-      const masterReading = parseFloat(masterRaw)
-      const { precision } = !isNaN(masterReading)
-        ? getLeastCountInfo(parameter, masterReading)
-        : { precision: getDefaultPrecision(parameter) }
-
       numericFields.forEach((field) => {
-        if (!validatePrecision(row.values[field.id] ?? '', precision)) {
+        const resolution = resolutionForField(field, row)
+        const side = field.group === 'master' ? 'master' : 'uuc'
+        if (resolution.kind !== 'declared') {
+          if ((row.values[field.id] ?? '').trim() !== '') unrecorded[side] = true
+          return
+        }
+        if (!validatePrecision(row.values[field.id] ?? '', resolution.precision)) {
           count++
-          expected.add(precision)
+          expected[side].add(resolution.precision)
         }
       })
     })
-    return { count, expected: [...expected].sort((a, b) => a - b) }
-  }, [parameter])
+
+    const sorted = (of: Set<number>) => [...of].sort((a, b) => a - b)
+    return {
+      count,
+      master: sorted(expected.master),
+      uuc: sorted(expected.uuc),
+      unrecorded,
+      // Every decimal count that failed, whichever instrument - kept for anything
+      // reading this that does not care which side a column belongs to.
+      expected: sorted(new Set([...expected.master, ...expected.uuc])),
+    }
+  }, [parameter, resolutionForField])
 
   /**
    * Why a row needs a second look, or null when it does not.
@@ -347,17 +390,31 @@ function ResultsTable({
     (row: { values: Record<string, string> }): string | null => {
       const masterRaw = row.values[parameter.errorConfig.masterFieldId] ?? ''
       const masterReading = parseFloat(masterRaw)
-      const { precision } = !isNaN(masterReading)
-        ? getLeastCountInfo(parameter, masterReading)
-        : { precision: getDefaultPrecision(parameter) }
 
+      // Each column against its own instrument's least count. Judged together, a
+      // master reading finer than the UUC's resolution was called imprecise for
+      // writing a decimal its own instrument can show.
       const numericFields = parameter.fieldDefinitions.filter((f) => f.type === 'numeric')
-      const imprecise = numericFields.filter(
-        (field) => !validatePrecision(row.values[field.id] ?? '', precision),
-      )
+      const imprecise = numericFields
+        .map((field) => ({ field, resolution: resolutionForField(field, row) }))
+        .filter(
+          ({ field, resolution }) =>
+            resolution.kind === 'declared' &&
+            !validatePrecision(row.values[field.id] ?? '', resolution.precision),
+        )
       if (imprecise.length > 0) {
-        const names = imprecise.map((f) => f.name || 'a column').join(', ')
-        return `${names} ${imprecise.length === 1 ? 'does' : 'do'} not match the least count of ${precision} decimal${precision === 1 ? '' : 's'}.`
+        const names = imprecise.map(({ field }) => field.name || 'a column').join(', ')
+        const places = [
+          ...new Set(
+            imprecise.map(({ resolution }) =>
+              resolution.kind === 'declared' ? resolution.precision : 0,
+            ),
+          ),
+        ].sort((a, b) => a - b)
+        const expected = places
+          .map((p) => `${p} decimal${p === 1 ? '' : 's'}`)
+          .join(' and ')
+        return `${names} ${imprecise.length === 1 ? 'does' : 'do'} not match the least count of ${expected}.`
       }
 
       const opMin = parseFloat(parameter.operatingMin)
@@ -372,7 +429,7 @@ function ResultsTable({
 
       return null
     },
-    [parameter],
+    [parameter, resolutionForField],
   )
 
   // Calculate base limit for display (for ABSOLUTE and PERCENT_SCALE which are constant)
@@ -503,7 +560,9 @@ function ResultsTable({
           </div>
         )}
 
-        {/* Precision violation alert */}
+        {/* Precision violation alert. Said per instrument: the master and the UUC
+            have their own resolutions, and one sentence covering both told a reading
+            judged against nought decimals that it should have two. */}
         {precisionViolations.count > 0 && (
           <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800">
             <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
@@ -511,12 +570,37 @@ function ResultsTable({
               <span className="font-bold">Precision Warning:</span>{' '}
               {precisionViolations.count} reading{precisionViolations.count !== 1 ? 's have' : ' has'} more decimal places than the least count allows.
               <span className="text-amber-600 ml-1">
-                (Expected:{' '}
-                {precisionViolations.expected
-                  .map((p) => `${p} decimal${p !== 1 ? 's' : ''}`)
-                  .join(' or ')}{' '}
-                based on the least count where they were read)
+                ({[
+                  ['Master', precisionViolations.master] as const,
+                  ['UUC', precisionViolations.uuc] as const,
+                ]
+                  .filter(([, places]) => places.length > 0)
+                  .map(
+                    ([who, places]) =>
+                      `${who} readings expect ${places
+                        .map((p) => `${p} decimal${p !== 1 ? 's' : ''}`)
+                        .join(' or ')}`,
+                  )
+                  .join(' · ')}
+                )
               </span>
+            </div>
+          </div>
+        )}
+
+        {/* A column nobody recorded a resolution for is not judged - and not silently
+            passed either. 118 buckets in the registry state an accuracy and no least
+            count, and borrowing the other instrument's would be inventing one. */}
+        {(precisionViolations.unrecorded.master || precisionViolations.unrecorded.uuc) && (
+          <div className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
+            <Info className="size-3.5 shrink-0 text-slate-400" />
+            <div>
+              {precisionViolations.unrecorded.master && precisionViolations.unrecorded.uuc
+                ? 'The master and the UUC record no resolution'
+                : precisionViolations.unrecorded.master
+                  ? 'The master records no resolution'
+                  : 'The UUC records no resolution'}
+              , so those readings are not checked for decimal places.
             </div>
           </div>
         )}
@@ -607,17 +691,12 @@ function ResultsTable({
               ? (row) => !coverage.inside.includes(row.id)
               : undefined
           }
-          precisionFor={(_field, row) => {
-            // The parameter section describes the UUC, so its least count - blanket or
-            // per bin - is the UUC's resolution. Bins are picked by the row's reading,
-            // so a binned parameter changes resolution across its range.
-            //
-            // The master has no least count on the certificate: it lives on the
-            // capability profile in the master instrument registry and is not plumbed
-            // through yet, so master columns follow the UUC's for now. That is a gap
-            // to close, not a claim that the two resolutions are the same.
-            const reading = Number(row.values[parameter.errorConfig.masterFieldId])
-            return getLeastCountInfo(parameter, reading).precision
+          precisionFor={(field, row) => {
+            // Each column to its own instrument. A computed column has to print
+            // something, so where the master states no resolution this falls back to
+            // the UUC's - the warning below does not, and says it is not recorded.
+            const { master, uuc } = resolutionsFor(row)
+            return field.group === 'master' ? precisionOf(master, uuc) : precisionOf(uuc)
           }}
           disabled={disabled}
           onValueChange={onRowValueChange}
