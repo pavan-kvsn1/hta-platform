@@ -723,7 +723,27 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
 
     setFlowOpen(false)
     setEditingIndex(null)
+    // The flow is several screens tall and the card that replaces it is not, so
+    // everything below jumps up by the difference while the scroll position stays
+    // where it was - and the reader lands two sections further on, looking at
+    // something they did not ask for. Put them back on what they just saved.
+    setJustSaved(slot)
   }
+
+  /**
+   * The master just committed, so the page can be returned to it.
+   *
+   * Cleared once it has been scrolled to, or the card would fight the reader for the
+   * scroll position on every later render.
+   */
+  const [justSaved, setJustSaved] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (justSaved === null) return
+    const card = document.getElementById(`master-card-${justSaved}`)
+    card?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    setJustSaved(null)
+  }, [justSaved])
 
   return (
     <FormSection
@@ -776,8 +796,8 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
                 onAdd={commit}
               />
             ) : (
+            <div id={`master-card-${index}`} key={m.id}>
             <MasterInstrumentCard
-              key={m.id}
               instrument={m}
               index={index}
               onRemove={() => removeMasterInstrument(index)}
@@ -802,6 +822,7 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
               onImageDelete={handleImageDelete}
               disabled={disabled}
             />
+            </div>
             ),
           )}
         </div>
