@@ -464,6 +464,12 @@ model Certificate {
   calibrationStartTime          String?
   calibrationEndTime            String?
   calibrationTenure             Int                           @default(12)
+  /// Whether the tenure was entered in months or in years.
+  ///
+  /// The tenure itself is stored in months whatever was chosen, so the due date is one
+  /// sum and every certificate already written still adds up. This only remembers how
+  /// the engineer wrote it - two years reads as two years, not twenty-four months.
+  calibrationTenureUnit         String                        @default("months")
   dueDateAdjustment             Int                           @default(0)
   calibrationDueDate            DateTime?
   dueDateNotApplicable          Boolean                       @default(false)

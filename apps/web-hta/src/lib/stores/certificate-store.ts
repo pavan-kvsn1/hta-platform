@@ -221,7 +221,15 @@ export interface CertificateFormData {
   dateOfCalibration: string
   calibrationStartTime: string
   calibrationEndTime: string
-  calibrationTenure: 3 | 6 | 9 | 12
+  /**
+   * How long the calibration holds, in months.
+   *
+   * Always months, whatever the engineer entered: the due date is one sum and every
+   * certificate already written still adds up. Two years is stored as 24.
+   */
+  calibrationTenure: number
+  /** Whether it was entered in months or years, so it reads back the way it was said. */
+  calibrationTenureUnit: 'months' | 'years'
   dueDateAdjustment: -3 | -2 | -1 | 0  // Adjustment in days (negative only)
   calibrationDueDate: string
   dueDateNotApplicable: boolean  // If true, due date shows as "Not Applicable" on certificate
@@ -634,6 +642,7 @@ const initialFormData: CertificateFormData = {
   calibrationStartTime: '',
   calibrationEndTime: '',
   calibrationTenure: 12,
+  calibrationTenureUnit: 'months',
   dueDateAdjustment: 0,
   calibrationDueDate: '', // Generated on client side to avoid hydration mismatch
   dueDateNotApplicable: false,

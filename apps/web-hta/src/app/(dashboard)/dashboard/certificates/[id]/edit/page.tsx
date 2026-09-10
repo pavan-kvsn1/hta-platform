@@ -199,6 +199,7 @@ interface ApiCertificate {
   calibrationStartTime: string | null
   calibrationEndTime: string | null
   calibrationTenure: number
+  calibrationTenureUnit?: string
   dueDateAdjustment: number
   calibrationDueDate: string | null
   dueDateNotApplicable: boolean
@@ -626,7 +627,10 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     dateOfCalibration: apiData.dateOfCalibration ? apiData.dateOfCalibration.split('T')[0] : '',
     calibrationStartTime: apiData.calibrationStartTime || '',
     calibrationEndTime: apiData.calibrationEndTime || '',
-    calibrationTenure: (apiData.calibrationTenure || 12) as 3 | 6 | 9 | 12,
+    calibrationTenure: apiData.calibrationTenure || 12,
+    calibrationTenureUnit: (apiData.calibrationTenureUnit === 'years' ? 'years' : 'months') as
+      | 'months'
+      | 'years',
     dueDateAdjustment: (apiData.dueDateAdjustment || 0) as -3 | -2 | -1 | 0,
     calibrationDueDate: apiData.calibrationDueDate ? apiData.calibrationDueDate.split('T')[0] : '',
     dueDateNotApplicable: apiData.dueDateNotApplicable || false,

@@ -26,7 +26,25 @@ import { useCertificateStore } from '@/lib/stores/certificate-store'
 import { cn } from '@/lib/utils'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 
-const TENURE_OPTIONS = [3, 6, 9, 12] as const
+/**
+ * How long a calibration holds.
+ *
+ * Four fixed buttons - 3, 6, 9, 12 months - could not say eighteen months or two
+ * years, both of which this lab issues. A count and a unit can say all of them, and
+ * "not applicable" belongs in the same list because it is the same question answered
+ * with "it does not expire".
+ *
+ * Stored in months whatever is chosen, so the due date stays one sum and every
+ * certificate already written still adds up.
+ */
+const TENURE_COUNTS = Array.from({ length: 12 }, (_, i) => i + 1)
+const NOT_APPLICABLE = 'na'
+
+const monthsFor = (count: number, unit: 'months' | 'years') =>
+  unit === 'years' ? count * 12 : count
+
+const countFor = (months: number, unit: 'months' | 'years') =>
+  unit === 'years' ? Math.max(1, Math.round(months / 12)) : Math.max(1, months)
 
 interface SummarySectionProps {
   isNewCertificate?: boolean
@@ -380,24 +398,63 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
               Calibration Tenure
             </Label>
             <div className="flex gap-2">
-              {TENURE_OPTIONS.map((tenure) => (
-                <button
-                  key={tenure}
-                  type="button"
-                  onClick={() => setFormField('calibrationTenure', tenure)}
-                  className={cn(
-                    "flex-1 py-2.5 rounded-lg font-bold text-sm transition-all border",
-                    formData.calibrationTenure === tenure
-                      ? "bg-primary text-white border-primary"
-                      : "border-slate-300 hover:bg-slate-50"
-                  )}
-                >
-                  {tenure} Mo
-                </button>
-              ))}
+              <Select
+                value={
+                  formData.dueDateNotApplicable
+                    ? NOT_APPLICABLE
+                    : String(countFor(formData.calibrationTenure, formData.calibrationTenureUnit))
+                }
+                onValueChange={(value) => {
+                  // "Not applicable" here is the same fact the due date panel used to
+                  // ask separately: this certificate does not expire. One control, so
+                  // the two can never disagree.
+                  if (value === NOT_APPLICABLE) {
+                    setFormField('dueDateNotApplicable', true)
+                    return
+                  }
+                  setFormField('dueDateNotApplicable', false)
+                  setFormField(
+                    'calibrationTenure',
+                    monthsFor(Number(value), formData.calibrationTenureUnit),
+                  )
+                }}
+              >
+                <SelectTrigger className="w-24 rounded-xl border-slate-300 h-9 px-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TENURE_COUNTS.map((count) => (
+                    <SelectItem key={count} value={String(count)}>
+                      {count}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NOT_APPLICABLE}>N/A</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={formData.calibrationTenureUnit}
+                disabled={formData.dueDateNotApplicable}
+                onValueChange={(value) => {
+                  const unit = value === 'years' ? 'years' : 'months'
+                  // The count on screen stays put and the months behind it follow, so
+                  // switching to years turns 12 into a year rather than into a month.
+                  const count = countFor(formData.calibrationTenure, formData.calibrationTenureUnit)
+                  setFormField('calibrationTenureUnit', unit)
+                  setFormField('calibrationTenure', monthsFor(count, unit))
+                }}
+              >
+                <SelectTrigger className="flex-1 rounded-xl border-slate-300 h-9 px-3 disabled:bg-slate-50 disabled:text-slate-400">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="months">Months</SelectItem>
+                  <SelectItem value="years">Years</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <p className="mt-2 text-[10px] text-slate-400 font-bold uppercase">
-              Default: 12 Mo
+              {formData.dueDateNotApplicable ? 'Not Applicable' : 'Default: 12 Months'}
             </p>
           </div>
 
@@ -485,16 +542,10 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
               </div>
             </div>
             <div className="flex flex-col items-end gap-4">
-              {/* Not Applicable Toggle */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.dueDateNotApplicable}
-                  onChange={(e) => setFormField('dueDateNotApplicable', e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
-                />
-                <span className="text-xs font-bold text-slate-600">Not Applicable</span>
-              </label>
+              {/* Whether the certificate expires is asked once, in the tenure card,
+                  where the question is "how long does this hold". A checkbox here as
+                  well was a second control for one fact, and two controls for one fact
+                  are two chances to disagree. */}
               {/* Adjust Due Date - Only shown when not "Not Applicable" */}
               {!formData.dueDateNotApplicable && (
                 <div className="flex flex-col items-end gap-2">
