@@ -356,6 +356,8 @@ export default async function RequestDetailPage({ params, searchParams }: Props)
         calibrationEndTime: cert.calibrationEndTime,
         calibrationDueDate: cert.calibrationDueDate?.toISOString() || null,
         dueDateNotApplicable: cert.dueDateNotApplicable,
+        // The lab chose how the due date reads; every screen showing it honours that.
+        calibrationDueDateFormat: cert.calibrationDueDateFormat,
         uucDescription: cert.uucDescription,
         uucMake: cert.uucMake,
         uucModel: cert.uucModel,

@@ -27,6 +27,7 @@ import {
   type ParameterReadingImages,
 } from '@/components/certificate'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
+import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate-date-format'
 
 interface Parameter {
   id: string
@@ -124,6 +125,8 @@ interface CertificateData {
   calibrationStartTime: string | null
   calibrationEndTime: string | null
   calibrationDueDate: string | null
+  /** How the lab asked for the due date to be written; the PDF honours it too. */
+  calibrationDueDateFormat?: string | null
   dueDateNotApplicable: boolean
   uucDescription: string | null
   uucMake: string | null
@@ -351,7 +354,11 @@ export function ReviewerContent({
             value={
               certificate.dueDateNotApplicable
                 ? 'Not Applicable'
-                : formatDate(certificate.calibrationDueDate)
+                : formatCertificateDate(
+                    certificate.calibrationDueDate,
+                    certificate.calibrationDueDateFormat || DEFAULT_DATE_FORMAT,
+                    '-',
+                  )
             }
           />
           <div className="md:col-span-2 lg:col-span-3 border-t pt-4 mt-2">

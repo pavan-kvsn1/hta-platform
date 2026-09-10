@@ -154,6 +154,8 @@ export default function ReviewerReviewPage() {
             calibrationEndTime: cert.calibrationEndTime,
             calibrationDueDate: cert.calibrationDueDate,
             dueDateNotApplicable: cert.dueDateNotApplicable,
+            // The lab chose how the due date reads; every screen showing it honours that.
+            calibrationDueDateFormat: cert.calibrationDueDateFormat,
             uucDescription: cert.uucDescription,
             uucMake: cert.uucMake,
             uucModel: cert.uucModel,

@@ -186,6 +186,8 @@ async function getCertificateData(id: string) {
     calibrationEndTime: certificate.calibrationEndTime || '',
     calibrationDueDate: certificate.calibrationDueDate?.toISOString().split('T')[0] || '',
     dueDateNotApplicable: certificate.dueDateNotApplicable || false,
+    // The lab chose how the due date reads; every screen showing it honours that.
+    calibrationDueDateFormat: certificate.calibrationDueDateFormat,
     customerName: certificate.customerName || '',
     customerAddress: certificate.customerAddress || '',
     uucDescription: certificate.uucDescription || '',

@@ -38,6 +38,7 @@ import {
 } from '@/components/certificate'
 import { InlinePDFViewer } from '@/app/(dashboard)/dashboard/reviewer/[id]/InlinePDFViewer'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
+import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate-date-format'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Draft', className: 'bg-slate-50 text-slate-700 border-slate-200' },
@@ -83,6 +84,8 @@ interface ApiCertificate {
   calibrationStartTime: string | null
   calibrationEndTime: string | null
   calibrationDueDate: string | null
+  /** How the lab asked for the due date to be written; the PDF honours it too. */
+  calibrationDueDateFormat?: string | null
   dueDateNotApplicable: boolean
   customerName: string | null
   customerAddress: string | null
@@ -510,7 +513,11 @@ export default function CertificateViewPage() {
                     value={
                       certificate.dueDateNotApplicable
                         ? 'Not Applicable'
-                        : formatDate(certificate.calibrationDueDate)
+                        : formatCertificateDate(
+                            certificate.calibrationDueDate,
+                            certificate.calibrationDueDateFormat || DEFAULT_DATE_FORMAT,
+                            '-',
+                          )
                     }
                   />
                   <div className="md:col-span-2 lg:col-span-3 border-t pt-4 mt-2">

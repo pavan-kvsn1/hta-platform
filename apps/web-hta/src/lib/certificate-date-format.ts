@@ -68,9 +68,15 @@ const pad = (n: number) => String(n).padStart(2, '0')
  * certificate showing an odd string invites someone to look at it, and one showing a
  * plausible wrong date does not.
  */
-export function formatCertificateDate(value: string, format: string): string {
+export function formatCertificateDate(
+  value: string | null | undefined,
+  format: string,
+  /** What an unset date reads as. The PDF prints nothing; the screens print a dash. */
+  empty = '',
+): string {
+  if (value === null || value === undefined || value === '') return empty
   const p = parts(value)
-  if (!p) return value ?? ''
+  if (!p) return value
 
   const { year, month, day } = p
   const monthName = MONTHS[month - 1] ?? String(month)

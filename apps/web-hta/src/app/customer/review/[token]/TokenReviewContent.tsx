@@ -27,6 +27,7 @@ import {
 } from '@/components/certificate'
 import type { CertificateData, Signature } from './TokenReviewClient'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
+import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate-date-format'
 
 interface TokenReviewContentProps {
   certificate: CertificateData
@@ -268,7 +269,11 @@ export function TokenReviewContent({
             value={
               certificate.dueDateNotApplicable
                 ? 'Not Applicable'
-                : formatDate(certificate.calibrationDueDate)
+                : formatCertificateDate(
+                    certificate.calibrationDueDate,
+                    certificate.calibrationDueDateFormat || DEFAULT_DATE_FORMAT,
+                    '-',
+                  )
             }
           />
           <div className="md:col-span-2 lg:col-span-3 border-t pt-4 mt-2">

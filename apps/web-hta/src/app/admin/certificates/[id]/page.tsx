@@ -210,6 +210,8 @@ export default async function AdminCertificatePage({ params }: Props) {
         calibrationEndTime: certificate.calibrationEndTime,
         calibrationDueDate: certificate.calibrationDueDate?.toISOString() || null,
         dueDateNotApplicable: certificate.dueDateNotApplicable,
+        // The lab chose how the due date reads; every screen showing it honours that.
+        calibrationDueDateFormat: certificate.calibrationDueDateFormat,
         uucDescription: certificate.uucDescription,
         uucMake: certificate.uucMake,
         uucModel: certificate.uucModel,

@@ -18,6 +18,7 @@ import {
   type GalleryImage,
   type ParameterReadingImages,
 } from '@/components/certificate'
+import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate-date-format'
 
 interface Parameter {
   id: string
@@ -68,6 +69,8 @@ export interface CertificateFormData {
   calibrationStartTime: string
   calibrationEndTime: string
   calibrationDueDate: string
+  /** How the lab asked for the due date to be written; the PDF honours it too. */
+  calibrationDueDateFormat?: string | null
   dueDateNotApplicable: boolean
   customerName: string
   customerAddress: string
@@ -289,7 +292,11 @@ export function AdminAuthContent({ formData, certificateId }: AdminAuthContentPr
             value={
               formData.dueDateNotApplicable
                 ? 'Not Applicable'
-                : formatDate(formData.calibrationDueDate)
+                : formatCertificateDate(
+                    formData.calibrationDueDate,
+                    formData.calibrationDueDateFormat || DEFAULT_DATE_FORMAT,
+                    '-',
+                  )
             }
           />
           <div className="md:col-span-2 lg:col-span-3 border-t pt-4 mt-2">

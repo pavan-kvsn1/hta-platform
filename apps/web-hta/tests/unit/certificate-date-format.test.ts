@@ -58,3 +58,26 @@ describe('writing a date the certificate’s way', () => {
     expect(formatCertificateDate(iso, 'whatever')).toBe('02/09/2026')
   })
 })
+
+describe('a due date that is not set', () => {
+  /**
+   * The screens used to reach this through their own formatDate, which answered "-".
+   * The PDF prints nothing. Both are right for where they are, so the caller says
+   * which it wants rather than one of them being quietly changed.
+   */
+  it('prints nothing by default, as the PDF needs', () => {
+    expect(formatCertificateDate(null, 'DD/MM/YYYY')).toBe('')
+    expect(formatCertificateDate(undefined, 'DD/MM/YYYY')).toBe('')
+    expect(formatCertificateDate('', 'DD/MM/YYYY')).toBe('')
+  })
+
+  it('prints what the caller asks for, as the screens need', () => {
+    expect(formatCertificateDate(null, 'DD/MM/YYYY', '-')).toBe('-')
+  })
+
+  it('returns an unparseable date as it was written, not as a dash', () => {
+    // A stored value nobody can read is worth showing; hiding it behind "-" would
+    // look like no date at all.
+    expect(formatCertificateDate('not a date', 'DD/MM/YYYY', '-')).toBe('not a date')
+  })
+})

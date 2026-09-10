@@ -89,6 +89,15 @@ export interface CertificateData {
   calibrationStartTime: string | null
   calibrationEndTime: string | null
   calibrationDueDate: string | null
+  /**
+   * How the lab asked for the due date to be written.
+   *
+   * The due date is the one a customer reads against their own calendar, and the one
+   * that crosses borders, so it is the one the lab chooses a format for. Every screen
+   * that shows it must honour that choice - a reviewer seeing 09/02/2026 where the PDF
+   * says 02/09/2026 is being shown a different date.
+   */
+  calibrationDueDateFormat?: string | null
   dueDateNotApplicable: boolean
   uucDescription: string | null
   uucMake: string | null
