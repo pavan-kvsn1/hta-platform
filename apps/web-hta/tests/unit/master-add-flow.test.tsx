@@ -1132,7 +1132,7 @@ describe('a master that measures something else', () => {
   const mapTo = (group: RegExp, kind?: RegExp) => {
     fireEvent.click(screen.getByPlaceholderText(/What the master measures/i))
     fireEvent.click(screen.getByRole('option', { name: group }))
-    // Only where the group holds more than one, which is the rule on screen too.
+    // The field is always on screen; it holds kinds only once a group is chosen.
     const second = screen.queryByPlaceholderText(/Which kind of it/i)
     if (!kind || !second) return
     fireEvent.click(second)
@@ -1300,9 +1300,16 @@ describe('a master that measures something else', () => {
       expect(screen.getAllByRole('option', { name: /Voltage/ })).toHaveLength(1)
     })
 
-    it('asks which kind of it once the group is chosen', () => {
+    it('shows all three questions from the start, in the order they are answered', () => {
+      // The middle one used to appear only after the group was chosen, which pushed
+      // the unit onto a second line and back while the panel was being filled in.
       renderBoth()
-      expect(screen.queryByPlaceholderText(/Which kind of it/i)).not.toBeInTheDocument()
+      expect(screen.getByPlaceholderText(/Pick a parameter group first/i)).toBeInTheDocument()
+      expect(screen.getByPlaceholderText(/Unit it is read in/i)).toBeInTheDocument()
+    })
+
+    it('opens the kinds once the group is chosen', () => {
+      renderBoth()
       mapTo(/Voltage/)
       expect(screen.getByPlaceholderText(/Which kind of it/i)).toBeInTheDocument()
     })

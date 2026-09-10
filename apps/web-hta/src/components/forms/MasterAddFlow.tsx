@@ -503,7 +503,10 @@ function MeasuredUsing({
         </p>
       ) : (
         <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+          {/* The three questions stay on one row and all three stay on screen. Hiding
+              the middle one until the group was chosen moved the unit to a second line
+              and back, so the panel changed shape while it was being answered. */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
             <div>
               <label className={LABEL}>
                 Parameter group <span className="text-red-500">*</span>
@@ -520,29 +523,27 @@ function MeasuredUsing({
                 onChange={chooseGroup}
               />
             </div>
-            {/* Asked only where the group holds more than one, as in Section 02 -
-                a question with one answer is not a question. */}
-            {kinds.length > 1 && (
-              <div>
-                <label className={LABEL}>
-                  Parameter <span className="text-red-500">*</span>
-                </label>
-                <SearchableSelect
-                  value={mapping.parameter}
-                  placeholder="Which kind of it..."
-                  className="h-9 rounded-lg"
-                  options={kinds.map((kind) => ({
-                    value: kind.standardName,
-                    label: kind.customName,
-                    detail: kind.kind === 'any' ? 'not specified' : undefined,
-                  }))}
-                  onChange={(value) => {
-                    const next = capabilities.find((c) => c.standardName === value)
-                    set({ parameter: value, unit: next?.defaultUnit ?? '' })
-                  }}
-                />
-              </div>
-            )}
+            <div>
+              <label className={LABEL}>
+                Parameter <span className="text-red-500">*</span>
+              </label>
+              <SearchableSelect
+                value={mapping.parameter}
+                placeholder={
+                  kinds.length > 0 ? 'Which kind of it...' : 'Pick a parameter group first...'
+                }
+                className="h-9 rounded-lg"
+                options={kinds.map((kind) => ({
+                  value: kind.standardName,
+                  label: kind.customName,
+                  detail: kind.kind === 'any' ? 'not specified' : undefined,
+                }))}
+                onChange={(value) => {
+                  const next = capabilities.find((c) => c.standardName === value)
+                  set({ parameter: value, unit: next?.defaultUnit ?? '' })
+                }}
+              />
+            </div>
             <div>
               <label className={LABEL}>
                 Unit <span className="text-red-500">*</span>
