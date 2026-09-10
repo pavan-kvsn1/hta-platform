@@ -624,32 +624,56 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     .map((m, index) => ({ m, index }))
     .filter(({ m }) => m.masterInstrumentId > 0)
 
+  const mastersOnCertificate = new Set(committed.map(({ m }) => m.masterInstrumentId))
+
+  // For naming a covered parameter's master, where two entries on one instrument name
+  // the same asset anyway - which they do, it being the same instrument.
   const assetByInstrumentId = new Map(
     committed.map(({ m }) => [m.masterInstrumentId, m.assetNo || String(m.masterInstrumentId)]),
   )
-  const mastersOnCertificate = new Set(committed.map(({ m }) => m.masterInstrumentId))
+
+  /**
+   * The entry a parameter's master is, among those on the certificate.
+   *
+   * By the entry, not by the instrument. One thermometer can be the master for two
+   * temperature spans and so appear twice; asking which instrument a parameter names
+   * then matches both entries, and each one reads the other's parameter as its own.
+   *
+   * An entry that names no parameter - saved before entries did - still answers by
+   * instrument, which is right for every certificate that uses one once.
+   */
+  const entryFor = (
+    parameter: Parameter,
+    among: { m: SelectedMasterInstrument; index: number }[],
+  ) =>
+    among.find(({ m }) =>
+      m.parameterId
+        ? m.parameterId === parameter.id
+        : parameter.masterInstrumentId === m.masterInstrumentId,
+    )
+
+  const assetOf = (m: SelectedMasterInstrument) => m.assetNo || String(m.masterInstrumentId)
 
   /** Which parameters already have a master here, and the asset that serves them. */
   const coveredBy = new Map<string, string>()
   formData.parameters.forEach((p) => {
-    if (p.masterInstrumentId !== null && assetByInstrumentId.has(p.masterInstrumentId)) {
-      coveredBy.set(p.id, assetByInstrumentId.get(p.masterInstrumentId)!)
-    }
+    if (p.masterInstrumentId === null) return
+    const entry = entryFor(p, committed)
+    if (entry) coveredBy.set(p.id, assetOf(entry.m))
   })
 
   /**
    * Coverage as seen from inside the flow. The master being edited is left out, so its
-   * own parameters are still on offer - otherwise reopening one would show every
-   * parameter it serves as already taken, by itself.
+   * own parameter is still on offer - otherwise reopening one would show the parameter
+   * it serves as already taken, by itself.
    */
   const coveredByOther = (exceptIndex: number) => {
     const map = new Map<string, string>()
     const others = committed.filter(({ index }) => index !== exceptIndex)
-    const assets = new Map(others.map(({ m }) => [m.masterInstrumentId, m.assetNo || String(m.masterInstrumentId)]))
     formData.parameters.forEach((p) => {
-      if (p.masterInstrumentId !== null && assets.has(p.masterInstrumentId)) {
-        map.set(p.id, assets.get(p.masterInstrumentId)!)
-      }
+      if (p.masterInstrumentId === null) return
+      const entry = entryFor(p, others)
+      if (entry) map.set(p.id, assetOf(entry.m))
     })
     return map
   }
