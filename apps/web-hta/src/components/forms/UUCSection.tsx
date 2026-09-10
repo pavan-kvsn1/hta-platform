@@ -445,7 +445,7 @@ function ParameterCard({
                   value !== '__select__' && handleParameterTypeChange(value)
                 }
               >
-                <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white">
+                <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white">
                   <SelectValue placeholder="Select parameter type..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -499,7 +499,7 @@ function ParameterCard({
                 value={selected?.kind ?? '__select__'}
                 onValueChange={(value) => value !== '__select__' && chooseKind(value)}
               >
-                <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white h-9 text-xs">
+                <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -528,7 +528,7 @@ function ParameterCard({
                   updateField('parameterSubtype', value === '__none__' ? '' : value)
                 }
               >
-                <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white h-9 text-xs">
+                <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -552,7 +552,7 @@ function ParameterCard({
               onValueChange={(value) => value !== '__select__' && updateField('parameterUnit', value)}
               disabled={availableUnits.length === 0}
             >
-              <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white disabled:opacity-50">
+              <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white disabled:opacity-50">
                 <SelectValue placeholder={availableUnits.length === 0 ? "Select parameter first" : "Select unit..."} />
               </SelectTrigger>
               <SelectContent>
@@ -653,7 +653,7 @@ function ParameterCard({
                 value={parameter.accuracyType}
                 onValueChange={(value) => updateField('accuracyType', value as AccuracyType)}
               >
-                <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white text-xs">
+                <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -733,7 +733,7 @@ function ParameterCard({
                   value={String(parameter.bins?.length || 2)}
                   onValueChange={(value) => handleBinCountChange(parseInt(value, 10))}
                 >
-                  <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white">
+                  <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -755,7 +755,7 @@ function ParameterCard({
                   value={parameter.accuracyType}
                   onValueChange={(value) => updateField('accuracyType', value as AccuracyType)}
                 >
-                  <SelectTrigger className="w-full rounded-lg border-slate-300 bg-white text-xs">
+                  <SelectTrigger className="w-full h-9 text-xs rounded-lg border-slate-300 bg-white text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -953,7 +953,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucDescription}
               onChange={(e) => setFormField('uucDescription', e.target.value)}
               placeholder="e.g., Temp/Humidity Sensor"
-              className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
             />
           </div>
           <div>
@@ -965,7 +965,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucMake}
               onChange={(e) => setFormField('uucMake', e.target.value)}
               placeholder="e.g., Dwyer"
-              className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
             />
           </div>
           <div>
@@ -977,7 +977,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucModel}
               onChange={(e) => setFormField('uucModel', e.target.value)}
               placeholder="e.g., RHP-2011"
-              className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
             />
           </div>
           <div>
@@ -989,7 +989,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucSerialNumber}
               onChange={(e) => setFormField('uucSerialNumber', e.target.value)}
               placeholder="e.g., 0010"
-              className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
             />
           </div>
           <div>
@@ -1001,7 +1001,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucInstrumentId}
               onChange={(e) => setFormField('uucInstrumentId', e.target.value)}
               placeholder="e.g., VRSF/ENG/HVC020-TRH"
-              className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
             />
           </div>
           <div>
@@ -1013,7 +1013,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
               value={formData.uucLocationName}
               onChange={(e) => setFormField('uucLocationName', e.target.value)}
               placeholder="e.g., Return Air Duct"
-              className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-medium"
+              className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
             />
           </div>
         </div>
@@ -1028,7 +1028,7 @@ export function UUCSection({ feedbackSlot, disabled, accordionStatus, hasFeedbac
             value={formData.uucMachineName}
             onChange={(e) => setFormField('uucMachineName', e.target.value)}
             placeholder="e.g., AHU-30, VRSF-GF-AHU-030"
-            className="w-full rounded-xl border-slate-300 h-12 px-4 focus:ring-primary focus:border-primary font-medium"
+            className="w-full rounded-xl border-slate-300 h-9 text-xs px-3 focus:ring-primary focus:border-primary font-medium"
           />
         </div>
 

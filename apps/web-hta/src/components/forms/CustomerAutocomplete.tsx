@@ -290,7 +290,7 @@ export function CustomerAutocomplete({
             onKeyDown={handleInputKeyDown}
             placeholder="Start typing customer name..."
             disabled={disabled}
-            className="w-full rounded-xl border border-slate-300 bg-white h-12 pl-12 pr-12 focus:ring-2 focus:ring-primary focus:border-primary font-semibold shadow-sm"
+            className="w-full rounded-xl border border-slate-300 bg-white h-9 text-xs pl-10 pr-10 focus:ring-2 focus:ring-primary focus:border-primary font-semibold shadow-sm"
           />
           <div className="absolute right-4 top-1/2 -translate-y-1/2">
             {isLoading ? (
@@ -381,7 +381,7 @@ export function CustomerAutocomplete({
               onKeyDown={handleContactInputKeyDown}
               placeholder={value.length >= 2 ? "Start typing contact name..." : "Enter customer name first"}
               disabled={disabled || value.length < 2}
-              className="w-full rounded-xl border border-slate-300 bg-white h-12 pl-12 pr-12 focus:ring-2 focus:ring-primary focus:border-primary font-semibold shadow-sm"
+              className="w-full rounded-xl border border-slate-300 bg-white h-9 text-xs pl-10 pr-10 focus:ring-2 focus:ring-primary focus:border-primary font-semibold shadow-sm"
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2">
               {isContactLoading ? (
@@ -449,7 +449,7 @@ export function CustomerAutocomplete({
             onChange={(e) => onContactEmailChange(e.target.value)}
             placeholder="Enter contact email"
             disabled={disabled}
-            className="w-full rounded-xl border border-slate-300 bg-white h-12 px-4 focus:ring-2 focus:ring-primary focus:border-primary font-semibold shadow-sm"
+            className="w-full rounded-xl border border-slate-300 bg-white h-9 text-xs px-3 focus:ring-2 focus:ring-primary focus:border-primary font-semibold shadow-sm"
           />
         </div>
       </div>
