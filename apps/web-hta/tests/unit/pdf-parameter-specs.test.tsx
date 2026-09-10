@@ -241,6 +241,87 @@ describe('what the master resolves to', () => {
     expect(all).toContain('0.0001 mV')
   })
 
+  it('does not put a sign in front of an accuracy that carries its own', () => {
+    // 1000 HTAIPL/L states "+/- 0.1%FS" - a formula, not a figure. Prefixing it
+    // printed "± +/- 0.1%FS".
+    const all = textsIn(
+      certificateWith(
+        [temperature],
+        [
+          master({
+            parameterId: 'p1',
+            capabilityParameter: 'Pressure',
+            masterAccuracy: '+/- 0.1%FS',
+            masterAccuracyUnit: '',
+          }),
+        ],
+      ),
+    )
+    expect(all).toContain('+/- 0.1%FS')
+    expect(all.some((t) => t.includes('± +/-'))).toBe(false)
+  })
+
+  it('finds the parameter by position where the payload carries no id', () => {
+    // The API's pdf-data route sends a position, the form sends an id, and both
+    // reach this component. Matching only on the id left the table empty.
+    const all = textsIn(
+      certificateWith(
+        [temperature, pressure],
+        [
+          master({ id: 'm1', parameterIndex: 0, capabilityParameter: 'Temperature' }),
+          master({ id: 'm2', masterInstrumentId: 158, description: 'Digital Pressure Gauge', parameterIndex: 1, capabilityParameter: 'Pressure' }),
+        ],
+      ),
+    )
+    expect(all).toContain('Used for UUC Parameters')
+    expect(all).toContain('Temperature')
+    expect(all).toContain('Pressure')
+  })
+
+  it('does not sign an accuracy that carries its own', () => {
+    // 1000 HTAIPL/L states "+/- 0.1%FS" - a formula, not a figure. Prefixing every
+    // accuracy printed "± +/- 0.1%FS".
+    const all = textsIn(
+      certificateWith(
+        [temperature],
+        [
+          master({
+            parameterId: 'p1',
+            capabilityParameter: 'Pressure',
+            masterAccuracy: '+/- 0.1%FS',
+            masterAccuracyUnit: '',
+          }),
+        ],
+      ),
+    )
+    expect(all).toContain('+/- 0.1%FS')
+    expect(all.some((t) => t.includes('± +/-'))).toBe(false)
+  })
+
+  it('finds the parameter by position where the payload carries no id', () => {
+    // The API's pdf-data route sends a position and the form sends an id; both reach
+    // this component. Matching only on the id left the used-for table empty.
+    const all = textsIn(
+      certificateWith(
+        [temperature, pressure],
+        [
+          master({ id: 'm1', parameterIndex: 0, capabilityParameter: 'Temperature' }),
+          master({
+            id: 'm2',
+            masterInstrumentId: 158,
+            description: 'Digital Pressure Gauge',
+            parameterIndex: 1,
+            capabilityParameter: 'Pressure',
+          }),
+        ],
+      ),
+    )
+    expect(all).toContain('Used for UUC Parameters')
+    expect(all).toContain('Temperature')
+    expect(all).toContain('Pressure')
+  })
+
+
   it('drops the used-for table on a single-parameter certificate', () => {
     const all = textsIn(
       certificateWith(

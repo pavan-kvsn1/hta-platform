@@ -860,8 +860,14 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
         const leastCount = entry.masterLeastCount
           ? `${entry.masterLeastCount} ${entry.masterLeastCountUnit ?? ''}`.trim()
           : 'Not recorded'
+        // A plain figure gets the sign; a formula ("+/- 0.1%FS") or a class ("F2
+        // Class") carries its own and would otherwise print as "± +/- 0.1%FS".
+        const accuracyIsNumber =
+          entry.masterAccuracy !== undefined &&
+          entry.masterAccuracy !== '' &&
+          Number.isFinite(Number(entry.masterAccuracy))
         const accuracy = entry.masterAccuracy
-          ? `± ${entry.masterAccuracy} ${entry.masterAccuracyUnit ?? ''}`.trim()
+          ? `${accuracyIsNumber ? '± ' : ''}${entry.masterAccuracy} ${entry.masterAccuracyUnit ?? ''}`.trim()
           : 'Not recorded'
         const capability = entry.capabilityParameter || ''
 
@@ -869,10 +875,17 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
           group.capabilities.push({ parameter: capability, leastCount, accuracy })
         }
 
-        // Which parameter this entry served, by the link the certificate stores.
-        // A position would break the moment two entries hold the same instrument.
-        const served = parameterSpecs.find((spec) => spec.id === entry.parameterId)
-        if (served) {
+        // Which parameter this entry served. The id where the payload carries one;
+        // the position otherwise, since the form's own shape is positional and both
+        // reach this component depending on which path built the data.
+        const byId = entry.parameterId
+          ? parameterSpecs.find((spec) => spec.id === entry.parameterId)
+          : undefined
+        const index = (entry as { parameterIndex?: number }).parameterIndex
+        const served =
+          byId ?? (index !== undefined && index >= 0 ? parameterSpecs[index] : undefined)
+        // One entry, one use - and the same parameter twice would print twice.
+        if (served && !group.uses.some((use) => use.parameter === served.name && use.range === served.range)) {
           group.uses.push({ parameter: served.name, range: served.range })
         }
 

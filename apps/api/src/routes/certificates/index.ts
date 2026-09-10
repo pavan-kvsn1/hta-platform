@@ -2893,9 +2893,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       })),
       masterInstruments: certificate.masterInstruments.map((mi: (typeof certificate.masterInstruments)[number]) => ({
         id: mi.id,
-        // Which parameter this entry was declared for, as a position in `parameters`.
-        // The rows are ordered by sortOrder above, so the position is the one the
-        // client sent and the one it will send back.
+        // Which parameter this entry was declared for, both ways. The form works in
+        // positions, because it rewrites the parameter rows on every save; the PDF
+        // works in ids, because it groups entries by instrument and a position stops
+        // meaning anything once two entries hold the same one.
+        parameterId: mi.parameterId ?? '',
         parameterIndex: mi.parameterId
           ? certificate.parameters.findIndex((p: { id: string }) => p.id === mi.parameterId)
           : -1,

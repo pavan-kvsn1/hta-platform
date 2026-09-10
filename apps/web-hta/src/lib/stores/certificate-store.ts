@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { apiFetch } from '@/lib/api-client'
 import { parameterIdFor } from '@/lib/master-parameter-link'
-import { masterSpecFor, EMPTY_SNAPSHOT } from '@/lib/master-spec-snapshot'
+import { masterSpecFor } from '@/lib/master-spec-snapshot'
 import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
 import {
   errorPrecision,
@@ -736,7 +736,15 @@ function masterSpecSnapshot(
   entry: SelectedMasterInstrument,
   parameter: Parameter | undefined,
 ) {
-  if (!parameter) return EMPTY_SNAPSHOT
+  /** What the entry already carries, so a failed lookup cannot erase a recorded one. */
+  const held = {
+    capabilityParameter: entry.capabilityParameter ?? '',
+    masterLeastCount: entry.masterLeastCount ?? '',
+    masterLeastCountUnit: entry.masterLeastCountUnit ?? '',
+    masterAccuracy: entry.masterAccuracy ?? '',
+    masterAccuracyUnit: entry.masterAccuracyUnit ?? '',
+  }
+  if (!parameter) return held
 
   const unit = useMasterInstrumentStore.getState().getUnitByLegacyId(entry.masterInstrumentId)
   const mapped = parameter.masterMapping?.ranges?.[0]
@@ -744,7 +752,18 @@ function masterSpecSnapshot(
   const to = mapped ? mapped.to : Number(parameter.rangeMax)
   const range = Number.isFinite(from) && Number.isFinite(to) ? { from, to } : null
 
-  return masterSpecFor(unit, parameter.masterProfileId, parameter.masterSubtype, range)
+  const resolved = masterSpecFor(
+    unit,
+    parameter.masterProfileId,
+    parameter.masterSubtype,
+    range,
+  )
+  // A save made before the registry finished loading resolves to nothing. Writing that
+  // would replace a snapshot the certificate already had with a blank one, and the
+  // certificate would quietly lose figures it was issued with.
+  return resolved.capabilityParameter || resolved.masterLeastCount || resolved.masterAccuracy
+    ? resolved
+    : held
 }
 
 export const useCertificateStore = create<CertificateStore>((set, get) => ({
