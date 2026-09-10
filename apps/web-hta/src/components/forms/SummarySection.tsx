@@ -426,47 +426,48 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                   {formData.dueDateNotApplicable ? 'Not Applicable' : formatDate(formData.calibrationDueDate)}
                 </p>
                 {!formData.dueDateNotApplicable && (
-                  <p className="text-xs text-slate-500">
-                    Based on calibration date + tenure
-                    {formData.dueDateAdjustment < 0 && (
-                      <span className="text-amber-600 font-semibold ml-1">
-                        ({formData.dueDateAdjustment} days)
-                      </span>
-                    )}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <p className="text-xs text-slate-500">
+                      Based on calibration date + tenure
+                      {formData.dueDateAdjustment < 0 && (
+                        <span className="text-amber-600 font-semibold ml-1">
+                          ({formData.dueDateAdjustment} days)
+                        </span>
+                      )}
+                    </p>
+
+                    {/* How it is written on the certificate. 02/09/2026 is September
+                        here and February in Boston, and a certificate that leaves the
+                        lab has to be read the way its reader reads.
+
+                        On the same line as the caption that explains the date, rather
+                        than in the column opposite: it describes the date above it, and
+                        a row of its own bought nothing but height. */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-slate-400">printed as</span>
+                      <Select
+                        value={formData.calibrationDueDateFormat || DEFAULT_DATE_FORMAT}
+                        onValueChange={(value) => setFormField('calibrationDueDateFormat', value)}
+                      >
+                        <SelectTrigger className="h-7 w-auto gap-1 rounded-md border-slate-200 bg-white px-2 py-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DATE_FORMATS.map((format) => (
+                            <SelectItem key={format} value={format}>
+                              {formData.calibrationDueDate
+                                ? formatCertificateDate(formData.calibrationDueDate, format)
+                                : format}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
             <div className="flex flex-col items-end gap-4">
-              {/* How it is written on the certificate.
-                  02/09/2026 is September here and February in Boston, and a certificate
-                  that leaves the lab has to be read the way its reader reads. Asked
-                  beside the date it applies to, and only where there is a date. */}
-              {!formData.dueDateNotApplicable && (
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Printed as
-                  </span>
-                  <Select
-                    value={formData.calibrationDueDateFormat || DEFAULT_DATE_FORMAT}
-                    onValueChange={(value) => setFormField('calibrationDueDateFormat', value)}
-                  >
-                    <SelectTrigger className="h-8 w-52 rounded-lg border-slate-300 bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DATE_FORMATS.map((format) => (
-                        <SelectItem key={format} value={format}>
-                          {formData.calibrationDueDate
-                            ? formatCertificateDate(formData.calibrationDueDate, format)
-                            : format}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
               {/* Not Applicable Toggle */}
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
