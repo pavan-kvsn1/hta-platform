@@ -29,6 +29,9 @@ model Tenant {
   certificates      Certificate[]
   emailDeliveries   EmailDelivery[]
   masterInstruments MasterInstrument[]
+  capabilityProfiles   MasterCapabilityProfile[]
+  capabilityAudits     MasterCapabilityAudit[]
+  instrumentComponents MasterInstrumentComponent[]
   instrumentTrainings MasterInstrumentTraining[]
 
   // Billing relations
@@ -194,6 +197,7 @@ model User {
   uploadedInstrumentCertificates MasterInstrumentCertificate[] @relation("InstrumentCertificateUploader")
   engineerInstrumentTrainings    MasterInstrumentTraining[]    @relation("EngineerInstrumentTrainings")
   uploadedTrainingCertificates   MasterInstrumentTraining[]    @relation("TrainingCertificateUploader")
+  capabilityAudits               MasterCapabilityAudit[]
   notifications                  Notification[]
   passwordResetTokens            PasswordResetToken[]
   resolvedFeedback               ReviewFeedback[]              @relation("FeedbackResolver")
@@ -413,9 +417,15 @@ model MasterInstrumentCertificate {
   masterInstrument   MasterInstrument @relation(fields: [masterInstrumentId], references: [id], onDelete: Cascade)
   uploadedBy         User             @relation("InstrumentCertificateUploader", fields: [uploadedById], references: [id])
 
+  // Which capability this certificate covers. Null until assigned, so every row that
+  // exists today stays valid.
+  capabilityProfileId String?
+  capabilityProfile   MasterCapabilityProfile? @relation(fields: [capabilityProfileId], references: [id])
+
   @@index([masterInstrumentId])
   @@index([masterInstrumentId, isLatest])
   @@index([reportNo])
+  @@index([capabilityProfileId])
 }
 
 model MasterInstrumentTraining {
@@ -1398,4 +1408,182 @@ model CalibrationParameter {
 
   @@unique([tenantId, standardId])
   @@index([tenantId, active])
+}
+
+
+// ---------------------------------------------------------------------------
+// Master instrument capabilities
+//
+// Additive. Nothing above is altered; the flat columns on MasterInstrument stay
+// exactly as they are and keep being written until their readers are moved.
+// Design and rationale: docs/scope/master-capability-schema.md
+//
+// These hang off instrumentId - the stable identity - and not MasterInstrument.id,
+// which is one version of an instrument. MasterInstrumentCertificate attaches to the
+// version row, and 25 of 210 certificates are stranded on superseded versions as a
+// result. MasterInstrumentTraining already uses instrumentId; this follows it.
+// ---------------------------------------------------------------------------
+
+enum CapabilityKind {
+  RANGE      // 365 profiles — a measuring or sourcing span
+  ARTIFACT   //   4 profiles — a fixed value, e.g. a 2 kg mass
+}
+
+enum CapabilityRole {
+  MEASURING  // 301
+  SOURCE     //  68
+}
+
+enum AccuracyKind {
+  SYMMETRIC  // 1411 buckets — ±0.6 °C
+  FORMULA    //  120 buckets — ±(0.02% of reading + 2 counts)
+  CLASS      //    2 buckets — Class 1
+}
+
+model MasterCapabilityProfile {
+  id           String          @id @default(uuid())
+  tenantId     String
+  instrumentId String          // stable identity, NOT MasterInstrument.id
+
+  profileKey   String          // "P1" — the registry's own id, kept for traceability
+  parameter    String          // "Thermocouple", "Pressure", "Mass"
+  role         CapabilityRole
+  unit         String          // "°C", "bar", "kg"
+  kind         CapabilityKind  @default(RANGE)
+
+  // Overall span. Null for ARTIFACT, which carries its value on its single bucket.
+  minValue       Decimal?      @db.Decimal(20, 9)
+  maxValue       Decimal?      @db.Decimal(20, 9)
+  minInclusive   Boolean       @default(true)
+  maxInclusive   Boolean       @default(true)
+
+  // Set when the parameter splits: "thermocouple_type", "rtd_type". Null means the
+  // buckets hang directly off this profile.
+  subtypeKind    String?
+
+  // Decision 2 of master-instrument-model-decisions.md: a procedure belongs to a
+  // parameter, not to a box.
+  sopReferences  String[]      @default([])
+
+  // How the seed knows what an admin has touched and must not overwrite.
+  source         String        @default("registry")  // "registry" | "manual"
+  sortOrder      Int           @default(0)
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  createdById    String?
+
+  tenant         Tenant                     @relation(fields: [tenantId], references: [id])
+  subtypes       MasterCapabilitySubtype[]
+  buckets        MasterCapabilityBucket[]
+  certificates   MasterInstrumentCertificate[]
+
+  @@unique([tenantId, instrumentId, profileKey])
+  @@index([tenantId, instrumentId])
+  @@index([parameter])
+}
+
+model MasterCapabilitySubtype {
+  id           String   @id @default(uuid())
+  profileId    String
+
+  subtypeKey   String   // "Type J", "Pt-100"
+
+  // Its own span: Type J stops at 1200 °C where Type K goes further.
+  minValue     Decimal? @db.Decimal(20, 9)
+  maxValue     Decimal? @db.Decimal(20, 9)
+  minInclusive Boolean  @default(true)
+  maxInclusive Boolean  @default(true)
+
+  sortOrder    Int      @default(0)
+
+  profile      MasterCapabilityProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  buckets      MasterCapabilityBucket[]
+
+  @@unique([profileId, subtypeKey])
+  @@index([profileId])
+}
+
+model MasterCapabilityBucket {
+  id           String   @id @default(uuid())
+  profileId    String
+  subtypeId    String?  // null when the profile has no subtypes
+
+  bucketKey    String   // "B1"
+
+  minValue     Decimal? @db.Decimal(20, 9)
+  maxValue     Decimal? @db.Decimal(20, 9)
+  minInclusive Boolean  @default(true)
+  maxInclusive Boolean  @default(true)
+
+  // Declared on 1443 buckets, absent on 121. Null means "not declared", which is not
+  // the same as zero and must stay distinguishable.
+  leastCountValue Decimal? @db.Decimal(20, 9)
+  leastCountUnit  String?
+
+  // Null on 31 buckets. The three shapes are the three the data actually holds.
+  accuracyKind     AccuracyKind?
+  accuracyValue    Decimal?      @db.Decimal(20, 9)  // SYMMETRIC
+  accuracyUnit     String?                            // SYMMETRIC — "°C", "%FS"
+  accuracyPolarity String?                            // SYMMETRIC — "±"
+  accuracyFormula  String?                            // FORMULA — kept verbatim
+  accuracyClass    String?                            // CLASS — "Class 1"
+
+  sortOrder    Int      @default(0)
+
+  profile      MasterCapabilityProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  subtype      MasterCapabilitySubtype? @relation(fields: [subtypeId], references: [id], onDelete: Cascade)
+
+  // Uniqueness is enforced by a NULLS NOT DISTINCT index created in the migration;
+  // a plain @@unique does not hold when subtypeId is null. See below.
+  @@index([profileId])
+  @@index([subtypeId])
+}
+enum ComponentRole {
+  INDICATOR   // registry "ind"
+  SENSOR      // registry "sen"
+}
+
+model MasterInstrumentComponent {
+  id           String        @id @default(uuid())
+  tenantId     String
+  instrumentId String        // stable identity, as with capability profiles
+
+  role         ComponentRole
+  componentKey String        // "ind", "sen", "sen2" — stable across edits, never reused
+
+  make         String?       // null means "same as the instrument's own make"
+  model        String?
+  serialNumber String?
+
+  sortOrder    Int           @default(0)
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, instrumentId, componentKey])
+  @@index([tenantId, instrumentId])
+}
+model MasterCapabilityAudit {
+  id           String   @id @default(uuid())
+  tenantId     String
+  instrumentId String
+
+  action       String   // PROFILE_ADDED, BUCKET_UPDATED, PROFILE_DELETED, ...
+  profileKey   String?  // "P1"
+  subtypeKey   String?  // "Type J"
+  bucketKey    String?  // "B2"
+  field        String?  // "leastCountValue"
+  beforeValue  String?
+  afterValue   String?
+
+  actorId      String?
+  createdAt    DateTime @default(now())
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  actor        User?    @relation(fields: [actorId], references: [id])
+
+  @@index([tenantId, instrumentId, createdAt])
 }
