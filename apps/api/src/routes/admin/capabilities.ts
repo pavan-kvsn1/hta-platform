@@ -105,6 +105,17 @@ function accuracyFromInput(body: BucketInput) {
   }
 }
 
+/**
+ * A range written the way it is read - "0 to 100 bar". Recorded on every audit entry
+ * about a range, because ranges are numbered by position now and positions move.
+ */
+function rangeLabel(min: number | null, max: number | null, unit?: string | null): string {
+  const suffix = unit ? ` ${unit}` : ''
+  if (min === null && max === null) return 'a range with no bounds'
+  if (min === max) return `${max}${suffix}`
+  return `${min ?? '?'} to ${max ?? '?'}${suffix}`
+}
+
 function bucketDataFromInput(body: BucketInput) {
   return {
     minValue: readNumber(body.min),
@@ -147,6 +158,7 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
       profileKey?: string | null
       subtypeKey?: string | null
       bucketKey?: string | null
+      bucketLabel?: string | null
       field?: string | null
       beforeValue?: string | null
       afterValue?: string | null
@@ -639,7 +651,8 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
           action: 'BUCKET_ADDED',
           profileKey: profile.profileKey,
           bucketKey,
-          afterValue: `${readNumber(body.min) ?? '?'} to ${readNumber(body.max) ?? '?'}`,
+          bucketLabel: rangeLabel(readNumber(body.min), readNumber(body.max), profile.unit),
+          afterValue: rangeLabel(readNumber(body.min), readNumber(body.max), profile.unit),
           actorId: request.user?.sub ?? null,
         },
       )
@@ -714,6 +727,9 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
               action: 'BUCKET_UPDATED',
               profileKey: profile.profileKey,
               bucketKey: bucket.bucketKey,
+              // The range as it read before the change, so the entry still points at the
+              // right one after other ranges are added or removed.
+              bucketLabel: rangeLabel(num(bucket.minValue), num(bucket.maxValue), profile.unit),
               field,
               beforeValue: before[field] === null || before[field] === undefined ? null : String(before[field]),
               afterValue: after[field] === null || after[field] === undefined ? null : String(after[field]),
@@ -752,12 +768,103 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
             action: 'BUCKET_DELETED',
             profileKey: profile.profileKey,
             bucketKey: bucket.bucketKey,
-            beforeValue: `${num(bucket.minValue) ?? '?'} to ${num(bucket.maxValue) ?? '?'}`,
+            bucketLabel: rangeLabel(num(bucket.minValue), num(bucket.maxValue), profile.unit),
+            beforeValue: rangeLabel(num(bucket.minValue), num(bucket.maxValue), profile.unit),
             actorId: request.user?.sub ?? null,
           },
         )
       })
 
+      return { deleted: true }
+    },
+  )
+
+  // -------------------------------------------------------------------------
+  // Components - the indicator and its sensors
+  //
+  // Not a fixed pair. 188 HTAIPL/L is one indicator with three transducers, each
+  // pairing holding its own certificate, so they are added one at a time.
+  // -------------------------------------------------------------------------
+
+  fastify.post<{
+    Params: { id: string }
+    Body: { role?: unknown; make?: unknown; model?: unknown; serialNumber?: unknown }
+  }>('/instruments/:id/components', { preHandler: [requireAdmin] }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const instrument = await resolveInstrument(request.params.id, tenantId)
+    if (!instrument) return reply.status(404).send({ error: 'Instrument not found' })
+
+    const body = request.body ?? {}
+    const role = body.role === 'SENSOR' || body.role === 'INDICATOR' ? body.role : null
+    if (!role) return reply.status(400).send({ error: 'Role must be INDICATOR or SENSOR' })
+
+    const existing = await prisma.masterInstrumentComponent.findMany({
+      where: { tenantId, instrumentId: instrument.instrumentId },
+      select: { componentKey: true, sortOrder: true },
+    })
+    // ind, sen, sen2, sen3 - the registry's own names, extended rather than replaced.
+    const prefix = role === 'INDICATOR' ? 'ind' : 'sen'
+    const taken = new Set(existing.map((e) => e.componentKey))
+    let componentKey = prefix
+    let n = 1
+    while (taken.has(componentKey)) componentKey = `${prefix}${++n}`
+
+    const created = await prisma.masterInstrumentComponent.create({
+      data: {
+        tenantId,
+        instrumentId: instrument.instrumentId,
+        componentKey,
+        role,
+        make: typeof body.make === 'string' && body.make.trim() ? body.make.trim() : null,
+        model: typeof body.model === 'string' && body.model.trim() ? body.model.trim() : null,
+        serialNumber:
+          typeof body.serialNumber === 'string' && body.serialNumber.trim() ? body.serialNumber.trim() : null,
+        sortOrder: existing.reduce((m, e) => Math.max(m, e.sortOrder + 1), 0),
+      },
+    })
+    return reply.status(201).send({ component: { id: created.id, componentKey: created.componentKey } })
+  })
+
+  fastify.patch<{
+    Params: { id: string; componentId: string }
+    Body: { make?: unknown; model?: unknown; serialNumber?: unknown }
+  }>('/instruments/:id/components/:componentId', { preHandler: [requireAdmin] }, async (request, reply) => {
+    const tenantId = request.tenantId
+    const instrument = await resolveInstrument(request.params.id, tenantId)
+    if (!instrument) return reply.status(404).send({ error: 'Instrument not found' })
+
+    const component = await prisma.masterInstrumentComponent.findFirst({
+      where: { id: request.params.componentId, tenantId, instrumentId: instrument.instrumentId },
+      select: { id: true },
+    })
+    if (!component) return reply.status(404).send({ error: 'Component not found' })
+
+    const body = request.body ?? {}
+    // An empty string means "this part shares the instrument's own", which is null, not "".
+    const text = (v: unknown) => (typeof v === 'string' ? (v.trim() === '' ? null : v.trim()) : undefined)
+
+    await prisma.masterInstrumentComponent.update({
+      where: { id: component.id },
+      data: { make: text(body.make), model: text(body.model), serialNumber: text(body.serialNumber) },
+    })
+    return { component: { id: component.id } }
+  })
+
+  fastify.delete<{ Params: { id: string; componentId: string } }>(
+    '/instruments/:id/components/:componentId',
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const tenantId = request.tenantId
+      const instrument = await resolveInstrument(request.params.id, tenantId)
+      if (!instrument) return reply.status(404).send({ error: 'Instrument not found' })
+
+      const component = await prisma.masterInstrumentComponent.findFirst({
+        where: { id: request.params.componentId, tenantId, instrumentId: instrument.instrumentId },
+        select: { id: true },
+      })
+      if (!component) return reply.status(404).send({ error: 'Component not found' })
+
+      await prisma.masterInstrumentComponent.delete({ where: { id: component.id } })
       return { deleted: true }
     },
   )
@@ -793,6 +900,7 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
           profileKey: e.profileKey,
           subtypeKey: e.subtypeKey,
           bucketKey: e.bucketKey,
+          bucketLabel: e.bucketLabel,
           field: e.field,
           before: e.beforeValue,
           after: e.afterValue,

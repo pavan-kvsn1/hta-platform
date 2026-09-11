@@ -169,15 +169,17 @@ function validate(profiles: Profile[]): string[] {
         .filter((b) => b.min !== null && b.max !== null)
         .sort((a, b) => (a.min ?? 0) - (b.min ?? 0))
 
+      // Named by position, as the table numbers them.
+      const numberOf = (b: Bucket) => buckets.indexOf(b) + 1
       for (let i = 1; i < ordered.length; i++) {
         const prev = ordered[i - 1]
         const cur = ordered[i]
         // Both claiming the boundary is the failure that matters: a reading at exactly
         // that value would take whichever accuracy happened to be found first.
         if ((cur.min as number) < (prev.max as number))
-          problems.push(`${where}: ${prev.bucketKey} and ${cur.bucketKey} overlap`)
+          problems.push(`${where}: ranges ${numberOf(prev)} and ${numberOf(cur)} overlap`)
         else if ((cur.min as number) === (prev.max as number) && cur.minInclusive && prev.maxInclusive)
-          problems.push(`${where}: ${prev.bucketKey} and ${cur.bucketKey} both include ${cur.min}`)
+          problems.push(`${where}: ranges ${numberOf(prev)} and ${numberOf(cur)} both include ${cur.min}`)
         else if ((cur.min as number) > (prev.max as number))
           problems.push(`${where}: nothing covers ${prev.max} to ${cur.min}`)
       }
@@ -207,7 +209,7 @@ function RangeTable({
       <table className="w-full text-[12px]">
         <thead>
           <tr className="text-left text-[#64748b] border-b border-[#e2e8f0]">
-            <th className="py-1.5 pr-3 font-medium w-10">ID</th>
+            <th className="py-1.5 pr-3 font-medium w-8">#</th>
             <th className="py-1.5 pr-3 font-medium">Range</th>
             <th className="py-1.5 pr-3 font-medium">Least Count</th>
             <th className="py-1.5 pr-3 font-medium">Accuracy</th>
@@ -215,9 +217,11 @@ function RangeTable({
           </tr>
         </thead>
         <tbody>
-          {buckets.map((b) => (
+          {/* Numbered by position. The internal key is kept out of sight: it exists so the
+              audit log can point at a range that outlives its row number. */}
+          {buckets.map((b, i) => (
             <tr key={b.id} className="border-b border-[#f1f5f9] last:border-0">
-              <td className="py-1.5 pr-3 text-[#94a3b8]">{b.bucketKey}</td>
+              <td className="py-1.5 pr-3 text-[#94a3b8] tabular-nums">{i + 1}</td>
               <td className="py-1.5 pr-3 text-[#0f172a] tabular-nums">{span(b, unit)}</td>
               <td className="py-1.5 pr-3 text-[#334155]">
                 <Undeclared>{leastCountText(b)}</Undeclared>
@@ -230,7 +234,7 @@ function RangeTable({
                   type="button"
                   onClick={() => onEdit(b)}
                   disabled={busy === b.id}
-                  aria-label={`Edit range ${b.bucketKey}`}
+                  aria-label={`Edit range ${i + 1}`}
                   className="text-[#94a3b8] hover:text-[#7c3aed] disabled:opacity-40 mr-2"
                 >
                   <Pencil className="size-3.5" />
@@ -239,7 +243,7 @@ function RangeTable({
                   type="button"
                   onClick={() => onDelete(b.id)}
                   disabled={busy === b.id}
-                  aria-label={`Delete range ${b.bucketKey}`}
+                  aria-label={`Delete range ${i + 1}`}
                   className="text-[#94a3b8] hover:text-[#dc2626] disabled:opacity-40"
                 >
                   {busy === b.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}

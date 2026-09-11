@@ -22,6 +22,7 @@ interface Entry {
   profileKey: string | null
   subtypeKey: string | null
   bucketKey: string | null
+  bucketLabel: string | null
   field: string | null
   before: string | null
   after: string | null
@@ -72,7 +73,10 @@ function trail(e: Entry) {
   const parts: string[] = []
   if (e.profileKey) parts.push(`Profile: ${e.profileKey}`)
   if (e.subtypeKey) parts.push(`Subtype: ${e.subtypeKey}`)
-  if (e.bucketKey) parts.push(`Bucket ${e.bucketKey}`)
+  // The range itself, not its number: numbers shift when a range is deleted, and an old
+  // entry pointing at "range 2" would quietly come to mean a different one.
+  if (e.bucketLabel) parts.push(e.bucketLabel)
+  else if (e.bucketKey) parts.push(`Range ${e.bucketKey.replace(/^B/, '')}`)
   if (e.field) parts.push(FIELD_LABEL[e.field] ?? e.field)
   return parts.join(' → ')
 }

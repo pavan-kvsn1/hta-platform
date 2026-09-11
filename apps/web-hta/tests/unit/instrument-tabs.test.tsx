@@ -164,6 +164,7 @@ describe('the audit log tab', () => {
     profileKey: 'P1',
     subtypeKey: null,
     bucketKey: 'B2',
+    bucketLabel: '0 to 100 bar',
     field: 'leastCountValue',
     before: '0.05',
     after: '0.01',
@@ -177,7 +178,8 @@ describe('the audit log tab', () => {
     render(<AuditLogTab instrumentId="row-1" formatDateTime={(s) => s.slice(0, 10)} />)
 
     // FIELD_UPDATED is also an option in the Filter dropdown, so look in the entry.
-    const trail = await screen.findByText('Profile: P1 → Bucket B2 → Least Count')
+    // Identified by the range itself, because row numbers shift when one is deleted.
+    const trail = await screen.findByText('Profile: P1 → 0 to 100 bar → Least Count')
     const row = trail.closest('div.px-4')!
     expect(within(row).getByText('FIELD_UPDATED')).toBeTruthy()
     expect(within(row).getByText('0.05')).toBeTruthy()
@@ -194,6 +196,12 @@ describe('the audit log tab', () => {
     apiFetch.mockResolvedValue(ok({ entries: [], nextCursor: null }))
     render(<AuditLogTab instrumentId="row-1" formatDateTime={(s) => s} />)
     expect(await screen.findByText(/Nothing has changed since these capabilities were loaded/)).toBeTruthy()
+  })
+
+  it('falls back to a number for entries recorded before ranges carried a label', async () => {
+    apiFetch.mockResolvedValue(ok({ entries: [entry({ bucketLabel: null })], nextCursor: null }))
+    render(<AuditLogTab instrumentId="row-1" formatDateTime={(s) => s.slice(0, 10)} />)
+    expect(await screen.findByText(/Range 2/)).toBeTruthy()
   })
 
   it('offers earlier changes only when there are more', async () => {

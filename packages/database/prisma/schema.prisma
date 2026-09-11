@@ -1578,7 +1578,11 @@ model MasterCapabilityAudit {
   action       String   // PROFILE_ADDED, BUCKET_UPDATED, PROFILE_DELETED, ...
   profileKey   String?  // "P1"
   subtypeKey   String?  // "Type J"
-  bucketKey    String?  // "B2"
+  bucketKey    String?  // internal, stable, never reused
+  // The range as it read when the change was made - "0 to 100 bar". Ranges are shown by
+  // position now, and positions shift when one is deleted, so a past entry saying
+  // "range 2" would quietly come to mean a different range. This does not.
+  bucketLabel  String?
   field        String?  // "leastCountValue"
   beforeValue  String?
   afterValue   String?

@@ -82,7 +82,8 @@ describe('reading capabilities', () => {
     render(<CapabilitiesTab instrumentId="row-1" />)
 
     await userEvent.click(await screen.findByRole('button', { name: 'Expand Pressure' }))
-    const row = screen.getByText('B1').closest('tr')!
+    // Ranges are numbered by position now, not by an internal key.
+    const row = screen.getByText('1').closest('tr')!
     expect(within(row).getByText('not declared')).toBeTruthy()
     expect(within(row).queryByText('0')).toBeNull()
   })
@@ -274,5 +275,51 @@ describe('adding a range', () => {
 
     expect(screen.queryByLabelText('± value')).toBeNull()
     expect(screen.getByLabelText(/Formula, exactly as the certificate states it/)).toBeTruthy()
+  })
+})
+
+describe('numbering ranges', () => {
+  it('numbers them by position, and never shows the internal key', async () => {
+    apiFetch.mockResolvedValue(
+      ok(
+        payload({
+          profiles: [
+            profile({
+              buckets: [
+                bucket({ id: 'b1', bucketKey: 'B3' }),
+                bucket({ id: 'b2', bucketKey: 'B7', min: 100, max: 500, minInclusive: false }),
+              ],
+            }),
+          ],
+        }),
+      ),
+    )
+    render(<CapabilitiesTab instrumentId="row-1" />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Expand Pressure' }))
+
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(rows[0].textContent).toMatch(/^1/)
+    expect(rows[1].textContent).toMatch(/^2/)
+    // The keys the audit log uses are deliberately not on screen.
+    expect(screen.queryByText('B3')).toBeNull()
+    expect(screen.queryByText('B7')).toBeNull()
+  })
+
+  it('names ranges by position when it reports an overlap', async () => {
+    apiFetch.mockResolvedValue(
+      ok(
+        payload({
+          profiles: [
+            profile({
+              buckets: [bucket({ id: 'b1', min: 0, max: 100 }), bucket({ id: 'b2', bucketKey: 'B2', min: 50, max: 200 })],
+            }),
+          ],
+        }),
+      ),
+    )
+    render(<CapabilitiesTab instrumentId="row-1" />)
+    await userEvent.click(await screen.findByRole('button', { name: /Validate All/ }))
+
+    expect(await screen.findByText(/ranges 1 and 2 overlap/)).toBeTruthy()
   })
 })
