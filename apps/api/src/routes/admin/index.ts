@@ -1586,6 +1586,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           instrumentId: current.instrumentId,
           version: current.version + 1,
           isLatest: true,
+          // The legacy id identifies the row in the master registry. A new version is
+          // the same instrument, so it keeps it; dropping it orphans the row.
+          legacyId: current.legacyId,
           category: body.category ?? current.category,
           description: body.description ?? current.description,
           make: body.make ?? current.make,
@@ -1805,6 +1808,134 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       total: certificates.length,
     }
   })
+
+  /**
+   * GET /api/admin/instruments/:id/certificates/:certId - one certificate, with a
+   * signed URL to its file.
+   *
+   * The latest one already had a route; every other one the instrument holds had no
+   * way to be opened at all, so a file uploaded before the current one was in the
+   * database and unreachable.
+   */
+  fastify.get<{ Params: { id: string; certId: string } }>(
+    '/instruments/:id/certificates/:certId',
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const { id, certId } = request.params
+      const tenantId = request.tenantId
+
+      const instrument = await prisma.masterInstrument.findFirst({
+        where: { id, tenantId },
+        select: { id: true, assetNumber: true },
+      })
+      if (!instrument) {
+        return reply.status(404).send({ error: 'Instrument not found' })
+      }
+
+      const certificate = await prisma.masterInstrumentCertificate.findFirst({
+        where: { id: certId, masterInstrumentId: id },
+        include: {
+          masterInstrument: { select: { assetNumber: true, description: true } },
+          uploadedBy: { select: { id: true, name: true } },
+        },
+      })
+      if (!certificate) {
+        return reply.status(404).send({ error: 'Certificate not found' })
+      }
+
+      try {
+        const { getMasterInstrumentCertificateStorage } = await import('../../lib/storage/index.js')
+        const storage = getMasterInstrumentCertificateStorage()
+        const resolved = await resolveMasterInstrumentCertificatePath(
+          storage,
+          certificate,
+          certificate.masterInstrument.assetNumber,
+        )
+
+        if (resolved.storagePath) {
+          if (resolved.storagePath !== certificate.storagePath) {
+            await prisma.masterInstrumentCertificate.update({
+              where: { id: certificate.id },
+              data: { storagePath: resolved.storagePath },
+            })
+            certificate.storagePath = resolved.storagePath
+          }
+          const url = await storage.getSignedUrl(resolved.storagePath, { expiresInMinutes: 15 })
+          return { certificate, url }
+        }
+
+        request.log.warn(
+          { certificateId: certificate.id, attemptedPaths: resolved.attemptedPaths },
+          'Master instrument certificate PDF not found in storage',
+        )
+        return {
+          certificate,
+          url: null,
+          urlError: 'Certificate PDF is not available in storage.',
+        }
+      } catch (error) {
+        request.log.error({ err: error, certificateId: certificate.id }, 'Failed to create certificate URL')
+        return {
+          certificate,
+          url: null,
+          urlError: error instanceof Error ? error.message : 'Failed to create certificate URL',
+        }
+      }
+    },
+  )
+
+  /**
+   * PATCH /api/admin/instruments/:id/certificates/:certId - archive or restore one.
+   *
+   * Archiving never deletes the file. A superseded certificate is still the evidence
+   * behind every certificate issued while it was current, so it is hidden, not lost.
+   *
+   * The instrument's latest certificate cannot be archived while it is the latest -
+   * that would leave the instrument with nothing current and no way to say so. Upload
+   * a newer one first, which demotes it.
+   */
+  fastify.patch<{ Params: { id: string; certId: string }; Body: { isActive: boolean } }>(
+    '/instruments/:id/certificates/:certId',
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const { id, certId } = request.params
+      const { isActive } = request.body ?? {}
+      const tenantId = request.tenantId
+
+      if (typeof isActive !== 'boolean') {
+        return reply.status(400).send({ error: 'isActive must be true or false' })
+      }
+
+      const instrument = await prisma.masterInstrument.findFirst({
+        where: { id, tenantId },
+        select: { id: true },
+      })
+      if (!instrument) {
+        return reply.status(404).send({ error: 'Instrument not found' })
+      }
+
+      const certificate = await prisma.masterInstrumentCertificate.findFirst({
+        where: { id: certId, masterInstrumentId: id },
+      })
+      if (!certificate) {
+        return reply.status(404).send({ error: 'Certificate not found' })
+      }
+
+      if (!isActive && certificate.isLatest) {
+        return reply.status(400).send({
+          error: 'This is the current certificate for this instrument. Upload a newer one before archiving it.',
+        })
+      }
+
+      const updated = await prisma.masterInstrumentCertificate.update({
+        where: { id: certId },
+        data: { isActive },
+        include: { uploadedBy: { select: { id: true, name: true } } },
+      })
+
+      return { certificate: updated }
+    },
+  )
 
   // GET /api/admin/instruments/:id/certificates/latest/pdf - Stream latest certificate PDF
   fastify.get<{ Params: { id: string } }>('/instruments/:id/certificates/latest/pdf', {
@@ -5906,6 +6037,21 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
                   isLatest: true,
                   isActive: true,
                   createdById: userId,
+                  // A spreadsheet carries identity, not capability. Everything it does
+                  // not mention is carried over from the version it replaces, or the
+                  // import would wipe what the registry seeded.
+                  legacyId: existing.legacyId,
+                  usage: existing.usage,
+                  calibratedAtLocation: existing.calibratedAtLocation,
+                  reportNo: existing.reportNo,
+                  calibrationDueDate: existing.calibrationDueDate,
+                  rangeData: (existing.rangeData as Prisma.InputJsonValue) ?? Prisma.DbNull,
+                  remarks: existing.remarks,
+                  status: existing.status,
+                  parameterGroup: existing.parameterGroup,
+                  parameterRoles: existing.parameterRoles,
+                  parameterCapabilities: existing.parameterCapabilities,
+                  sopReferences: existing.sopReferences,
                 },
               })
             })
