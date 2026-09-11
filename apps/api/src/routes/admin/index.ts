@@ -23,6 +23,7 @@ import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing
 import { writeDeviceAudit } from '../../lib/activity-audit.js'
 import type { StorageProvider } from '../../lib/storage/index.js'
 import capabilityRoutes from './capabilities.js'
+import { pdfPageCount } from '../../lib/pdf-page-count.js'
 
 const logger = createLogger('admin-routes')
 const CUSTOMER_DOWNLOAD_MAX_DOWNLOADS = 10
@@ -1866,6 +1867,27 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
             certificate.storagePath = resolved.storagePath
           }
           const url = await storage.getSignedUrl(resolved.storagePath, { expiresInMinutes: 15 })
+
+          // The viewer says "2 of 4", so it needs the total. Counted from the file the
+          // first time it is opened and kept, rather than on every list - counting 210
+          // certificates to draw one page of cards would be absurd. A file we cannot
+          // count stays null, and the viewer then says "page 2" without inventing a total.
+          if (certificate.pageCount === null) {
+            try {
+              const buf = await storage.download(resolved.storagePath)
+              const pages = pdfPageCount(buf)
+              if (pages !== null) {
+                await prisma.masterInstrumentCertificate.update({
+                  where: { id: certificate.id },
+                  data: { pageCount: pages },
+                })
+                certificate.pageCount = pages
+              }
+            } catch (err) {
+              request.log.warn({ certificateId: certificate.id, err }, 'could not count certificate pages')
+            }
+          }
+
           return { certificate, url }
         }
 

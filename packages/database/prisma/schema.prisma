@@ -422,6 +422,10 @@ model MasterInstrumentCertificate {
   capabilityProfileId String?
   capabilityProfile   MasterCapabilityProfile? @relation(fields: [capabilityProfileId], references: [id])
 
+  // How many pages the file has, counted from its bytes the first time it is opened and
+  // kept. The certificate viewer says "2 of 4"; without this it could only say "page 2".
+  pageCount           Int?
+
   @@index([masterInstrumentId])
   @@index([masterInstrumentId, isLatest])
   @@index([reportNo])

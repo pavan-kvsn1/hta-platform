@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle, Check, Download, FileText, Loader2, MousePointerClick, Pencil, RotateCcw, X } from 'lucide-react'
 import { apiFetch } from '@/lib/api-client'
+import CertificateViewer from './CertificateViewer'
 
 interface Certificate {
   id: string
@@ -109,7 +110,23 @@ function CertificateCard({
   const working = busy === cert.id
 
   return (
-    <div className={`rounded-xl border p-4 ${archived ? 'border-[#e2e8f0] bg-[#f8fafc]' : 'border-[#e2e8f0] bg-white'}`}>
+    // The whole card opens it: the wireframe dropped a separate "View PDF" control
+    // because clicking a card is the obvious way to read one.
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(cert.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen(cert.id)
+        }
+      }}
+      aria-label={`Open ${cert.fileName}`}
+      className={`rounded-xl border p-4 cursor-pointer transition-colors hover:border-[#7c3aed] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 ${
+        archived ? 'border-[#e2e8f0] bg-[#f8fafc]' : 'border-[#e2e8f0] bg-white'
+      }`}
+    >
       <div className="flex items-start gap-2 mb-2.5">
         {archived ? (
           <X className="size-4 mt-0.5 shrink-0 text-[#94a3b8]" aria-label="Archived" />
@@ -163,7 +180,7 @@ function CertificateCard({
         </div>
       </dl>
 
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
         <Action onClick={() => onOpen(cert.id)} disabled={working} icon={working ? Loader2 : FileText}>
           View
         </Action>
@@ -202,6 +219,12 @@ export default function CertificatesTab({
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  // The certificate currently open in the page. The wireframe opens it here rather than
+  // in a new browser tab, so the banner above stays put and Back returns to this tab.
+  const [viewing, setViewing] = useState<Certificate | null>(null)
+  const [viewUrl, setViewUrl] = useState<string | null>(null)
+  const [viewLoading, setViewLoading] = useState(false)
+  const [page, setPage] = useState(1)
 
   const base = `/api/admin/instruments/${instrumentId}/certificates`
 
@@ -296,10 +319,34 @@ export default function CertificatesTab({
     }
   }
 
-  const open = (certId: string) =>
-    withBusy(certId, async () => {
-      window.open(await signedUrl(certId), '_blank', 'noopener')
-    })
+  const open = async (certId: string) => {
+    const cert = certs?.find((c) => c.id === certId) ?? null
+    if (!cert) return
+    setViewing(cert)
+    setPage(1)
+    setViewUrl(null)
+    setViewLoading(true)
+    setError(null)
+    try {
+      // This call also gives the file a page count the first time it is opened, so the
+      // control bar can say "2 of 4" instead of just "page 2".
+      const res = await apiFetch(`${base}/${certId}`)
+      if (!res.ok) throw new Error(await explain(res, 'Could not open the certificate'))
+      const body = await res.json()
+      setViewUrl(body.url ?? null)
+      if (body.certificate?.pageCount != null) {
+        setViewing({ ...cert, pageCount: body.certificate.pageCount })
+        setCerts((prev) =>
+          prev ? prev.map((c) => (c.id === certId ? { ...c, pageCount: body.certificate.pageCount } : c)) : prev,
+        )
+      }
+    } catch (e) {
+      setViewUrl(null)
+      setError(e instanceof Error ? e.message : 'Could not reach the server.')
+    } finally {
+      setViewLoading(false)
+    }
+  }
 
   const download = (certId: string) =>
     withBusy(certId, async () => {
@@ -393,6 +440,28 @@ export default function CertificatesTab({
       ))}
     </div>
   )
+
+  if (viewing) {
+    return (
+      <div className="space-y-3">
+        {error && (
+          <div className="bg-[#fef2f2] border border-[#fee2e2] rounded-lg p-3 flex items-start gap-2">
+            <AlertCircle className="size-4 text-[#dc2626] mt-0.5 shrink-0" />
+            <p className="text-[13px] text-[#dc2626] flex-1">{error}</p>
+          </div>
+        )}
+        <CertificateViewer
+          certificate={viewing}
+          url={viewUrl}
+          loading={viewLoading}
+          page={page}
+          onPage={setPage}
+          onBack={() => setViewing(null)}
+          onClose={() => setViewing(null)}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5">

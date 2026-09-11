@@ -276,3 +276,92 @@ describe('the metadata tab', () => {
     expect(row.textContent).toContain('—')
   })
 })
+
+describe('opening a certificate', () => {
+  const cert = (over: Record<string, unknown> = {}) => ({
+    id: 'c1',
+    fileName: 'HTA C50458 01.pdf',
+    fileSize: 2_400_000,
+    reportNo: 'HTA/C50458/01/25',
+    validFrom: null,
+    validUntil: '2027-11-25T00:00:00.000Z',
+    uploadedAt: '2025-11-26T00:00:00.000Z',
+    isActive: true,
+    isLatest: true,
+    ...over,
+  })
+
+  /** Answers the list, the capabilities and the single-certificate open. */
+  const viewerMock = (c: Record<string, unknown>, pageCount: number | null = 4) =>
+    vi.fn(async (url: string) => {
+      const u = String(url)
+      if (u.includes('/capabilities')) return ok({ profiles: [], components: [], assetType: 'simple' })
+      if (/\/certificates\/c1$/.test(u)) return ok({ certificate: { ...c, pageCount }, url: 'https://signed/cert.pdf' })
+      return ok({ certificates: [c] })
+    })
+
+  it('opens in the page, not in a new browser tab', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    apiFetch.mockImplementation(viewerMock(cert()))
+
+    render(<CertificatesTab instrumentId="row-1" formatDate={showDate} />)
+    await userEvent.click(await screen.findByRole('button', { name: /Open HTA C50458 01.pdf/ }))
+
+    expect(await screen.findByText('Back to Details')).toBeTruthy()
+    expect(openSpy).not.toHaveBeenCalled()
+    openSpy.mockRestore()
+  })
+
+  it('says whether what you are reading is in force', async () => {
+    apiFetch.mockImplementation(viewerMock(cert({ isActive: false })))
+    render(<CertificatesTab instrumentId="row-1" formatDate={showDate} />)
+    await userEvent.click(await screen.findByRole('button', { name: /Open HTA C50458 01.pdf/ }))
+
+    expect(await screen.findByText('ARCHIVED')).toBeTruthy()
+  })
+
+  it('shows the page count the server counted, and steps through pages', async () => {
+    apiFetch.mockImplementation(viewerMock(cert(), 4))
+    render(<CertificatesTab instrumentId="row-1" formatDate={showDate} />)
+    await userEvent.click(await screen.findByRole('button', { name: /Open HTA C50458 01.pdf/ }))
+
+    expect(await screen.findByText('1 of 4')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Previous page' })).toHaveProperty('disabled', true)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(screen.getByText('2 of 4')).toBeTruthy()
+  })
+
+  it('says "page 2" rather than inventing a total it does not have', async () => {
+    apiFetch.mockImplementation(viewerMock(cert(), null))
+    render(<CertificatesTab instrumentId="row-1" formatDate={showDate} />)
+    await userEvent.click(await screen.findByRole('button', { name: /Open HTA C50458 01.pdf/ }))
+
+    await screen.findByText('page 1')
+    await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(screen.getByText('page 2')).toBeTruthy()
+  })
+
+  it('goes back to the list it came from', async () => {
+    apiFetch.mockImplementation(viewerMock(cert()))
+    render(<CertificatesTab instrumentId="row-1" formatDate={showDate} />)
+    await userEvent.click(await screen.findByRole('button', { name: /Open HTA C50458 01.pdf/ }))
+    await userEvent.click(await screen.findByText('Back to Details'))
+
+    expect(await screen.findByText(/ACTIVE CERTIFICATES/)).toBeTruthy()
+  })
+
+  it('says so when the file cannot be fetched, instead of a blank frame', async () => {
+    apiFetch.mockImplementation(async (url: string) => {
+      const u = String(url)
+      if (u.includes('/capabilities')) return ok({ profiles: [], components: [], assetType: 'simple' })
+      if (/\/certificates\/c1$/.test(u)) return fail(404, { error: 'Certificate not found' })
+      return ok({ certificates: [cert()] })
+    })
+    render(<CertificatesTab instrumentId="row-1" formatDate={showDate} />)
+    await userEvent.click(await screen.findByRole('button', { name: /Open HTA C50458 01.pdf/ }))
+
+    expect(await screen.findByText('Certificate not found')).toBeTruthy()
+    expect(screen.getByText('This certificate could not be opened')).toBeTruthy()
+  })
+})
