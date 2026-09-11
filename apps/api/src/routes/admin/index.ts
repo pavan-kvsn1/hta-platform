@@ -22,6 +22,7 @@ import type { QueueCustomerRequestDecisionEmailOptions } from '../../services/qu
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
 import { writeDeviceAudit } from '../../lib/activity-audit.js'
 import type { StorageProvider } from '../../lib/storage/index.js'
+import capabilityRoutes from './capabilities.js'
 
 const logger = createLogger('admin-routes')
 const CUSTOMER_DOWNLOAD_MAX_DOWNLOADS = 10
@@ -222,6 +223,10 @@ async function alertAdminsOnInstrumentChange(
 }
 
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
+  // Master instrument capabilities, in their own file. Registered here rather than in
+  // server.ts so they sit under /api/admin with the same auth as everything else.
+  await fastify.register(capabilityRoutes)
+
   // GET /api/admin/certificates - List all certificates with filters
   fastify.get('/certificates', {
     preHandler: [requireAdmin],
