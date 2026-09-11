@@ -35,13 +35,13 @@ describe('registry access', () => {
 
   it('covers every instrument in the old master list', () => {
     // Certificates reference these ids; one that no longer resolves is a broken
-    // certificate, so the two lists have to agree exactly.
-    const legacyIds = (legacyList as { id: number }[]).map((row) => row.id).sort((a, b) => a - b)
-    const registryIds = store()
-      .getRegistryUnits()
-      .map((u) => u.legacy_id)
-      .sort((a, b) => a - b)
-    expect(registryIds).toEqual(legacyIds)
+    // certificate. The registry may hold more than the old list - a row covering
+    // several assets, like the 904/905/906 weights, becomes one instrument each -
+    // but it must never hold fewer.
+    const legacyIds = (legacyList as { id: number }[]).map((row) => row.id)
+    const registryIds = new Set(store().getRegistryUnits().map((u) => u.legacy_id))
+    const missing = legacyIds.filter((id) => !registryIds.has(id))
+    expect(missing).toEqual([])
   })
 
   it('resolves a unit by the id a certificate holds', () => {
