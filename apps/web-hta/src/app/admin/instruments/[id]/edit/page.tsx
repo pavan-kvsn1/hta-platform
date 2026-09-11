@@ -15,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { DatePicker } from '@/components/ui/date-picker'
+import CapabilitiesTab from '@/components/admin/CapabilitiesTab'
 
 interface RangeDataItem {
   parameter?: string
@@ -187,6 +188,7 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [tab, setTab] = useState<'basic' | 'capabilities'>('basic')
   const [instrument, setInstrument] = useState<Instrument | null>(null)
 
   const [formData, setFormData] = useState<InstrumentFormData>({
@@ -424,7 +426,32 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Tabs. Capabilities is its own store and saves as you go, so it sits outside
+            the form rather than behind its Save button. */}
+        <div className="flex gap-1 mb-5 border-b border-[#e2e8f0]">
+          {([
+            ['basic', 'Basic Info'],
+            ['capabilities', 'Capabilities'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              aria-current={tab === key ? 'page' : undefined}
+              className={
+                tab === key
+                  ? 'px-4 py-2 text-[13px] font-medium text-[#7c3aed] border-b-2 border-[#7c3aed] -mb-px'
+                  : 'px-4 py-2 text-[13px] text-[#64748b] hover:text-[#0f172a] border-b-2 border-transparent -mb-px'
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'capabilities' && <CapabilitiesTab instrumentId={id} />}
+
+        <form onSubmit={handleSubmit} className="space-y-5" hidden={tab !== 'basic'}>
             {/* Error Message */}
             {error && (
               <div className="bg-[#fef2f2] border border-[#fee2e2] rounded-lg p-4 text-[#dc2626] text-[13px]">
