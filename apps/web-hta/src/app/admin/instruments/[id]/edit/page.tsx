@@ -16,6 +16,11 @@ import {
 } from 'lucide-react'
 import { DatePicker } from '@/components/ui/date-picker'
 import CapabilitiesTab from '@/components/admin/CapabilitiesTab'
+import CertificatesTab from '@/components/admin/CertificatesTab'
+import MetadataTab from '@/components/admin/MetadataTab'
+import AuditLogTab from '@/components/admin/AuditLogTab'
+import InstrumentBanner from '@/components/admin/InstrumentBanner'
+import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate-date-format'
 
 interface RangeDataItem {
   parameter?: string
@@ -165,6 +170,16 @@ function getAvailableUnits(selectedCapabilities: string[]): string[] {
   return Array.from(units).sort()
 }
 
+type TabKey = 'basic' | 'capabilities' | 'certificates' | 'metadata' | 'audit'
+
+const TABS: [TabKey, string][] = [
+  ['basic', 'Basic Info'],
+  ['capabilities', 'Capabilities'],
+  ['certificates', 'Certificates'],
+  ['metadata', 'Metadata'],
+  ['audit', 'Audit Log'],
+]
+
 const inputClass = 'w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-[13px] text-[#0f172a] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none'
 
 function SectionCard({
@@ -188,7 +203,27 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<'basic' | 'capabilities'>('basic')
+  const [tab, setTab] = useState<TabKey>('basic')
+  // Only for the completeness list on the Metadata tab; null until it is known, so it
+  // reads as "not counted yet" rather than "none on file".
+  const [certificateCount, setCertificateCount] = useState<number | null>(null)
+
+  // Dates follow whatever format the lab has chosen for its certificates, so a due date
+  // does not read one way here and another on the certificate itself.
+  const showDate = useCallback(
+    (iso: string | null) => formatCertificateDate(iso, DEFAULT_DATE_FORMAT, '—'),
+    [],
+  )
+  const showDateTime = useCallback(
+    (iso: string) => {
+      const d = new Date(iso)
+      const time = Number.isNaN(d.getTime())
+        ? ''
+        : ` ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+      return `${formatCertificateDate(iso, DEFAULT_DATE_FORMAT, '—')}${time}`
+    },
+    [],
+  )
   const [instrument, setInstrument] = useState<Instrument | null>(null)
 
   const [formData, setFormData] = useState<InstrumentFormData>({
@@ -273,6 +308,21 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
   useEffect(() => {
     fetchInstrument()
   }, [id, fetchInstrument])
+
+  // Just the count, for the Metadata tab's completeness list. A failure leaves it null,
+  // which shows as "—" rather than claiming there are none on file.
+  useEffect(() => {
+    let cancelled = false
+    apiFetch(`/api/admin/instruments/${id}/certificates?includeInactive=true`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => {
+        if (!cancelled && d) setCertificateCount(d.certificates?.length ?? 0)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [id])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -408,31 +458,54 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="h-full overflow-auto bg-[#f1f5f9]">
-      <div className="p-8 max-w-[820px] mx-auto">
-        {/* Header */}
-        <div className="mb-8">
+      {/* Wider than the old single-column form: the tabs below carry range tables and
+          two-column panels that a 820px column would crush. */}
+      <div className="p-8 max-w-[1180px] mx-auto">
+        {/* One header line, as the wireframe has it:
+            ◀ Back    Edit Instrument #1000: Digital Pressure Gauge    [Save] [✕] */}
+        <div className="flex items-center gap-4 mb-6">
           <Link
             href={`/admin/instruments/${id}`}
-            className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] transition-colors mb-4"
+            className="inline-flex items-center gap-1 text-[13px] text-[#64748b] hover:text-[#0f172a] transition-colors shrink-0"
           >
             <ChevronLeft className="size-4" />
-            Back to Instrument
+            Back
           </Link>
-          <h1 className="text-[22px] font-bold text-[#0f172a] tracking-tight">
+          <h1 className="text-[18px] font-bold text-[#0f172a] tracking-tight truncate flex-1 min-w-0">
             Edit Instrument
+            {instrument?.assetNumber ? ` #${instrument.assetNumber}` : ''}
+            {instrument?.description ? (
+              <span className="font-normal text-[#64748b]">: {instrument.description}</span>
+            ) : null}
           </h1>
-          <p className="text-[13px] text-[#94a3b8] mt-1">
-            {instrument?.description} &middot; Asset: {instrument?.assetNumber}
-          </p>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="submit"
+              form="instrument-basic-form"
+              disabled={saving || tab !== 'basic'}
+              title={tab === 'basic' ? undefined : 'The other tabs save as you go'}
+              className="px-3 py-1.5 text-[13px] rounded-lg bg-[#7c3aed] text-white hover:bg-[#6d28d9] disabled:opacity-40"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <Link
+              href={`/admin/instruments/${id}`}
+              aria-label="Close"
+              className="p-1.5 rounded-lg text-[#94a3b8] hover:text-[#0f172a] hover:bg-white"
+            >
+              <X className="size-4" />
+            </Link>
+          </div>
         </div>
 
-        {/* Tabs. Capabilities is its own store and saves as you go, so it sits outside
-            the form rather than behind its Save button. */}
-        <div className="flex gap-1 mb-5 border-b border-[#e2e8f0]">
-          {([
-            ['basic', 'Basic Info'],
-            ['capabilities', 'Capabilities'],
-          ] as const).map(([key, label]) => (
+        {instrument && (
+          <InstrumentBanner instrument={instrument} formatDate={showDate} />
+        )}
+
+        {/* One tab strip for the whole record. The banner above it does not change with
+            the tab, so you can always see which instrument you are editing. */}
+        <div className="flex gap-1 mb-5 border-b border-[#e2e8f0] overflow-x-auto">
+          {TABS.map(([key, label]) => (
             <button
               key={key}
               type="button"
@@ -440,8 +513,8 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
               aria-current={tab === key ? 'page' : undefined}
               className={
                 tab === key
-                  ? 'px-4 py-2 text-[13px] font-medium text-[#7c3aed] border-b-2 border-[#7c3aed] -mb-px'
-                  : 'px-4 py-2 text-[13px] text-[#64748b] hover:text-[#0f172a] border-b-2 border-transparent -mb-px'
+                  ? 'px-4 py-2 text-[13px] font-medium text-[#7c3aed] border-b-2 border-[#7c3aed] -mb-px whitespace-nowrap'
+                  : 'px-4 py-2 text-[13px] text-[#64748b] hover:text-[#0f172a] border-b-2 border-transparent -mb-px whitespace-nowrap'
               }
             >
               {label}
@@ -449,9 +522,25 @@ export default function EditInstrumentPage({ params }: { params: Promise<{ id: s
           ))}
         </div>
 
+        {/* Each of these saves as it goes rather than behind the form's Save button, so
+            they sit outside the form. */}
         {tab === 'capabilities' && <CapabilitiesTab instrumentId={id} />}
+        {tab === 'certificates' && <CertificatesTab instrumentId={id} formatDate={showDate} />}
+        {tab === 'metadata' && instrument && (
+          <MetadataTab
+            instrumentId={id}
+            version={instrument.version}
+            createdAt={instrument.createdAt}
+            createdByName={instrument.createdBy?.name ?? null}
+            parameterGroup={instrument.parameterGroup}
+            sopReferences={instrument.sopReferences}
+            certificateCount={certificateCount}
+            formatDate={showDate}
+          />
+        )}
+        {tab === 'audit' && <AuditLogTab instrumentId={id} formatDateTime={showDateTime} />}
 
-        <form onSubmit={handleSubmit} className="space-y-5" hidden={tab !== 'basic'}>
+        <form id="instrument-basic-form" onSubmit={handleSubmit} className="space-y-5" hidden={tab !== 'basic'}>
             {/* Error Message */}
             {error && (
               <div className="bg-[#fef2f2] border border-[#fee2e2] rounded-lg p-4 text-[#dc2626] text-[13px]">

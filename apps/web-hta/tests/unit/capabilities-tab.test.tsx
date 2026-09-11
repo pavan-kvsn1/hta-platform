@@ -69,8 +69,9 @@ describe('reading capabilities', () => {
     apiFetch.mockResolvedValue(ok(payload()))
     render(<CapabilitiesTab instrumentId="row-1" />)
 
-    expect(await screen.findByText('Pressure')).toBeTruthy()
-    expect(screen.getByText(/measuring · bar/)).toBeTruthy()
+    // The wireframe titles each card "CAPABILITY PROFILE 1: PRESSURE (measuring)".
+    expect(await screen.findByText(/CAPABILITY PROFILE 1: PRESSURE/)).toBeTruthy()
+    expect(screen.getByText(/\(measuring\)/)).toBeTruthy()
     expect(screen.getByText('1 capability')).toBeTruthy()
   })
 
@@ -162,9 +163,12 @@ describe('reading capabilities', () => {
     render(<CapabilitiesTab instrumentId="row-1" />)
 
     await userEvent.click(await screen.findByRole('button', { name: 'Expand Thermocouple' }))
-    expect(screen.getByText('Type J')).toBeTruthy()
+    // Named twice on purpose: once in AVAILABLE SUBTYPES, once as the card's own heading.
+    expect(screen.getAllByText(/Type J/).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('-210 to 1200 °C')).toBeTruthy()
     expect(screen.getByText('1 subtypes · 1 ranges')).toBeTruthy()
+    expect(screen.getByText(/AVAILABLE SUBTYPES/)).toBeTruthy()
+    expect(screen.getAllByText('RANGE BUCKETS:').length).toBe(1)
   })
 
   it('marks a capability somebody added by hand', async () => {
@@ -221,7 +225,7 @@ describe('when something goes wrong', () => {
       .mockResolvedValueOnce(fail(409, { error: '2 certificates still reference this capability. Reassign them first.' }))
 
     render(<CapabilitiesTab instrumentId="row-1" />)
-    await screen.findByText('Pressure')
+    await screen.findByText(/CAPABILITY PROFILE 1: PRESSURE/)
     await userEvent.click(screen.getByRole('button', { name: /Delete capability Pressure/ }))
 
     expect(await screen.findByText(/2 certificates still reference/)).toBeTruthy()
@@ -241,15 +245,15 @@ describe('adding a range', () => {
     render(<CapabilitiesTab instrumentId="row-1" />)
 
     await userEvent.click(await screen.findByRole('button', { name: 'Expand Pressure' }))
-    await userEvent.click(screen.getByRole('button', { name: /Add range/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Add Bucket/ }))
 
-    await userEvent.type(screen.getByLabelText('From'), '100')
-    await userEvent.type(screen.getByLabelText('To'), '500')
+    await userEvent.type(screen.getByLabelText('Min'), '100')
+    await userEvent.type(screen.getByLabelText('Max'), '500')
     // least count deliberately left alone
 
     apiFetch.mockClear()
     apiFetch.mockResolvedValue(ok({ bucket: { id: 'new', bucketKey: 'B2' } }))
-    await userEvent.click(screen.getByRole('button', { name: 'Add range' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Add Bucket' }))
 
     await waitFor(() => expect(apiFetch).toHaveBeenCalled())
     const body = JSON.parse(apiFetch.mock.calls[0][1].body)
@@ -263,7 +267,7 @@ describe('adding a range', () => {
     render(<CapabilitiesTab instrumentId="row-1" />)
 
     await userEvent.click(await screen.findByRole('button', { name: 'Expand Pressure' }))
-    await userEvent.click(screen.getByRole('button', { name: /Add range/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Add Bucket/ }))
 
     expect(screen.getByLabelText('± value')).toBeTruthy()
     await userEvent.selectOptions(screen.getByLabelText('Accuracy'), 'FORMULA')
