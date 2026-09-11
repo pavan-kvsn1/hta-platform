@@ -88,6 +88,7 @@ export default function InstrumentsPage() {
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: 10,
@@ -104,6 +105,7 @@ export default function InstrumentsPage() {
 
   const fetchInstruments = useCallback(async (page = 1) => {
     setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -126,9 +128,22 @@ export default function InstrumentsPage() {
         setInstruments(data.instruments)
         setPagination(data.pagination)
         setStats(data.stats)
+      } else {
+        // Without this the page would show its empty state, which reads as
+        // "there are no instruments" when the truth is that the request failed.
+        const body = await res.json().catch(() => null)
+        setInstruments([])
+        setError(
+          body?.error ||
+            (res.status === 401 || res.status === 403
+              ? 'Your session has expired. Sign in again to see the register.'
+              : `Could not load the instrument register (error ${res.status}).`),
+        )
       }
-    } catch (error) {
-      console.error('Failed to fetch instruments:', error)
+    } catch (err) {
+      console.error('Failed to fetch instruments:', err)
+      setInstruments([])
+      setError('Could not reach the server. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -153,9 +168,13 @@ export default function InstrumentsPage() {
         a.download = `master-instruments.${format}`
         a.click()
         URL.revokeObjectURL(url)
+      } else {
+        const body = await res.json().catch(() => null)
+        setError(body?.error || `Export failed (error ${res.status}).`)
       }
-    } catch (error) {
-      console.error('Export failed:', error)
+    } catch (err) {
+      console.error('Export failed:', err)
+      setError('Export failed. Could not reach the server.')
     }
   }
 
@@ -289,6 +308,17 @@ export default function InstrumentsPage() {
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="size-6 animate-spin text-[#94a3b8]" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-16">
+              <AlertCircle className="size-10 mx-auto mb-3 text-[#fca5a5]" />
+              <p className="text-[13px] text-[#dc2626] mb-4">{error}</p>
+              <button
+                onClick={() => fetchInstruments(pagination.page)}
+                className="text-[13px] px-4 py-2 rounded-[8px] border border-[#e2e8f0] text-[#475569] hover:bg-[#f8fafc]"
+              >
+                Try again
+              </button>
             </div>
           ) : instruments.length === 0 ? (
             <div className="text-center py-16">
