@@ -22,7 +22,8 @@
     "test": "vitest run",
     "test:unit": "vitest run",
     "typecheck": "tsc --noEmit",
-    "db:seed:parameters": "tsx scripts/seed-calibration-parameters.ts"
+    "db:seed:parameters": "tsx scripts/seed-calibration-parameters.ts",
+    "db:seed:capabilities": "tsx scripts/seed-master-capabilities.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.4.0"
