@@ -92,7 +92,7 @@ function Value({ v }: { v: string | null }) {
 }
 
 const select =
-  'px-2.5 py-1.5 border border-[#e2e8f0] rounded-lg text-[12px] text-[#0f172a] bg-white focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none'
+  'px-2.5 py-1.5 border border-[#e2e8f0] rounded-lg text-[12px] text-[#0f172a] bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none'
 
 export default function AuditLogTab({
   instrumentId,
@@ -236,7 +236,7 @@ export default function AuditLogTab({
               setFrom('')
               setTo('')
             }}
-            className="text-[12px] text-[#7c3aed] hover:text-[#6d28d9] underline"
+            className="text-[12px] text-primary hover:opacity-80 underline"
           >
             Clear
           </button>

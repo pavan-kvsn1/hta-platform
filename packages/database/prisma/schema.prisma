@@ -422,9 +422,28 @@ model MasterInstrumentCertificate {
   capabilityProfileId String?
   capabilityProfile   MasterCapabilityProfile? @relation(fields: [capabilityProfileId], references: [id])
 
+  // A certificate often covers several capabilities: one Fluke 754 certificate
+  // carries thermocouple, RTD and DC voltage. The single column above is kept
+  // and still written, so nothing that reads it breaks; this is the full list,
+  // and an empty one means "whatever the single column says".
+  capabilityProfileIds String[] @default([])
+
   // How many pages the file has, counted from its bytes the first time it is opened and
   // kept. The certificate viewer says "2 of 4"; without this it could only say "page 2".
   pageCount           Int?
+
+  // Superseding is one act: the new certificate arrives and the old one is archived
+  // in the same step, and the two are linked so the trail from one to the other
+  // survives. As two separate steps the second half gets forgotten, which is how an
+  // instrument ends up with two certificates both claiming to be current.
+  supersededById      String?
+  supersededBy        MasterInstrumentCertificate?  @relation("CertificateSupersession", fields: [supersededById], references: [id])
+  supersedes          MasterInstrumentCertificate[] @relation("CertificateSupersession")
+
+  // Why it was archived, and when. Null on every row that exists today, which reads
+  // as "archived before we started asking" rather than as a reason of "".
+  archivedReason      String?
+  archivedAt          DateTime?
 
   @@index([masterInstrumentId])
   @@index([masterInstrumentId, isLatest])
@@ -445,6 +464,14 @@ model MasterInstrumentTraining {
   trainedAt            DateTime?
   expiresAt            DateTime?
   notes                String?
+
+  // Which components the engineer is signed off on. Empty means the whole
+  // instrument, which is both the common case and the honest reading of every
+  // row that exists today - someone trained on the pressure modules is not
+  // thereby trained on the thermocouple side, but a record that never said so
+  // cannot be narrowed after the fact.
+  scopeComponentIds    String[]         @default([])
+
   uploadedById         String
   uploadedAt           DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
@@ -1469,6 +1496,12 @@ model MasterCapabilityProfile {
   // parameter, not to a box.
   sopReferences  String[]      @default([])
 
+  // Which part of the instrument has this capability. Null means the instrument as a
+  // whole. 188 HTAIPL/L is one indicator with three transducers, and its 0-700 bar
+  // profile belongs to the high pressure one - without this there is no honest answer
+  // to which capability a certificate covers.
+  componentId    String?
+
   // How the seed knows what an admin has touched and must not overwrite.
   source         String        @default("registry")  // "registry" | "manual"
   sortOrder      Int           @default(0)
@@ -1478,6 +1511,7 @@ model MasterCapabilityProfile {
   createdById    String?
 
   tenant         Tenant                     @relation(fields: [tenantId], references: [id])
+  component      MasterInstrumentComponent? @relation(fields: [componentId], references: [id], onDelete: SetNull)
   subtypes       MasterCapabilitySubtype[]
   buckets        MasterCapabilityBucket[]
   certificates   MasterInstrumentCertificate[]
@@ -1485,6 +1519,7 @@ model MasterCapabilityProfile {
   @@unique([tenantId, instrumentId, profileKey])
   @@index([tenantId, instrumentId])
   @@index([parameter])
+  @@index([componentId])
 }
 
 model MasterCapabilitySubtype {
@@ -1543,18 +1578,16 @@ model MasterCapabilityBucket {
   @@index([profileId])
   @@index([subtypeId])
 }
-enum ComponentRole {
-  INDICATOR   // registry "ind"
-  SENSOR      // registry "sen"
-}
-
 model MasterInstrumentComponent {
   id           String        @id @default(uuid())
   tenantId     String
   instrumentId String        // stable identity, as with capability profiles
 
-  role         ComponentRole
-  componentKey String        // "ind", "sen", "sen2" — stable across edits, never reused
+  // Whatever the lab calls this part: Indicator, Sensor, High Pressure Transducer,
+  // Readout, Bath. Not an enum — the registry only ever recorded an indicator and a
+  // sensor, and baking those two in would make every other kind of part unrecordable.
+  name         String
+  componentKey String        // stable across edits, never reused
 
   make         String?       // null means "same as the instrument's own make"
   model        String?
@@ -1566,6 +1599,7 @@ model MasterInstrumentComponent {
   updatedAt    DateTime      @updatedAt
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  capabilities MasterCapabilityProfile[]
 
   @@unique([tenantId, instrumentId, componentKey])
   @@index([tenantId, instrumentId])

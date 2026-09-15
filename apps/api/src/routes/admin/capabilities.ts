@@ -143,6 +143,25 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
     return row
   }
 
+  /**
+   * The component id to store, having checked it is this instrument's. Returns undefined
+   * to mean "not mentioned, leave alone" and null to mean "the instrument as a whole".
+   */
+  async function resolveComponent(
+    value: unknown,
+    tenantId: string,
+    instrumentId: string,
+  ): Promise<string | null | undefined | false> {
+    if (value === undefined) return undefined
+    if (value === null || value === '') return null
+    if (typeof value !== 'string') return false
+    const c = await prisma.masterInstrumentComponent.findFirst({
+      where: { id: value, tenantId, instrumentId },
+      select: { id: true },
+    })
+    return c ? c.id : false
+  }
+
   /** The profile, only if it belongs to this instrument and tenant. */
   async function findProfile(profileId: string, tenantId: string, instrumentId: string) {
     return prisma.masterCapabilityProfile.findFirst({
@@ -256,6 +275,8 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
           sopReferences: p.sopReferences,
           source: p.source,
           sortOrder: p.sortOrder,
+          // Null means the capability belongs to the instrument as a whole.
+          componentId: p.componentId,
           subtypes: p.subtypes.map((s) => ({
             id: s.id,
             subtypeKey: s.subtypeKey,
@@ -274,7 +295,7 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
         components: components.map((c) => ({
           id: c.id,
           componentKey: c.componentKey,
-          role: c.role,
+          name: c.name,
           make: c.make,
           model: c.model,
           serialNumber: c.serialNumber,
@@ -301,6 +322,7 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
       maxInclusive?: unknown
       subtypeKind?: unknown
       sopReferences?: unknown
+      componentId?: unknown
     }
   }>('/instruments/:id/capabilities', { preHandler: [requireAdmin] }, async (request, reply) => {
     const tenantId = request.tenantId
@@ -316,6 +338,10 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
 
     const kind = CAPABILITY_KINDS.find((k) => k === body.kind) ?? 'RANGE'
     const unit = typeof body.unit === 'string' ? body.unit.trim() : ''
+
+    const componentId = await resolveComponent(body.componentId, tenantId, instrument.instrumentId)
+    if (componentId === false)
+      return reply.status(400).send({ error: 'That component does not belong to this instrument' })
 
     const existing = await prisma.masterCapabilityProfile.findMany({
       where: { tenantId, instrumentId: instrument.instrumentId },
@@ -339,6 +365,7 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
           minInclusive: readBool(body.minInclusive, true),
           maxInclusive: readBool(body.maxInclusive, true),
           subtypeKind: typeof body.subtypeKind === 'string' && body.subtypeKind ? body.subtypeKind : null,
+          componentId: componentId ?? null,
           sopReferences: Array.isArray(body.sopReferences)
             ? body.sopReferences.filter((s): s is string => typeof s === 'string')
             : [],
@@ -432,6 +459,15 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
       if (v !== profile.subtypeKind) {
         data.subtypeKind = v
         note('subtypeKind', profile.subtypeKind, v)
+      }
+    }
+    if ('componentId' in body) {
+      const next = await resolveComponent(body.componentId, tenantId, instrument.instrumentId)
+      if (next === false)
+        return reply.status(400).send({ error: 'That component does not belong to this instrument' })
+      if (next !== undefined && next !== profile.componentId) {
+        data.component = next ? { connect: { id: next } } : { disconnect: true }
+        note('component', profile.componentId, next)
       }
     }
     if (Array.isArray(body.sopReferences)) {
@@ -788,33 +824,34 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{
     Params: { id: string }
-    Body: { role?: unknown; make?: unknown; model?: unknown; serialNumber?: unknown }
+    Body: { name?: unknown; make?: unknown; model?: unknown; serialNumber?: unknown }
   }>('/instruments/:id/components', { preHandler: [requireAdmin] }, async (request, reply) => {
     const tenantId = request.tenantId
     const instrument = await resolveInstrument(request.params.id, tenantId)
     if (!instrument) return reply.status(404).send({ error: 'Instrument not found' })
 
     const body = request.body ?? {}
-    const role = body.role === 'SENSOR' || body.role === 'INDICATOR' ? body.role : null
-    if (!role) return reply.status(400).send({ error: 'Role must be INDICATOR or SENSOR' })
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    if (!name) return reply.status(400).send({ error: 'A component needs a name' })
 
     const existing = await prisma.masterInstrumentComponent.findMany({
       where: { tenantId, instrumentId: instrument.instrumentId },
       select: { componentKey: true, sortOrder: true },
     })
-    // ind, sen, sen2, sen3 - the registry's own names, extended rather than replaced.
-    const prefix = role === 'INDICATOR' ? 'ind' : 'sen'
+    // A slug of the name, numbered if that slug is taken. The key never changes and is
+    // never reused, so a rename leaves the audit trail pointing at the same part.
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'part'
     const taken = new Set(existing.map((e) => e.componentKey))
-    let componentKey = prefix
+    let componentKey = slug
     let n = 1
-    while (taken.has(componentKey)) componentKey = `${prefix}${++n}`
+    while (taken.has(componentKey)) componentKey = `${slug}-${++n}`
 
     const created = await prisma.masterInstrumentComponent.create({
       data: {
         tenantId,
         instrumentId: instrument.instrumentId,
         componentKey,
-        role,
+        name,
         make: typeof body.make === 'string' && body.make.trim() ? body.make.trim() : null,
         model: typeof body.model === 'string' && body.model.trim() ? body.model.trim() : null,
         serialNumber:
@@ -822,12 +859,12 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
         sortOrder: existing.reduce((m, e) => Math.max(m, e.sortOrder + 1), 0),
       },
     })
-    return reply.status(201).send({ component: { id: created.id, componentKey: created.componentKey } })
+    return reply.status(201).send({ component: { id: created.id, componentKey: created.componentKey, name: created.name } })
   })
 
   fastify.patch<{
     Params: { id: string; componentId: string }
-    Body: { make?: unknown; model?: unknown; serialNumber?: unknown }
+    Body: { name?: unknown; make?: unknown; model?: unknown; serialNumber?: unknown }
   }>('/instruments/:id/components/:componentId', { preHandler: [requireAdmin] }, async (request, reply) => {
     const tenantId = request.tenantId
     const instrument = await resolveInstrument(request.params.id, tenantId)
@@ -843,9 +880,12 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
     // An empty string means "this part shares the instrument's own", which is null, not "".
     const text = (v: unknown) => (typeof v === 'string' ? (v.trim() === '' ? null : v.trim()) : undefined)
 
+    // A name is required, so an empty one is ignored rather than blanking it.
+    const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : undefined
+
     await prisma.masterInstrumentComponent.update({
       where: { id: component.id },
-      data: { make: text(body.make), model: text(body.model), serialNumber: text(body.serialNumber) },
+      data: { name, make: text(body.make), model: text(body.model), serialNumber: text(body.serialNumber) },
     })
     return { component: { id: component.id } }
   })
@@ -909,6 +949,147 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
         })),
         nextCursor: hasMore ? page[page.length - 1].id : null,
       }
+    },
+  )
+/**
+   * GET /api/admin/instruments/:id/history - everything that has happened to it.
+   *
+   * The capability audit is one table of four. An instrument at version 8 with
+   * seven certificates and no capability edits had an empty Audit Log, which is
+   * not the same as nothing having happened - it is the log looking in one
+   * place.
+   *
+   * The other three are not audit tables; they are the records themselves,
+   * carrying who made them and when. That is enough to say what happened, and
+   * it needs no second copy of the same fact to drift out of step.
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/instruments/:id/history',
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const tenantId = request.tenantId
+      const instrument = await resolveInstrument(request.params.id, tenantId)
+      if (!instrument) return reply.status(404).send({ error: 'Instrument not found' })
+
+      const who = { select: { id: true, name: true, email: true } }
+
+      const [versions, audit, certificates, trainings] = await Promise.all([
+        prisma.masterInstrument.findMany({
+          where: { tenantId, instrumentId: instrument.instrumentId },
+          select: { id: true, version: true, createdAt: true, createdBy: who },
+          orderBy: { version: 'asc' },
+        }),
+        prisma.masterCapabilityAudit.findMany({
+          where: { tenantId, instrumentId: instrument.instrumentId },
+          include: { actor: who },
+          orderBy: { createdAt: 'desc' },
+          take: 500,
+        }),
+        prisma.masterInstrumentCertificate.findMany({
+          where: { masterInstrument: { tenantId, instrumentId: instrument.instrumentId } },
+          select: {
+            id: true,
+            reportNo: true,
+            fileName: true,
+            isActive: true,
+            uploadedAt: true,
+            uploadedBy: who,
+            capabilityProfile: { select: { profileKey: true, parameter: true, role: true } },
+          },
+        }),
+        prisma.masterInstrumentTraining.findMany({
+          where: { tenantId, instrumentId: instrument.instrumentId },
+          select: {
+            id: true,
+            uploadedAt: true,
+            uploadedBy: who,
+            engineer: { select: { name: true, email: true } },
+            expiresAt: true,
+          },
+        }),
+      ])
+
+      const name = (u: { name: string | null; email: string } | null) =>
+        u ? { id: '', name: u.name || u.email } : null
+
+      type Entry = {
+        id: string
+        at: string
+        verb: string
+        subject: string
+        what: string
+        where: string
+        before: string | null
+        after: string | null
+        actor: { id: string; name: string } | null
+      }
+
+      const entries: Entry[] = []
+
+      // Version 1 is the instrument arriving; every one after it is an edit.
+      for (const v of versions) {
+        entries.push({
+          id: `v-${v.id}`,
+          at: v.createdAt.toISOString(),
+          verb: v.version === 1 ? 'created' : 'changed',
+          subject: 'Details',
+          what: v.version === 1 ? 'Instrument' : 'Instrument details',
+          where: `version ${v.version}`,
+          before: v.version === 1 ? null : `version ${v.version - 1}`,
+          after: `version ${v.version}`,
+          actor: v.createdBy ? { id: v.createdBy.id, name: v.createdBy.name || v.createdBy.email } : null,
+        })
+      }
+
+      for (const c of certificates) {
+        const covers = c.capabilityProfile
+          ? `covers ${c.capabilityProfile.profileKey} ${c.capabilityProfile.parameter}`
+          : 'no capability assigned'
+        entries.push({
+          id: `c-${c.id}`,
+          at: c.uploadedAt.toISOString(),
+          verb: 'uploaded',
+          subject: 'Certificates',
+          what: 'Certificate',
+          where: covers,
+          before: null,
+          after: c.reportNo || c.fileName,
+          actor: c.uploadedBy ? { id: c.uploadedBy.id, name: c.uploadedBy.name || c.uploadedBy.email } : null,
+        })
+      }
+
+      for (const g of trainings) {
+        entries.push({
+          id: `t-${g.id}`,
+          at: g.uploadedAt.toISOString(),
+          verb: 'added',
+          subject: 'Training',
+          what: 'Training record',
+          where: g.engineer ? g.engineer.name || g.engineer.email : 'an engineer who has since been removed',
+          before: null,
+          after: g.expiresAt ? `expires ${g.expiresAt.toISOString().slice(0, 10)}` : 'no expiry',
+          actor: g.uploadedBy ? { id: g.uploadedBy.id, name: g.uploadedBy.name || g.uploadedBy.email } : null,
+        })
+      }
+
+      for (const e of audit) {
+        entries.push({
+          id: `a-${e.id}`,
+          at: e.createdAt.toISOString(),
+          verb: e.action.toLowerCase(),
+          subject: 'Capabilities',
+          what: e.field || 'Capability',
+          where: [e.profileKey, e.subtypeKey, e.bucketLabel || e.bucketKey].filter(Boolean).join(' \u203a '),
+          before: e.beforeValue,
+          after: e.afterValue,
+          actor: e.actor ? { id: e.actor.id, name: e.actor.name || e.actor.email } : null,
+        })
+      }
+
+      entries.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+      void name
+
+      return { entries, total: entries.length }
     },
   )
 }

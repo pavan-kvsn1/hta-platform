@@ -78,6 +78,8 @@ interface Profile {
   sopReferences: string[]
   source: string
   sortOrder: number
+  /** Null means the capability belongs to the instrument as a whole. */
+  componentId: string | null
   subtypes: Subtype[]
   buckets: Bucket[]
 }
@@ -85,7 +87,7 @@ interface Profile {
 interface Component {
   id: string
   componentKey: string
-  role: 'INDICATOR' | 'SENSOR'
+  name: string
   make: string | null
   model: string | null
   serialNumber: string | null
@@ -98,7 +100,7 @@ interface Payload {
 }
 
 const input =
-  'w-full px-2.5 py-1.5 border border-[#e2e8f0] rounded-lg text-[13px] text-[#0f172a] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none'
+  'w-full px-2.5 py-1.5 border border-[#e2e8f0] rounded-lg text-[13px] text-[#0f172a] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none'
 const toolbarBtn =
   'px-3 py-1.5 text-[12px] rounded-lg border border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc] inline-flex items-center gap-1 disabled:opacity-50'
 
@@ -235,7 +237,7 @@ function RangeTable({
                   onClick={() => onEdit(b)}
                   disabled={busy === b.id}
                   aria-label={`Edit range ${i + 1}`}
-                  className="text-[#94a3b8] hover:text-[#7c3aed] disabled:opacity-40 mr-2"
+                  className="text-[#94a3b8] hover:text-primary disabled:opacity-40 mr-2"
                 >
                   <Pencil className="size-3.5" />
                 </button>
@@ -399,7 +401,7 @@ function RangeForm({
                 accuracyClass: cls,
               })
             }
-            className="px-3 py-1.5 text-[12px] rounded-lg bg-[#7c3aed] text-white hover:bg-[#6d28d9] disabled:opacity-50"
+            className="px-3 py-1.5 text-[12px] rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50"
           >
             {saving ? 'Saving…' : existing ? 'Save range' : 'Add Bucket'}
           </button>
@@ -419,9 +421,11 @@ function ProfileCard({
   onSaveBucket,
   onDeleteBucket,
   busyId,
+  components,
 }: {
   profile: Profile
   index: number
+  components: Component[]
   open: boolean
   onToggle: () => void
   onDeleteProfile: (id: string) => void
@@ -498,7 +502,7 @@ function ProfileCard({
             if (!open) onToggle()
           }}
           aria-label={`Edit capability ${profile.parameter}`}
-          className="text-[#94a3b8] hover:text-[#7c3aed] shrink-0"
+          className="text-[#94a3b8] hover:text-primary shrink-0"
         >
           <Pencil className="size-4" />
         </button>
@@ -576,7 +580,7 @@ function ProfileCard({
                       setSaving(false)
                       if (ok) setEditing(false)
                     }}
-                    className="px-3 py-1.5 text-[12px] rounded-lg bg-[#7c3aed] text-white hover:bg-[#6d28d9] disabled:opacity-50"
+                    className="px-3 py-1.5 text-[12px] rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50"
                   >
                     {saving ? 'Saving…' : 'Save'}
                   </button>
@@ -593,6 +597,22 @@ function ProfileCard({
               </span>
               <span>
                 Unit <span className="text-[#0f172a]">{profile.unit || '—'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                Belongs to
+                <select
+                  value={profile.componentId ?? ''}
+                  onChange={(e) => void onUpdateProfile(profile.id, { componentId: e.target.value || null })}
+                  aria-label={`Which part has ${profile.parameter}`}
+                  className="px-1.5 py-0.5 rounded border border-[#e2e8f0] bg-white text-[12px] text-[#0f172a] focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                >
+                  <option value="">the instrument as a whole</option>
+                  {components.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </span>
               <span>
                 Min / Max <span className="text-[#0f172a] tabular-nums">{span(profile, profile.unit)}</span>
@@ -627,7 +647,7 @@ function ProfileCard({
                           setEditingBucket(null)
                           setAddingTo(addingTo === s.id ? null : s.id)
                         }}
-                        className="text-[12px] text-[#7c3aed] hover:text-[#6d28d9] inline-flex items-center gap-1"
+                        className="text-[12px] text-primary hover:opacity-80 inline-flex items-center gap-1"
                       >
                         <Plus className="size-3.5" />
                         Add Bucket
@@ -689,7 +709,7 @@ function ProfileCard({
                 <button
                   type="button"
                   onClick={() => setAddingTo('profile')}
-                  className="mt-2 text-[12px] text-[#7c3aed] hover:text-[#6d28d9] inline-flex items-center gap-1"
+                  className="mt-2 text-[12px] text-primary hover:opacity-80 inline-flex items-center gap-1"
                 >
                   <Plus className="size-3.5" />
                   Add Bucket
@@ -762,7 +782,7 @@ function AddProfileForm({ onCancel, onAdd, saving }: { onCancel: () => void; onA
           type="button"
           disabled={saving || !parameter.trim()}
           onClick={() => onAdd({ parameter, role, unit, min, max })}
-          className="px-3 py-1.5 text-[12px] rounded-lg bg-[#7c3aed] text-white hover:bg-[#6d28d9] disabled:opacity-50"
+          className="px-3 py-1.5 text-[12px] rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50"
         >
           {saving ? 'Adding…' : 'Add Profile'}
         </button>
@@ -867,6 +887,38 @@ export default function CapabilitiesTab({ instrumentId }: { instrumentId: string
 
   const allIds = useMemo(() => (data?.profiles ?? []).map((p) => p.id), [data])
 
+  /**
+   * One group per part that has a capability, plus one for the instrument itself. Parts
+   * with no capability yet are not given an empty heading - they are visible on Basic
+   * Info, and an empty group here would only be noise.
+   */
+  const groups = useMemo(() => {
+    const profiles = data?.profiles ?? []
+    const components = data?.components ?? []
+    const out: { key: string; label: string; sub: string | null; profiles: Profile[] }[] = []
+
+    const loose = profiles.filter((p) => !p.componentId)
+    if (loose.length)
+      out.push({
+        key: 'whole',
+        label: components.length ? 'The instrument as a whole' : 'Capabilities',
+        sub: null,
+        profiles: loose,
+      })
+
+    for (const c of components) {
+      const mine = profiles.filter((p) => p.componentId === c.id)
+      if (!mine.length) continue
+      out.push({
+        key: c.id,
+        label: c.name,
+        sub: [c.make, c.model].filter(Boolean).join(' ') || c.serialNumber || null,
+        profiles: mine,
+      })
+    }
+    return out
+  }, [data])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -906,9 +958,7 @@ export default function CapabilitiesTab({ instrumentId }: { instrumentId: string
             {data.assetType === 'composite' && data.components.length > 0 && (
               <>
                 {' · '}
-                {data.components
-                  .map((c) => `${c.role === 'INDICATOR' ? 'Indicator' : 'Sensor'} ${c.serialNumber ?? c.model ?? ''}`.trim())
-                  .join(', ')}
+                {data.components.map((c) => c.name).join(', ')}
               </>
             )}
           </span>
@@ -954,26 +1004,46 @@ export default function CapabilitiesTab({ instrumentId }: { instrumentId: string
 
       {adding && <AddProfileForm onCancel={() => setAdding(false)} onAdd={addProfile} saving={savingProfile} />}
 
-      {data?.profiles.map((p, i) => (
-        <ProfileCard
-          key={p.id}
-          profile={p}
-          index={i}
-          open={openIds.has(p.id)}
-          onToggle={() =>
-            setOpenIds((prev) => {
-              const next = new Set(prev)
-              if (next.has(p.id)) next.delete(p.id)
-              else next.add(p.id)
-              return next
-            })
-          }
-          busyId={busyId}
-          onDeleteProfile={deleteProfile}
-          onUpdateProfile={updateProfile}
-          onSaveBucket={saveBucket}
-          onDeleteBucket={deleteBucket}
-        />
+      {/* Grouped by the part that has the capability. A composite instrument is the whole
+          reason this exists: 188's 0-700 bar range belongs to its high pressure
+          transducer, not to the box, and a certificate covers the part it was measured
+          against. Instruments with no parts show one ungrouped list. */}
+      {groups.map((g) => (
+        <div key={g.key} className="space-y-3">
+          {groups.length > 1 && (
+            <div className="flex items-baseline gap-2 pt-1">
+              <h3 className="text-[11px] font-semibold tracking-[0.06em] text-[#94a3b8] uppercase">
+                {g.label}
+              </h3>
+              {g.sub && <span className="text-[12px] text-[#64748b]">{g.sub}</span>}
+              <span className="text-[11px] text-[#94a3b8] ml-auto">
+                {g.profiles.length} capabilit{g.profiles.length === 1 ? 'y' : 'ies'}
+              </span>
+            </div>
+          )}
+          {g.profiles.map((p) => (
+            <ProfileCard
+              key={p.id}
+              profile={p}
+              index={(data?.profiles ?? []).indexOf(p)}
+              components={data?.components ?? []}
+              open={openIds.has(p.id)}
+              onToggle={() =>
+                setOpenIds((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(p.id)) next.delete(p.id)
+                  else next.add(p.id)
+                  return next
+                })
+              }
+              busyId={busyId}
+              onDeleteProfile={deleteProfile}
+              onUpdateProfile={updateProfile}
+              onSaveBucket={saveBucket}
+              onDeleteBucket={deleteBucket}
+            />
+          ))}
+        </div>
       ))}
     </div>
   )

@@ -123,7 +123,7 @@ function CertificateCard({
         }
       }}
       aria-label={`Open ${cert.fileName}`}
-      className={`rounded-xl border p-4 cursor-pointer transition-colors hover:border-[#7c3aed] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 ${
+      className={`rounded-xl border p-4 cursor-pointer transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 ${
         archived ? 'border-[#e2e8f0] bg-[#f8fafc]' : 'border-[#e2e8f0] bg-white'
       }`}
     >
@@ -133,7 +133,7 @@ function CertificateCard({
         ) : (
           <Check className="size-4 mt-0.5 shrink-0 text-[#15803d]" aria-label="Active" />
         )}
-        <FileText className={`size-4 mt-0.5 shrink-0 ${archived ? 'text-[#94a3b8]' : 'text-[#7c3aed]'}`} />
+        <FileText className={`size-4 mt-0.5 shrink-0 ${archived ? 'text-[#94a3b8]' : 'text-primary'}`} />
         <p className="text-[13px] font-medium text-[#0f172a] truncate flex-1" title={cert.fileName}>
           {cert.fileName}
         </p>
@@ -487,7 +487,7 @@ export default function CertificatesTab({
           if (e.dataTransfer.files.length) void upload(e.dataTransfer.files)
         }}
         className={`rounded-xl border border-dashed px-4 py-6 text-center transition-colors ${
-          dragging ? 'border-[#7c3aed] bg-[#f5f3ff]' : 'border-[#cbd5e1] bg-white'
+          dragging ? 'border-primary bg-primary/5' : 'border-[#cbd5e1] bg-white'
         }`}
       >
         <input
@@ -514,7 +514,7 @@ export default function CertificatesTab({
             <button
               type="button"
               onClick={() => fileInput.current?.click()}
-              className="text-[#7c3aed] hover:text-[#6d28d9] underline"
+              className="text-primary hover:opacity-80 underline"
             >
               Browse Files
             </button>

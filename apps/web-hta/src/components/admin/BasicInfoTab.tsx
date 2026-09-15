@@ -34,14 +34,17 @@ export interface BasicInfoValues {
 interface Component {
   id: string
   componentKey: string
-  role: 'INDICATOR' | 'SENSOR'
+  name: string
   make: string | null
   model: string | null
   serialNumber: string | null
 }
 
+/** Offered as a starting point only. Any name is allowed. */
+const COMMON_PARTS = ['Indicator', 'Sensor', 'Transducer', 'Probe', 'Readout', 'Bath', 'Controller']
+
 const input =
-  'w-full px-2.5 py-1.5 border border-[#e2e8f0] rounded-lg text-[13px] text-[#0f172a] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] outline-none'
+  'w-full px-2.5 py-1.5 border border-[#e2e8f0] rounded-lg text-[13px] text-[#0f172a] placeholder:text-[#94a3b8] focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none'
 
 /** The asset number without its lab suffix, which is what people say out loud. */
 function normalised(assetNumber: string): string | null {
@@ -115,17 +118,26 @@ function ComponentRow({
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
+    name: component.name,
     make: component.make ?? '',
     model: component.model ?? '',
     serialNumber: component.serialNumber ?? '',
   })
 
-  const label = component.role === 'INDICATOR' ? 'Indicator' : 'Sensor'
+  const label = component.name
 
   if (editing) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end py-2 border-b border-[#f1f5f9] last:border-0">
-        <div className="text-[12px] text-[#64748b] pb-2">{label}</div>
+        <div>
+          <label className="block text-[11px] text-[#94a3b8] mb-1">Part</label>
+          <input
+            className={input}
+            value={form.name}
+            list="hta-part-names"
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+        </div>
         {(['make', 'model', 'serialNumber'] as const).map((k) => (
           <div key={k}>
             <label className="block text-[11px] text-[#94a3b8] mb-1">
@@ -156,7 +168,7 @@ function ComponentRow({
               setSaving(false)
               if (ok) setEditing(false)
             }}
-            className="px-3 py-1.5 text-[12px] rounded-lg bg-[#7c3aed] text-white hover:bg-[#6d28d9] disabled:opacity-50"
+            className="px-3 py-1.5 text-[12px] rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -167,7 +179,9 @@ function ComponentRow({
 
   return (
     <div className="flex items-center gap-3 py-2 border-b border-[#f1f5f9] last:border-0 text-[13px]">
-      <span className="text-[#64748b] w-20 shrink-0">{label}</span>
+      <span className="text-[#64748b] w-32 shrink-0 truncate" title={label}>
+        {label}
+      </span>
       <span className="text-[#0f172a] truncate flex-1 min-w-0">
         {[component.make, component.model].filter(Boolean).join(' ') || (
           <span className="text-[#94a3b8]">same as instrument</span>
@@ -178,7 +192,7 @@ function ComponentRow({
         type="button"
         onClick={() => setEditing(true)}
         aria-label={`Edit ${label}`}
-        className="text-[#94a3b8] hover:text-[#7c3aed] shrink-0"
+        className="text-[#94a3b8] hover:text-primary shrink-0"
       >
         <Pencil className="size-3.5" />
       </button>
@@ -212,6 +226,8 @@ export default function BasicInfoTab({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [naming, setNaming] = useState(false)
+  const [newName, setNewName] = useState('')
 
   const base = `/api/admin/instruments/${instrumentId}`
 
@@ -235,14 +251,14 @@ export default function BasicInfoTab({
     return body?.error || `${fallback} (error ${res.status}).`
   }
 
-  const addComponent = async (role: 'INDICATOR' | 'SENSOR') => {
+  const addComponent = async (name: string) => {
     setAdding(true)
     setError(null)
     try {
       const res = await apiFetch(`${base}/components`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify({ name }),
       })
       if (!res.ok) setError(await explain(res, 'Could not add the component'))
       else await load()
@@ -325,34 +341,77 @@ export default function BasicInfoTab({
                 <span className="ml-2 font-normal tracking-normal text-[#64748b]">composite</span>
               )}
             </h4>
-            <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setNaming(true)}
+              disabled={adding || naming}
+              className="text-[12px] text-primary hover:opacity-80 inline-flex items-center gap-1 disabled:opacity-50"
+            >
+              <Plus className="size-3.5" />
+              Add component
+            </button>
+          </div>
+
+          {naming && (
+            <div className="flex items-center gap-2 py-2 border-b border-[#f1f5f9]">
+              <input
+                autoFocus
+                className={`${input} max-w-[280px]`}
+                value={newName}
+                list="hta-part-names"
+                placeholder="Indicator, High Pressure Transducer, Bath…"
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newName.trim()) {
+                    void addComponent(newName.trim()).then(() => {
+                      setNewName('')
+                      setNaming(false)
+                    })
+                  }
+                  if (e.key === 'Escape') {
+                    setNaming(false)
+                    setNewName('')
+                  }
+                }}
+              />
               <button
                 type="button"
-                onClick={() => void addComponent('INDICATOR')}
-                disabled={adding}
-                className="text-[12px] text-[#7c3aed] hover:text-[#6d28d9] inline-flex items-center gap-1 disabled:opacity-50"
+                disabled={!newName.trim() || adding}
+                onClick={() =>
+                  void addComponent(newName.trim()).then(() => {
+                    setNewName('')
+                    setNaming(false)
+                  })
+                }
+                className="px-3 py-1.5 text-[12px] rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50"
               >
-                <Plus className="size-3.5" />
-                Indicator
+                Add
               </button>
               <button
                 type="button"
-                onClick={() => void addComponent('SENSOR')}
-                disabled={adding}
-                className="text-[12px] text-[#7c3aed] hover:text-[#6d28d9] inline-flex items-center gap-1 disabled:opacity-50"
+                onClick={() => {
+                  setNaming(false)
+                  setNewName('')
+                }}
+                className="text-[12px] text-[#64748b] hover:text-[#0f172a]"
               >
-                <Plus className="size-3.5" />
-                Sensor
+                Cancel
               </button>
             </div>
-          </div>
+          )}
+
+          <datalist id="hta-part-names">
+            {COMMON_PARTS.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
 
           {components === null ? (
             <p className="text-[12px] text-[#94a3b8] py-2">Loading…</p>
           ) : components.length === 0 ? (
             <p className="text-[12px] text-[#94a3b8] py-2">
-              A simple instrument, in one piece. Add an indicator and a sensor if it is made of parts that are
-              calibrated together.
+              A simple instrument, in one piece. Add its parts if it is made of pieces that are calibrated
+              together — an indicator and its transducer, a readout and its probe.
             </p>
           ) : (
             <div>

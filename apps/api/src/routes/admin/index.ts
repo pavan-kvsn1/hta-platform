@@ -223,6 +223,26 @@ async function alertAdminsOnInstrumentChange(
   }
 }
 
+/**
+ * Every row id this instrument has ever had.
+ *
+ * Certificates hang off a version row. The instrument they describe is the
+ * whole chain, so anything reading "this instrument's certificates" has to look
+ * across the chain or it loses them the next time somebody saves an edit.
+ */
+async function certificateScope(id: string, tenantId: string) {
+  const instrument = await prisma.masterInstrument.findFirst({
+    where: { id, tenantId },
+    select: { id: true, instrumentId: true, assetNumber: true, description: true },
+  })
+  if (!instrument) return null
+  const versions = await prisma.masterInstrument.findMany({
+    where: { instrumentId: instrument.instrumentId, tenantId },
+    select: { id: true },
+  })
+  return { instrument, ids: versions.map((v) => v.id) }
+}
+
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
   // Master instrument capabilities, in their own file. Registered here rather than in
   // server.ts so they sit under /api/admin with the same auth as everything else.
@@ -1785,25 +1805,33 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const tenantId = request.tenantId
     const query = request.query as { includeInactive?: string; latestOnly?: string }
 
-    const instrument = await prisma.masterInstrument.findFirst({
-      where: { id, tenantId },
-      select: { id: true, assetNumber: true, description: true },
-    })
+    const scope = await certificateScope(id, tenantId)
 
-    if (!instrument) {
+    if (!scope) {
       return reply.status(404).send({ error: 'Instrument not found' })
     }
+    const { instrument } = scope
 
-    const where: Record<string, unknown> = { masterInstrumentId: id }
+    const where: Record<string, unknown> = { masterInstrumentId: { in: scope.ids } }
     if (query.includeInactive !== 'true') where.isActive = true
     if (query.latestOnly === 'true') where.isLatest = true
 
     const certificates = await prisma.masterInstrumentCertificate.findMany({
       where,
       include: {
-        uploadedBy: {
-          select: { id: true, name: true, email: true },
+        uploadedBy: { select: { id: true, name: true, email: true } },
+        // What replaced it, so an archived card can say so rather than just
+        // saying it is archived.
+        supersededBy: { select: { id: true, reportNo: true, fileName: true } },
+        // The capability it covers, with when that capability last changed: a
+        // capability edited after the certificate was read is either a
+        // transcription being corrected or an instrument that has moved, and
+        // only a person can say which.
+        capabilityProfile: {
+          select: { id: true, profileKey: true, parameter: true, role: true, unit: true, updatedAt: true },
         },
+        // The full list, so a card can name every capability the certificate covers.
+        supersedes: { select: { id: true, reportNo: true, fileName: true } },
       },
       orderBy: { uploadedAt: 'desc' },
     })
@@ -1830,16 +1858,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       const { id, certId } = request.params
       const tenantId = request.tenantId
 
-      const instrument = await prisma.masterInstrument.findFirst({
-        where: { id, tenantId },
-        select: { id: true, assetNumber: true },
-      })
-      if (!instrument) {
+      const scope = await certificateScope(id, tenantId)
+      if (!scope) {
         return reply.status(404).send({ error: 'Instrument not found' })
       }
-
       const certificate = await prisma.masterInstrumentCertificate.findFirst({
-        where: { id: certId, masterInstrumentId: id },
+        where: { id: certId, masterInstrumentId: { in: scope.ids } },
         include: {
           masterInstrument: { select: { assetNumber: true, description: true } },
           uploadedBy: { select: { id: true, name: true } },
@@ -1921,28 +1945,28 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
    * that would leave the instrument with nothing current and no way to say so. Upload
    * a newer one first, which demotes it.
    */
-  fastify.patch<{ Params: { id: string; certId: string }; Body: { isActive: boolean } }>(
+  fastify.patch<{
+    Params: { id: string; certId: string }
+    Body: { isActive: boolean; reason?: string; supersededById?: string | null }
+  }>(
     '/instruments/:id/certificates/:certId',
     { preHandler: [requireAdmin] },
     async (request, reply) => {
       const { id, certId } = request.params
-      const { isActive } = request.body ?? {}
+      const { isActive, reason, supersededById } = request.body ?? {}
       const tenantId = request.tenantId
 
       if (typeof isActive !== 'boolean') {
         return reply.status(400).send({ error: 'isActive must be true or false' })
       }
 
-      const instrument = await prisma.masterInstrument.findFirst({
-        where: { id, tenantId },
-        select: { id: true },
-      })
-      if (!instrument) {
+      const scope = await certificateScope(id, tenantId)
+      if (!scope) {
         return reply.status(404).send({ error: 'Instrument not found' })
       }
 
       const certificate = await prisma.masterInstrumentCertificate.findFirst({
-        where: { id: certId, masterInstrumentId: id },
+        where: { id: certId, masterInstrumentId: { in: scope.ids } },
       })
       if (!certificate) {
         return reply.status(404).send({ error: 'Certificate not found' })
@@ -1956,11 +1980,90 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
       const updated = await prisma.masterInstrumentCertificate.update({
         where: { id: certId },
-        data: { isActive },
+        data: {
+          isActive,
+          // Archiving records why and when. Restoring clears both, because a
+          // restored certificate has not been archived.
+          archivedReason: isActive ? null : (reason ?? '').trim() || 'archived',
+          archivedAt: isActive ? null : new Date(),
+          supersededById: isActive ? null : (supersededById ?? null),
+        },
         include: { uploadedBy: { select: { id: true, name: true } } },
       })
 
       return { certificate: updated }
+    },
+  )
+
+  /**
+   * GET /api/admin/instruments/:id/certificates/:certId/pdf - the file itself.
+   *
+   * There is a signed-URL route beside this one, and it is the better answer
+   * when it works: the file goes straight from storage to the browser without
+   * passing through here. It cannot always work - signing needs a service
+   * account, and a developer signed in with their own Google account has no
+   * client_email to sign with, so it fails with "Cannot sign data without
+   * client_email".
+   *
+   * Streaming the bytes needs no signing key, only the session the request
+   * already carries, so it works everywhere. The viewer asks for a signed URL
+   * first and falls back to this.
+   */
+  fastify.get<{ Params: { id: string; certId: string } }>(
+    '/instruments/:id/certificates/:certId/pdf',
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const { id, certId } = request.params
+      const tenantId = request.tenantId
+
+      const scope = await certificateScope(id, tenantId)
+      if (!scope) return reply.status(404).send({ error: 'Instrument not found' })
+
+      const certificate = await prisma.masterInstrumentCertificate.findFirst({
+        where: { id: certId, masterInstrumentId: { in: scope.ids } },
+      })
+      if (!certificate) return reply.status(404).send({ error: 'Certificate not found' })
+
+      try {
+        const { getMasterInstrumentCertificateStorage } = await import('../../lib/storage/index.js')
+        const storage = getMasterInstrumentCertificateStorage()
+        const resolved = await resolveMasterInstrumentCertificatePath(
+          storage,
+          certificate,
+          scope.instrument.assetNumber,
+        )
+
+        if (!resolved.storagePath) {
+          request.log.warn(
+            { certificateId: certificate.id, attemptedPaths: resolved.attemptedPaths },
+            'Master instrument certificate PDF not found in storage',
+          )
+          return reply.status(404).send({ error: 'Certificate PDF is not available in storage.' })
+        }
+
+        // The file moved at some point and this row still pointed at where it was.
+        if (resolved.storagePath !== certificate.storagePath) {
+          await prisma.masterInstrumentCertificate.update({
+            where: { id: certificate.id },
+            data: { storagePath: resolved.storagePath },
+          })
+        }
+
+        const pdfBuffer = await storage.download(resolved.storagePath)
+
+        return reply
+          .header('Content-Type', certificate.mimeType || 'application/pdf')
+          .header(
+            'Content-Disposition',
+            `inline; filename="${certificate.fileName || 'calibration-certificate.pdf'}"`,
+          )
+          .header('Content-Length', pdfBuffer.length)
+          .header('Cache-Control', 'private, max-age=300')
+          .send(pdfBuffer)
+      } catch (error) {
+        request.log.error({ err: error, certificateId: certificate.id }, 'Failed to stream certificate PDF')
+        return reply.status(404).send({ error: 'Certificate PDF is not available in storage.' })
+      }
     },
   )
 
@@ -2093,6 +2196,53 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       data: { isLatest: false },
     })
 
+    // Which capability this certificate covers, and which one it replaces. Both
+    // arrive as form fields beside the file.
+    const uploadFields = data.fields as Record<string, { value?: string } | undefined>
+    const replaceReason = uploadFields.reason?.value?.trim() || null
+
+    /** A JSON array of ids, or a single id, or nothing. */
+    const idList = (raw: string | undefined): string[] => {
+      const v = (raw ?? '').trim()
+      if (!v) return []
+      if (v.startsWith('[')) {
+        try {
+          const parsed: unknown = JSON.parse(v)
+          return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string' && !!x) : []
+        } catch {
+          return []
+        }
+      }
+      return [v]
+    }
+
+    const coversIds = idList(uploadFields.capabilityProfileIds?.value ?? uploadFields.capabilityProfileId?.value)
+    const replacesIds = idList(uploadFields.replacesCertificateIds?.value ?? uploadFields.replacesCertificateId?.value)
+
+    // Every capability has to belong to this instrument, or a certificate could be
+    // pointed at another lab's.
+    let capabilityProfileIds: string[] = []
+    if (coversIds.length) {
+      const owner = await prisma.masterInstrument.findFirst({
+        where: { id, tenantId },
+        select: { instrumentId: true },
+      })
+      const found = owner
+        ? await prisma.masterCapabilityProfile.findMany({
+            where: { id: { in: coversIds }, tenantId, instrumentId: owner.instrumentId },
+            select: { id: true },
+          })
+        : []
+      if (found.length !== coversIds.length) {
+        return reply
+          .status(400)
+          .send({ error: 'One of those capabilities does not belong to this instrument' })
+      }
+      capabilityProfileIds = found.map((f) => f.id)
+    }
+    // The single column is still written, so everything that reads it keeps working.
+    const capabilityProfileId = capabilityProfileIds[0] ?? null
+
     const certificate = await prisma.masterInstrumentCertificate.create({
       data: {
         masterInstrumentId: id,
@@ -2104,6 +2254,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         validFrom: validFromStr ? new Date(validFromStr) : null,
         validUntil: validUntilStr ? new Date(validUntilStr) : instrument.calibrationDueDate,
         uploadedById: userId,
+        capabilityProfileId,
+        capabilityProfileIds,
         isLatest: true,
         isActive: true,
       },
@@ -2113,6 +2265,49 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         },
       },
     })
+
+    // Superseding is one act. As two separate steps the second half gets
+    // forgotten, which is how an instrument ends up with two certificates both
+    // claiming to be current.
+    if (replacesIds.length) {
+      const scope = await certificateScope(id, tenantId)
+      const olds = scope
+        ? await prisma.masterInstrumentCertificate.findMany({
+            where: { id: { in: replacesIds }, masterInstrumentId: { in: scope.ids } },
+            select: { id: true, capabilityProfileId: true, capabilityProfileIds: true },
+          })
+        : []
+
+      for (const old of olds) {
+        await prisma.masterInstrumentCertificate.update({
+          where: { id: old.id },
+          data: {
+            isActive: false,
+            isLatest: false,
+            archivedReason: replaceReason || 'superseded',
+            archivedAt: new Date(),
+            supersededById: certificate.id,
+          },
+        })
+      }
+
+      // The replacement covers whatever the ones it replaced did, unless told
+      // otherwise. Several old certificates can be replaced by one, so their
+      // capabilities are pooled rather than the last one winning.
+      if (!capabilityProfileIds.length && olds.length) {
+        const inherited = [
+          ...new Set(
+            olds.flatMap((o) => (o.capabilityProfileIds.length ? o.capabilityProfileIds : o.capabilityProfileId ? [o.capabilityProfileId] : [])),
+          ),
+        ]
+        if (inherited.length) {
+          await prisma.masterInstrumentCertificate.update({
+            where: { id: certificate.id },
+            data: { capabilityProfileIds: inherited, capabilityProfileId: inherited[0] },
+          })
+        }
+      }
+    }
 
     return { success: true, certificate }
   })
