@@ -12,6 +12,33 @@
  */
 import { describe, it, expect } from 'vitest'
 
+/**
+ * The real functions, not transcriptions of them.
+ *
+ * This file used to define its own copy of all fifteen and test those, so none of it
+ * touched the code that ships. The copies had already drifted - formatDateDisplay was
+ * written here with a numeric day where the real one uses a two-digit day - and the
+ * only reason anyone noticed is that a copy failed a test the original would have
+ * passed.
+ */
+import {
+  formatDateDisplay,
+  formatDateTime,
+  formatTimeAgo,
+  getCustomerEventStyle,
+  getFeedbackStyle,
+  getRoleBadge,
+  getUserInitials,
+  groupCustomerEventsByRevision,
+  groupFeedbacksByRevision,
+  groupFeedbacksBySection,
+  isApproval,
+  isCustomerFeedback,
+  isEngineerResponse,
+  isRejection,
+  isRevisionRequest,
+} from '@/components/feedback/shared/feedback-utils'
+
 // Types
 interface Feedback {
   id: string
@@ -103,200 +130,20 @@ const REVISION_SECTIONS = [
   { id: 'conclusion', label: 'Section 7: Conclusion' },
 ]
 
-// Type classification functions
-function isRevisionRequest(type: string): boolean {
-  return ['REVISION_REQUEST', 'REVISION_REQUESTED', 'CUSTOMER_REVISION_FORWARDED'].includes(type)
-}
 
-function isEngineerResponse(type: string): boolean {
-  return ['REVISION_RESPONSE', 'ASSIGNEE_RESPONSE', 'ENGINEER_RESPONSE'].includes(type)
-}
 
-function isApproval(type: string): boolean {
-  return ['APPROVED', 'APPROVAL', 'APPROVAL_NOTE'].includes(type)
-}
 
-function isRejection(type: string): boolean {
-  return ['REJECTED', 'REJECTION_REASON'].includes(type)
-}
 
-function isCustomerFeedback(type: string): boolean {
-  return type === 'CUSTOMER_REVISION_REQUEST'
-}
 
-// Style functions
-function getFeedbackStyle(type: string) {
-  if (isRevisionRequest(type)) {
-    return { bgColor: 'bg-orange-100', textColor: 'text-orange-600', label: 'Revision Request' }
-  }
-  if (type === 'CUSTOMER_REVISION_REQUEST') {
-    return {
-      bgColor: 'bg-purple-100',
-      textColor: 'text-purple-600',
-      label: 'Customer Revision Request',
-    }
-  }
-  if (isApproval(type)) {
-    return { bgColor: 'bg-green-100', textColor: 'text-green-600', label: 'Approved' }
-  }
-  if (isRejection(type)) {
-    return { bgColor: 'bg-red-100', textColor: 'text-red-600', label: 'Rejected' }
-  }
-  if (isEngineerResponse(type)) {
-    return { bgColor: 'bg-blue-100', textColor: 'text-blue-600', label: 'Response' }
-  }
-  return { bgColor: 'bg-slate-100', textColor: 'text-slate-600', label: 'Comment' }
-}
 
-function getCustomerEventStyle(type: string) {
-  const styles: Record<string, { bgColor: string; textColor: string; label: string }> = {
-    SENT_TO_CUSTOMER: {
-      bgColor: 'bg-blue-100',
-      textColor: 'text-blue-600',
-      label: 'Sent to Customer',
-    },
-    CUSTOMER_REVISION_REQUESTED: {
-      bgColor: 'bg-purple-100',
-      textColor: 'text-purple-600',
-      label: 'Customer Revision Request',
-    },
-    CUSTOMER_APPROVED: {
-      bgColor: 'bg-green-100',
-      textColor: 'text-green-600',
-      label: 'Customer Approved',
-    },
-    CUSTOMER_REVISION_FORWARDED: {
-      bgColor: 'bg-orange-100',
-      textColor: 'text-orange-600',
-      label: 'Forwarded to Engineer',
-    },
-    ADMIN_REPLIED_TO_CUSTOMER: {
-      bgColor: 'bg-amber-100',
-      textColor: 'text-amber-600',
-      label: 'Admin Response',
-    },
-  }
-  return styles[type] || { bgColor: 'bg-slate-100', textColor: 'text-slate-600', label: 'Event' }
-}
 
-// Grouping functions
-function groupFeedbacksByRevision(feedbacks: Feedback[]) {
-  const groups: Map<number, { feedbacks: Feedback[]; approvals: Feedback[] }> = new Map()
 
-  for (const fb of feedbacks) {
-    const rev = fb.revisionNumber || 1
-    if (!groups.has(rev)) {
-      groups.set(rev, { feedbacks: [], approvals: [] })
-    }
-    const group = groups.get(rev)!
-    if (isApproval(fb.feedbackType)) {
-      group.approvals.push(fb)
-    } else {
-      group.feedbacks.push(fb)
-    }
-  }
 
-  return Array.from(groups.entries())
-    .map(([revision, data]) => ({ revision, ...data }))
-    .sort((a, b) => b.revision - a.revision)
-}
 
-function groupFeedbacksBySection(feedbacks: Feedback[]) {
-  const sectionOrder = [...REVISION_SECTIONS.map((s) => s.id), 'general']
-  const groups: Map<string, Feedback[]> = new Map()
 
-  for (const fb of feedbacks) {
-    const section = fb.targetSection || 'general'
-    if (!groups.has(section)) {
-      groups.set(section, [])
-    }
-    groups.get(section)!.push(fb)
-  }
 
-  // Sort feedbacks within each section by date descending
-  for (const [, fbs] of groups) {
-    fbs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }
 
-  return sectionOrder
-    .filter((s) => groups.has(s))
-    .map((section) => ({ section, feedbacks: groups.get(section)! }))
-}
 
-function groupCustomerEventsByRevision(events: CustomerEvent[]) {
-  const groups: Map<number, CustomerEvent[]> = new Map()
-
-  for (const evt of events) {
-    const rev = evt.revision || 1
-    if (!groups.has(rev)) {
-      groups.set(rev, [])
-    }
-    groups.get(rev)!.push(evt)
-  }
-
-  // Sort events within each revision by date ascending
-  for (const [, evts] of groups) {
-    evts.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-  }
-
-  return Array.from(groups.entries())
-    .map(([revision, events]) => ({ revision, events }))
-    .sort((a, b) => b.revision - a.revision)
-}
-
-// Date formatting functions
-function formatDateDisplay(dateStr: string | null): string {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-function formatDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / (1000 * 60))
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (diffMins < 1) return 'just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-
-  return formatDateDisplay(dateStr)
-}
-
-// User utilities
-function getUserInitials(name: string): string {
-  const parts = name.trim().split(/\s+/)
-  if (parts.length === 1) return parts[0][0].toUpperCase()
-  return (parts[0][0] + parts[1][0]).toUpperCase()
-}
-
-function getRoleBadge(role: string) {
-  const normalizedRole = role.toUpperCase()
-  const badges: Record<string, { label: string; className: string }> = {
-    HOD: { label: 'Reviewer', className: 'bg-slate-100 text-slate-600' },
-    ADMIN: { label: 'Reviewer', className: 'bg-slate-100 text-slate-600' },
-    ENGINEER: { label: 'Engineer', className: 'bg-blue-100 text-blue-600' },
-    CUSTOMER: { label: 'Customer', className: 'bg-purple-100 text-purple-600' },
-  }
-  return badges[normalizedRole] || { label: role, className: 'bg-slate-100 text-slate-600' }
-}
 
 describe('feedback-utils', () => {
   describe('SECTION_CONFIG', () => {
@@ -734,10 +581,19 @@ describe('feedback-utils', () => {
       expect(result).toBe('3d ago')
     })
 
-    it('returns formatted date for dates more than a week ago', () => {
-      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
-      const result = formatTimeAgo(twoWeeksAgo.toISOString())
-      expect(result).toMatch(/\d{1,2} \w{3} \d{4}/)
+    it('gives up counting and shows the date once it is more than a week old', () => {
+      /**
+       * Checked against formatDateDisplay, which is what it actually falls back to.
+       *
+       * It used to be checked against /\d{1,2} \w{3} \d{4}/, which asks for a month
+       * abbreviated to exactly three letters. en-GB does not promise that: September
+       * abbreviates to "Sept", and whether you get that or "Sep" depends on which CLDR
+       * the runtime was built with. So the test passed for eleven months of the year
+       * and failed through September, on some machines.
+       */
+      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+      expect(formatTimeAgo(twoWeeksAgo)).toBe(formatDateDisplay(twoWeeksAgo))
+      expect(formatTimeAgo(twoWeeksAgo)).toMatch(/^\d{2} [A-Za-z]{3,4} \d{4}$/)
     })
   })
 
