@@ -1247,7 +1247,19 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
             </View>
             <View style={styles.customerValueCellRight}>
               <Text style={styles.customerValue}>
-                {formatDateDDMMYYYY(data.dateOfCalibration)}
+                {/* Written the way the lab asked, as the due date is. Both are dates a
+                    customer reads against their own calendar, and a certificate that
+                    gave one of them in the chosen format and the other in day/month
+                    was answering the same question two ways on one page.
+
+                    '-' where there is no date, which is what this cell has always
+                    printed - the due date's cell prints nothing, and that difference
+                    is the cells', not the formatter's. */}
+                {formatCertificateDate(
+                  data.dateOfCalibration,
+                  data.calibrationDueDateFormat || DEFAULT_DATE_FORMAT,
+                  '-',
+                )}
                 {data.calibrationStartTime && data.calibrationEndTime
                   ? `\nTime: ${formatCalibrationTimeRange(data.calibrationStartTime, data.calibrationEndTime)}\nHours: ${formatCalibrationHours(data.calibrationStartTime, data.calibrationEndTime)}`
                   : ''}
@@ -1269,9 +1281,10 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
               <Text style={styles.customerValue}>
                 {(hasFailedCalibrationPoints || data.dueDateNotApplicable)
                   ? 'Not Applicable'
-                  /* The due date is written the way the lab asked. The other dates on
-                     the certificate are not: this is the one a customer reads against
-                     their own calendar, and the one they said crosses borders. */
+                  /* The due date and the date of calibration are written the way the
+                     lab asked. The dates further down are not - a master's own due date
+                     and a signature's timestamp are records of when something happened
+                     here, not dates a customer reads against their calendar. */
                   : formatCertificateDate(
                       data.calibrationDueDate,
                       data.calibrationDueDateFormat || DEFAULT_DATE_FORMAT,

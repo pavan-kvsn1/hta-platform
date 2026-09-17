@@ -7,7 +7,7 @@ Four folders, by what a script is for rather than by what it is written in.
 | [`registry-build/`](registry-build/) | how the lab's spreadsheet became a JSON register. **Archive** — the app no longer reads that register. |
 | [`maintenance/`](maintenance/) | repairs run against real data when something is found wrong |
 | [`ops/`](ops/) | recovery drills, rollbacks, local environment |
-| [`checks/`](checks/) | things that only look and report |
+| [`retired/`](retired/) | superseded checks, kept as the record |
 
 Database migration and seeding live with the package that owns the schema:
 [`packages/database/scripts/`](../packages/database/scripts/).
