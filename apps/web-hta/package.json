@@ -24,7 +24,7 @@
     "db:reset": "prisma migrate reset --schema ../../packages/database/prisma/schema.prisma"
   },
   "prisma": {
-    "seed": "npx tsx prisma/seed.ts"
+    "seed": "npx tsx scripts/seed.ts"
   },
   "dependencies": {
     "@hta/database": "workspace:*",

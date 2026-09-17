@@ -36,6 +36,6 @@
     "**/__tests__/**",
     "**/*.test.ts",
     "**/*.test.tsx",
-    "prisma/seed.ts"
+    "scripts/seed.ts"
   ]
 }
