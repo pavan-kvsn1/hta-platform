@@ -514,7 +514,7 @@ export function AdminAuthContent({ formData, certificateId }: AdminAuthContentPr
           ) : undefined
         }
       >
-        <CalibrationResultsTable parameters={formData.parameters} />
+        <CalibrationResultsTable parameters={formData.parameters} showLimits showFormulas />
       </CollapsibleSection>
 
       {/* Section 6: Remarks */}

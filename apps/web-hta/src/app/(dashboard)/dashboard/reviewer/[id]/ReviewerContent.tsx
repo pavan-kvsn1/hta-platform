@@ -2,7 +2,7 @@
 
 import { apiFetch } from '@/lib/api-client'
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
   AlertCircle,
   CheckCircle,
@@ -295,6 +295,9 @@ export function ReviewerContent({
     })
   }
 
+  /** The date convention this certificate was written in, which the PDF also prints. */
+  const dateFormat = certificate.calibrationDueDateFormat || DEFAULT_DATE_FORMAT
+
   // Check if any results are out of limit
   const hasOutOfLimitResults = certificate.parameters.some((p) =>
     p.results.some((r) => r.isOutOfLimit)
@@ -338,9 +341,25 @@ export function ReviewerContent({
             label="Calibrated At"
             value={certificate.calibratedAt === 'LAB' ? 'Laboratory' : 'Site'}
           />
+          {/* The format is named before the dates that obey it.
+              A certificate carries one date convention, chosen for the customer who
+              reads it. Naming it turns two dates that merely look different into two
+              dates written the way this customer asked for, and it is the reviewer who
+              is last to see the document before that customer does. */}
+          <InfoField label="Date Format" value={dateFormat} />
           <InfoField
             label="Date of Calibration"
-            value={formatDate(certificate.dateOfCalibration)}
+            /* Was a local en-GB toLocaleDateString, so a certificate set to any other
+               format printed one thing here and another on the PDF it approves. */
+            value={formatCertificateDate(certificate.dateOfCalibration, dateFormat, '-')}
+          />
+          <InfoField
+            label="Calibration Due Date"
+            value={
+              certificate.dueDateNotApplicable
+                ? 'Not Applicable'
+                : formatCertificateDate(certificate.calibrationDueDate, dateFormat, '-')
+            }
           />
           <InfoField
             label="Calibration Time"
@@ -349,18 +368,6 @@ export function ReviewerContent({
           <InfoField
             label="Hours of Calibration"
             value={formatCalibrationHours(certificate.calibrationStartTime, certificate.calibrationEndTime)}
-          />
-          <InfoField
-            label="Calibration Due Date"
-            value={
-              certificate.dueDateNotApplicable
-                ? 'Not Applicable'
-                : formatCertificateDate(
-                    certificate.calibrationDueDate,
-                    certificate.calibrationDueDateFormat || DEFAULT_DATE_FORMAT,
-                    '-',
-                  )
-            }
           />
           <div className="md:col-span-2 lg:col-span-3 border-t pt-4 mt-2">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -454,7 +461,14 @@ export function ReviewerContent({
                               </span>
                             </div>
                           )}
-                          {param.accuracyValue && (
+                          {/* On a banded parameter the single figures are not what
+                              anything is judged against - each point is measured against
+                              the band its master reading falls in - and they do not even
+                              agree with the bands: one certificate here states +/-3 and
+                              1 C over bands running +/-0.26 to +/-1.25 and 0.01 to 1 C.
+                              Printing them beside the bands invites the reviewer to check
+                              a point against a number no point ever used. */}
+                          {!hasBins && param.accuracyValue && (
                             <div>
                               <span className="text-xs font-medium text-gray-500 block">Accuracy</span>
                               <span className="text-gray-900">
@@ -465,11 +479,22 @@ export function ReviewerContent({
                               </span>
                             </div>
                           )}
-                          {param.leastCountValue && (
+                          {!hasBins && param.leastCountValue && (
                             <div>
                               <span className="text-xs font-medium text-gray-500 block">Resolution</span>
                               <span className="text-gray-900">
                                 {param.leastCountValue} {param.leastCountUnit || param.parameterUnit || ''}
+                              </span>
+                            </div>
+                          )}
+                          {hasBins && (
+                            <div>
+                              <span className="text-xs font-medium text-gray-500 block">Accuracy &amp; Resolution</span>
+                              <span className="text-gray-900 text-xs">
+                                By band — below{' '}
+                                <span className="text-gray-500">
+                                  ({parsedBins.length} band{parsedBins.length === 1 ? '' : 's'})
+                                </span>
                               </span>
                             </div>
                           )}
@@ -489,41 +514,53 @@ export function ReviewerContent({
                           )}
                         </div>
 
-                        {/* Bins */}
+                        {/* The bands, which are what every result point is judged
+                            against. Set as a list rather than a table: the unit is said
+                            once in the header instead of twice on every row, the figures
+                            are right-aligned on tabular numerals so a column of least
+                            counts reads down, and six short rows do not need a frame. */}
                         {hasBins && (
                           <div className="mt-4 pt-4 border-t">
-                            <span className="text-xs font-semibold text-gray-500 block mb-2">Range-wise Specifications</span>
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-sm">
-                                <thead className="bg-gray-50">
-                                  <tr>
-                                    <th className="px-3 py-1.5 text-left text-xs font-semibold text-gray-500">Range</th>
-                                    <th className="px-3 py-1.5 text-left text-xs font-semibold text-gray-500">Least Count</th>
-                                    <th className="px-3 py-1.5 text-left text-xs font-semibold text-gray-500">Accuracy</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                  {parsedBins.map((bin: { id?: string; binMin: string; binMax: string; leastCount: string; accuracy: string }, i: number) => (
-                                    <tr key={bin.id || i}>
-                                      <td className="px-3 py-1.5 text-gray-900 text-xs">
-                                        {bin.binMin} to {bin.binMax} {param.parameterUnit || ''}
-                                      </td>
-                                      <td className="px-3 py-1.5 text-gray-700 text-xs">
-                                        {bin.leastCount} {param.parameterUnit || ''}
-                                      </td>
-                                      <td className="px-3 py-1.5 text-gray-700 text-xs">
-                                        ±{bin.accuracy}{' '}
-                                        {param.accuracyType === 'ABSOLUTE'
-                                          ? param.parameterUnit || ''
-                                          : param.accuracyType === 'PERCENT_READING'
-                                            ? '% of reading'
-                                            : '% of scale'}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                            <div className="flex items-baseline justify-between gap-3 mb-2.5">
+                              <span className="text-xs font-semibold text-gray-500">
+                                Range-wise Specifications
+                              </span>
+                              <span className="text-[11px] text-gray-400 tabular-nums">
+                                {parsedBins.length} band{parsedBins.length === 1 ? '' : 's'}
+                                {param.parameterUnit ? ` \u00b7 ${param.parameterUnit}` : ''}
+                              </span>
                             </div>
+                            <dl className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-8 items-baseline">
+                              <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 pb-1.5 border-b">
+                                Range
+                              </dt>
+                              <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 pb-1.5 border-b text-right">
+                                Least count
+                              </dt>
+                              <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 pb-1.5 border-b text-right">
+                                Accuracy
+                              </dt>
+                              {parsedBins.map((bin: { id?: string; binMin: string; binMax: string; leastCount: string; accuracy: string }, i: number) => {
+                                const last = i === parsedBins.length - 1
+                                const cell = `py-1.5 text-xs tabular-nums ${last ? '' : 'border-b border-gray-100'}`
+                                return (
+                                  <Fragment key={bin.id || i}>
+                                    <dd className={`${cell} text-gray-900`}>
+                                      {bin.binMin} &ndash; {bin.binMax}
+                                    </dd>
+                                    <dd className={`${cell} text-gray-600 text-right`}>{bin.leastCount}</dd>
+                                    <dd className={`${cell} text-gray-600 text-right`}>
+                                      ±{bin.accuracy}
+                                      {param.accuracyType === 'PERCENT_READING' ? (
+                                        <span className="text-gray-400"> % rdg</span>
+                                      ) : param.accuracyType === 'PERCENT_SCALE' ? (
+                                        <span className="text-gray-400"> % FS</span>
+                                      ) : null}
+                                    </dd>
+                                  </Fragment>
+                                )
+                              })}
+                            </dl>
                           </div>
                         )}
                       </div>
@@ -624,7 +661,7 @@ export function ReviewerContent({
           ) : undefined
         }
       >
-        <CalibrationResultsTable parameters={certificate.parameters} />
+        <CalibrationResultsTable parameters={certificate.parameters} showLimits showFormulas />
       </CollapsibleSection>
 
       {/* Section 6: Remarks */}

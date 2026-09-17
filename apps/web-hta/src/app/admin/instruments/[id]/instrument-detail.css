@@ -1,13 +1,13 @@
 /**
  * The master instrument page.
  *
- * Generated from the reviewed mockup by scratchpad/mkcss.py - every selector is
- * prefixed with .mid so nothing here reaches the rest of the admin app, and the
- * class names are unchanged from the mockup so the components port across as
- * they were reviewed.
+ * Was generated from a reviewed mockup - every selector is prefixed with .mid so
+ * nothing here reaches the rest of the admin app, and the class names came across
+ * from the mockup unchanged so the components ported as they were reviewed.
  *
- * Edit the mockup and regenerate rather than editing this file, or the two
- * drift and the mockup stops being worth reviewing.
+ * The mockup and its generator are gone, so this file is now the original rather
+ * than a copy of one. Edit it directly. Keep the .mid prefix on every selector:
+ * it is the only thing stopping this stylesheet reaching the rest of the app.
  */
 
 .mid{

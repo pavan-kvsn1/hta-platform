@@ -474,7 +474,7 @@ export function AdminCertificateContent({
           ) : undefined
         }
       >
-        <CalibrationResultsTable parameters={certificate.parameters} />
+        <CalibrationResultsTable parameters={certificate.parameters} showLimits showFormulas />
       </CollapsibleSection>
 
       {/* Section 6: Remarks */}

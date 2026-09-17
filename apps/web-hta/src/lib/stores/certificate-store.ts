@@ -21,6 +21,15 @@ import {
   type ErrorConfig,
   type FieldDefinition,
 } from '@/lib/certificate/fields'
+/**
+ * The lab's acceptance rule, shared.
+ *
+ * This file used to hold its own copy, so the rule that decides whether a point
+ * passed was reachable only from the engineer's form. Every screen that only reads
+ * a certificate printed the verdict without being able to name the figure behind
+ * it. One implementation, read from both.
+ */
+import { calculateErrorLimit } from '@/lib/certificate/error-limit'
 
 // Accuracy calculation types
 export type AccuracyType = 'PERCENT_READING' | 'ABSOLUTE' | 'PERCENT_SCALE'
@@ -608,86 +617,6 @@ const calculateDueDateString = (dateOfCalibration: string, tenure: number, adjus
   date.setMonth(date.getMonth() + tenure)
   date.setDate(date.getDate() + adjustment)
   return date.toISOString().split('T')[0]
-}
-
-// Calculate error limit based on accuracy type
-// Returns: { limit: number, binIndex: number | null }
-const calculateErrorLimit = (
-  parameter: Parameter,
-  standardReading: number
-): { limit: number | null; binIndex: number | null; binAccuracy: string | null } => {
-  const accuracyType = parameter.accuracyType
-
-  // For binned parameters, find the appropriate bin
-  if (parameter.requiresBinning && parameter.bins.length > 0) {
-    for (let i = 0; i < parameter.bins.length; i++) {
-      const bin = parameter.bins[i]
-      const binMin = parseFloat(bin.binMin)
-      const binMax = parseFloat(bin.binMax)
-      const binAccuracy = parseFloat(bin.accuracy.replace('±', ''))
-
-      // Check if standard reading falls within this bin
-      if (!isNaN(binMin) && !isNaN(binMax) && standardReading >= binMin && standardReading <= binMax) {
-        if (isNaN(binAccuracy)) {
-          return { limit: null, binIndex: i, binAccuracy: bin.accuracy }
-        }
-
-        // Calculate limit based on accuracy type
-        let limit: number
-        switch (accuracyType) {
-          case 'PERCENT_READING':
-            // Use absolute value of reading for percentage calculation
-            limit = (binAccuracy * Math.abs(standardReading)) / 100
-            break
-          case 'PERCENT_SCALE': {
-            const rangeMin = parseFloat(parameter.rangeMin)
-            const rangeMax = parseFloat(parameter.rangeMax)
-            if (isNaN(rangeMin) || isNaN(rangeMax)) {
-              limit = binAccuracy // Fallback to absolute if range not set
-            } else {
-              limit = (binAccuracy * Math.abs(rangeMax - rangeMin)) / 100
-            }
-            break
-          }
-          case 'ABSOLUTE':
-          default:
-            limit = binAccuracy
-        }
-        return { limit, binIndex: i, binAccuracy: bin.accuracy }
-      }
-    }
-    // If no bin matches, return null
-    return { limit: null, binIndex: null, binAccuracy: null }
-  }
-
-  // Non-binned parameter
-  const accuracy = parseFloat(parameter.accuracyValue.replace('±', ''))
-  if (isNaN(accuracy)) {
-    return { limit: null, binIndex: null, binAccuracy: null }
-  }
-
-  let limit: number
-  switch (accuracyType) {
-    case 'PERCENT_READING':
-      // Use absolute value of reading for percentage calculation
-      limit = (accuracy * Math.abs(standardReading)) / 100
-      break
-    case 'PERCENT_SCALE': {
-      const rangeMin = parseFloat(parameter.rangeMin)
-      const rangeMax = parseFloat(parameter.rangeMax)
-      if (isNaN(rangeMin) || isNaN(rangeMax)) {
-        limit = accuracy // Fallback to absolute if range not set
-      } else {
-        limit = (accuracy * Math.abs(rangeMax - rangeMin)) / 100
-      }
-      break
-    }
-    case 'ABSOLUTE':
-    default:
-      limit = accuracy
-  }
-
-  return { limit, binIndex: null, binAccuracy: null }
 }
 
 const initialFormData: CertificateFormData = {

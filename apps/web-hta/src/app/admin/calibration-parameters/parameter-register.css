@@ -1,10 +1,8 @@
 /*
- * Generated from the parameter-register wireframe. Do not edit by hand - change
- * the wireframe and run mkpreg.py, or the two drift and the drawing stops being
- * the reference.
- *
- * Every selector is fenced behind `.preg`, because the rest of the admin app is
- * Tailwind and a loose `button` rule here would reach it.
+ * Was generated from the parameter-register wireframe. The wireframe and its
+ * generator are gone, so this is the original now. Edit it directly, and keep the
+ * .preg prefix on every selector - it is what stops this stylesheet reaching the
+ * rest of the admin app.
  */
 .preg *{box-sizing:border-box}
 /* ══════════════════════════════════════════════════════════════════════════
