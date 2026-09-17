@@ -255,6 +255,18 @@ const createCertificateSchema = z.object({
      * are recalibrated, and a reissued certificate must print the numbers it was
      * issued with.
      */
+    /**
+     * The stretch this master was used over, and how it was used.
+     *
+     * A parameter can be served by more than one master, so the declaration belongs to
+     * the pairing rather than to the parameter - which has one set of these fields and
+     * so had room for one master.
+     */
+    rangeFrom: z.string().optional().nullable(),
+    rangeTo: z.string().optional().nullable(),
+    masterProfileId: z.string().optional().nullable(),
+    masterSubtype: z.string().optional().nullable(),
+    masterAcceptanceReason: z.string().optional().nullable(),
     capabilityParameter: z.string().optional().nullable(),
     masterLeastCount: z.string().optional().nullable(),
     masterLeastCountUnit: z.string().optional().nullable(),
@@ -869,6 +881,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
                 reportNo: mi.reportNo || null,
                 calibrationDueDate: mi.calibrationDueDate || null,
                 sopReference: mi.sopReference || '',
+                rangeFrom: mi.rangeFrom || null,
+                rangeTo: mi.rangeTo || null,
+                masterProfileId: mi.masterProfileId || null,
+                masterSubtype: mi.masterSubtype || null,
+                masterAcceptanceReason: mi.masterAcceptanceReason || null,
                 capabilityParameter: mi.capabilityParameter || null,
                 masterLeastCount: mi.masterLeastCount || null,
                 masterLeastCountUnit: mi.masterLeastCountUnit || null,
@@ -1326,6 +1343,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
                 reportNo: mi.reportNo || null,
                 calibrationDueDate: mi.calibrationDueDate || null,
                 sopReference: mi.sopReference || '',
+                rangeFrom: mi.rangeFrom || null,
+                rangeTo: mi.rangeTo || null,
+                masterProfileId: mi.masterProfileId || null,
+                masterSubtype: mi.masterSubtype || null,
+                masterAcceptanceReason: mi.masterAcceptanceReason || null,
                 capabilityParameter: mi.capabilityParameter || null,
                 masterLeastCount: mi.masterLeastCount || null,
                 masterLeastCountUnit: mi.masterLeastCountUnit || null,

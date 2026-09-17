@@ -2243,6 +2243,42 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     // The single column is still written, so everything that reads it keeps working.
     const capabilityProfileId = capabilityProfileIds[0] ?? null
 
+    /**
+     * The capabilities as they stand right now, kept verbatim against the
+     * certificate.
+     *
+     * Everything else reads a capability live, which is what stops a card and
+     * the capability behind it disagreeing. The cost is that an edit after the
+     * fact is invisible - the drift review could say a capability had changed
+     * but not what from. This is that missing half, and it is written once and
+     * never updated: a snapshot that moves is not a snapshot.
+     */
+    const snapshot = capabilityProfileIds.length
+      ? await prisma.masterCapabilityProfile.findMany({
+          where: { id: { in: capabilityProfileIds } },
+          select: {
+            id: true,
+            profileKey: true,
+            parameter: true,
+            role: true,
+            unit: true,
+            minValue: true,
+            maxValue: true,
+            updatedAt: true,
+            subtypes: {
+              orderBy: { sortOrder: 'asc' },
+              select: {
+                subtypeKey: true,
+                minValue: true,
+                maxValue: true,
+                buckets: { orderBy: { sortOrder: 'asc' } },
+              },
+            },
+            buckets: { where: { subtypeId: null }, orderBy: { sortOrder: 'asc' } },
+          },
+        })
+      : []
+
     const certificate = await prisma.masterInstrumentCertificate.create({
       data: {
         masterInstrumentId: id,
@@ -2256,6 +2292,11 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         uploadedById: userId,
         capabilityProfileId,
         capabilityProfileIds,
+        // JSON.parse(JSON.stringify(...)) so Decimal and Date land as the
+        // strings the column can hold, rather than as Prisma's own objects.
+        capabilitySnapshot: snapshot.length
+          ? (JSON.parse(JSON.stringify(snapshot)) as object)
+          : undefined,
         isLatest: true,
         isActive: true,
       },
@@ -2515,6 +2556,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ error: 'Training evidence not found' })
     }
 
+    // The evidence can be detached without the record going with it, so there
+    // is now a real case of a sign-off with nothing to open.
+    if (!training.certificatePath) {
+      return reply.status(404).send({ error: 'This record has no evidence attached.' })
+    }
+
     try {
       const { getTrainingEvidenceStorage } = await import('../../lib/storage/index.js')
       const storage = getTrainingEvidenceStorage()
@@ -2531,6 +2578,122 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ error: 'Training certificate PDF is not available in storage.' })
     }
   })
+
+  /**
+   * PUT /api/admin/instruments/:id/trainings/:trainingId/evidence - swap the PDF.
+   *
+   * A sign-off is for one person against one document, so the engineer is fixed
+   * once a record exists. The document is not: the wrong file gets attached, or
+   * a clearer scan of the right one turns up, and the alternative was deleting
+   * the record and losing the dates with it.
+   *
+   * The old file is left in storage rather than deleted. Storage is cheap and a
+   * training certificate is evidence; if this row turns out to have been
+   * changed in error, the bytes are still there.
+   */
+  fastify.put<{ Params: { id: string; trainingId: string } }>(
+    '/instruments/:id/trainings/:trainingId/evidence',
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const tenantId = request.tenantId
+      const { id, trainingId } = request.params
+
+      const instrument = await prisma.masterInstrument.findFirst({
+        where: { id, tenantId },
+        select: { id: true, instrumentId: true, assetNumber: true },
+      })
+      if (!instrument) return reply.status(404).send({ error: 'Instrument not found' })
+
+      const training = await prisma.masterInstrumentTraining.findFirst({
+        where: { id: trainingId, tenantId, instrumentId: instrument.instrumentId, isActive: true },
+        select: { id: true, certificatePath: true, engineerId: true },
+      })
+      if (!training) return reply.status(404).send({ error: 'Training record not found' })
+
+      const data = await request.file()
+      if (!data) return reply.status(400).send({ error: 'No file provided' })
+      if (data.mimetype !== 'application/pdf') {
+        return reply.status(400).send({ error: 'Only PDF files are allowed' })
+      }
+
+      const chunks: Buffer[] = []
+      for await (const chunk of data.file) chunks.push(chunk as Buffer)
+      const buffer = Buffer.concat(chunks)
+      if (!buffer.length) return reply.status(400).send({ error: 'That file is empty' })
+
+      const { getTrainingEvidenceStorage } = await import('../../lib/storage/index.js')
+      const storage = getTrainingEvidenceStorage()
+
+      // The same shape of path the upload route writes, with a fresh timestamp so
+      // the old bytes are not overwritten.
+      const safeFileName = data.filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const storagePath =
+        `master-instrument-training/${instrument.instrumentId}/${training.engineerId}/` +
+        `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeFileName}`
+      await storage.upload(storagePath, buffer, {
+        contentType: 'application/pdf',
+        metadata: { instrumentId: instrument.instrumentId, trainingId: training.id },
+      })
+
+      const updated = await prisma.masterInstrumentTraining.update({
+        where: { id: training.id },
+        data: {
+          certificateFileName: data.filename,
+          certificateFileSize: buffer.length,
+          certificateMimeType: 'application/pdf',
+          certificatePath: storagePath,
+        },
+        include: { engineer: { select: { id: true, name: true, email: true } } },
+      })
+
+      return { training: updated, replaced: true }
+    },
+  )
+
+  /**
+   * DELETE /api/admin/instruments/:id/trainings/:trainingId/evidence - detach it.
+   *
+   * The counterpart to replacing: the file was attached to the wrong record and
+   * there is no right one to put in its place yet. The sign-off itself - who,
+   * when, over what - is what the record is for and it survives; the page then
+   * says the record has no evidence, which is a state worth being able to see
+   * rather than one reachable only by deleting the row.
+   *
+   * The bytes stay in storage. This clears the reference, not the evidence.
+   */
+  fastify.delete<{ Params: { id: string; trainingId: string } }>(
+    '/instruments/:id/trainings/:trainingId/evidence',
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const tenantId = request.tenantId
+      const { id, trainingId } = request.params
+
+      const instrument = await prisma.masterInstrument.findFirst({
+        where: { id, tenantId },
+        select: { id: true, instrumentId: true },
+      })
+      if (!instrument) return reply.status(404).send({ error: 'Instrument not found' })
+
+      const training = await prisma.masterInstrumentTraining.findFirst({
+        where: { id: trainingId, tenantId, instrumentId: instrument.instrumentId, isActive: true },
+        select: { id: true },
+      })
+      if (!training) return reply.status(404).send({ error: 'Training record not found' })
+
+      const updated = await prisma.masterInstrumentTraining.update({
+        where: { id: training.id },
+        data: {
+          certificateFileName: null,
+          certificateFileSize: null,
+          certificateMimeType: null,
+          certificatePath: null,
+        },
+        include: { engineer: { select: { id: true, name: true, email: true } } },
+      })
+
+      return { training: updated, removed: true }
+    },
+  )
 
   // PATCH /api/admin/instruments/:id/trainings/:trainingId - Update training metadata
   fastify.patch<{ Params: { id: string; trainingId: string } }>('/instruments/:id/trainings/:trainingId', {
@@ -3941,6 +4104,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (!training) {
       return reply.status(404).send({ error: 'Training evidence not found' })
+    }
+
+    // The evidence can be detached without the record going with it, so there
+    // is now a real case of a sign-off with nothing to open.
+    if (!training.certificatePath) {
+      return reply.status(404).send({ error: 'This record has no evidence attached.' })
     }
 
     try {

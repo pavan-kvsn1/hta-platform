@@ -20,11 +20,11 @@ import { FastifyPluginAsync } from 'fastify'
 import { prisma, Prisma } from '@hta/database'
 import { requireAdmin } from '../../middleware/auth.js'
 
-type AccuracyKind = 'SYMMETRIC' | 'FORMULA' | 'CLASS'
+type AccuracyKind = 'SYMMETRIC' | 'ASYMMETRIC' | 'FORMULA' | 'CLASS'
 type CapabilityKind = 'RANGE' | 'ARTIFACT'
 type CapabilityRole = 'MEASURING' | 'SOURCE'
 
-const ACCURACY_KINDS: AccuracyKind[] = ['SYMMETRIC', 'FORMULA', 'CLASS']
+const ACCURACY_KINDS: AccuracyKind[] = ['SYMMETRIC', 'ASYMMETRIC', 'FORMULA', 'CLASS']
 const CAPABILITY_KINDS: CapabilityKind[] = ['RANGE', 'ARTIFACT']
 const CAPABILITY_ROLES: CapabilityRole[] = ['MEASURING', 'SOURCE']
 
@@ -49,6 +49,8 @@ function readBool(v: unknown, fallback: boolean): boolean {
 }
 
 interface BucketInput {
+  accuracyUpper?: unknown
+  accuracyLower?: unknown
   bucketKey?: unknown
   min?: unknown
   max?: unknown
@@ -61,9 +63,23 @@ interface BucketInput {
   accuracyUnit?: unknown
   accuracyPolarity?: unknown
   accuracyFormula?: unknown
+  accuracyExpression?: unknown
+  accuracyPercentOf?: unknown
+  accuracyPercentValue?: unknown
+  accuracyDigits?: unknown
+  accuracyDigitsUnit?: unknown
   accuracyClass?: unknown
   sortOrder?: unknown
 }
+
+/**
+ * What a percentage may be a percentage of.
+ *
+ * Three, and anything else is refused rather than stored. The register used to carry
+ * "fsd", "rh" and "hd" as well - synonyms and mistakes that nothing could compute
+ * with, so 29 bands recorded an accuracy and could not be rated by it.
+ */
+const PERCENT_BASES = ['reading', 'full_scale', 'span'] as const
 
 /**
  * Read an accuracy off a request body.
@@ -80,7 +96,14 @@ function accuracyFromInput(body: BucketInput) {
     accuracyUnit: null as string | null,
     accuracyPolarity: null as string | null,
     accuracyFormula: null as string | null,
+    accuracyExpression: null as string | null,
+    accuracyPercentOf: null as string | null,
+    accuracyPercentValue: null as number | null,
+    accuracyDigits: null as number | null,
+    accuracyDigitsUnit: null as string | null,
     accuracyClass: null as string | null,
+    accuracyUpper: null as number | null,
+    accuracyLower: null as number | null,
   }
   if (!kind) return blank
   if (kind === 'SYMMETRIC')
@@ -91,13 +114,54 @@ function accuracyFromInput(body: BucketInput) {
       accuracyUnit: typeof body.accuracyUnit === 'string' ? body.accuracyUnit : null,
       accuracyPolarity: typeof body.accuracyPolarity === 'string' ? body.accuracyPolarity : '±',
     }
-  if (kind === 'FORMULA')
+  if (kind === 'ASYMMETRIC')
+    // The two bounds are kept apart on purpose. Collapsing them to the larger of
+    // the two would say the instrument is worse than it is on one side and
+    // better on the other, and nothing downstream could tell.
+    return {
+      ...blank,
+      accuracyKind: kind,
+      accuracyUpper: readNumber(body.accuracyUpper),
+      accuracyLower: readNumber(body.accuracyLower),
+      accuracyUnit: typeof body.accuracyUnit === 'string' ? body.accuracyUnit : null,
+    }
+  if (kind === 'FORMULA') {
+    /**
+     * Two jobs, and both are stored.
+     *
+     * accuracyFormula is what the certificate prints - the calibrating lab's own
+     * wording, which is never re-written here. The rest is what the app computes
+     * with: either a percentage and an optional digits term, or, where no
+     * arrangement of those holds the shape, an expression.
+     *
+     * A percentage of something unnamed is refused. Storing 1% with no basis reads
+     * as an accuracy and rates as nothing, which is the worst of both.
+     */
+    const percentOf = PERCENT_BASES.find((b) => b === body.accuracyPercentOf) ?? null
+    const percentValue = readNumber(body.accuracyPercentValue)
+    const expression =
+      typeof body.accuracyExpression === 'string' && body.accuracyExpression.trim()
+        ? body.accuracyExpression.trim()
+        : null
+
     return {
       ...blank,
       accuracyKind: kind,
       accuracyFormula: typeof body.accuracyFormula === 'string' ? body.accuracyFormula : null,
       accuracyUnit: typeof body.accuracyUnit === 'string' ? body.accuracyUnit : null,
+      accuracyExpression: expression,
+      // An expression states the whole accuracy, so the fields are left clear rather
+      // than holding half of it - a reader taking the fields alone would understate
+      // the instrument by whatever the expression's other terms add.
+      accuracyPercentOf: expression ? null : percentOf,
+      accuracyPercentValue: expression || percentOf === null ? null : percentValue,
+      accuracyDigits: expression ? null : readNumber(body.accuracyDigits),
+      accuracyDigitsUnit:
+        expression || typeof body.accuracyDigitsUnit !== 'string'
+          ? null
+          : body.accuracyDigitsUnit,
     }
+  }
   return {
     ...blank,
     accuracyKind: kind,
@@ -249,7 +313,14 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
         accuracyUnit: b.accuracyUnit,
         accuracyPolarity: b.accuracyPolarity,
         accuracyFormula: b.accuracyFormula,
+        accuracyExpression: b.accuracyExpression,
+        accuracyPercentOf: b.accuracyPercentOf,
+        accuracyPercentValue: b.accuracyPercentValue,
+        accuracyDigits: b.accuracyDigits,
+        accuracyDigitsUnit: b.accuracyDigitsUnit,
         accuracyClass: b.accuracyClass,
+        accuracyUpper: num(b.accuracyUpper),
+        accuracyLower: num(b.accuracyLower),
         sortOrder: b.sortOrder,
       })
 
@@ -734,6 +805,11 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
         accuracyUnit: bucket.accuracyUnit,
         accuracyPolarity: bucket.accuracyPolarity,
         accuracyFormula: bucket.accuracyFormula,
+        accuracyExpression: bucket.accuracyExpression,
+        accuracyPercentOf: bucket.accuracyPercentOf,
+        accuracyPercentValue: bucket.accuracyPercentValue,
+        accuracyDigits: bucket.accuracyDigits,
+        accuracyDigitsUnit: bucket.accuracyDigitsUnit,
         accuracyClass: bucket.accuracyClass,
       }
       const after: Record<string, unknown> = {
@@ -748,6 +824,11 @@ const capabilityRoutes: FastifyPluginAsync = async (fastify) => {
         accuracyUnit: next.accuracyUnit,
         accuracyPolarity: next.accuracyPolarity,
         accuracyFormula: next.accuracyFormula,
+        accuracyExpression: next.accuracyExpression,
+        accuracyPercentOf: next.accuracyPercentOf,
+        accuracyPercentValue: next.accuracyPercentValue,
+        accuracyDigits: next.accuracyDigits,
+        accuracyDigitsUnit: next.accuracyDigitsUnit,
         accuracyClass: next.accuracyClass,
       }
       const changed = Object.keys(after).filter((k) => before[k] !== after[k])
