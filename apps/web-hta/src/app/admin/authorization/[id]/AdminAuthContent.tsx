@@ -7,7 +7,7 @@ import { AlertCircle, CheckCircle as _CheckCircle, Image as ImageIcon } from 'lu
 import { cn as _cn } from '@/lib/utils'
 import { CollapsibleSection } from '@/components/certificate/CollapsibleSection'
 import { InfoField } from '@/components/certificate/InfoField'
-import { MasterInstrumentsTable } from '@/components/certificate/MasterInstrumentsTable'
+import { MasterInstrumentsByParameter } from '@/components/certificate/MasterInstrumentsByParameter'
 import { withAcceptanceReasons } from '@/components/certificate/acceptance-reasons'
 import { CalibrationResultsTable } from '@/components/certificate/CalibrationResultsTable'
 import { ConclusionStatementText } from '@/components/certificate/ConclusionStatementText'
@@ -459,12 +459,12 @@ export function AdminAuthContent({ formData, certificateId }: AdminAuthContentPr
           </button>
         }
       >
-        <MasterInstrumentsTable
+        <MasterInstrumentsByParameter
           instruments={withAcceptanceReasons(
             formData.masterInstruments,
             formData.parameters,
           )}
-          showAcceptanceReasons
+          parameters={formData.parameters}
         />
       </CollapsibleSection>
 

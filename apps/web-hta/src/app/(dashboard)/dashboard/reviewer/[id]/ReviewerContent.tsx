@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { CollapsibleSection } from '@/components/certificate/CollapsibleSection'
 import { InfoField } from '@/components/certificate/InfoField'
-import { MasterInstrumentsTable } from '@/components/certificate/MasterInstrumentsTable'
+import { MasterInstrumentsByParameter } from '@/components/certificate/MasterInstrumentsByParameter'
 import { withAcceptanceReasons } from '@/components/certificate/acceptance-reasons'
 import { CalibrationResultsTable } from '@/components/certificate/CalibrationResultsTable'
 import { ConclusionStatementText } from '@/components/certificate/ConclusionStatementText'
@@ -68,6 +68,28 @@ interface MasterInstrument {
   model: string | null
   serialNumber: string | null
   calibrationDueDate: string | null
+  /**
+   * Everything the join row already carried and the flat table had no column for.
+   * Which parameter it served, how much of that parameter's range it covered, and what
+   * its own certificate said at the moment it was chosen. Optional throughout: a
+   * certificate written before any of it existed reads as 'not recorded', which is the
+   * honest answer and the one the engineer saw too.
+   */
+  parameterId?: string | null
+  masterInstrumentId?: string | number | null
+  assetNo?: string | null
+  calibratedAt?: string | null
+  reportNo?: string | null
+  sopReference?: string | null
+  rangeFrom?: string | null
+  rangeTo?: string | null
+  masterLeastCount?: string | null
+  masterLeastCountUnit?: string | null
+  masterAccuracy?: string | null
+  masterAccuracyUnit?: string | null
+  capabilityParameter?: string | null
+  masterSubtype?: string | null
+  masterAcceptanceReason?: string | null
 }
 
 interface Feedback {
@@ -210,6 +232,40 @@ export function ReviewerContent({
         isLoading: false,
         error: null,
       })
+    } catch (err) {
+      setUucImagesModal({
+        isOpen: true,
+        images: [],
+        isLoading: false,
+        error: err instanceof Error ? err.message : 'Failed to load images',
+      })
+    }
+  }
+
+  /**
+   * The photos attached to one master.
+   *
+   * The UUC has a viewer on this screen and so do the readings; the masters had none,
+   * and nothing here ever asked for MASTER_INSTRUMENT images, so every photo an
+   * engineer took of a master was invisible to the person approving the certificate.
+   *
+   * They are stored against the master's position in the list as the engineer built it,
+   * which is the order the certificate keeps them in.
+   */
+  const fetchMasterImages = async (entry: { id: string }) => {
+    const index = certificate.masterInstruments.findIndex((m) => m.id === entry.id)
+    setUucImagesModal({ isOpen: true, images: [], isLoading: true, error: null })
+    try {
+      const response = await apiFetch(
+        `/api/certificates/${certificate.id}/images?type=MASTER_INSTRUMENT`,
+      )
+      if (!response.ok) throw new Error('Failed to fetch images')
+      const data = await response.json()
+      const images = (data.images || []).filter(
+        (img: { masterInstrumentIndex?: number | null }) =>
+          index < 0 || img.masterInstrumentIndex == null || img.masterInstrumentIndex === index,
+      )
+      setUucImagesModal({ isOpen: true, images, isLoading: false, error: null })
     } catch (err) {
       setUucImagesModal({
         isOpen: true,
@@ -588,12 +644,13 @@ export function ReviewerContent({
           />
         }
       >
-        <MasterInstrumentsTable
+        <MasterInstrumentsByParameter
           instruments={withAcceptanceReasons(
             certificate.masterInstruments,
             certificate.parameters,
           )}
-          showAcceptanceReasons
+          parameters={certificate.parameters}
+          onViewPhotos={fetchMasterImages}
         />
       </CollapsibleSection>
 
