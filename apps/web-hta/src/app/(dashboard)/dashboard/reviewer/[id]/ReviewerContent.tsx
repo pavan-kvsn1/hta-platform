@@ -11,6 +11,7 @@ import {
 import { CollapsibleSection } from '@/components/certificate/CollapsibleSection'
 import { InfoField } from '@/components/certificate/InfoField'
 import { MasterInstrumentsTable } from '@/components/certificate/MasterInstrumentsTable'
+import { withAcceptanceReasons } from '@/components/certificate/acceptance-reasons'
 import { CalibrationResultsTable } from '@/components/certificate/CalibrationResultsTable'
 import { ConclusionStatementText } from '@/components/certificate/ConclusionStatementText'
 import { CALIBRATION_STATUS_OPTIONS } from '@/components/forms/RemarksSection'
@@ -550,7 +551,13 @@ export function ReviewerContent({
           />
         }
       >
-        <MasterInstrumentsTable instruments={certificate.masterInstruments} />
+        <MasterInstrumentsTable
+          instruments={withAcceptanceReasons(
+            certificate.masterInstruments,
+            certificate.parameters,
+          )}
+          showAcceptanceReasons
+        />
       </CollapsibleSection>
 
       {/* Section 4: Environmental Conditions */}
