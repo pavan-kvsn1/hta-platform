@@ -22,7 +22,7 @@ import { rowsOf, type Component, type Profile } from '../capabilities/Capabiliti
 import ArchiveDialog from './ArchiveDialog'
 import CertificateUpload, { blankUpload, type UploadDraft } from './CertificateUpload'
 import CertificateViewer from './CertificateViewer'
-import DriftReview from './DriftReview'
+import DriftReview, { type SnapshotProfile } from './DriftReview'
 
 interface Certificate {
   id: string
@@ -43,6 +43,12 @@ interface Certificate {
   capabilityProfileIds?: string[]
   supersededBy?: { id: string; reportNo: string | null; fileName: string } | null
   capabilityProfile?: { id: string; profileKey: string; parameter: string; role: string; updatedAt: string } | null
+  /**
+   * The capabilities verbatim, as of the upload. Null on every certificate
+   * uploaded before the column existed, which is what the drift review reads to
+   * decide whether it can show a before-and-after at all.
+   */
+  capabilitySnapshot?: SnapshotProfile[] | null
 }
 
 const kb = (n: number | null) =>
@@ -337,6 +343,9 @@ export default function CertificatesTab({
           uploadedAt={formatDate(review.uploadedAt)}
           editedAt={formatDate(review.capabilityProfile?.updatedAt ?? null)}
           profile={pr}
+          // The certificate may cover several capabilities; the one under review
+          // is the one whose snapshot is wanted.
+          snapshot={review.capabilitySnapshot?.find((s) => s.id === pr.id) ?? null}
           busy={busy}
           onBack={() => setReviewing(null)}
           onAccept={() => {

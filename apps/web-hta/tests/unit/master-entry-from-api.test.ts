@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { masterEntryFromApi } from '@/lib/master-entry-from-api'
+import { masterEntryFromApi } from '@/lib/master-entry/from-api'
 
 const id = () => 'generated'
 const parameters = [{ id: 'p1' }, { id: 'p2' }]

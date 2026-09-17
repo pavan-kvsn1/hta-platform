@@ -10,7 +10,7 @@ import { prisma } from '@/lib/prisma'
 import { CertificateFormData, ParameterBin } from '@/lib/stores/certificate-store'
 import { PDFSignatureData, SigningMetadata, parseUserAgent } from '@/components/pdf/pdf-utils'
 import { safeJsonParse } from '@/lib/utils/safe-json'
-import { readStoredFieldSchema } from '@/lib/certificate-fields'
+import { readStoredFieldSchema } from '@/lib/certificate/fields'
 
 // Binary search bounds for multiplier
 const _MIN_MULTIPLIER = 0.75

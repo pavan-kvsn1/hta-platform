@@ -9,7 +9,7 @@ import {
   DATE_FORMATS,
   DEFAULT_DATE_FORMAT,
   formatCertificateDate,
-} from '@/lib/certificate-date-format'
+} from '@/lib/certificate/date-format'
 
 describe('writing a date the certificate’s way', () => {
   const iso = '2026-09-02'

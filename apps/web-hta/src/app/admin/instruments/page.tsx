@@ -14,7 +14,7 @@ import {
 import {
   Loader2,
   Plus,
-  Download,
+  SlidersHorizontal,
   Search,
   AlertCircle,
   CheckCircle,
@@ -157,6 +157,13 @@ export default function InstrumentsPage() {
     setSearchQuery(searchInput)
   }
 
+  /**
+   * Nothing calls this any more: the Export CSV button gave way to the link to
+   * the parameter register. The endpoint is untouched and still works, so this
+   * is one button away from coming back - which is why it is here rather than
+   * deleted along with the way to reach it.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleExport = async (format: 'csv' | 'json') => {
     try {
       const res = await apiFetch(`/api/admin/instruments/export?format=${format}`)
@@ -216,13 +223,14 @@ export default function InstrumentsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleExport('csv')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-[#0f172a] border border-[#e2e8f0] rounded-[9px] hover:bg-[#f8fafc] transition-colors"
-            >
-              <Download className="size-4" />
-              Export CSV
-            </button>
+            {/* Took the place of Export CSV. The export endpoint is still live at
+                GET /api/admin/instruments/export - it just has no button. */}
+            <Link href="/admin/calibration-parameters">
+              <button className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#1a6fdb] hover:bg-[#1761c4] rounded-[9px] transition-colors">
+                <SlidersHorizontal className="size-4" />
+                Manage Calibration Params
+              </button>
+            </Link>
             <Link href="/admin/instruments/new">
               <button className="inline-flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold text-white bg-[#16a34a] hover:bg-[#15803d] rounded-[9px] transition-colors">
                 <Plus className="size-4" />

@@ -23,7 +23,7 @@ import {
   resultValues,
   type ErrorConfig,
   type FieldDefinition,
-} from '@/lib/certificate-fields'
+} from '@/lib/certificate/fields'
 import {
   formatToCalibrationPrecision,
   resolveCalibrationPrecision,

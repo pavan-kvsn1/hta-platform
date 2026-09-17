@@ -11,7 +11,7 @@ import {
   expressionToDisplay,
   tokenizeExpression,
   type FieldDefinition,
-} from '@/lib/certificate-fields'
+} from '@/lib/certificate/fields'
 
 const fields: FieldDefinition[] = [
   { id: 'm1', name: 'Std Reading', group: 'master', type: 'numeric', unit: '°C', order: 0 },

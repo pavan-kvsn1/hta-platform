@@ -27,7 +27,7 @@ import {
 } from '@/components/certificate'
 import type { CertificateData, Signature } from './TokenReviewClient'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
-import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate-date-format'
+import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate/date-format'
 
 interface TokenReviewContentProps {
   certificate: CertificateData

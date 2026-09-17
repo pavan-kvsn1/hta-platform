@@ -20,7 +20,7 @@ import {
   DATE_FORMATS,
   DEFAULT_DATE_FORMAT,
   formatCertificateDate,
-} from '@/lib/certificate-date-format'
+} from '@/lib/certificate/date-format'
 import { CustomerAutocomplete } from './CustomerAutocomplete'
 import { useCertificateStore } from '@/lib/stores/certificate-store'
 import { cn } from '@/lib/utils'

@@ -20,6 +20,11 @@ export interface ApiMasterEntry {
   calibratedAt?: string | null
   reportNo?: string | null
   calibrationDueDate?: string | null
+  rangeFrom?: string | null
+  rangeTo?: string | null
+  masterProfileId?: string | null
+  masterSubtype?: string | null
+  masterAcceptanceReason?: string | null
   capabilityParameter?: string | null
   masterLeastCount?: string | null
   masterLeastCountUnit?: string | null
@@ -76,6 +81,14 @@ export function masterEntryFromApi(
     reportNo: entry.reportNo || '',
     calibrationDueDate: entry.calibrationDueDate || '',
     // What the master's own certificate said when it was chosen.
+    // The stretch this master was used over, and how it was used. Absent on entries
+    // saved before a parameter could hold several masters, which means the parameter's
+    // whole range and the declaration the parameter itself carries.
+    rangeFrom: entry.rangeFrom ?? undefined,
+    rangeTo: entry.rangeTo ?? undefined,
+    masterProfileId: entry.masterProfileId ?? undefined,
+    masterSubtype: entry.masterSubtype ?? undefined,
+    masterAcceptanceReason: entry.masterAcceptanceReason ?? undefined,
     capabilityParameter: entry.capabilityParameter || '',
     masterLeastCount: entry.masterLeastCount || '',
     masterLeastCountUnit: entry.masterLeastCountUnit || '',

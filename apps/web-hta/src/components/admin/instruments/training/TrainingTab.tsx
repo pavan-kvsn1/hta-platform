@@ -85,6 +85,17 @@ export default function TrainingTab({
   const [draft, setDraft] = useState({ engineerId: '', trainedAt: '', expiresAt: '', notes: '' })
   const picker = useRef<HTMLInputElement>(null)
 
+  /**
+   * Swapping the PDF on a record that already exists.
+   *
+   * Its own picker, because the one above belongs to the new-record form and
+   * sharing it would mean a click on Replace landing in whichever of the two
+   * happened to be open. `replacing` holds the record the next chosen file is
+   * for, so the two cannot be confused.
+   */
+  const evidencePicker = useRef<HTMLInputElement>(null)
+  const [replacing, setReplacing] = useState<string | null>(null)
+
   const [editing, setEditing] = useState<string | null>(null)
   const [edit, setEdit] = useState({ trainedAt: '', expiresAt: '', notes: '' })
 
@@ -147,6 +158,70 @@ export default function TrainingTab({
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch {
       setError('Could not reach the server.')
+    }
+  }
+
+  /**
+   * The wrong file gets attached, or a clearer scan of the right one turns up.
+   * Before this the only way out was deleting the record, which lost the dates
+   * and the scope with it, so the sign-off had to be re-entered to fix a typo
+   * in a filename.
+   */
+  const replaceEvidence = async (trainingId: string, chosen: File) => {
+    setBusy(true)
+    setError(null)
+    try {
+      const body = new FormData()
+      body.append('file', chosen)
+      const res = await apiFetch(
+        `/api/admin/instruments/${instrumentId}/trainings/${trainingId}/evidence`,
+        { method: 'PUT', body },
+      )
+      if (!res.ok) {
+        const b = await res.json().catch(() => null)
+        setError(b?.error || `Could not replace the evidence (error ${res.status}).`)
+        return
+      }
+      await load()
+    } catch {
+      setError('Could not reach the server.')
+    } finally {
+      setBusy(false)
+      setReplacing(null)
+    }
+  }
+
+  /**
+   * Detaching the file without losing the record.
+   *
+   * Confirmed first: the sign-off stays but nothing vouches for it afterwards,
+   * which is a state worth being asked about rather than one click away.
+   */
+  const removeEvidence = async (rec: Training) => {
+    const who = rec.engineer?.name || rec.engineer?.email || 'this engineer'
+    if (
+      !window.confirm(
+        `Remove the evidence from the record for ${who}? The sign-off stays, but nothing will vouch for it.`,
+      )
+    )
+      return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await apiFetch(
+        `/api/admin/instruments/${instrumentId}/trainings/${rec.id}/evidence`,
+        { method: 'DELETE' },
+      )
+      if (!res.ok) {
+        const b = await res.json().catch(() => null)
+        setError(b?.error || `Could not remove the evidence (error ${res.status}).`)
+        return
+      }
+      await load()
+    } catch {
+      setError('Could not reach the server.')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -337,11 +412,44 @@ export default function TrainingTab({
                   </button>
                 )
               ) : t?.certificateFileName ? (
+                /* The engineer is fixed once a record exists - a sign-off is for
+                   one person - but the document behind it is not. */
                 <span className="evrow">
                   <button type="button" className="link" onClick={() => void openEvidence(t)}>
                     {t.certificateFileName}
                   </button>
+                  <button
+                    type="button"
+                    className="link"
+                    disabled={busy}
+                    onClick={() => {
+                      setReplacing(t.id)
+                      evidencePicker.current?.click()
+                    }}
+                  >
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    className="link warn"
+                    disabled={busy}
+                    onClick={() => void removeEvidence(t)}
+                  >
+                    Remove
+                  </button>
                 </span>
+              ) : t ? (
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setReplacing(t.id)
+                    evidencePicker.current?.click()
+                  }}
+                >
+                  <Icon.plus /> Attach a PDF
+                </button>
               ) : (
                 <span className="undecl">none on file</span>
               )}
@@ -431,6 +539,20 @@ export default function TrainingTab({
         accept="application/pdf"
         hidden
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+      />
+
+      <input
+        ref={evidencePicker}
+        type="file"
+        accept="application/pdf"
+        hidden
+        onChange={(e) => {
+          const chosen = e.target.files?.[0]
+          // Cleared straight away, so choosing the same file twice in a row
+          // still fires a change event the second time.
+          e.target.value = ''
+          if (chosen && replacing) void replaceEvidence(replacing, chosen)
+        }}
       />
 
       {error && (

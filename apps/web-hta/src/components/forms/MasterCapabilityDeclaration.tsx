@@ -18,12 +18,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Info } from 'lucide-react'
 import {
+  DEFAULT_ACCURACY_RATIO,
   declaredCapability,
+  evaluateSuitability,
   matchesParameter,
   type RequiredRange,
-} from '@/lib/master-instrument-capability'
-import { isSymmetric } from '@/lib/master-instrument-registry'
-import type { CapabilityProfile, RegistryUnit } from '@/lib/master-instrument-registry'
+} from '@/lib/master/capability'
+import { COMPATIBILITY_CARD, accuracyCompatibility } from '@/lib/master/eligibility'
+import { isSymmetric } from '@/lib/master/registry'
+import type { CapabilityProfile, RegistryUnit } from '@/lib/master/registry'
 import { cn } from '@/lib/utils'
 
 interface MasterCapabilityDeclarationProps {
@@ -109,6 +112,20 @@ function distinguish(profile: CapabilityProfile): { title: string; detail: strin
         : 'Unrecorded range',
     detail,
   }
+}
+
+/**
+ * How well one capability serves the job, as a colour.
+ *
+ * The same four the pills on the instrument list use, on the same thresholds, so a
+ * card and a pill about the same instrument never disagree. The ratio itself is not
+ * printed on the card: the card's job is to say which part this is, and a figure
+ * beside a second figure invites arithmetic rather than a choice.
+ */
+function toneOf(profile: CapabilityProfile, subtypeId: string | null, required: RequiredRange[]) {
+  if (!required.length) return accuracyCompatibility(null)
+  const suitability = evaluateSuitability(profile, required, { subtypeId })
+  return accuracyCompatibility(suitability.worstRatio ?? null, DEFAULT_ACCURACY_RATIO)
 }
 
 /** The heading for that question, which depends on what the answers are. */
@@ -201,6 +218,8 @@ export function MasterCapabilityDeclaration({
    * until both are answered, so this half-answer has nowhere to live but here.
    */
   const [pendingCap, setPendingCap] = useState<string | null>(null)
+  /** The same, for a part clicked before its role is known. */
+  const [pendingPart, setPendingPart] = useState<string | null>(null)
 
   const profiles = (unit?.capability_profiles ?? []).filter((p) =>
     matchesParameter(p, parameterName, parameterUnit),
@@ -230,19 +249,62 @@ export function MasterCapabilityDeclaration({
     declared?.parameter ??
     (capShown.length === 1 ? capShown[0] : null)
 
-  // Used as - only once the capability is settled, since the roles belong to it.
+  /**
+   * Which part - the readout or the probe - asked before anything else about it.
+   *
+   * A role belongs to a part and a curve belongs to a role: a readout can often both
+   * source and measure where its probe can only measure, and a Type K curve is the
+   * probe's, not the box's. Asking the role first offers answers the part may rule
+   * out, which is the thing the order of these questions exists to avoid.
+   *
+   * It used to be asked third, after the role, and only when two profiles happened to
+   * survive that far.
+   */
+  const partProfiles = cap ? profiles.filter((x) => x.parameter === cap) : []
+  const parts = [...new Set(partProfiles.map((x) => x.component).filter(Boolean))] as string[]
+
+  /**
+   * Preselected on the tightest accuracy, which is the readout on all six of these.
+   *
+   * The engineer changes it where the probe is what was used. Both cards are coloured
+   * on what choosing them actually gives, so the one that is preselected is not
+   * thereby presented as the right one - it is presented in the colour it earns.
+   */
+  const bestPart = useMemo(() => {
+    if (parts.length < 2) return parts[0] ?? null
+    const ranked = partProfiles
+      .filter((x) => x.component)
+      .map((x) => ({
+        component: x.component as string,
+        ratio: required.length
+          ? (evaluateSuitability(x, required, { subtypeId: (x.subtypes ?? [])[0]?.id ?? null })
+              .worstRatio ?? -1)
+          : -1,
+      }))
+      .sort((a, b) => b.ratio - a.ratio)
+    return ranked[0]?.component ?? null
+  }, [partProfiles, parts.length, required])
+
+  const part =
+    parts.length > 1
+      ? ((pendingPart && parts.includes(pendingPart) ? pendingPart : null) ??
+        declared?.component ??
+        bestPart)
+      : (parts[0] ?? null)
+
+  /** Everything still in play once the capability and the part are answered. */
+  const afterPart = partProfiles.filter((x) => !part || !x.component || x.component === part)
+
+  // Used as - only once the capability and the part are settled, since a role belongs
+  // to a part.
   //
   // Deduplicated: two profiles can share a capability and a role and still be two
   // different things - the indicator and the probe of one thermometer, a caliper
   // checker's height and outside faces. Listing the role once per profile put the same
   // radio button on screen twice with nothing to tell the copies apart. Which one is a
   // separate question, asked below.
-  const roles = cap
-    ? [...new Set(profiles.filter((p) => p.parameter === cap).map((p) => p.role))]
-    : []
-  const rolesUsable = roles.filter((r) =>
-    profiles.some((x) => x.parameter === cap && x.role === r && fits(x)),
-  )
+  const roles = cap ? [...new Set(afterPart.map((x) => x.role))] : []
+  const rolesUsable = roles.filter((r) => afterPart.some((x) => x.role === r && fits(x)))
   const roleShown = showAll ? roles : rolesUsable.length ? rolesUsable : roles
   const role = declared?.role ?? (roleShown.length === 1 ? roleShown[0] : null)
 
@@ -257,10 +319,10 @@ export function MasterCapabilityDeclaration({
    */
   const candidates = useMemo(() => {
     if (!cap || !role) return []
-    const all = profiles.filter((p) => p.parameter === cap && p.role === role)
+    const all = afterPart.filter((x) => x.role === role)
     const recorded = all.filter((p) => (p.subtypes ?? []).length > 0 || p.buckets.length > 0)
     return recorded.length ? recorded : all
-  }, [profiles, cap, role])
+  }, [afterPart, cap, role])
 
   // Both answers together name one capability profile, and only then is there a span,
   // a least count and an accuracy to compare against the requirement.
@@ -350,7 +412,8 @@ export function MasterCapabilityDeclaration({
   const settled: [string, string][] = []
   if (capabilities.length > 0 && capShown.length <= 1 && cap) settled.push(['Capability', cap])
   if (cap && roleShown.length <= 1 && role) settled.push(['Used as', role])
-  if (candidates.length === 1 && profile && (profile.component || profile.mode)) {
+  if (cap && parts.length === 1 && part) settled.push(['Which part', part])
+  if (candidates.length === 1 && profile && profile.mode) {
     settled.push([distinguishLabel(candidates), distinguish(profile).title])
   }
   if (role && curves.length > 0 && curveShown.length <= 1 && curve) {
@@ -402,6 +465,57 @@ export function MasterCapabilityDeclaration({
                 <span className="text-xs font-semibold text-slate-800">{c}</span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {cap && parts.length > 1 && (
+        <div>
+          <label className={LABEL}>
+            Which part <span className="text-red-500">*</span>
+          </label>
+          <p className="text-[11px] text-slate-500 mb-1.5">
+            A readout and a probe, certified separately. A reading carries both, so say
+            which one this declaration is rated against.
+          </p>
+          <div className="flex flex-wrap gap-2 items-stretch">
+            {parts.map((name) => {
+              const forPart = partProfiles.find((x) => x.component === name)
+              if (!forPart) return null
+              // distinguish() names it, so the card reads "Indicator" rather than the
+              // stored key. CSS capitalisation would look the same and read as
+              // "indicator" to a screen reader and to a test.
+              const { title, detail } = distinguish(forPart)
+              const chosen = part === name
+              // Coloured on what choosing this part actually gives. The preselected
+              // card is not thereby the recommended one - it wears the colour it earns.
+              const tone = toneOf(forPart, (forPart.subtypes ?? [])[0]?.id ?? null, required)
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => {
+                    setPendingPart(name)
+                    setPendingCap(null)
+                    // The part changes which profile is meant, so the declaration
+                    // underneath it is no longer the answer to this question.
+                    onChange({ profileId: undefined, subtype: undefined })
+                  }}
+                  className={cn(
+                    'flex flex-col items-start gap-0.5 px-3 py-2 rounded-xl border text-left min-w-[10.5rem]',
+                    COMPATIBILITY_CARD[tone],
+                    chosen ? 'border-primary ring-1 ring-primary/30' : '',
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    {radio(chosen)}
+                    <span className="text-xs font-semibold text-slate-800">{title}</span>
+                  </span>
+                  <span className="text-xs text-slate-600 pl-6">{detail}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

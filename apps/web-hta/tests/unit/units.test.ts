@@ -6,7 +6,7 @@
  * dB, which it always did.
  */
 import { describe, it, expect } from 'vitest'
-import { knownToDiffer, normaliseUnit, sameQuantity, unitFamily } from '@/lib/units'
+import { knownToDiffer, normaliseUnit, sameQuantity, unitFamily } from '@/lib/master/units'
 
 describe('reducing a unit to something comparable', () => {
   it('ignores the ways the same unit gets written', () => {

@@ -4,6 +4,7 @@
  * Tests the Zustand master instrument store for real coverage.
  * Mocks: apiFetch (no network)
  */
+import { seedMasterStore } from '../helpers/seed-master-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock API client
@@ -67,7 +68,7 @@ describe('useMasterInstrumentStore — setSearchQuery', () => {
   })
 })
 
-describe('useMasterInstrumentStore — loadFromRegistry', () => {
+describe('useMasterInstrumentStore — seeded from the database', () => {
   beforeEach(() => {
     // Reset store state
     useMasterInstrumentStore.setState({
@@ -80,21 +81,21 @@ describe('useMasterInstrumentStore — loadFromRegistry', () => {
     })
   })
 
-  it('loads instruments from the registry', () => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+  it('records that the instruments came from the database', () => {
+    seedMasterStore()
     const state = useMasterInstrumentStore.getState()
     expect(state.isLoaded).toBe(true)
     expect(state.isLoading).toBe(false)
-    expect(state.dataSource).toBe('registry')
+    expect(state.dataSource).toBe('api')
   })
 
   it('populates the instrument list', () => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
     expect(useMasterInstrumentStore.getState().instruments.length).toBeGreaterThan(0)
   })
 
   it('sets lastUpdated after loading', () => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
     expect(useMasterInstrumentStore.getState().lastUpdated).toBeInstanceOf(Date)
   })
 })
@@ -112,7 +113,7 @@ describe('useMasterInstrumentStore — loadInstruments (API fallback)', () => {
     })
   })
 
-  it('falls back to the registry when the API fails', async () => {
+  it('says so rather than falling back when the API fails', async () => {
     const { apiFetch } = await import('@/lib/api-client')
     vi.mocked(apiFetch).mockResolvedValue({
       ok: false,
@@ -122,30 +123,44 @@ describe('useMasterInstrumentStore — loadInstruments (API fallback)', () => {
     await useMasterInstrumentStore.getState().loadInstruments()
     const state = useMasterInstrumentStore.getState()
     expect(state.isLoaded).toBe(true)
-    expect(state.dataSource).toBe('registry')
+    /**
+     * No fallback. A 1.3 MB copy of the master list used to stand behind the API and
+     * was removed: it was generated at build time, so an instrument edited on the admin
+     * pages was not in it, and an outage showed confident wrong figures rather than
+     * none - with nothing on screen to say which an engineer was looking at.
+     */
+    expect(state.dataSource).toBeNull()
+    expect(state.instruments).toEqual([])
+    expect(state.error).toMatch(/could not load/i)
   })
 
   it('does not reload when already loaded', async () => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
     const countBefore = useMasterInstrumentStore.getState().instruments.length
 
     await useMasterInstrumentStore.getState().loadInstruments()
     expect(useMasterInstrumentStore.getState().instruments.length).toBe(countBefore)
   })
 
-  it('does not reload when isLoading is true', async () => {
+  it('does not reload the list when isLoading is true', async () => {
     useMasterInstrumentStore.setState({ isLoading: true })
     const { apiFetch } = await import('@/lib/api-client')
-    const callCountBefore = vi.mocked(apiFetch).mock.calls.length
+    const listCalls = () =>
+      vi.mocked(apiFetch).mock.calls.filter((c) => c[0] === '/api/instruments').length
+    const before = listCalls()
 
     await useMasterInstrumentStore.getState().loadInstruments()
-    expect(vi.mocked(apiFetch).mock.calls.length).toBe(callCountBefore)
+
+    // The capabilities request is deliberately not covered by this guard. The store is
+    // already marked loaded from the bundled registry at module load, so anything
+    // behind the guard would never run at all - see loadInstruments.
+    expect(listCalls()).toBe(before)
   })
 })
 
 describe('useMasterInstrumentStore — getters', () => {
   beforeEach(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
     useMasterInstrumentStore.getState().setSelectedCategory(null)
     useMasterInstrumentStore.getState().setSearchQuery('')
   })

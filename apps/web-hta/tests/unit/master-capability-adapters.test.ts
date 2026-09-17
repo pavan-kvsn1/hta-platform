@@ -7,10 +7,10 @@
  * capability is unknown.
  */
 import { describe, it, expect } from 'vitest'
-import { unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
-import type { RegistryUnit } from '@/lib/master-instrument-registry'
+import { unitCanMeasure, unitCoversRange } from '@/lib/master/capability'
+import type { RegistryUnit } from '@/lib/master/registry'
 import registryData from '@/data/master-instrument-registry.json'
-import type { MasterInstrumentRegistry } from '@/lib/master-instrument-registry'
+import type { MasterInstrumentRegistry } from '@/lib/master/registry'
 
 const registry = registryData as unknown as MasterInstrumentRegistry
 const units = registry.assets.flatMap((a) => a.units)

@@ -34,7 +34,7 @@ import {
   type ParameterCapability,
   type ReferenceDoc,
   type RangeItem,
-} from '@/lib/master-instruments'
+} from '@/lib/master/instruments'
 
 describe('Type Guards', () => {
   describe('isParameterCapability', () => {

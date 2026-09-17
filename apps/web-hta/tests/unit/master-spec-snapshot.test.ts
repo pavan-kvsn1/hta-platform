@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { masterSpecFor, EMPTY_SNAPSHOT } from '@/lib/master-spec-snapshot'
-import type { RegistryUnit } from '@/lib/master-instrument-registry'
+import { masterSpecFor, EMPTY_SNAPSHOT } from '@/lib/master-entry/snapshot'
+import type { RegistryUnit } from '@/lib/master/registry'
 
 const bucket = (over: Record<string, unknown> = {}) => ({
   id: 'B1',

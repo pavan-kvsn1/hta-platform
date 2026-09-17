@@ -6,7 +6,7 @@
  * calculation downstream went blank without saying why.
  */
 import { describe, it, expect } from 'vitest'
-import { numberProblem, rangeProblem } from '@/lib/parameter-validation'
+import { numberProblem, rangeProblem } from '@/lib/parameters/validation'
 
 describe('numbers the certificate can compute with', () => {
   it('accepts the ones it can', () => {

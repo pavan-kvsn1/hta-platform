@@ -6,6 +6,7 @@
  * The card's job is only to hand that request up - the section reopens the flow on the
  * answers already given.
  */
+import { seedMasterStore } from '../helpers/seed-master-store'
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MasterInstrumentCard } from '@/components/forms/MasterInstrumentSection'
@@ -82,14 +83,31 @@ const pencil = () => screen.queryByLabelText('Edit how this instrument was used'
 
 describe('a master already chosen', () => {
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   it('reads as a record, with the questions put away', () => {
+    /**
+     * "Instrument Selected" was the heading of a coloured box that wrapped the asset
+     * number, the make, the serial and the calibration date - so those facts were
+     * rendered in warning amber whenever the instrument's own calibration was running
+     * out. The warning is a line of its own now and the facts are plain, which is why
+     * the heading has gone: a box that says nothing but its own name is not a heading.
+     */
     renderCard(parameter({ masterProfileId: 'P1' }))
     expect(screen.queryByRole('group', { name: /Compatibility/i })).not.toBeInTheDocument()
-    expect(screen.getByText('Instrument Selected')).toBeInTheDocument()
+    expect(screen.queryByText('Instrument Selected')).not.toBeInTheDocument()
+    expect(screen.getByText('Serial No')).toBeInTheDocument()
+    expect(screen.getByText('Calibration Due')).toBeInTheDocument()
     expect(pencil()).toBeInTheDocument()
+  })
+
+  it('keeps the photos behind a line rather than a standing drop zone', () => {
+    // It was the tallest thing on the card, on every master of every certificate, and
+    // it is optional.
+    renderCard(parameter({ masterProfileId: 'P1' }))
+    expect(screen.getByText('No photos')).toBeInTheDocument()
+    expect(screen.queryByText(/drop images here/i)).not.toBeInTheDocument()
   })
 
   it('hands the edit up rather than acting on the declaration itself', () => {
@@ -110,7 +128,7 @@ describe('a master already chosen', () => {
 
 describe('a declaration never made', () => {
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   it('is asked for in place, so an older draft can be completed', () => {
@@ -128,7 +146,7 @@ describe('a declaration never made', () => {
 
 describe('a card that cannot be edited', () => {
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   it('offers no pencil and no trash', () => {
@@ -157,7 +175,7 @@ describe('a capability that serves the parameter under another name', () => {
   } as unknown as SelectedMasterInstrument
 
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   const renderIt = (param: Parameter) =>
@@ -209,7 +227,7 @@ describe('a parameter with a stale reference to a removed master', () => {
   } as unknown as SelectedMasterInstrument
 
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   // queryAll, not getAll: the absence of a line is half of what is being checked, and
@@ -254,7 +272,7 @@ describe('parameters the master cannot measure', () => {
   } as unknown as SelectedMasterInstrument
 
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   // Nothing assigned yet, so the card offers what this master could serve - and that
@@ -291,9 +309,15 @@ describe('parameters the master cannot measure', () => {
   })
 
   it('keeps one that is assigned to this master anyway', () => {
-    // An answer already given is not hidden because the capability no longer matches.
-    renderBoth({ masterInstrumentId: 10 })
-    expect(screen.getByText('Pressure (Absolute)')).toBeInTheDocument()
+    /**
+     * An answer already given is not hidden because the capability no longer matches.
+     *
+     * Looked for by its range rather than its name: the row a master is already on is
+     * under a heading naming that parameter, so it no longer repeats the name. The
+     * rows it is not on still carry theirs.
+     */
+    renderBoth({ masterInstrumentId: 10, rangeMin: '0', rangeMax: '600' })
+    expect(screen.getByText(/0 to 600 bar/)).toBeInTheDocument()
   })
 })
 
@@ -311,7 +335,7 @@ describe('one parameter per master, on the card', () => {
   } as unknown as SelectedMasterInstrument
 
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   const two = [
@@ -364,24 +388,34 @@ describe('two parameters of the same name', () => {
   ]
 
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   it('tells them apart by range on the row', () => {
+    /**
+     * By the range alone on the row this master is on, and by name on the other.
+     *
+     * The masters are grouped under the parameter they serve, so the row's own
+     * heading is a few lines above it - the name was appearing twice on one card.
+     * The range is what told the two spans apart in the first place.
+     */
     renderCard(twoSpans[0], { parameters: twoSpans })
-    expect(screen.getByText('Temperature (-10 to 40 °C)')).toBeInTheDocument()
+    expect(screen.getAllByText(/-10 to 40 °C/).length).toBeGreaterThan(0)
+    // Not the other span's, which this entry is not against.
+    expect(screen.queryByText(/0 to 100 °C/)).not.toBeInTheDocument()
   })
 
-  it('says on the outside which one the master is for', () => {
+  it('no longer repeats the parameter in a title of its own', () => {
+    /**
+     * It used to read "Master Instrument 1 - Temperature (-10 to 40 C)" at the top of
+     * the card. The card now opens out of a row that names the instrument, under a
+     * heading that names the parameter, so that was the third time on one screen - and
+     * "Master Instrument 1" was never the useful half. The row still tells two spans
+     * apart by range, which is what this pair of tests was really guarding.
+     */
     renderCard(twoSpans[0], { parameters: twoSpans })
-    // Parent elements carry the same text, hence "all".
-    expect(
-      screen.getAllByText((_c, el) =>
-        /Master Instrument 1\s*—\s*Temperature \(-10 to 40 °C\)/.test(
-          el?.textContent?.replace(/\s+/g, ' ') ?? '',
-        ),
-      ).length,
-    ).toBeGreaterThan(0)
+    expect(screen.queryByText(/Master Instrument 1/)).not.toBeInTheDocument()
+    expect(screen.getAllByText(/-10 to 40 °C/).length).toBeGreaterThan(0)
   })
 
   it('leaves a lone parameter alone', () => {
@@ -410,19 +444,24 @@ describe('the same instrument used for two parameters', () => {
   const first = { ...master, parameterId: 'p1' } as unknown as SelectedMasterInstrument
 
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   it('gives each entry its own span', () => {
+    /**
+     * By range, not by name: the row this master is on sits under a heading that names
+     * the parameter, so it no longer repeats it. Both spans are called Temperature, so
+     * the range was always the half that told them apart.
+     */
     renderCard(spans[0], { instrument: first, parameters: spans })
-    expect(screen.getAllByText(/Temperature \(-10 to 40 °C\)/).length).toBeGreaterThan(0)
-    expect(screen.queryByText(/Temperature \(0 to 100 °C\)/)).not.toBeInTheDocument()
+    expect(screen.getAllByText(/-10 to 40 °C/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/0 to 100 °C/)).not.toBeInTheDocument()
   })
 
   it('and the second entry the other', () => {
     renderCard(spans[1], { instrument: second, parameters: spans })
-    expect(screen.getAllByText(/Temperature \(0 to 100 °C\)/).length).toBeGreaterThan(0)
-    expect(screen.queryByText(/Temperature \(-10 to 40 °C\)/)).not.toBeInTheDocument()
+    expect(screen.getAllByText(/0 to 100 °C/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/-10 to 40 °C/)).not.toBeInTheDocument()
   })
 
   it('falls back to the instrument where the entry names no parameter', () => {

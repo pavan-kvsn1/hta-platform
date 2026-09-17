@@ -23,8 +23,8 @@
  * which is where a unit, a range and an accuracy get asked for.
  */
 
-import { useState } from 'react'
-import { CALIBRATION_PARAMETERS } from '@/lib/calibration-parameters'
+import { useEffect, useMemo, useState } from 'react'
+import { useParameterStore } from '@/lib/stores/parameter-store'
 import { Icon } from '../Icons'
 import CapabilityPicker from './CapabilityPicker'
 import type { Component, Profile } from '../capabilities/CapabilitiesTab'
@@ -69,6 +69,24 @@ export default function ComponentsTable({
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState<Draft>(blank)
+
+  /**
+   * The parameters to tick, out of the register rather than a list in the app.
+   *
+   * A baked-in list stopped being the register the moment an admin added a
+   * parameter, and this picker sat next to a capability form already reading the
+   * rows - two lists of the same thing, disagreeing. The store is shared, so
+   * whichever screen loads first pays for it.
+   */
+  const registry = useParameterStore((s) => s.parameters)
+  const loadRegistry = useParameterStore((s) => s.load)
+  useEffect(() => {
+    void loadRegistry()
+  }, [loadRegistry])
+  const parameterNames = useMemo(
+    () => [...new Set(registry.map((p) => p.customName))].sort((a, b) => a.localeCompare(b)),
+    [registry],
+  )
 
   const paramsOn = (id: string) => [
     ...new Set(profiles.filter((p) => p.componentId === id).map((p) => p.parameter)),
@@ -179,7 +197,7 @@ export default function ComponentsTable({
 
   const picker = (
     <CapabilityPicker
-      parameters={[...CALIBRATION_PARAMETERS]}
+      parameters={parameterNames}
       selected={draft.caps}
       declared={draft.had}
       onToggle={(x) =>

@@ -18,7 +18,7 @@ import {
   toStandardName,
   unitsForParameter,
   type CalibrationParameter,
-} from '@/lib/parameter-mapping'
+} from '@/lib/parameters/mapping'
 
 const parameter = (over: Partial<CalibrationParameter>): CalibrationParameter => ({
   id: 'p1',
@@ -138,55 +138,57 @@ describe('grouping for a dropdown', () => {
 })
 
 describe('the units on offer for a parameter', () => {
-  // What the form shipped with, before any of this was fetched.
-  const SHIPPED = {
-    Temperature: { units: ['°C', '°F', 'K'], defaultUnit: '°C' },
-    'Voltage DC': { units: ['V', 'mV'], defaultUnit: 'V' },
-  }
+
 
   it('takes the lab list where it has one', () => {
-    expect(unitsForParameter('Platinum RTD', undefined, LIST, SHIPPED)).toEqual(['°C'])
+    expect(unitsForParameter('Platinum RTD', undefined, LIST)).toEqual(['°C'])
   })
 
   it('finds them through an alias, for a certificate written the old way', () => {
-    expect(unitsForParameter('Voltage DC', undefined, LIST, SHIPPED)).toEqual(['V', 'mV'])
+    expect(unitsForParameter('Voltage DC', undefined, LIST)).toEqual(['V', 'mV'])
   })
 
-  it('falls back to what the form shipped with, before the list arrives', () => {
-    // A slow fetch must not cost an engineer the ability to fill in a certificate.
-    expect(unitsForParameter('Temperature', undefined, [], SHIPPED)).toEqual(['°C', '°F', 'K'])
+  it('offers nothing at all before the register answers', () => {
+    // Deliberate. A table of units used to sit behind this, compiled into the form and
+    // used until the lab's own register replied. It was written before units could be
+    // registered on the admin pages, so it lacked the ones added since and kept ones
+    // since removed - and it answered silently, so an engineer was choosing from a
+    // list the lab no longer keeps with nothing on screen to say so.
+    expect(unitsForParameter('Temperature', undefined, [])).toEqual([])
   })
 
   it('keeps the unit already saved for a parameter nobody recognises', () => {
     // It is the only record of what was measured.
-    expect(unitsForParameter('Blancmange', 'blob', LIST, SHIPPED)).toEqual(['blob'])
+    expect(unitsForParameter('Blancmange', 'blob', LIST)).toEqual(['blob'])
   })
 
   it('offers nothing where there is nothing to offer', () => {
-    expect(unitsForParameter('Blancmange', undefined, LIST, SHIPPED)).toEqual([])
+    expect(unitsForParameter('Blancmange', undefined, LIST)).toEqual([])
   })
 
-  it('does not let an empty lab list hide the shipped one', () => {
+  it('keeps the saved unit where the register lists none against the parameter', () => {
+    // The register can name a parameter and record no units for it. What is on the
+    // certificate is then the only record of what was measured.
     const emptyUnits = [{ ...LIST[0], customName: 'Temperature', units: [] }]
-    expect(unitsForParameter('Temperature', undefined, emptyUnits, SHIPPED)).toEqual([
-      '°C', '°F', 'K',
-    ])
+    expect(unitsForParameter('Temperature', '°C', emptyUnits)).toEqual(['°C'])
+    expect(unitsForParameter('Temperature', undefined, emptyUnits)).toEqual([])
   })
 })
 
 describe('the unit chosen with a parameter', () => {
-  const SHIPPED = { Temperature: { defaultUnit: '°C' } }
 
   it('is the lab default where it set one', () => {
-    expect(defaultUnitForParameter('Platinum RTD', LIST, SHIPPED)).toBe('°C')
+    expect(defaultUnitForParameter('Platinum RTD', LIST)).toBe('°C')
   })
 
-  it('falls back to the shipped default', () => {
-    expect(defaultUnitForParameter('Temperature', [], SHIPPED)).toBe('°C')
+  it('has no default before the register answers', () => {
+    // The same removal: a default taken from a table the lab does not keep is a guess
+    // wearing the register's authority.
+    expect(defaultUnitForParameter('Temperature', [])).toBe('')
   })
 
   it('is empty rather than a guess when nothing says', () => {
-    expect(defaultUnitForParameter('Blancmange', LIST, SHIPPED)).toBe('')
+    expect(defaultUnitForParameter('Blancmange', LIST)).toBe('')
   })
 })
 

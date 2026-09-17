@@ -9,7 +9,7 @@ import type {
   CalibrationResultRow,
   ErrorConfig,
   FieldDefinition,
-} from '@/lib/certificate-fields'
+} from '@/lib/certificate/fields'
 
 const fields: FieldDefinition[] = [
   { id: 'm1', name: 'Std Meter Reading', group: 'master', type: 'numeric', unit: 'kg/cm²', order: 0 },

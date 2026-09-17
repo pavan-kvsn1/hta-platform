@@ -131,14 +131,22 @@ export function unitsForParameter(
   parameterName: string,
   savedUnit: string | undefined,
   parameters: CalibrationParameter[],
-  fallback: Record<string, { units: string[] }>,
 ): string[] {
   const known = findParameter(parameterName, parameters)
   if (known && known.units.length > 0) return known.units
 
-  const shipped = fallback[parameterName]?.units
-  if (shipped && shipped.length > 0) return shipped
-
+  /**
+   * A table of units used to sit behind this, compiled into the form.
+   *
+   * It was written before units could be registered on the admin pages, so it lacked
+   * the ones added since and kept ones since removed - and it answered silently, so a
+   * parameter the register had nothing for still offered a list, and the engineer had
+   * no way to tell which they were choosing from.
+   *
+   * What is left is the unit already on the certificate, which is not a fallback list
+   * but the answer somebody already gave: a parameter nobody recognises was typed in
+   * once, and taking its unit away on reopening would lose their work.
+   */
   return savedUnit ? [savedUnit] : []
 }
 
@@ -146,10 +154,9 @@ export function unitsForParameter(
 export function defaultUnitForParameter(
   parameterName: string,
   parameters: CalibrationParameter[],
-  fallback: Record<string, { defaultUnit?: string }>,
 ): string {
   const known = findParameter(parameterName, parameters)
-  return known?.defaultUnit ?? fallback[parameterName]?.defaultUnit ?? ''
+  return known?.defaultUnit ?? ''
 }
 
 /**

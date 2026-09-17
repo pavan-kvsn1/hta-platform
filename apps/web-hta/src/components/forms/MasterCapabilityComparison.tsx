@@ -20,8 +20,8 @@ import {
   type AssignmentSuitability,
   type RangeSuitability,
   type RequiredRange,
-} from '@/lib/master-instrument-capability'
-import type { RegistryUnit } from '@/lib/master-instrument-registry'
+} from '@/lib/master/capability'
+import type { RegistryUnit } from '@/lib/master/registry'
 import { cn } from '@/lib/utils'
 
 interface MasterCapabilityComparisonProps {

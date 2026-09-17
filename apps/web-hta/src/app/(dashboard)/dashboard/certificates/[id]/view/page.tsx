@@ -38,7 +38,7 @@ import {
 } from '@/components/certificate'
 import { InlinePDFViewer } from '@/app/(dashboard)/dashboard/reviewer/[id]/InlinePDFViewer'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
-import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate-date-format'
+import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate/date-format'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Draft', className: 'bg-slate-50 text-slate-700 border-slate-200' },

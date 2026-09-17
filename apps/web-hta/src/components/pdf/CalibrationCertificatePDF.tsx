@@ -31,13 +31,130 @@ Font.register({
   ],
 })
 
+/**
+ * Oswald, for the letterhead name and the document title.
+ *
+ * SemiBold rather than Bold: against Impact at 20 pt it sets 4.5 pt wider where
+ * Bold sets 10 pt wider, and the letterhead has about 300 pt to give.
+ */
+Font.register({
+  family: 'Oswald',
+  fonts: [
+    { src: 'https://unpkg.com/@fontsource/oswald@5.0.8/files/oswald-latin-600-normal.woff', fontWeight: 600 },
+  ],
+})
+
+// Medium, for the accreditation line under the company name.
+Font.register({
+  family: 'RobotoMedium',
+  fonts: [
+    { src: 'https://unpkg.com/@fontsource/roboto@5.0.8/files/roboto-latin-500-normal.woff', fontWeight: 'normal' },
+  ],
+})
+
 // Disable hyphenation to prevent word breaks
 Font.registerHyphenationCallback((word) => [word])
 
 // HTA Brand Blue Color
 const HTA_BLUE = '#0099CC'
+
+/**
+ * A tint that keeps its printed colour but stops hiding what is under it.
+ *
+ * Over white, `alpha x colour + (1 - alpha) x white` has to come out at the
+ * opaque value the row used to be, so the colour is solved for rather than
+ * guessed: a lower alpha needs a stronger colour to land in the same place.
+ * The result is indistinguishable on paper and see-through over the watermark.
+ *
+ * Alpha is a floor, not a preference - push it much below a third and the
+ * colour needed to compensate runs out of range.
+ */
+function seeThrough(hex: string, alpha: number): string {
+  const solid = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  const mixed = solid.map((c) => Math.round(Math.min(255, Math.max(0, (c - (1 - alpha) * 255) / alpha))))
+  return `rgba(${mixed.join(', ')}, ${alpha})`
+}
+
+/** Low enough to read the watermark through, high enough that the tint survives. */
+const TINT_ALPHA = 0.35
+
+/* ── the letterhead, option B ──────────────────────────────────────────────
+   Measured off rendered pages; see docs/wireframes/certificate-letterhead-options.md.
+   Nothing below the rule may move: the body has to start where it starts. */
+const LH = {
+  /**
+   * The company name.
+   *
+   * The proof set it in near-black against the blue rule; it is the brand blue
+   * now, which puts the name, the title and the footer on the one colour and
+   * leaves black to the certificate's own data.
+   */
+  INK: HTA_BLUE,
+  /** Contact detail. */
+  SLATE: '#64748B',
+  /** The page folio. */
+  FAINT: '#94A3B8',
+
+  /** 0 -> 84.7 pt, with the rule on the lower edge. */
+  RULE_Y: 84.7,
+  /** Where the first table starts on a page that does not open with a heading. */
+  CONTENT_Y: 115.0,
+
+  /** Centred on 48 with the other two blocks, filling the band it sits in. */
+  LOGO: { x: 40, y: 16, size: 64 },
+  /** The name and the accreditation both hang off the logo's right edge. */
+  TEXT_X: 112,
+  /** Right-aligned to x 555, which is the content edge. */
+  RIGHT_X: 555,
+
+  NAME_SIZE: 19.5,
+  NAME_BASELINE: 50.7,
+  /** +0.10 em, opened at the word spaces rather than tracked across the letters. */
+  NAME_WORD_SPACING: 0.1,
+
+  ACCRED_SIZE: 7.5,
+  ACCRED_BASELINE: 63.7,
+  ACCRED_TRACKING: 0.8,
+
+  CONTACT_SIZE: 7.5,
+  CONTACT_FIRST_BASELINE: 27,
+  CONTACT_LEADING: 11.8,
+
+  /** Oswald's ink is tall; 9.33 pt reads as a 12 pt title. */
+  TITLE_SIZE: 9.33,
+  TITLE_TRACKING: 0.8,
+  FOLIO_SIZE: 8,
+} as const
+
+/**
+ * The baseline that sits a line optically centred in the title band.
+ *
+ * The band's midpoint is not the baseline, because a line's ink is not centred
+ * in its em box. k is measured per face: 0.452 for Oswald set in sentence case.
+ */
+const centredBaseline = (size: number, k: number) => (LH.CONTENT_Y + LH.RULE_Y) / 2 + k * size
+
+/**
+ * Where to put a line's box so its baseline lands where it was measured.
+ *
+ * The proofs give baselines, because that is what a typesetter measures and
+ * what stays true when a size changes. react-pdf positions the top of the line
+ * box, which sits one ascent above it - so every placement below converts.
+ */
+const OSWALD_ASCENT = 1.193
+const ROBOTO_ASCENT = 1900 / 2048
+const baselineTop = (baseline: number, size: number, ascent: number) => baseline - size * ascent
+
+/** The contact block, in order, right-aligned. */
+const CONTACT_LINES = [
+  '# 73, Ramachandra Agrahara, Near T.R. Mills,',
+  'Chamarajpet, Bangalore 560 018',
+  'Tel +91 80 2674 9750  \u00b7  2675 9253  \u00b7  2674 0681',
+  'Mob +91 73537 53764',
+  'www.htaipl.com  \u00b7  calibration@htaipl.com',
+]
 import { CertificateFormData, ACCURACY_TYPE_CONFIG } from '@/lib/stores/certificate-store'
-import { HTA_LOGO_BASE64 } from './logo-base64'
+import { HTA_LOGO_CYAN_BASE64 } from './logo-base64'
 import { HTA_WATERMARK_BASE64 } from './watermark-base64'
 import {
   formatDateDDMMYYYY,
@@ -54,7 +171,7 @@ import {
 import {
   DEFAULT_DATE_FORMAT,
   formatCertificateDate,
-} from '@/lib/certificate-date-format'
+} from '@/lib/certificate/date-format'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 import { resolveCalibrationPrecision } from '@/lib/utils/calibration-precision'
 import {
@@ -62,7 +179,7 @@ import {
   columnLabel,
   resolveRowValues,
   resultValues,
-} from '@/lib/certificate-fields'
+} from '@/lib/certificate/fields'
 
 // Format ISO date string to readable format: "09 Feb 2026, 14:30 IST"
 function formatSigningDateTime(isoString: string | undefined, timezone?: string): string {
@@ -108,7 +225,7 @@ import {
 const styles = StyleSheet.create({
   // Page
   page: {
-    paddingTop: 115, // Space for fixed header (letterhead ~70 + title ~25 + gap)
+    paddingTop: LH.CONTENT_Y, // the rule at 84.7 plus the title band under it
     paddingBottom: 60, // Space for fixed footer only (~45pt + buffer)
     paddingHorizontal: 40,
     fontSize: 11,
@@ -126,100 +243,121 @@ const styles = StyleSheet.create({
     opacity: 0.15,
   },
 
-  // Section A: Letterhead - fixed at top of every page (3-column layout)
+  /* ── Section A: the letterhead, option B ────────────────────────────────
+     Left-anchored: the name reads off the logo and every piece of contact
+     detail sits in one right-aligned block. Each element is placed absolutely
+     against a measured baseline rather than stacked, because the three blocks
+     have to share one optical centre and flow would give them three. */
   letterhead: {
     position: 'absolute',
-    top: 15,
-    left: 40,
-    right: 40,
-    flexDirection: 'row',
-    paddingBottom: 6,
-    borderBottomWidth: 2,
-    borderBottomColor: HTA_BLUE,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: LH.RULE_Y,
   },
   logo: {
-    width: 60,
-    height: 60,
-  },
-  companyInfo: {
-    flex: 1,
-    marginLeft: 8,
-    justifyContent: 'center',
-  },
-  companyName: {
-    fontSize: 18,
-    fontFamily: 'Roboto',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 7,
-    color: HTA_BLUE,
-  },
-  certification: {
-    fontSize: 9,
-    fontFamily: 'Roboto',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginBottom: 3,
-    color: HTA_BLUE,
-  },
-  addressLine: {
-    fontSize: 9,
-    fontFamily: 'Roboto',
-    textAlign: 'center',
-    color: HTA_BLUE,
-    lineHeight: 1.3,
-  },
-  contactLine: {
-    fontSize: 9,
-    fontFamily: 'Roboto',
-    textAlign: 'center',
-    color: HTA_BLUE,
-    marginTop: 2,
-  },
-  // Phone numbers column on the right
-  phoneColumn: {
-    width: 95,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-  },
-  phoneLine: {
-    fontSize: 9,
-    fontFamily: 'Roboto',
-    color: HTA_BLUE,
-    textAlign: 'right',
-    marginBottom: 1,
+    position: 'absolute',
+    left: LH.LOGO.x,
+    top: LH.LOGO.y,
+    width: LH.LOGO.size,
+    height: LH.LOGO.size,
   },
 
-  // Section B: Document Title - fixed below letterhead
-  titleSection: {
+  /* The name is set as separate words so the spaces can be opened without
+     tracking the letters apart - the printed letterhead opens the word spaces
+     by about a tenth of an em and leaves Impact's own letter fit alone. */
+  nameRow: {
     position: 'absolute',
-    top: 85, // Below letterhead (15 + 60 logo + 10 gap)
+    left: LH.TEXT_X,
+    top: 0,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  nameWord: {
+    fontFamily: 'Oswald',
+    fontWeight: 600,
+    fontSize: LH.NAME_SIZE,
+    color: LH.INK,
+  },
+  accreditation: {
+    position: 'absolute',
+    left: LH.TEXT_X,
+    fontFamily: 'RobotoMedium',
+    fontSize: LH.ACCRED_SIZE,
+    letterSpacing: LH.ACCRED_TRACKING,
+    color: HTA_BLUE,
+  },
+
+  contactBlock: {
+    position: 'absolute',
+    right: 595.28 - LH.RIGHT_X,
+    top: 0,
+    alignItems: 'flex-end',
+  },
+  contactLine: {
+    fontFamily: 'Roboto',
+    fontSize: LH.CONTACT_SIZE,
+    color: LH.SLATE,
+    textAlign: 'right',
+  },
+
+  /** 1 pt, brand, the full content width, on the lower edge of the band. */
+  headRule: {
+    position: 'absolute',
     left: 40,
     right: 40,
-    paddingVertical: 4,
+    top: LH.RULE_Y,
+    height: 1,
+    backgroundColor: HTA_BLUE,
+  },
+
+  /* ── Section B: the title and the folio ─────────────────────────────────
+     Both are centred in the band between the rule and the first table edge,
+     the title on the page rather than on the letterhead's text block - the
+     old header centred itself between unequal flanks and put the title, and
+     every table under it, 16 pt to the right of the page centre. */
+  titleSection: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: LH.CONTENT_Y,
   },
   title: {
-    fontSize: 14,
-    fontFamily: 'Roboto',
-    fontWeight: 'bold',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    fontFamily: 'Oswald',
+    fontWeight: 600,
+    fontSize: LH.TITLE_SIZE,
+    letterSpacing: LH.TITLE_TRACKING,
     textAlign: 'center',
     color: HTA_BLUE,
   },
+  /**
+   * The unauthorised state reads "Data Sheet Calibration".
+   *
+   * It used to print black to mark it as not yet a certificate. The state is
+   * carried by the words themselves, so the colour is free to match the rest of
+   * the letterhead - and a black title under a blue rule read as a mistake.
+   */
   titleReview: {
-    fontSize: 14,
-    fontFamily: 'Roboto',
-    fontWeight: 'bold',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    fontFamily: 'Oswald',
+    fontWeight: 600,
+    fontSize: LH.TITLE_SIZE,
+    letterSpacing: LH.TITLE_TRACKING,
     textAlign: 'center',
-    color: '#000000',
+    color: HTA_BLUE,
   },
-  // Absolutely positioned page number (repeats on each page)
-  // Positioned below the letterhead to avoid overlapping phone numbers
   pageNumber: {
     position: 'absolute',
-    top: 70,
-    right: 40,
-    fontSize: 8,
-    color: '#666',
+    right: 595.28 - LH.RIGHT_X,
+    fontFamily: 'Roboto',
+    fontSize: LH.FOLIO_SIZE,
+    color: LH.FAINT,
   },
 
   // Section C: Customer Info Table (4-column paired: label-value-label-value)
@@ -374,7 +512,8 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     borderBottomWidth: 0.5,
     borderBottomColor: '#000',
-    backgroundColor: '#eef2f7',
+    // Was a flat #eef2f7, which blanked the watermark on every banner row.
+    backgroundColor: seeThrough('#eef2f7', TINT_ALPHA),
     minHeight: 14,
   },
   bannerCell: {
@@ -395,7 +534,8 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     borderBottomWidth: 0.5,
     borderBottomColor: '#000',
-    backgroundColor: '#dde5ee',
+    // Was a flat #dde5ee, for the same reason.
+    backgroundColor: seeThrough('#dde5ee', TINT_ALPHA),
     minHeight: 14,
   },
   /** The label and value halves of a two-column block - the SOP and used-for tables. */
@@ -771,13 +911,17 @@ const styles = StyleSheet.create({
     left: 40,
     right: 40,
     borderTopWidth: 0.5,
-    borderTopColor: '#ccc',
+    // The rule over the notes picks up the brand too, at the weight the foot of
+    // a page can carry - a full-strength line down there competes with the
+    // signatures above it.
+    borderTopColor: HTA_BLUE,
     paddingTop: 3,
   },
   footerNote: {
     fontSize: 7,
     marginBottom: 3,
     lineHeight: 1.3,
+    color: HTA_BLUE,
   },
 
   // Page continuation indicator
@@ -959,9 +1103,29 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
         const index = (entry as { parameterIndex?: number }).parameterIndex
         const served =
           byId ?? (index !== undefined && index >= 0 ? parameterSpecs[index] : undefined)
+        /**
+         * The stretch this master was used over, where it served only part of one.
+         *
+         * A parameter can be covered by more than one master - a pressure gauge to 20
+         * bar and another beyond it - and each is judged against its own stretch. The
+         * certificate said the parameter's whole range against both, which claims each
+         * of them covered ground it was never asked for.
+         *
+         * Falls back to the parameter's range, which is what every entry written
+         * before this recorded and what a single master covering all of it means.
+         */
+        // The unit comes off the end of the parameter's own range - "0 to 100 bar" -
+        // rather than from a field, which the spec here does not carry.
+        const unit = (served?.range ?? '').split(/\s+/).pop() ?? ''
+        const stretch =
+          entry.rangeFrom && entry.rangeTo
+            ? `${entry.rangeFrom} to ${entry.rangeTo}${/^[-\d.]/.test(unit) ? '' : ` ${unit}`}`.trim()
+            : undefined
+        const usedOver = stretch ?? served?.range ?? ''
+
         // One entry, one use - and the same parameter twice would print twice.
-        if (served && !group.uses.some((use) => use.parameter === served.name && use.range === served.range)) {
-          group.uses.push({ parameter: served.name, range: served.range })
+        if (served && !group.uses.some((use) => use.parameter === served.name && use.range === usedOver)) {
+          group.uses.push({ parameter: served.name, range: usedOver })
         }
 
         byInstrument.set(key, group)
@@ -991,43 +1155,77 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
         <Image style={styles.watermark} src={HTA_WATERMARK_BASE64} fixed />
 
         {/* ================================================================ */}
-        {/* SECTION A: LETTERHEAD (fixed - repeats on each page) */}
-        {/* 3-column layout: Logo | Company Info (center) | Phone Numbers (right) */}
+        {/* SECTION A: LETTERHEAD - option B, left anchor (repeats on each page) */}
+        {/* Logo and name on the left, all contact detail right-aligned in one  */}
+        {/* block, a brand rule across the foot of the band.                    */}
         {/* ================================================================ */}
         <View style={styles.letterhead} fixed>
-          <Image style={styles.logo} src={HTA_LOGO_BASE64} />
-          <View style={styles.companyInfo}>
-            <Text style={styles.companyName}>{COMPANY_INFO.name}</Text>
-            <Text style={styles.certification}>{COMPANY_INFO.certification}</Text>
-            <Text style={styles.addressLine}>{COMPANY_INFO.address}</Text>
-            <Text style={styles.contactLine}>{COMPANY_INFO.webEmail}</Text>
-          </View>
-          <View style={styles.phoneColumn}>
-            {COMPANY_INFO.contact.phone.map((phone, idx) => (
-              <Text key={idx} style={styles.phoneLine}>
-                {idx === 0 ? 'Tel: ' : '      '}{phone}
+          <Image style={styles.logo} src={HTA_LOGO_CYAN_BASE64} />
+
+          {/* Set word by word: the spaces open by a tenth of an em while the
+              letters keep the face's own fit. A tracked line would space the
+              letters too, which is not what the printed letterhead does. */}
+          <View style={[styles.nameRow, { top: baselineTop(LH.NAME_BASELINE, LH.NAME_SIZE, OSWALD_ASCENT) }]}>
+            {COMPANY_INFO.name.split(' ').map((word, i, all) => (
+              <Text
+                key={i}
+                style={[
+                  styles.nameWord,
+                  i < all.length - 1 ? { marginRight: LH.NAME_SIZE * LH.NAME_WORD_SPACING } : {},
+                ]}
+              >
+                {word}
+                {i < all.length - 1 ? ' ' : ''}
               </Text>
             ))}
-            <Text style={styles.phoneLine}>
-              Mob: {COMPANY_INFO.contact.mobile}
-            </Text>
           </View>
+
+          <Text
+            style={[
+              styles.accreditation,
+              { top: baselineTop(LH.ACCRED_BASELINE, LH.ACCRED_SIZE, ROBOTO_ASCENT) },
+            ]}
+          >
+            ISO CERTIFIED · NABL ACCREDITED LABORATORY
+          </Text>
+
+          <View
+            style={[
+              styles.contactBlock,
+              { top: baselineTop(LH.CONTACT_FIRST_BASELINE, LH.CONTACT_SIZE, ROBOTO_ASCENT) },
+            ]}
+          >
+            {CONTACT_LINES.map((line, i) => (
+              <Text key={i} style={[styles.contactLine, { lineHeight: LH.CONTACT_LEADING / LH.CONTACT_SIZE }]}>
+                {line}
+              </Text>
+            ))}
+          </View>
+
+          <View style={styles.headRule} />
         </View>
 
         {/* ================================================================ */}
-        {/* SECTION B: DOCUMENT TITLE (fixed - repeats on each page) */}
-        {/* Blue for authorized "Calibration Certificate", Black for "Data Sheet Calibration" */}
+        {/* SECTION B: DOCUMENT TITLE AND FOLIO (repeats on each page)       */}
+        {/* Both optically centred in the band between the rule and the body. */}
         {/* ================================================================ */}
         <View style={styles.titleSection} fixed>
-          <Text style={isAuthorized ? styles.title : styles.titleReview}>{documentTitle}</Text>
+          <Text
+            style={[
+              isAuthorized ? styles.title : styles.titleReview,
+              { top: baselineTop(centredBaseline(LH.TITLE_SIZE, 0.452), LH.TITLE_SIZE, OSWALD_ASCENT) },
+            ]}
+          >
+            {documentTitle}
+          </Text>
+          <Text
+            style={[
+              styles.pageNumber,
+              { top: baselineTop(centredBaseline(LH.FOLIO_SIZE, 0.343), LH.FOLIO_SIZE, ROBOTO_ASCENT) },
+            ]}
+            render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
+          />
         </View>
-
-        {/* Page number - absolutely positioned (fixed - repeats on each page) */}
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
-        />
 
         {/* ================================================================ */}
         {/* SECTION C: CUSTOMER INFO TABLE (4-column paired) */}

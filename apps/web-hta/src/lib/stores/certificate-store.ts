@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { apiFetch } from '@/lib/api-client'
-import { parameterIdFor } from '@/lib/master-parameter-link'
-import { masterSpecFor } from '@/lib/master-spec-snapshot'
+import { parameterIdFor } from '@/lib/master-entry/parameter-link'
+import { masterSpecFor } from '@/lib/master-entry/snapshot'
 import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
 import {
   errorPrecision,
@@ -20,7 +20,7 @@ import {
   type CalibrationResultRow,
   type ErrorConfig,
   type FieldDefinition,
-} from '@/lib/certificate-fields'
+} from '@/lib/certificate/fields'
 
 // Accuracy calculation types
 export type AccuracyType = 'PERCENT_READING' | 'ABSOLUTE' | 'PERCENT_SCALE'
@@ -222,6 +222,40 @@ export interface SelectedMasterInstrument {
   masterLeastCountUnit?: string
   masterAccuracy?: string
   masterAccuracyUnit?: string
+
+  /**
+   * The part of the parameter's range this master was used over.
+   *
+   * A parameter can be served by more than one master. Sometimes both cover the whole
+   * of it - an RTD thermometer reading while a calibrator sources the signal - and
+   * sometimes they divide it, one pressure gauge to 20 bar and another beyond. One
+   * field covers both: left at the parameter's own range it is the first, narrowed it
+   * is the second.
+   *
+   * Each master is judged against this rather than against the parameter's full range,
+   * so a gauge that reaches 20 of 100 bar is not marked short for a job it was never
+   * asked to do. Gaps between them are allowed; the lab decides what it covered.
+   *
+   * Absent on entries saved before this existed, which means the parameter's range.
+   */
+  rangeFrom?: string
+  rangeTo?: string
+
+  /**
+   * How this master was used, for the parameter it serves.
+   *
+   * These lived on the parameter, which had room for one master's answers and so for
+   * one master. They belong to the pairing rather than to either side of it: two
+   * masters on one parameter each have their own capability, their own curve and their
+   * own reason for being accepted.
+   *
+   * The parameter keeps its copy of the first master's, which is what certificates
+   * saved before this carry and what anything not yet moved across still reads.
+   */
+  masterProfileId?: string
+  masterSubtype?: string
+  masterAcceptanceReason?: string
+  sopReference?: string
 }
 
 export interface CertificateFormData {

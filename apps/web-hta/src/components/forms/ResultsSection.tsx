@@ -4,8 +4,8 @@ import { useMemo, useState, useCallback } from 'react'
 import { CheckCircle, AlertTriangle, Info } from 'lucide-react'
 import { ColumnSetup } from '@/components/forms/ColumnSetup'
 import { DynamicResultsTable } from '@/components/forms/DynamicResultsTable'
-import type { ErrorConfig, FieldDefinition } from '@/lib/certificate-fields'
-import { rangeCoverage } from '@/lib/certificate-fields'
+import type { ErrorConfig, FieldDefinition } from '@/lib/certificate/fields'
+import { rangeCoverage } from '@/lib/certificate/fields'
 
 /** A range bound as it reads, without a float's tail. */
 const bound = (value: number) => String(Number(value.toFixed(6)))
@@ -26,7 +26,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useCertificateImages } from '@/lib/hooks/useCertificateImages'
 import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
-import { declaredCapability } from '@/lib/master-instrument-capability'
+import { declaredCapability } from '@/lib/master/capability'
 import {
   masterResolution,
   uucResolution,
@@ -239,15 +239,56 @@ function ResultsTable({
    * a different answer from a bucket that states no least count.
    */
   const getUnitByLegacyId = useMasterInstrumentStore((state) => state.getUnitByLegacyId)
+  const masterEntries = useCertificateStore((state) => state.formData.masterInstruments)
+
+  /**
+   * The bands of every master on this parameter, pooled.
+   *
+   * A parameter can be served by more than one - two instruments over the whole of it,
+   * or each over a part. Each brings its own resolution, and which one applies depends
+   * on where in the range the reading sits, so the bands go in together and the row
+   * picks from them. Where two cover the same reading the finer wins.
+   *
+   * The parameter's own master is included whether or not an entry names it: it is
+   * what certificates written before a parameter could hold several carry.
+   */
   const masterBuckets = useMemo(() => {
-    if (!parameter.masterInstrumentId || !parameter.masterProfileId) return []
-    const unit = getUnitByLegacyId(parameter.masterInstrumentId)
-    const profile = (unit?.capability_profiles ?? []).find(
-      (candidate) => candidate.id === parameter.masterProfileId,
-    )
-    if (!profile) return []
-    return declaredCapability(profile, parameter.masterSubtype).buckets
+    const declarations: { instrumentId: number; profileId?: string; subtype?: string }[] = []
+
+    for (const entry of masterEntries) {
+      if (entry.masterInstrumentId <= 0 || !entry.masterProfileId) continue
+      if (entry.parameterId && entry.parameterId !== parameter.id) continue
+      if (!entry.parameterId && entry.masterInstrumentId !== parameter.masterInstrumentId) continue
+      declarations.push({
+        instrumentId: entry.masterInstrumentId,
+        profileId: entry.masterProfileId,
+        subtype: entry.masterSubtype,
+      })
+    }
+
+    if (parameter.masterInstrumentId && parameter.masterProfileId) {
+      const already = declarations.some(
+        (d) =>
+          d.instrumentId === parameter.masterInstrumentId &&
+          d.profileId === parameter.masterProfileId,
+      )
+      if (!already) {
+        declarations.push({
+          instrumentId: parameter.masterInstrumentId,
+          profileId: parameter.masterProfileId,
+          subtype: parameter.masterSubtype,
+        })
+      }
+    }
+
+    return declarations.flatMap((d) => {
+      const unit = getUnitByLegacyId(d.instrumentId)
+      const profile = (unit?.capability_profiles ?? []).find((c) => c.id === d.profileId)
+      return profile ? declaredCapability(profile, d.subtype).buckets : []
+    })
   }, [
+    masterEntries,
+    parameter.id,
     parameter.masterInstrumentId,
     parameter.masterProfileId,
     parameter.masterSubtype,

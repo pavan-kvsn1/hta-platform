@@ -5,19 +5,31 @@
  * that the shipped data is addressable by the key certificates already hold, which a
  * fixture cannot tell us.
  */
+import { seedMasterStore } from '../helpers/seed-master-store'
 import { describe, it, expect } from 'vitest'
 import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
-import { allUnits } from '@/lib/master-instrument-registry'
+import { allUnits } from '@/lib/master/registry'
 import legacyList from '@/data/master-instruments.json'
 
 const store = () => useMasterInstrumentStore.getState()
 const registry = store().registry
 
 describe('registry access', () => {
-  it('bundles the registry, so there is nothing to load', () => {
+  /**
+   * Seeded, because nothing is bundled any more.
+   *
+   * The register used to be a file compiled into the app and present from the moment
+   * the module loaded; it is built from the two endpoints now, so a test that wants
+   * one has to say so.
+   */
+  beforeEach(() => {
+    seedMasterStore()
+  })
+
+  it('holds one unit for every instrument the lab has', () => {
     const registry = store().registry
-    expect(registry.assets.length).toBe(registry.asset_count)
-    expect(allUnits(registry).length).toBe(registry.unit_count)
+    expect(registry.assets.length).toBeGreaterThan(200)
+    expect(allUnits(registry).length).toBe(registry.assets.length)
   })
 
   it('carries a legacy id on every unit', () => {
@@ -80,12 +92,15 @@ describe('registry access', () => {
     expect(store().getUnitForInstrument({ id: sample.legacy_id, asset_no: 'nonsense' })).toBe(sample)
   })
 
-  it('will not guess a unit when the asset holds several', () => {
-    // 580 HTAIPL/L holds three units and only one records Temperature. Answering with
-    // the first would hand the other two a capability they do not have - the same
-    // false claim as reporting none, pointing the other way.
-    const shared = store().registry.assets.find((a) => a.units.length > 1)!
-    expect(store().getUnitForInstrument({ id: -999, asset_no: shared.asset_no })).toBeUndefined()
+  it('answers with nothing for an asset number it does not hold', () => {
+    /**
+     * This used to check 580 HTAIPL/L, which the bundled file recorded as one asset
+     * holding three units - answering with the first would have handed the other two a
+     * capability they do not have. The register is built from the instrument rows now,
+     * one unit each, so that ambiguity cannot arise; what still has to hold is that an
+     * asset number nobody knows resolves to nothing rather than to something near it.
+     */
+    expect(store().getUnitForInstrument({ id: -999, asset_no: 'NOT/AN/ASSET' })).toBeUndefined()
   })
 
   it('returns nothing when neither the id nor the asset number is known', () => {
@@ -118,15 +133,15 @@ describe('registry access', () => {
 
 describe('the instrument list comes from the registry', () => {
   it('loads every instrument without the old JSON file', () => {
-    store().loadFromRegistry()
+    seedMasterStore()
     const s = store()
-    expect(s.dataSource).toBe('registry')
+    expect(s.dataSource).toBe('api')
     expect(s.isLoaded).toBe(true)
-    expect(s.instruments).toHaveLength(registry.unit_count)
+    expect(s.instruments).toHaveLength(store().registry.assets.length)
   })
 
   it('gives each one the identity the cascade filters on', () => {
-    store().loadFromRegistry()
+    seedMasterStore()
     const missing = store().instruments.filter(
       (i) => !i.type || !i.instrument_desc || !i.asset_no,
     )
@@ -134,7 +149,7 @@ describe('the instrument list comes from the registry', () => {
   })
 
   it('keeps the ids a saved certificate refers to', () => {
-    store().loadFromRegistry()
+    seedMasterStore()
     const ids = store().instruments.map((i) => i.id).sort((a, b) => a - b)
     const fromRegistry = store()
       .getRegistryUnits()
@@ -144,15 +159,15 @@ describe('the instrument list comes from the registry', () => {
   })
 
   it('resolves every listed instrument back to its registry unit', () => {
-    store().loadFromRegistry()
+    seedMasterStore()
     const unresolved = store().instruments.filter((i) => !store().getUnitByLegacyId(i.id))
     expect(unresolved).toHaveLength(0)
   })
 
   it('works out calibration status for the list', () => {
-    store().loadFromRegistry()
+    seedMasterStore()
     const stats = store().getStats()
-    expect(stats.total).toBe(registry.unit_count)
+    expect(stats.total).toBe(store().registry.assets.length)
     expect(stats.expired + stats.expiringSoon).toBeLessThanOrEqual(stats.total)
   })
 })

@@ -14,10 +14,10 @@ import {
   evaluateSuitability,
   requiredRanges,
   type RequiredRange,
-} from '@/lib/master-instrument-capability'
-import type { CapabilityProfile, RegistryUnit } from '@/lib/master-instrument-registry'
+} from '@/lib/master/capability'
+import type { CapabilityProfile, RegistryUnit } from '@/lib/master/registry'
 import registryData from '@/data/master-instrument-registry.json'
-import type { MasterInstrumentRegistry } from '@/lib/master-instrument-registry'
+import type { MasterInstrumentRegistry } from '@/lib/master/registry'
 
 const registry = registryData as unknown as MasterInstrumentRegistry
 
@@ -278,25 +278,45 @@ describe('an instrument certified in two parts', () => {
 
   const required = [{ from: 0, to: 100, leastCount: 0.1, accuracy: 0.5 }]
 
-  it('is rated on its coarser half, not its flattering one', () => {
+  it('stands for the instrument by the half the panel preselects', () => {
+    /**
+     * The tighter half, which for these six is always the readout.
+     *
+     * This used to be the coarser half, chosen here and nowhere said. Which half a
+     * certificate is rated against is now a question, asked first in the declaration
+     * panel; this only decides what the list shows before anyone opens it, so it takes
+     * that panel's default or the two would disagree on the same screen.
+     */
     const chosen = chooseCapability(twoPart, 'Temperature', required, { parameterUnit: '°C' })
-    expect(chosen?.profile.component).toBe('sensor')
-    expect(chosen?.suitability.worstRatio).toBeCloseTo(2, 5)
+    expect(chosen?.profile.component).toBe('indicator')
+    expect(chosen?.suitability.worstRatio).toBeCloseTo(50, 5)
   })
 
-  it('reads the same as the sibling whose certificate prints one figure', () => {
-    // 621's ±0.26 against 717's parts: near enough the same instrument, and it should
-    // not matter to the list which way its certificate was written.
+  it('no longer reads the same as the sibling whose certificate prints one figure', () => {
+    /**
+     * Recorded rather than asserted away, because it is the cost of that default.
+     *
+     * 621 HTAIPL/L and 717 HTAIPL/L are the same model. 621's certificate prints one
+     * combined figure, ±0.26; 717's prints ±0.01 for the readout and ±0.25 for the
+     * probe. On the list they now read 50:1 and 1.9:1 - the same instrument, twenty-six
+     * times apart, decided by how its certificate happened to be typed up.
+     *
+     * What closes that gap is not this function but the engineer: 717's panel opens on
+     * the readout with its card coloured for the job, and clicking the probe puts the
+     * two instruments back level.
+     */
     const combined = {
       capability_profiles: [profile({ id: 'P1', buckets: [band(-100, 500, 0.1, 0.26)] })],
     } as unknown as RegistryUnit
     const parts = chooseCapability(twoPart, 'Temperature', required, { parameterUnit: '°C' })
     const one = chooseCapability(combined, 'Temperature', required, { parameterUnit: '°C' })
-    // 2.0 against 1.92 - the 0.01 the two certificates differ by, and nothing else.
-    expect(Math.abs(parts!.suitability.worstRatio! - one!.suitability.worstRatio!)).toBeLessThan(0.1)
-    // Rating on the readout instead would have said 50 : 1.
-    const readout = evaluateSuitability(twoPart.capability_profiles[0], required, {})
-    expect(readout.worstRatio).toBeGreaterThan(25)
+
+    expect(parts!.suitability.worstRatio).toBeCloseTo(50, 5)
+    expect(one!.suitability.worstRatio).toBeCloseTo(1.923, 2)
+
+    // The probe's own figure is still there to be chosen, and still says what it said.
+    const probe = evaluateSuitability(twoPart.capability_profiles[1], required, {})
+    expect(probe.worstRatio).toBeCloseTo(2, 5)
   })
 
   it('leaves a single-capability instrument alone', () => {

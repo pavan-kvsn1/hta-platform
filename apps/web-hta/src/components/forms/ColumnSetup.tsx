@@ -32,7 +32,7 @@ import {
   type FieldDefinition,
   type FieldGroup,
   type FieldType,
-} from '@/lib/certificate-fields'
+} from '@/lib/certificate/fields'
 import { FormulaEditor } from './FormulaEditor'
 import { cn } from '@/lib/utils'
 

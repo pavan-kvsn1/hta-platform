@@ -2,7 +2,7 @@ import {
   DEFAULT_CALIBRATION_PRECISION,
   getPrecisionFromLeastCount,
 } from './calibration-precision'
-import type { CapabilityBucket } from '@/lib/master-instrument-registry'
+import type { CapabilityBucket } from '@/lib/master/registry'
 
 /**
  * How finely a reading can be written down - asked once, for either instrument.
@@ -71,13 +71,32 @@ export function bucketForReading(
   reading: number,
 ): CapabilityBucket | null {
   if (!Number.isFinite(reading)) return null
-  return (
-    buckets.find((bucket) => {
-      if (bucket.min === null || bucket.max === null) return false
-      const overMin = bucket.min_inclusive ? reading >= bucket.min : reading > bucket.min
-      const underMax = bucket.max_inclusive ? reading <= bucket.max : reading < bucket.max
-      return overMin && underMax
-    }) ?? null
+
+  const covering = buckets.filter((bucket) => {
+    if (bucket.min === null || bucket.max === null) return false
+    const overMin = bucket.min_inclusive ? reading >= bucket.min : reading > bucket.min
+    const underMax = bucket.max_inclusive ? reading <= bucket.max : reading < bucket.max
+    return overMin && underMax
+  })
+  if (covering.length < 2) return covering[0] ?? null
+
+  /**
+   * More than one band covers this reading, which happens when a parameter has more
+   * than one master: two instruments over the same stretch, each with its own bands.
+   *
+   * The finest wins. Both instruments read this point, so the finer of them is what
+   * the reading could be recorded to, and recording to the coarser would throw away a
+   * digit that was actually read. A band with no least count recorded cannot answer,
+   * so it stands aside for one that can rather than deciding by being listed first.
+   */
+  const withLeastCount = covering.filter(
+    (b) => typeof b.least_count?.value === 'number' && b.least_count.value > 0,
+  )
+  if (!withLeastCount.length) return covering[0]
+  return withLeastCount.reduce((finest, b) =>
+    (b.least_count as { value: number }).value < (finest.least_count as { value: number }).value
+      ? b
+      : finest,
   )
 }
 

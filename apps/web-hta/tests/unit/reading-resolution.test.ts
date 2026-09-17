@@ -5,7 +5,7 @@ import {
   bucketForReading,
   precisionOf,
 } from '@/lib/utils/reading-resolution'
-import type { CapabilityBucket } from '@/lib/master-instrument-registry'
+import type { CapabilityBucket } from '@/lib/master/registry'
 
 const bucket = (over: Partial<CapabilityBucket> = {}): CapabilityBucket => ({
   id: 'b1',

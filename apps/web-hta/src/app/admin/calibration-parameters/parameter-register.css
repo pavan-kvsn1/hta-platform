@@ -1,0 +1,246 @@
+/*
+ * Generated from the parameter-register wireframe. Do not edit by hand - change
+ * the wireframe and run mkpreg.py, or the two drift and the drawing stops being
+ * the reference.
+ *
+ * Every selector is fenced behind `.preg`, because the rest of the admin app is
+ * Tailwind and a loose `button` rule here would reach it.
+ */
+.preg *{box-sizing:border-box}
+/* ══════════════════════════════════════════════════════════════════════════
+   The palette, the type and the spacing are the admin app's own - the same
+   tokens instrument-detail.css is generated with. This page sits beside the
+   instrument pages and has to look like it belongs to them, so nothing here
+   is invented. The app commits to one light theme; so does this.
+   ══════════════════════════════════════════════════════════════════════════ */
+.preg{--ground:#f1f5f9; --card:#ffffff; --border:#e2e8f0; --hair:#f1f5f9; --panel:#f8fafc;
+  --ink:#0f172a; --ink2:#475569; --muted:#64748b; --faint:#94a3b8;
+  --primary:#1a6fdb; --primary-ink:#ffffff;
+  --good-bg:#f0fdf4; --good-br:#bbf7d0; --good-tx:#166534; --good-ic:#16a34a;
+  --warn-bg:#fffbeb; --warn-br:#fde68a; --warn-tx:#92400e; --warn-ic:#d97706;
+  --crit-bg:#fef2f2; --crit-br:#fecaca; --crit-tx:#991b1b; --crit-ic:#dc2626;
+  --sans:"Geist","Geist Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+.preg{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.5;
+     -webkit-font-smoothing:antialiased}
+.preg button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.preg button:disabled{cursor:not-allowed}
+.preg input, .preg select{font:inherit}
+.preg :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:4px}
+
+.preg .wrap{padding:22px 20px 60px}
+.preg .preg-fill{height:100%;overflow:auto}
+
+/* ── the note that says this is a drawing, not the app ───────────────────── */
+.preg .stamp{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:16px;
+       padding:9px 13px;background:#eaf2fd;border:1px solid #c7ddf8;border-radius:10px;
+       font-size:11.5px;color:#1c4f92}
+.preg .stamp b{font-weight:600}
+.preg .stamp .rt{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:#4a7cc0}
+.preg .stamp .where{flex-basis:100%;margin-top:7px;padding-top:7px;border-top:1px solid #c7ddf8;line-height:1.55}
+.preg .stamp .where code{font-family:var(--mono);font-size:10.5px;background:#fff;border:1px solid #c7ddf8;
+                   border-radius:4px;padding:0 4px}
+.preg .stamp .where s{color:#6f9bd0}
+.preg .stamp .where .sep{color:#8fb3de;margin:0 3px}
+
+/* ── title row: one line, 18px, matching the instrument page ─────────────── */
+.preg .titlerow{display:flex;align-items:center;gap:11px;margin-bottom:16px;flex-wrap:wrap}
+.preg .back{display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ink2);
+      border:1px solid var(--border);border-radius:9px;background:var(--panel);padding:4px 10px}
+.preg .back:hover{color:var(--ink);border-color:#cbd5e1}
+.preg .back svg{width:15px;height:15px}
+.preg .titlesep{height:22px;width:1px;background:var(--border)}
+.preg h1{margin:0;font-size:18px;font-weight:600;letter-spacing:-.01em}
+.preg .sub{font-size:11.5px;color:var(--muted)}
+
+/* ── the summary band ────────────────────────────────────────────────────── */
+.preg .card{background:var(--card);border:1px solid var(--border);border-radius:13px}
+.preg .sumbar{display:flex;align-items:center;gap:0;flex-wrap:wrap;padding:0;overflow:hidden;margin-bottom:14px}
+.preg .stat{flex:1;min-width:150px;padding:13px 17px;border-right:1px solid var(--hair)}
+.preg .stat:last-child{border-right:0}
+.preg .stat .k{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+         color:var(--muted);margin-bottom:4px}
+.preg .stat .v{font-size:18px;font-weight:600;font-family:var(--mono);letter-spacing:-.02em}
+.preg .stat .v small{font-size:11.5px;font-weight:400;font-family:var(--sans);color:var(--faint);margin-left:5px}
+.preg .stat.tw .v{color:var(--warn-tx)}
+
+/* ── the search / filter row ─────────────────────────────────────────────── */
+.preg .tools{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+.preg .search{position:relative;flex:1;min-width:230px;max-width:360px;display:flex;align-items:center}
+.preg .search svg{position:absolute;left:10px;width:14px;height:14px;color:var(--faint);pointer-events:none}
+.preg .search input{width:100%;height:32px;padding:0 10px 0 30px;border:1px solid var(--border);border-radius:8px;
+              background:var(--card);font-size:12.5px;color:var(--ink);outline:none}
+.preg .search input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,111,219,.13)}
+.preg .seg{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card)}
+.preg .seg button{padding:6px 11px;font-size:11.5px;color:var(--ink2);border-right:1px solid var(--border)}
+.preg .seg button:last-child{border-right:0}
+.preg .seg button.on{background:#eaf2fd;color:var(--primary);font-weight:500}
+.preg .spacer{margin-left:auto}
+.preg .counted{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+
+/* ── a group ─────────────────────────────────────────────────────────────── */
+.preg .grp{margin-bottom:10px;overflow:hidden}
+.preg .ghead{display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;text-align:left;
+       background:var(--panel);border-bottom:1px solid var(--border)}
+.preg .grp.shut .ghead{border-bottom:0}
+.preg .ghead .caret{width:13px;height:13px;color:var(--faint);transition:transform .14s ease;flex-shrink:0}
+.preg .grp.shut .ghead .caret{transform:rotate(-90deg)}
+.preg .ghead .gn{font-weight:600;font-size:13px}
+.preg .ghead .gm{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.preg .ghead .gtail{margin-left:auto;display:flex;align-items:center;gap:7px}
+.preg .grp.shut .gbody{display:none}
+
+.preg .rowhead{display:grid;grid-template-columns:minmax(190px,1.5fr) minmax(150px,1fr) minmax(210px,1.6fr) 96px 78px 34px;
+         gap:12px;padding:6px 16px;border-bottom:1px solid var(--border);background:var(--card);
+         font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)}
+.preg .rowhead .rt{text-align:right}
+.preg .rowhead .ct{text-align:center}
+
+/* ── a parameter row ─────────────────────────────────────────────────────── */
+.preg .row{display:grid;grid-template-columns:minmax(190px,1.5fr) minmax(150px,1fr) minmax(210px,1.6fr) 96px 78px 34px;
+     gap:12px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--hair);width:100%;text-align:left}
+.preg .row:last-child{border-bottom:0}
+.preg .row:hover{background:var(--panel)}
+.preg .row.off{opacity:.5}
+.preg .rname{min-width:0}
+.preg .rname .n{font-weight:500;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.preg .rname .was{display:block;font-size:10.5px;color:var(--faint);font-family:var(--mono);
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.preg .rname .was b{color:var(--warn-tx);font-weight:500}
+.preg .match{font-size:11px;color:var(--muted);font-family:var(--mono);min-width:0;
+       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.preg .match .sep{color:var(--faint)}
+.preg .chips{display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-width:0}
+.preg .u{font-family:var(--mono);font-size:11px;background:var(--panel);border:1px solid var(--border);
+   border-radius:5px;padding:1px 6px;color:var(--ink2);white-space:nowrap}
+.preg .u.def{background:#eaf2fd;border-color:#c7ddf8;color:var(--primary);font-weight:500}
+.preg .undecl{color:var(--faint);font-size:11.5px;font-style:italic}
+.preg .uses{font-size:11px;font-family:var(--mono);color:var(--ink2);text-align:left}
+.preg .uses.none{color:var(--faint)}
+.preg .pill{display:inline-flex;align-items:center;font-size:10px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.06em;border-radius:5px;padding:2px 7px;border:1px solid}
+.preg .pill.on{background:var(--good-bg);border-color:var(--good-br);color:var(--good-tx)}
+.preg .pill.no{background:var(--card);border-color:var(--border);color:var(--faint)}
+.preg .pill.edited{background:var(--warn-bg);border-color:var(--warn-br);color:var(--warn-tx)}
+.preg .pen{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;
+     border-radius:7px;color:var(--faint);margin-left:auto}
+.preg .row:hover .pen{color:var(--primary);background:#eaf2fd}
+.preg .pen svg{width:14px;height:14px}
+
+/* ── the editor, in place of the row ─────────────────────────────────────── */
+.preg .ed{border-bottom:1px solid var(--border);border-top:1px solid var(--border);background:var(--card);
+    box-shadow:inset 3px 0 0 var(--primary)}
+.preg .edhead{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--panel);
+        border-bottom:1px solid var(--hair);flex-wrap:wrap}
+.preg .edhead .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--primary)}
+.preg .edhead .std{font-family:var(--mono);font-size:11.5px;color:var(--ink2)}
+.preg .edgrid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+@media(max-width:860px){.preg .edgrid{grid-template-columns:1fr}}
+.preg .pane{padding:15px 16px}
+.preg .pane+.pane{border-left:1px solid var(--hair)}
+@media(max-width:860px){.preg .pane+.pane{border-left:0;border-top:1px solid var(--hair)}}
+.preg .prov{margin:8px 0 0;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.preg code{font-family:var(--mono);font-size:11px;background:var(--panel);border:1px solid var(--border);
+     border-radius:4px;padding:1px 4px;color:var(--ink2)}
+
+.preg .f{margin-bottom:15px}
+.preg .f:last-child{margin-bottom:0}
+.preg .f .k{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+      color:var(--muted);margin-bottom:5px}
+.preg .f input[type=text]{width:100%;height:32px;padding:0 9px;border:1px solid var(--border);border-radius:8px;
+                    background:var(--card);font-size:12.5px;color:var(--ink);outline:none}
+.preg .f input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,111,219,.13)}
+.preg .f .hint{display:block;font-size:11px;color:var(--faint);margin-top:5px;line-height:1.45}
+.preg .ro{display:block;font-size:12.5px;color:var(--ink);min-height:32px;line-height:32px}
+.preg .ro.mono{font-family:var(--mono);font-size:11.5px}
+
+/* unit chips, editable */
+.preg .ubox{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:32px;padding:5px 8px;
+      border:1px solid var(--border);border-radius:8px;background:var(--card)}
+.preg .uchip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11.5px;
+       background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:2px 4px 2px 7px;color:var(--ink2)}
+.preg .uchip.def{background:#eaf2fd;border-color:#c7ddf8;color:var(--primary)}
+.preg .uchip .x{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;
+          border-radius:4px;color:var(--faint);font-size:13px;line-height:1}
+.preg .uchip .x:hover{color:var(--crit-ic);background:#fff}
+.preg .uchip .x:disabled{color:#cbd5e1}
+.preg .uchip .lock{width:11px;height:11px;color:var(--faint);margin-right:2px}
+.preg .uadd{flex:1;min-width:86px;border:0;outline:none;font-family:var(--mono);font-size:11.5px;
+      background:transparent;color:var(--ink);height:22px}
+.preg .uadd::placeholder{font-family:var(--sans);color:var(--faint)}
+.preg .srcnote{display:flex;align-items:center;gap:7px;margin-top:6px;font-size:11px;color:var(--muted)}
+.preg .srcnote .link{color:var(--primary);text-decoration:underline}
+.preg .refuse{display:flex;gap:7px;margin-top:7px;padding:7px 9px;background:var(--crit-bg);
+        border:1px solid var(--crit-br);border-radius:8px;font-size:11.5px;color:var(--crit-tx);line-height:1.45}
+.preg .refuse b{font-family:var(--mono);font-weight:600}
+.preg .refuse .w{flex-shrink:0}
+
+/* the switch */
+.preg .sw{display:flex;align-items:center;gap:9px}
+.preg .track{width:34px;height:19px;border-radius:999px;background:#cbd5e1;position:relative;flex-shrink:0;transition:background .14s}
+.preg .track.on{background:var(--good-ic)}
+.preg .knob{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;
+      box-shadow:0 1px 2px rgba(15,23,42,.3);transition:left .14s}
+.preg .track.on .knob{left:17px}
+.preg .swtext{font-size:12.5px}
+.preg .swtext b{font-weight:500}
+.preg .swtext span{display:block;font-size:11px;color:var(--faint)}
+
+.preg .edfoot{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--panel);
+        border-top:1px solid var(--hair);flex-wrap:wrap}
+.preg .edfoot .sent{flex:1;min-width:0;font-size:11.5px;color:var(--ink2)}
+.preg .edfoot .sent .dim{color:var(--faint)}
+.preg .edfoot .sp{display:flex;gap:8px;margin-left:auto}
+.preg .btn{height:31px;padding:0 13px;border-radius:8px;font-size:12.5px;border:1px solid transparent;
+     display:inline-flex;align-items:center;gap:6px}
+.preg .btn.ghost{background:var(--card);border-color:var(--border);color:var(--ink2)}
+.preg .btn.ghost:hover{border-color:#cbd5e1;color:var(--ink)}
+.preg .btn.primary{background:var(--primary);color:var(--primary-ink)}
+.preg .btn.primary:hover{background:#1761c4}
+.preg .btn:disabled{opacity:.45}
+
+/* ── the closing note ────────────────────────────────────────────────────── */
+.preg .foot{margin-top:18px;padding:15px 17px;background:var(--card);border:1px solid var(--border);border-radius:13px}
+.preg .foot h2{margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.preg .foot ul{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:9px}
+@media(min-width:760px){.preg .foot ul{grid-template-columns:1fr 1fr}}
+.preg .foot li{display:flex;gap:9px;font-size:12px;color:var(--ink2);line-height:1.5}
+.preg .foot li .no{flex-shrink:0;width:17px;height:17px;border-radius:5px;background:var(--panel);
+             border:1px solid var(--border);color:var(--faint);display:inline-flex;align-items:center;
+             justify-content:center;font-size:11px;margin-top:1px}
+.preg .foot li b{color:var(--ink);font-weight:600}
+.preg .foot p{margin:0;font-size:12px;color:var(--muted);line-height:1.55}
+.preg .foot code{font-family:var(--mono);font-size:11px;background:var(--panel);border:1px solid var(--border);
+           border-radius:4px;padding:1px 4px;color:var(--ink2)}
+
+.preg .everylab{margin:0 0 14px;padding:7px 10px;background:var(--warn-bg);border:1px solid var(--warn-br);
+          border-radius:8px;font-size:11px;color:var(--warn-tx)}
+
+/* the create form */
+.preg .new{margin-bottom:12px;overflow:hidden;border-color:var(--primary)}
+.preg .newhead{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#eaf2fd;
+         border-bottom:1px solid #c7ddf8;flex-wrap:wrap}
+.preg .newhead .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--primary)}
+.preg .newhead .why{font-size:11.5px;color:#1c4f92;min-width:0}
+.preg .newgrid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+@media(max-width:860px){.preg .newgrid{grid-template-columns:1fr}}
+.preg .f input[list]{width:100%;height:32px;padding:0 9px;border:1px solid var(--border);border-radius:8px;
+               background:var(--card);font-size:12.5px;color:var(--ink);outline:none}
+.preg .f .sidebyside{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center}
+.preg .ck{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);white-space:nowrap}
+/* the word "optional" beside a label, which is not part of the label */
+.preg .f .k .opt{font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)}
+.preg .ck input{accent-color:var(--primary)}
+.preg .fresh{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;text-transform:uppercase;
+       letter-spacing:.06em;color:var(--good-tx);background:var(--good-bg);border:1px solid var(--good-br);
+       border-radius:5px;padding:1px 6px;margin-left:6px}
+
+/* the line that says what the new type will pair with, before it is saved */
+.preg .verdict{display:flex;gap:8px;padding:9px 11px;border-radius:9px;font-size:11.5px;line-height:1.5;margin:0}
+.preg .verdict.good{background:var(--good-bg);border:1px solid var(--good-br);color:var(--good-tx)}
+.preg .verdict.warn{background:var(--warn-bg);border:1px solid var(--warn-br);color:var(--warn-tx)}
+.preg .verdict.hold{background:var(--panel);border:1px solid var(--border);color:var(--muted)}
+.preg .verdict b{font-family:var(--mono);font-weight:600}
+.preg .verdict .w{flex-shrink:0;margin-top:1px}
+
+.preg .paneempty{padding:26px 16px;text-align:center;color:var(--faint);font-size:12.5px;margin:0}

@@ -10,7 +10,7 @@ import { Text } from '@react-pdf/renderer'
 import { describe, expect, it } from 'vitest'
 import { CalibrationCertificatePDF } from '@/components/pdf/CalibrationCertificatePDF'
 import { useCertificateStore } from '@/lib/stores/certificate-store'
-import { resultValues } from '@/lib/certificate-fields'
+import { resultValues } from '@/lib/certificate/fields'
 
 function textContent(node: ReactNode): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)

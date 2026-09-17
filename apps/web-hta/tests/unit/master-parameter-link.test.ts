@@ -7,7 +7,7 @@
  * travels as a position and a save that drops it leaves the entry with nothing.
  */
 import { describe, it, expect } from 'vitest'
-import { parameterIdFor } from '@/lib/master-parameter-link'
+import { parameterIdFor } from '@/lib/master-entry/parameter-link'
 
 const entry = (masterInstrumentId: number, parameterId?: string) => ({
   masterInstrumentId,

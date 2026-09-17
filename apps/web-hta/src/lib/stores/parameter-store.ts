@@ -14,7 +14,7 @@
 
 import { create } from 'zustand'
 import { apiFetch } from '@/lib/api-client'
-import type { CalibrationParameter } from '@/lib/parameter-mapping'
+import type { CalibrationParameter } from '@/lib/parameters/mapping'
 
 interface ParameterState {
   parameters: CalibrationParameter[]
@@ -27,6 +27,8 @@ interface ParameterState {
   reload: () => Promise<void>
   /** Replace one in place, so a rename shows without a round trip. */
   replace: (parameter: CalibrationParameter) => void
+  /** Add one the admin has just registered, for the same reason. */
+  add: (parameter: CalibrationParameter) => void
 }
 
 /**
@@ -90,6 +92,15 @@ export const useParameterStore = create<ParameterState>((set, get) => ({
     set((state) => ({
       parameters: state.parameters.map((p) => (p.id === parameter.id ? parameter : p)),
     })),
+
+  add: (parameter) =>
+    set((state) =>
+      // Guard against a double submit putting the same row in twice; the id is
+      // the server's, so a repeat is the same parameter rather than a new one.
+      state.parameters.some((p) => p.id === parameter.id)
+        ? state
+        : { parameters: [...state.parameters, parameter] },
+    ),
 }))
 
 /** Reset between tests; the in-flight request is module state, not store state. */

@@ -9,8 +9,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MasterCapabilityDeclaration } from '@/components/forms/MasterCapabilityDeclaration'
-import type { RegistryUnit } from '@/lib/master-instrument-registry'
-import type { RequiredRange } from '@/lib/master-instrument-capability'
+import type { RegistryUnit } from '@/lib/master/registry'
+import type { RequiredRange } from '@/lib/master/capability'
 
 const bucket = (min: number, max: number, lc: number, acc: number) => ({
   id: `B${min}`,
@@ -349,8 +349,33 @@ describe('a thermometer certified in two parts', () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P2' }))
   })
 
-  it('answers nothing on the engineer’s behalf', () => {
+  it('opens on the tighter half rather than on nothing', () => {
+    /**
+     * This panel answers nothing on the engineer's behalf anywhere else, and this is
+     * the one place it now does. It is a deliberate decision, taken by the lab: the
+     * readout's figure is preselected so that the common case costs no clicks.
+     *
+     * What keeps it honest is the colour. Each card is tinted by what choosing it
+     * actually gives against this job, on the same thresholds as the pills on the
+     * instrument list - so the preselected card is shown in the colour it earns, not
+     * presented as the right answer. Where the readout's figure will not do, its card
+     * is red under the radio button that is already filled in.
+     */
     const onChange = renderIt(twoPart)
-    expect(onChange).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'P1' }))
+
+    const indicator = screen.getByText('Indicator').closest('button')!
+    const sensor = screen.getByText('Sensor').closest('button')!
+    expect(indicator.className).toContain('border-primary')
+    expect(sensor.className).not.toContain('border-primary')
+  })
+
+  it('colours each card by what choosing it would give, not by the instrument', () => {
+    // required here asks for +/-0.5 at a least count of 0.1. The readout's +/-0.01 is
+    // 50:1 and the probe's +/-0.25 is 2:1 - green and amber, and the engineer can see
+    // the difference before clicking anything.
+    renderIt(twoPart)
+    expect(screen.getByText('Indicator').closest('button')!.className).toContain('bg-green-50')
+    expect(screen.getByText('Sensor').closest('button')!.className).toContain('bg-amber-50')
   })
 })

@@ -34,11 +34,40 @@ export type EligibilityTone = 'green' | 'amber' | 'orange' | 'red' | 'slate'
  */
 export type Compatibility = 'safe' | 'compatible' | 'incompatible' | 'unknown'
 
+/**
+ * A ratio as one of the four colours.
+ *
+ * Lifted out of eligibilityFor so that anywhere showing a master's accuracy shows it
+ * in the same colours on the same thresholds. A second rule drifting from this one is
+ * how a badge and the row under it come to disagree about the same instrument.
+ */
+export function accuracyCompatibility(
+  ratio: number | null,
+  threshold: number = DEFAULT_ACCURACY_RATIO,
+): Compatibility {
+  if (ratio === null) return 'unknown'
+  if (ratio < 1) return 'incompatible'
+  return ratio < threshold ? 'compatible' : 'safe'
+}
+
 export const COMPATIBILITY_BADGE: Record<Compatibility, string> = {
   safe: 'bg-green-100 text-green-700',
   compatible: 'bg-amber-100 text-amber-700',
   incompatible: 'bg-red-100 text-red-700',
   unknown: 'bg-slate-200 text-slate-500',
+}
+
+/**
+ * The same four colours as a fill for a choosable card.
+ *
+ * A pill sits on a white row and needs to carry on its own; a card is the thing being
+ * chosen, so the colour is the card and the border does the selecting.
+ */
+export const COMPATIBILITY_CARD: Record<Compatibility, string> = {
+  safe: 'bg-green-50 border-green-200',
+  compatible: 'bg-amber-50 border-amber-200',
+  incompatible: 'bg-red-50 border-red-200',
+  unknown: 'bg-slate-50 border-slate-200',
 }
 
 export interface Eligibility {
@@ -225,14 +254,7 @@ export function eligibilityFor(
   // Accuracy. Below 1:1 the master is no better than the unit it is checking, which is
   // not a thin margin but the wrong tool.
   const ratio = chosen.suitability.worstRatio
-  const accuracy: Compatibility =
-    ratio === null
-      ? 'unknown'
-      : ratio < 1
-        ? 'incompatible'
-        : ratio < threshold
-          ? 'compatible'
-          : 'safe'
+  const accuracy = accuracyCompatibility(ratio, threshold)
   const accuracyNote =
     ratio === null
       ? 'Accuracy is recorded as a class, so it cannot be compared as a number.'

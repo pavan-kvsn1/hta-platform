@@ -20,6 +20,7 @@
 import { useMemo, useState } from 'react'
 import { CheckCircle, ChevronDown, Search, Trash2 } from 'lucide-react'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { SearchableSelect, type SearchableOption } from '@/components/ui/searchable-select'
 import type { MasterMapping, Parameter } from '@/lib/stores/certificate-store'
 import {
@@ -28,8 +29,8 @@ import {
   getDisplayValue,
   getSimpleValue,
   getSopReferences,
-} from '@/lib/master-instruments'
-import type { RegistryUnit } from '@/lib/master-instrument-registry'
+} from '@/lib/master/instruments'
+import type { RegistryUnit } from '@/lib/master/registry'
 import {
   DEFAULT_ACCURACY_RATIO,
   chooseCapability,
@@ -38,20 +39,22 @@ import {
   matchesParameter,
   missingRequirement,
   requirementFor,
+  clipRequired,
   requiredRanges,
+  fullScaleOf,
   resolveAccuracy,
   type RequiredRange,
-} from '@/lib/master-instrument-capability'
+} from '@/lib/master/capability'
 import {
   COMPATIBILITY_BADGE,
   ELIGIBILITY_BADGE,
   eligibilityFor,
   type Eligibility,
-} from '@/lib/master-instrument-eligibility'
+} from '@/lib/master/eligibility'
 import { MasterCapabilityDeclaration } from './MasterCapabilityDeclaration'
 import { MasterBandTable } from './MasterBandTable'
-import { listOf, parameterLabels } from '@/lib/parameter-labels'
-import { classificationOf, measurandsOf, type CalibrationParameter } from '@/lib/parameter-mapping'
+import { listOf, parameterLabels } from '@/lib/parameters/labels'
+import { classificationOf, measurandsOf, type CalibrationParameter } from '@/lib/parameters/mapping'
 import { useParameterStore } from '@/lib/stores/parameter-store'
 import { cn } from '@/lib/utils'
 
@@ -104,6 +107,16 @@ export interface FlowAssignment {
   sopReference: string
   /** Why a ratio below the lab's threshold was accepted. Empty when it was not. */
   acceptanceReason: string
+  /**
+   * The stretch of the parameter's range this master was used over.
+   *
+   * The parameter's own range unless the engineer narrowed it, which they do when two
+   * masters divide a range between them. What the master was judged against, so it is
+   * what the certificate records: judging it on one stretch and recording another
+   * would leave a verdict nothing on the certificate accounts for.
+   */
+  rangeFrom?: string
+  rangeTo?: string
 }
 
 export interface FlowResult {
@@ -123,6 +136,9 @@ const EMPTY_DECLARATION: Declaration = { sop: '', reason: '' }
 /** An existing master, reopened: the flow starts filled in and commits back to it. */
 export interface FlowSeed {
   parameterIds: string[]
+  /** The stretch it was saved against, so reopening does not silently widen it. */
+  rangeFrom?: string
+  rangeTo?: string
   /** The unit, by the id a certificate stores - an asset number names several. */
   instrumentId: number
   declarations: Record<string, { profileId?: string; subtype?: string; sop: string; reason: string }>
@@ -279,11 +295,19 @@ function nothingToRateBy(
         classify,
       })?.profile
   if (!profile) return true
-  const buckets = declaredCapability(profile, declaration.subtype).buckets
+  const declared = declaredCapability(profile, declaration.subtype)
+  const buckets = declared.buckets
   if (buckets.length === 0) return true
   // A band with no least count recorded is the same predicament in smaller form: the
   // figure the comparison turns on is not there. It used to be read as a coarse least
   // count and printed "reads in steps of 0" - a number nobody wrote.
+  //
+  // Not softened on the grounds that the accuracy would compute without it. Of the 121
+  // bands in the register with no least count, none has a term that spends one - so
+  // dropping the guard would have let all 46 of those masters through on the strength
+  // of an accuracy alone, with the other half of the comparison missing and nothing
+  // said about it. The lab's answer is that a master with no recorded resolution is a
+  // master the reviewer should be asked about.
   return required.some((req) => {
     const band =
       buckets.find((b) => b.min != null && b.max != null && b.min <= req.from && b.max >= req.to) ??
@@ -293,7 +317,19 @@ function nothingToRateBy(
     // The same for the accuracy: absent, or recorded in a form that gives no figure -
     // a percentage with no stated basis, a class. Either way there is no ratio to work
     // out, and the app cannot say whether the master is fit.
-    const accuracy = band ? resolveAccuracy(band.accuracy, { reading: req.to }) : null
+    //
+    // The span and the least count are handed over rather than left out. A "% of full
+    // scale" accuracy needs the first and a "+ 2 digits" term needs the second, and
+    // without them resolveAccuracy returns null - which reads on screen as an
+    // instrument with nothing to rate it by, when in fact the figures were right here.
+    const accuracy = band
+      ? resolveAccuracy(band.accuracy, {
+          reading: req.to,
+          fullScale: fullScaleOf(declared.min, declared.max),
+          span: declared.min == null || declared.max == null ? null : declared.max - declared.min,
+          leastCount: band.least_count?.value ?? null,
+        })
+      : null
     return !accuracy || accuracy.value <= 0
   })
 }
@@ -665,6 +701,18 @@ export function MasterAddFlow({
   const [description, setDescription] = useState(ANY)
   const [instrumentQuery, setInstrumentQuery] = useState('')
   /**
+   * The stretch of the parameter's range this master was used over.
+   *
+   * Reopening an existing master starts on what it was saved against. Falling back to
+   * the parameter's whole range would quietly widen a master that had been narrowed on
+   * purpose, and the widening would only show as a verdict changing colour.
+   */
+  const seededParameter = seed?.parameterIds[0]
+    ? parameters.find((p) => p.id === seed.parameterIds[0])
+    : undefined
+  const [usedFrom, setUsedFrom] = useState(seed?.rangeFrom ?? seededParameter?.rangeMin ?? '')
+  const [usedTo, setUsedTo] = useState(seed?.rangeTo ?? seededParameter?.rangeMax ?? '')
+  /**
    * The chosen instrument, by unit id.
    *
    * Not by asset number: 188 HTAIPL/L holds three units and 580 HTAIPL/L another three,
@@ -771,13 +819,44 @@ export function MasterAddFlow({
     [parameters, paramIds, mappings],
   )
 
+  /**
+   * What this master is being asked to do.
+   *
+   * The parameter's own requirement, narrowed to the stretch the engineer says this
+   * master was used over. Left at the parameter's full range - which is what it starts
+   * at - the two are the same thing.
+   */
+  /** True while the stretch is still the parameter's whole range. */
+  const fullRangeChosen = useMemo(() => {
+    const p = paramIds.length ? parameters.find((x) => x.id === paramIds[0]) : undefined
+    if (!p) return true
+    return (usedFrom.trim() || '') === (p.rangeMin ?? '') && (usedTo.trim() || '') === (p.rangeMax ?? '')
+  }, [paramIds, parameters, usedFrom, usedTo])
+
   const requiredFor = useMemo(() => {
+    const from = usedFrom.trim() === '' ? null : Number(usedFrom)
+    const to = usedTo.trim() === '' ? null : Number(usedTo)
+    const low = Number.isFinite(from as number) ? (from as number) : null
+    const high = Number.isFinite(to as number) ? (to as number) : null
+
     const map = new Map<string, RequiredRange[]>()
-    parameters.forEach((p) =>
-      map.set(p.id, requirementFor(mappings[p.id] ? { ...p, masterMapping: mappings[p.id] } : p).ranges),
-    )
+    parameters.forEach((p) => {
+      const mapping = mappings[p.id]
+      const all = requirementFor(mapping ? { ...p, masterMapping: mapping } : p).ranges
+      /**
+       * Not where the master measures something else.
+       *
+       * Under a mapping the ranges are the engineer's own statement of what the master
+       * covers, in the master's units - millivolts against a parameter named in
+       * degrees. The stretch is in the parameter's units, so clipping one by the other
+       * compares two different scales and would strike out ranges that are perfectly
+       * good. The mapping step is already where that master's range is stated.
+       */
+      const narrow = paramIds.includes(p.id) && !mapping
+      map.set(p.id, narrow ? clipRequired(all, low, high) : all)
+    })
     return map
-  }, [parameters, mappings])
+  }, [parameters, mappings, paramIds, usedFrom, usedTo])
 
   /**
    * How an instrument rates against every parameter ticked. The worst answer is the one
@@ -1043,7 +1122,14 @@ export function MasterAddFlow({
    * clears it; a radio can otherwise only be changed, never unset.
    */
   const toggleParameter = (id: string) => {
-    setParamIds((current) => (current.includes(id) ? [] : [id]))
+    const next = paramIds.includes(id) ? [] : [id]
+    setParamIds(next)
+    // The stretch is a stretch of this parameter's range, so it starts as the whole of
+    // it. An engineer narrowing it is saying something; one who never touches it is
+    // saying this master covered the lot, which is the ordinary case.
+    const p = next.length ? parameters.find((x) => x.id === next[0]) : undefined
+    setUsedFrom(p?.rangeMin ?? '')
+    setUsedTo(p?.rangeMax ?? '')
     // The instrument list is rated against the parameters ticked, so a change to them
     // invalidates a choice made under the old set.
     forgetChoice()
@@ -1181,16 +1267,14 @@ export function MasterAddFlow({
                   key={p.id}
                   className={cn(
                     'w-full text-left px-4 py-3 flex items-center gap-4',
-                    covered
-                      ? 'opacity-50 bg-slate-50 cursor-not-allowed'
-                      : 'bg-white hover:bg-slate-50 cursor-pointer',
+                    'bg-white hover:bg-slate-50 cursor-pointer',
                   )}
                 >
                   <input
                     type="radio"
                     name={`master-${index}-parameter`}
                     checked={on}
-                    disabled={disabled || !!covered}
+                    disabled={disabled}
                     onChange={() => toggleParameter(p.id)}
                     className="size-4 border-slate-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
                   />
@@ -1204,8 +1288,11 @@ export function MasterAddFlow({
                         : p.parameterUnit || 'Range not set'}
                       {p.accuracyValue ? ` · ±${p.accuracyValue}` : ''}
                       {' · '}
+                      {/* A parameter can be served by more than one master - two
+                          covering the whole of it, or each covering part. So a master
+                          already on it is said rather than used to bar the way. */}
                       {covered
-                        ? `already assigned to ${covered}`
+                        ? `served by ${covered} · add another`
                         : `${usable} instrument${usable === 1 ? '' : 's'} can do it`}
                     </span>
                   </span>
@@ -1215,7 +1302,7 @@ export function MasterAddFlow({
                       covered ? ELIGIBILITY_BADGE.green : ELIGIBILITY_BADGE.amber,
                     )}
                   >
-                    {covered ? 'Covered' : 'Needs a master'}
+                    {covered ? 'Has a master' : 'Needs a master'}
                   </span>
                 </label>
               )
@@ -1224,8 +1311,50 @@ export function MasterAddFlow({
           <p className="text-xs text-slate-500 mt-2">
             {parameters.some((p) => !coveredBy.has(p.id))
               ? 'Choosing the parameters first filters the instrument list to those that can serve all of them.'
-              : 'Every parameter already has a master.'}
+              : 'Every parameter already has a master. Adding another to one is allowed — two masters can share a parameter, whether they both covered it or each took a part.'}
           </p>
+
+          {/* The stretch this master was used over.
+              A parameter can be served by more than one, and the two cases - both
+              covering the whole of it, or each taking a part - are the same field with
+              different numbers in it. It starts as the parameter's own range, so an
+              engineer who has nothing to say about it says nothing. */}
+          {chosenParameters.length === 1 && !mappings[chosenParameters[0].parameter.id] && (
+            <div className="mt-4">
+              <label className={LABEL}>Used over</label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Input
+                  value={usedFrom}
+                  disabled={disabled}
+                  aria-label="Range this master was used from"
+                  onChange={(e) => setUsedFrom(e.target.value)}
+                  className="h-9 w-28 rounded-lg border-slate-300"
+                />
+                <span className="text-xs text-slate-500">to</span>
+                <Input
+                  value={usedTo}
+                  disabled={disabled}
+                  aria-label="Range this master was used to"
+                  onChange={(e) => setUsedTo(e.target.value)}
+                  className="h-9 w-28 rounded-lg border-slate-300"
+                />
+                <span className="text-xs text-slate-500">
+                  {chosenParameters[0].parameter.parameterUnit}
+                </span>
+                {fullRangeChosen ? (
+                  <span className="text-[11px] text-slate-400">
+                    the whole of what this parameter asks for
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-amber-700">
+                    part of {chosenParameters[0].parameter.rangeMin} to{' '}
+                    {chosenParameters[0].parameter.rangeMax} — this master is judged on
+                    that part only
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Step 2 - how each is to be measured. Ordinarily nothing to decide; the
               question is asked so that the other answer is a choice and not a drift. */}
@@ -1625,6 +1754,8 @@ export function MasterAddFlow({
                       masterMapping: mappings[parameter.id],
                       profileId: declaration.profileId,
                       subtype: declaration.subtype,
+                      rangeFrom: usedFrom.trim() || undefined,
+                      rangeTo: usedTo.trim() || undefined,
                       sopReference: declaration.sop,
                       acceptanceReason: carried ? declaration.reason.trim() : '',
                     }

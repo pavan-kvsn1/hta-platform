@@ -21,7 +21,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { apiFetch } from '@/lib/api-client'
-import { CALIBRATION_PARAMETERS } from '@/lib/calibration-parameters'
+import { findParameter, groupByCategory } from '@/lib/parameters/mapping'
+import { useParameterStore } from '@/lib/stores/parameter-store'
 import { Icon } from '../Icons'
 import AccuracyCell, { type BucketAccuracy } from './AccuracyCell'
 import CapabilityForm, {
@@ -130,11 +131,14 @@ function RangeTable({ rows, unit }: { rows: Bucket[]; unit: string | null }) {
 
 export default function CapabilitiesTab({
   instrumentId,
+  category = '',
   sopReferences = [],
   seed = null,
   onSeedUsed,
 }: {
   instrumentId: string
+  /** What the instrument itself is filed under, as the group to start in. */
+  category?: string
   /** The procedures the instrument holds, offered against each capability. */
   sopReferences?: string[]
   /** A capability ticked in Basic Info and not yet declared. */
@@ -154,6 +158,18 @@ export default function CapabilitiesTab({
   const [draft, setDraft] = useState<CapabilityDraft | null>(null)
   const [editing, setEditing] = useState<Profile | null>(null)
   const [saving, setSaving] = useState(false)
+
+  /**
+   * The units this lab has registered, per parameter.
+   *
+   * Shared with the certificate forms rather than fetched again here - it is the
+   * same register, and a unit added in one place has to show in the other. The
+   * store is a no-op when something else has already loaded it.
+   */
+  const registry = useParameterStore((s) => s.parameters)
+  const registryError = useParameterStore((s) => s.error)
+  const loadRegistry = useParameterStore((s) => s.load)
+  const replaceParameter = useParameterStore((s) => s.replace)
 
   const load = useCallback(async () => {
     setError(null)
@@ -191,6 +207,10 @@ export default function CapabilitiesTab({
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    void loadRegistry()
+  }, [loadRegistry])
 
   // A capability arriving from Basic Info opens the form already filled in as far
   // as the tick could fill it.
@@ -345,6 +365,62 @@ export default function CapabilitiesTab({
   }
 
   if (draft) {
+    const known = draft.parameter ? findParameter(draft.parameter, registry) : null
+
+    /**
+     * The register, in the two levels a person picks through: a group, then a
+     * parameter inside it. Sixty parameters in one list is not something anyone
+     * reads; eight groups of seven is.
+     *
+     * Names come from the lab's own list rather than the standards behind it,
+     * because that is what its engineers call them.
+     */
+    const groups = groupByCategory(registry)
+      .map((g) => ({
+        name: g.category,
+        parameters: [...new Set(g.parameters.map((x) => x.customName))].sort((a, b) => a.localeCompare(b)),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    // The instrument's own category is written in the register's case, or in
+    // some other; ELECTRICAL and Electrical are the same group.
+    const defaultGroup =
+      groups.find((g) => g.name.toLowerCase() === category.trim().toLowerCase())?.name ?? ''
+
+    /**
+     * Adding a unit to the register.
+     *
+     * `share` is the difference between the two things a person might mean. Off,
+     * the unit is used on this capability and nowhere else - right for a one-off,
+     * and the only thing on offer for a parameter the register has never heard of.
+     * On, it is written back so the next person choosing this parameter finds it
+     * already there.
+     *
+     * Writing back copies the standard's own list into this lab's row first,
+     * because that is what the column means: empty says "whatever the standard
+     * offers", and a lab that adds one unit is no longer saying that.
+     */
+    const registerUnit = async (symbol: string, share: boolean): Promise<string | null> => {
+      if (!share || !known) return null
+      if (known.units.some((u) => u.toLowerCase() === symbol.toLowerCase())) return null
+      try {
+        const res = await apiFetch(`/api/calibration-parameters/${known.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ units: [...known.units, symbol] }),
+        })
+        if (!res.ok) {
+          const b = await res.json().catch(() => null)
+          return b?.message || b?.error || `Could not add it to the register (error ${res.status}).`
+        }
+        const body = (await res.json()) as { parameter?: Parameters<typeof replaceParameter>[0] }
+        if (body.parameter) replaceParameter(body.parameter)
+        return null
+      } catch {
+        return 'Could not reach the server, so it has not been added to the register.'
+      }
+    }
+
     return (
       <>
         {error && (
@@ -358,7 +434,14 @@ export default function CapabilitiesTab({
           components={components}
           profiles={profiles}
           editingKey={editing ? editing.profileKey : null}
-          parameters={[...CALIBRATION_PARAMETERS]}
+          groups={groups}
+          defaultGroup={defaultGroup}
+          registryError={registryError}
+          units={known?.units ?? []}
+          // Nothing to write back to for a parameter the register has never heard
+          // of, so the form offers the unit here-only rather than a tick that lies.
+          inRegister={Boolean(known)}
+          onRegisterUnit={registerUnit}
           sops={sopReferences}
           saving={saving}
           onCancel={() => {

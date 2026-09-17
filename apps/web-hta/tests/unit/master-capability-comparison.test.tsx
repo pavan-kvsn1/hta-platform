@@ -7,7 +7,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within, fireEvent } from '@testing-library/react'
 import { MasterCapabilityComparison } from '@/components/forms/MasterCapabilityComparison'
-import type { RegistryUnit } from '@/lib/master-instrument-registry'
+import type { RegistryUnit } from '@/lib/master/registry'
 
 const bucket = (min: number, max: number, lc: number, acc: number) => ({
   id: `B${min}`,

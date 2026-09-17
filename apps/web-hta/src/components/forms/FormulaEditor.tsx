@@ -25,7 +25,7 @@ import {
   formatToPrecision,
   formulaBreakdown,
   type FieldDefinition,
-} from '@/lib/certificate-fields'
+} from '@/lib/certificate/fields'
 import { cn } from '@/lib/utils'
 
 interface FormulaEditorProps {

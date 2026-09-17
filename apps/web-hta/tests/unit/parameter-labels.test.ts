@@ -5,7 +5,7 @@
  * came to say it was rated against "Temperature and Temperature".
  */
 import { describe, it, expect } from 'vitest'
-import { listOf, parameterLabel, parameterLabels } from '@/lib/parameter-labels'
+import { listOf, parameterLabel, parameterLabels } from '@/lib/parameters/labels'
 
 const p = (parameterName: string, rangeMin?: string, rangeMax?: string, parameterUnit = '°C') => ({
   parameterName,

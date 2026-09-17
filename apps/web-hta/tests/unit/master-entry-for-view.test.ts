@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { masterEntryForView } from '@/lib/master-entry-for-view'
+import { masterEntryForView } from '@/lib/master-entry/for-view'
 
 describe('a master entry on its way to a reader', () => {
   it('carries everything the certificate holds about it', () => {

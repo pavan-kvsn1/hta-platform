@@ -18,7 +18,7 @@ import {
   type GalleryImage,
   type ParameterReadingImages,
 } from '@/components/certificate'
-import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate-date-format'
+import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate/date-format'
 
 interface Parameter {
   id: string

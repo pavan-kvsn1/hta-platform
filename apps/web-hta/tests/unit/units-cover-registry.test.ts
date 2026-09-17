@@ -8,9 +8,9 @@
  * engineer wondering where their instrument went.
  */
 import { describe, it, expect } from 'vitest'
-import { unitFamily } from '@/lib/units'
+import { unitFamily } from '@/lib/master/units'
 import registry from '@/data/master-instrument-registry.json'
-import type { MasterInstrumentRegistry } from '@/lib/master-instrument-registry'
+import type { MasterInstrumentRegistry } from '@/lib/master/registry'
 
 const shipped = registry as unknown as MasterInstrumentRegistry
 

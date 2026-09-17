@@ -6,7 +6,7 @@ import { InternalRequestClient } from './InternalRequestClient'
 import { CustomerRequestView } from './CustomerRequestView'
 import { OfflineCodeRequestClient } from './OfflineCodeRequestClient'
 import { DesktopVpnRequestClient } from './DesktopVpnRequestClient'
-import { masterEntryForView } from '@/lib/master-entry-for-view'
+import { masterEntryForView } from '@/lib/master-entry/for-view'
 
 // Render at runtime, not build time (needs database)
 export const dynamic = 'force-dynamic'

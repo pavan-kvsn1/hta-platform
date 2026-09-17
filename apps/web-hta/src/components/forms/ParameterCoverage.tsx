@@ -8,7 +8,7 @@
 // noticed.
 
 import { AlertTriangle, CheckCircle } from 'lucide-react'
-import { listOf as joinNames, parameterLabels } from '@/lib/parameter-labels'
+import { listOf as joinNames, parameterLabels } from '@/lib/parameters/labels'
 import { cn } from '@/lib/utils'
 
 interface CoverageParameter {
@@ -30,13 +30,26 @@ interface ParameterCoverageProps {
    * object literal with them is an injection sink.
    */
   assetByInstrumentId?: Map<number, string>
+  /**
+   * Every master on a parameter, by the parameter's id.
+   *
+   * A parameter can be served by more than one - two instruments over the whole of it,
+   * or each over a part. The parameter's own masterInstrumentId mirrors the first of
+   * them and nothing else, so a tile reading it alone named one of two and left the
+   * other off the summary the section is judged complete by.
+   */
+  mastersByParameterId?: Map<string, string[]>
 }
 
 // Re-exported: this component's own tests address it here, and the naming it needs is
 // the same naming the add flow needs.
-export { listOf } from '@/lib/parameter-labels'
+export { listOf } from '@/lib/parameters/labels'
 
-export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() }: ParameterCoverageProps) {
+export function ParameterCoverage({
+  parameters,
+  assetByInstrumentId = new Map(),
+  mastersByParameterId = new Map(),
+}: ParameterCoverageProps) {
   if (parameters.length === 0) return null
 
   /**
@@ -50,8 +63,17 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
   // A parameter can name a master that is no longer on the certificate - the master
   // was removed and the reference left behind. Counting that as covered says the
   // section is finished when nothing on screen can be ticked.
-  const isCovered = (p: CoverageParameter) =>
-    p.masterInstrumentId !== null && assetByInstrumentId.has(p.masterInstrumentId)
+  /** The masters on this parameter, named. Falls back to the parameter's own link for
+   *  a certificate written before an entry recorded which parameter it served. */
+  const mastersOn = (p: CoverageParameter): string[] => {
+    const named = mastersByParameterId.get(p.id)
+    if (named?.length) return named
+    const mirrored =
+      p.masterInstrumentId !== null ? assetByInstrumentId.get(p.masterInstrumentId) : undefined
+    return mirrored ? [mirrored] : []
+  }
+
+  const isCovered = (p: CoverageParameter) => mastersOn(p).length > 0
 
   // A master is half the answer. The section also wants the procedure each calibration
   // was carried out under, and this panel used to say "complete" while the section
@@ -79,7 +101,8 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
         {parameters.map((p, i) => {
           const covered = isCovered(p)
           const ready = covered && hasProcedure(p)
-          const asset = covered ? assetByInstrumentId.get(p.masterInstrumentId!) : null
+          const assets = mastersOn(p)
+          const asset = joinNames(assets)
           const range =
             p.rangeMin && p.rangeMax
               ? `${p.rangeMin} to ${p.rangeMax} ${p.parameterUnit}`
@@ -111,7 +134,7 @@ export function ParameterCoverage({ parameters, assetByInstrumentId = new Map() 
                     : 'No master assigned'
                   : ready
                     ? `Assigned to ${asset}`
-                    : `Assigned to ${asset} — no SOP reference`}
+                    : `Assigned to ${asset} \u2014 no SOP reference`}
               </p>
             </div>
           )

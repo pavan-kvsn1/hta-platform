@@ -11,16 +11,14 @@ import {
   getParameterGroupsForCategory,
   filterByParameterGroup,
   getSopReferences,
-} from '@/lib/master-instruments'
+} from '@/lib/master/instruments'
 
-import registryData from '@/data/master-instrument-registry.json'
-import { projectLegacyInstrument } from '@/lib/master-instrument-projection'
 import {
   allUnits,
   type CapabilityProfile,
   type MasterInstrumentRegistry,
   type RegistryUnit,
-} from '@/lib/master-instrument-registry'
+} from '@/lib/master/registry'
 
 interface MasterInstrumentStore {
   // Data
@@ -37,7 +35,19 @@ interface MasterInstrumentStore {
 
   // Actions
   loadInstruments: () => Promise<void>
-  loadFromRegistry: () => void
+  /**
+   * The rows the register is built from, kept because either half can arrive first.
+   *
+   * The list and the capabilities are two requests and neither waits for the other, so
+   * whichever lands rebuilds out of both - and a slow capabilities call means
+   * instruments with no capabilities rather than no instruments.
+   */
+  instrumentRows: MasterInstrument[]
+  capabilityRows: Record<string, CapabilityProfile[]>
+  rebuildRegistry: (
+    rows?: MasterInstrument[],
+    capabilities?: Record<string, CapabilityProfile[]>,
+  ) => void
   setSelectedCategory: (category: InstrumentCategory | null) => void
   setSearchQuery: (query: string) => void
 
@@ -66,9 +76,26 @@ interface MasterInstrumentStore {
   // same legacy id a saved certificate already holds in masterInstrumentId, so the two
   // views describe the same instruments and nothing has to be re-keyed.
   //
-  // It is bundled rather than fetched: it is generated at build time from the lab's
-  // master list and certificates, so there is nothing to load and no failure mode.
+  // The identity half of it - assets, units, asset numbers, legacy ids - is bundled,
+  // generated at build time from the lab's master list. The capability half is not:
+  // it is loaded from the database, over the top of the bundled copy, so an
+  // instrument edited on the admin pages changes what a certificate will accept
+  // without a rebuild. When that request fails the bundled capabilities stand, which
+  // makes an outage mean stale figures rather than an instrument that can do nothing.
   registry: MasterInstrumentRegistry
+  /** Whether the capabilities have arrived. Nothing stands in for them. */
+  capabilitySource: 'none' | 'api'
+  /**
+   * Replace the bundled capabilities with the database's.
+   *
+   * Written over the registry rather than held beside it because every reader -
+   * the add flow, the comparison, the eligibility rules, the snapshot a certificate
+   * keeps - reads `unit.capability_profiles`. One seam here beats twenty call sites
+   * each having to remember which source to ask.
+   *
+   * Never rejects: a failure leaves the bundled capabilities in place.
+   */
+  loadCapabilities: () => Promise<void>
   /** Every unit across every asset, flattened. */
   getRegistryUnits: () => RegistryUnit[]
   /** The unit a certificate's masterInstrumentId refers to. */
@@ -96,6 +123,68 @@ interface MasterInstrumentStore {
   }
 }
 
+/**
+ * The register, built from the two endpoints that answer for it.
+ *
+ * It used to be read from a 1.3 MB file compiled into the app. That file was generated
+ * from the lab's master list at build time, so it went stale the moment an instrument
+ * was edited on the admin pages - and while it stood behind the API as a fallback, an
+ * outage did not mean stale figures but wrong ones, with nothing on screen to say
+ * which an engineer was looking at.
+ *
+ * One asset per instrument and one unit on each. The file grouped several units under
+ * a shared asset number - 580 HTAIPL/L holds three - and nothing reads that grouping;
+ * every lookup is by legacy id or by asset number, and both still answer.
+ */
+function unitsFromApi(
+  rows: MasterInstrument[],
+  capabilities: Record<string, CapabilityProfile[]>,
+): MasterInstrumentRegistry {
+  const assets = rows.map((row) => {
+    const parts = row as unknown as {
+      make_parts?: { ind?: string; sen?: string }
+      model_parts?: { ind?: string; sen?: string }
+      serial_parts?: { ind?: string; sen?: string }
+    }
+    const unit = {
+      id: '1',
+      legacy_id: row.id,
+      instrument_desc: row.instrument_desc ?? null,
+      // Two models or two serials mean a readout and a probe, which is what composite
+      // means here - not several instruments sharing one asset number.
+      asset_type: parts.model_parts || parts.serial_parts ? 'composite' : 'simple',
+      make: row.make ?? null,
+      make_parts: parts.make_parts ?? null,
+      model: row.model ?? null,
+      model_parts: parts.model_parts ?? null,
+      serial_no: row.instrument_sl_no ?? null,
+      serial_parts: parts.serial_parts ?? null,
+      category: row.type ?? null,
+      usage: row.usage ?? null,
+      calibrated_at: row.calibrated_at ?? null,
+      report_no: row.report_no ?? null,
+      next_due_on: row.next_due_on ?? null,
+      // Recomputed from the due date wherever it is wanted, because a state recorded
+      // at build time went on saying "valid" after the date it was valid until.
+      calibration_state: null,
+      calibration_days: null,
+      sop_references: row.sop_references ?? [],
+      capability_profiles: capabilities[String(row.id)] ?? [],
+    }
+    return {
+      id: String(row.id),
+      asset_no: row.asset_no ?? '',
+      unit_count: 1,
+      units: [unit],
+    }
+  })
+
+  return { assets } as unknown as MasterInstrumentRegistry
+}
+
+/** Guards the capabilities request only, so it is not store state to subscribe to. */
+let capabilitiesInFlight = false
+
 export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get) => ({
   instruments: [],
   isLoaded: false,
@@ -105,13 +194,36 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
   dataSource: null,
   selectedCategory: null,
   searchQuery: '',
-  registry: registryData as unknown as MasterInstrumentRegistry,
+  instrumentRows: [],
+  capabilityRows: {},
+  /**
+   * Starts empty and is filled from the database.
+   *
+   * It used to start as a 1.3 MB file compiled into the app, kept as what the section
+   * would run on if the API could not be reached. That was worth having while the
+   * database held a copy of the file; it stopped being worth having once the database
+   * became the record - an instrument edited on the admin pages was then absent from
+   * the copy, so an outage did not mean stale figures, it meant wrong ones, and
+   * nothing on screen said which the engineer was looking at.
+   */
+  registry: { assets: [] } as unknown as MasterInstrumentRegistry,
+  capabilitySource: 'none',
 
   loadInstruments: async () => {
+    // The list and the capabilities are two requests and two separate failures: the
+    // list can come from the database while the capabilities fall back to the bundled
+    // file, or the other way round. Started ahead of the guard below, because the store
+    // loads from the bundled registry at module load - isLoaded is already true by the
+    // time a screen asks, so anything behind the guard would never run.
+    const capabilities = get().loadCapabilities()
+
     const { isLoaded, isLoading } = get()
 
     // Prevent duplicate loading
-    if (isLoaded || isLoading) return
+    if (isLoaded || isLoading) {
+      await capabilities
+      return
+    }
 
     set({ isLoading: true, error: null })
 
@@ -127,57 +239,57 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
 
       // Check if we got an array (API returns array) vs error object
       if (Array.isArray(data) && data.length > 0) {
-        const enrichedInstruments = (data as MasterInstrument[]).map(enrichInstrument)
+        await capabilities
+        const rows = data as MasterInstrument[]
         set({
-          instruments: enrichedInstruments,
+          instruments: rows.map(enrichInstrument),
           isLoaded: true,
           isLoading: false,
           lastUpdated: new Date(),
           dataSource: 'api',
         })
+        get().rebuildRegistry(rows)
         return
       }
 
-      // If API returned empty, fall back to JSON
       throw new Error('API returned empty data')
     } catch (error) {
-      console.warn('Failed to load instruments from API, using JSON fallback:', error)
-      // Fall back to JSON data
-      get().loadFromRegistry()
+      /**
+       * No fallback.
+       *
+       * There was one - a 1.3 MB copy of the master list compiled into the app - and
+       * it was removed on purpose. It was generated at build time, so an instrument
+       * edited on the admin pages was not in it; standing behind the API it turned an
+       * outage into a screen of confident, wrong figures with nothing to say so. An
+       * empty section and an error is the honest answer to not being able to reach
+       * the record.
+       */
+      console.error('Could not load master instruments:', error)
+      set({
+        instruments: [],
+        isLoaded: true,
+        isLoading: false,
+        error: 'Could not load the master instrument list. Check your connection and reload.',
+        dataSource: null,
+      })
     }
   },
 
   /**
-   * Build the instrument list from the registry.
+   * Hold the rows the register is built from, so either half can arrive first.
    *
-   * The API remains the first source because the admin pages edit those records; this
-   * is what runs when it is unreachable or empty. It used to read
-   * data/master-instruments.json, which the registry has replaced - identity and status
-   * project from it exactly, verified across all 209 instruments, and it carries the
-   * capability profiles the old file could not express.
+   * The list and the capabilities are two requests and neither waits for the other.
+   * Whichever lands rebuilds the register out of both, using whatever the other has
+   * supplied so far - so a slow capabilities call gives instruments with no
+   * capabilities rather than no instruments at all.
    */
-  loadFromRegistry: () => {
-    const registry = get().registry
-    const projected = registry.assets.flatMap((asset) =>
-      asset.units.map((unit) => projectLegacyInstrument(asset, unit) as MasterInstrument),
-    )
-
-    // Status is recomputed here rather than taken from the projection. The registry
-    // records calibration_state as it stood when the file was generated, and a due
-    // date does not stop moving after a build - one instrument had already changed
-    // category a day later. Only the status is recomputed; enrichInstrument is still
-    // avoided because it also reads the flat range list the projection does not carry.
-    const withStatus = projected.map((instrument) => {
-      const { status, daysUntilExpiry } = calculateInstrumentStatus(instrument)
-      return { ...instrument, status, daysUntilExpiry }
-    })
-
+  rebuildRegistry: (rows, capabilities) => {
+    const next = rows ?? get().instrumentRows
+    const caps = capabilities ?? get().capabilityRows
     set({
-      instruments: withStatus,
-      isLoaded: true,
-      isLoading: false,
-      lastUpdated: new Date(),
-      dataSource: 'registry',
+      instrumentRows: next,
+      capabilityRows: caps,
+      registry: unitsFromApi(next, caps),
     })
   },
 
@@ -317,6 +429,38 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
 
   // --- Registry (Phase 2) -------------------------------------------------------
 
+  loadCapabilities: async () => {
+    if (get().capabilitySource === 'api' || capabilitiesInFlight) return
+    capabilitiesInFlight = true
+
+    try {
+      const response = await apiFetch('/api/instruments/capabilities')
+      if (!response.ok) throw new Error(`capabilities: HTTP ${response.status}`)
+
+      const payload = (await response.json()) as {
+        capabilities?: Record<string, CapabilityProfile[]>
+        unreachable?: number
+      }
+      /**
+       * A master the response does not mention has no capabilities recorded.
+       *
+       * There is nothing else it could mean now. While a copy of the register was
+       * bundled into the app, silence was ambiguous - it might have meant the database
+       * had none, or that the database's copy could not be addressed - and the bundled
+       * ones were kept rather than guessed over. With nothing bundled, the database is
+       * the only thing that answers, and its silence is an answer.
+       */
+      get().rebuildRegistry(undefined, payload.capabilities ?? {})
+      set({ capabilitySource: 'api' })
+    } catch (error) {
+      // Deliberately not an error state. Every screen still works on the bundled
+      // capabilities; what it loses is edits made since the last build.
+      console.warn('Capabilities stay as bundled; the database did not answer:', error)
+    } finally {
+      capabilitiesInFlight = false
+    }
+  },
+
   getRegistryUnits: () => allUnits(get().registry),
 
   getUnitByLegacyId: (legacyId) =>
@@ -405,28 +549,17 @@ export const useMasterInstrumentStore = create<MasterInstrumentStore>((set, get)
   },
 }))
 
-// Initialize store on module load
+/**
+ * Fetch on module load, so the section is populated by the time anyone scrolls to it.
+ *
+ * It used to render the bundled file first and refresh from the API behind it. With
+ * nothing bundled there is nothing to render first, and the two requests here are the
+ * only ones: loadInstruments starts the capabilities itself and both are guarded
+ * against a second caller, so a screen mounting afterwards joins this rather than
+ * repeating it.
+ */
 if (typeof window !== 'undefined') {
-  // Client-side: the registry is bundled, so it renders immediately; the API then
-  // refreshes it in the background with whatever the admin pages have edited.
-  useMasterInstrumentStore.getState().loadFromRegistry()
-
-  // Then attempt to refresh from API (non-blocking)
   setTimeout(() => {
-    apiFetch('/api/instruments')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          const enrichedInstruments: MasterInstrument[] = data.map(enrichInstrument)
-          useMasterInstrumentStore.setState({
-            instruments: enrichedInstruments,
-            lastUpdated: new Date(),
-            dataSource: 'api',
-          })
-        }
-      })
-      .catch(() => {
-        // Silently fail - JSON data is already loaded
-      })
+    void useMasterInstrumentStore.getState().loadInstruments()
   }, 100)
 }

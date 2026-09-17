@@ -6,8 +6,8 @@
  * temperature and thermocouple both °C.
  */
 import { describe, it, expect } from 'vitest'
-import { matchesParameter } from '@/lib/master-instrument-capability'
-import { classificationOf, type CalibrationParameter } from '@/lib/parameter-mapping'
+import { matchesParameter } from '@/lib/master/capability'
+import { classificationOf, type CalibrationParameter } from '@/lib/parameters/mapping'
 
 const standard = (
   standardName: string,

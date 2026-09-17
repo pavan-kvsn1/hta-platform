@@ -6,7 +6,7 @@
  * millivolts, against a figure the engineer took from a table.
  */
 import { describe, it, expect } from 'vitest'
-import { mappedCapability, requirementFor } from '@/lib/master-instrument-capability'
+import { mappedCapability, requirementFor } from '@/lib/master/capability'
 
 const uucParameter = {
   parameterName: 'Temperature',

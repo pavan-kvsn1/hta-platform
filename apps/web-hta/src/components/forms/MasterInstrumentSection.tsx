@@ -13,7 +13,7 @@
 // belongs to the flow now - a card is a record, not a picker.
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { Plus, Trash2, CheckCircle, AlertTriangle, XCircle, Clock, Wrench, Camera } from 'lucide-react'
+import { Plus, Trash2, CheckCircle, AlertTriangle, XCircle, ChevronRight, Clock, Wrench, Camera } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -24,20 +24,29 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FormSection } from './FormSection'
+import { ParameterCoverage } from '@/components/forms/ParameterCoverage'
 import { useCertificateStore, SelectedMasterInstrument, Parameter } from '@/lib/stores/certificate-store'
 import { ImageUploadGallery, GalleryImage } from './ImageUploadGallery'
 import { useCertificateImages } from '@/lib/hooks/useCertificateImages'
 import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
-import { parameterIdFor } from '@/lib/master-parameter-link'
+import { parameterIdFor } from '@/lib/master-entry/parameter-link'
 import {
   InstrumentStatus,
   getDisplayValue,
   STATUS_CONFIG,
-} from '@/lib/master-instruments'
-import { requiredRanges, unitCanMeasure, unitCoversRange } from '@/lib/master-instrument-capability'
-import { parameterLabel } from '@/lib/parameter-labels'
+} from '@/lib/master/instruments'
+import {
+  DEFAULT_ACCURACY_RATIO,
+  clipRequired,
+  evaluateSuitability,
+  requiredRanges,
+  unitCanMeasure,
+  unitCoversRange,
+} from '@/lib/master/capability'
+import type { RegistryUnit } from '@/lib/master/registry'
+import { parameterLabel } from '@/lib/parameters/labels'
 import { useParameterStore } from '@/lib/stores/parameter-store'
-import { classificationOf } from '@/lib/parameter-mapping'
+import { classificationOf } from '@/lib/parameters/mapping'
 import { MasterCapabilityComparison } from '@/components/forms/MasterCapabilityComparison'
 import { MasterCapabilityDeclaration } from '@/components/forms/MasterCapabilityDeclaration'
 import {
@@ -46,7 +55,6 @@ import {
   type FlowResult,
   type FlowSeed,
 } from '@/components/forms/MasterAddFlow'
-import { ParameterCoverage } from '@/components/forms/ParameterCoverage'
 import { cn } from '@/lib/utils'
 
 interface MasterInstrumentCardProps {
@@ -104,14 +112,118 @@ function StatusBadge({ status, daysUntilExpiry }: { status: InstrumentStatus; da
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-[10px] font-bold text-slate-500 uppercase">{label}</p>
-      <p className="font-semibold text-slate-800">{value || '—'}</p>
+    <div className="min-w-0">
+      <p className="text-[10px] font-bold text-slate-500 uppercase leading-4">{label}</p>
+      <p className="font-semibold text-slate-800 leading-5 break-words">{value || '—'}</p>
     </div>
   )
 }
 
 // Exported for tests: the editing behaviour below is worth pinning on its own.
+/**
+ * One master, as a line.
+ *
+ * A settled master is not being worked on, and a card several hundred pixels tall for
+ * each of them buried the one being worked on among the ones that were finished. The
+ * line carries what is scanned - which instrument, how it was used, what it came to,
+ * and whether its own calibration is running out - and everything else opens on it.
+ */
+function MasterRow({
+  instrument,
+  parameter,
+  unit,
+  threshold,
+  open,
+  onToggle,
+  children,
+}: {
+  instrument: SelectedMasterInstrument
+  parameter?: Parameter
+  unit?: RegistryUnit
+  threshold: number
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  const { instruments } = useMasterInstrumentStore()
+  const listed = instruments.find((i) => i.id === instrument.masterInstrumentId) ?? null
+
+  /** How it was used, in the words the declaration asked for. */
+  /**
+   * The declaration sits on the entry for masters chosen since a parameter could hold
+   * several, and on the parameter for everything written before. Reading one of the
+   * two leaves the row blank on half the certificates in the lab.
+   */
+  const profileId = instrument.masterProfileId ?? parameter?.masterProfileId
+  const subtype = instrument.masterSubtype ?? parameter?.masterSubtype
+  const profile = profileId
+    ? (unit?.capability_profiles ?? []).find((c) => c.id === profileId)
+    : undefined
+  const usedAs = [profile?.component, profile?.role, subtype].filter(Boolean).join(' · ')
+
+  /** The verdict, where there is one to give. */
+  const ratio =
+    parameter && unit && profile
+      ? (evaluateSuitability(profile, clipRequired(
+          requiredRanges(parameter),
+          instrument.rangeFrom == null || instrument.rangeFrom === '' ? null : Number(instrument.rangeFrom),
+          instrument.rangeTo == null || instrument.rangeTo === '' ? null : Number(instrument.rangeTo),
+        ), { subtypeId: subtype ?? null }).worstRatio ?? null)
+      : null
+
+  return (
+    <div className="border-b border-slate-100 last:border-b-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors"
+      >
+        <ChevronRight
+          className={cn('size-3.5 shrink-0 text-slate-400 transition-transform', open && 'rotate-90')}
+        />
+        <span className="text-xs font-semibold text-slate-800 shrink-0 w-32 truncate">
+          {instrument.assetNo || `#${instrument.masterInstrumentId}`}
+        </span>
+        <span className="text-xs text-slate-500 flex-1 min-w-0 truncate">
+          {instrument.description || listed?.instrument_desc || ''}
+        </span>
+        {usedAs && (
+          <span className="text-[11px] text-slate-400 shrink-0 capitalize hidden md:inline">
+            {usedAs}
+          </span>
+        )}
+        {ratio !== null && (
+          <span
+            className={cn(
+              'shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold',
+              ratio >= threshold
+                ? 'bg-green-100 text-green-700'
+                : ratio >= 1
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-red-100 text-red-700',
+            )}
+          >
+            {ratio.toFixed(1)} : 1
+          </span>
+        )}
+        {listed?.status === 'EXPIRING_SOON' && (
+          <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+            <Clock className="size-2.5" />
+            {listed.daysUntilExpiry}d
+          </span>
+        )}
+        {listed?.status === 'EXPIRED' && (
+          <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+            Expired
+          </span>
+        )}
+      </button>
+      {open && <div className="px-3 pb-3">{children}</div>}
+    </div>
+  )
+}
+
 export function MasterInstrumentCard({
   instrument,
   index,
@@ -141,6 +253,9 @@ export function MasterInstrumentCard({
     () => (name: string) => classificationOf(name, labParameters),
     [labParameters],
   )
+
+  /** Open where there is something to see; a click away where there is not. */
+  const [showPhotos, setShowPhotos] = useState(images.length > 0)
 
   const listed = useMemo(
     () => instruments.find((inst) => inst.id === instrument.masterInstrumentId) ?? null,
@@ -212,94 +327,72 @@ export function MasterInstrumentCard({
     return mine ? parameterLabel(mine, parameters) : ''
   }, [parameters, instrument, siblings])
 
+  /**
+   * No title bar.
+   *
+   * It read "Master Instrument 1 - Temperature (Absolute) (-10 to 40 C)", sitting
+   * directly under a row naming the instrument and a heading naming the parameter.
+   * Third time on one screen, and "Master Instrument 1" was never the useful half -
+   * the asset number is, and that is on the row. Removing it takes the card's own
+   * border with it: the row is the object now, and a box inside a box was the frame
+   * around a frame.
+   */
   return (
-    <div className="bg-section-inner rounded-xl p-5 border border-slate-300">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
-          Master Instrument {index + 1}
-          {/* Which parameter it is for, on the outside of the card. A certificate with
-              two Temperature parameters has two masters, and "Master Instrument 1" and
-              "Master Instrument 2" say nothing about which is which without opening
-              both. */}
-          {serves && (
-            <span className="ml-2 normal-case font-semibold text-slate-500">
-              &mdash; {serves}
+    <div className="pt-1">
+
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3.5 space-y-4">
+        {/* An instrument expiring soon is worth a line. It is not worth colouring the
+            asset number, the serial and the calibration date, which is what a warning
+            box wrapped round all of them did - the facts took the tone of the alert,
+            and the same facts changed colour depending on a date. */}
+        {listed?.status === 'EXPIRING_SOON' && (
+          <p className="flex items-start gap-2 text-xs text-amber-800">
+            <AlertTriangle className="size-3.5 shrink-0 text-amber-600 mt-px" />
+            <span>
+              Expires in {listed.daysUntilExpiry} days. Check it outlasts this
+              certificate&rsquo;s due date.
             </span>
-          )}
-        </span>
-        {!disabled && (
-          <button
-            type="button"
-            onClick={onRemove}
-            title="Remove"
-            className="text-red-500 hover:text-red-700 transition-colors"
-          >
-            <Trash2 className="size-5" />
-          </button>
+          </p>
         )}
-      </div>
+        {listed?.status === 'EXPIRED' && (
+          <p className="flex items-start gap-2 text-xs text-red-800">
+            <AlertTriangle className="size-3.5 shrink-0 text-red-600 mt-px" />
+            <span>This instrument&rsquo;s calibration has expired.</span>
+          </p>
+        )}
 
-      <div className="bg-white rounded-xl p-4 border border-slate-200">
-        <div
-          className={cn(
-            'rounded-xl p-4 border flex items-start gap-4 mb-4',
-            listed?.status === 'EXPIRING_SOON'
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-green-50 border-green-100',
+        {/* The instrument, plainly. Its asset number and description are on the row
+            above, so what is left is what the row has no space for. */}
+        {/* Two columns, not four.
+            At four the cells are about 200px each, which is under what "Delta Ohm Ind:
+            HD 2107.1 / Sen: TP 472 I" and "Transcal, Bangalore - TSC/25-26/11942-3"
+            need - so two of the four wrapped to a second line and two did not, and the
+            block read as ragged. Two columns give every value a line of its own. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-xs items-start">
+          <Info
+            label="Make / Model"
+            value={
+              [instrument.make, instrument.model].filter(Boolean).join(' ') ||
+              (listed ? getDisplayValue(listed.model) : '')
+            }
+          />
+          <Info label="Serial No" value={instrument.serialNumber} />
+          <Info label="Calibration Due" value={instrument.calibrationDueDate} />
+          <Info
+            label="Calibrated at"
+            value={
+              [instrument.calibratedAt, instrument.reportNo].filter(Boolean).join(' \u00b7 ')
+            }
+          />
+          {/* Only where it says something. A master over the whole of a parameter is
+              the ordinary case and needs no line; one over part of it is a fact about
+              the calibration, and the certificate prints it too. */}
+          {instrument.rangeFrom && instrument.rangeTo && (
+            <Info
+              label="Used over"
+              value={`${instrument.rangeFrom} to ${instrument.rangeTo}`}
+            />
           )}
-        >
-          {listed?.status === 'EXPIRING_SOON' ? (
-            <AlertTriangle className="size-5 text-amber-600 mt-0.5 flex-shrink-0" />
-          ) : (
-            <CheckCircle className="size-5 text-green-600 mt-0.5 flex-shrink-0" />
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <p
-                className={cn(
-                  'text-xs font-extrabold uppercase tracking-wider',
-                  listed?.status === 'EXPIRING_SOON' ? 'text-amber-700' : 'text-green-700',
-                )}
-              >
-                Instrument Selected
-              </p>
-              {listed?.status && (
-                <StatusBadge status={listed.status} daysUntilExpiry={listed.daysUntilExpiry} />
-              )}
-            </div>
-
-            {listed?.status === 'EXPIRING_SOON' && (
-              <p className="text-xs text-amber-800 font-semibold mb-2">
-                Warning: This instrument expires in {listed.daysUntilExpiry} days. Consider
-                using a different instrument if the certificate due date extends beyond.
-              </p>
-            )}
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <Info label="Asset No" value={instrument.assetNo} />
-              <Info
-                label="Make / Model"
-                value={
-                  [instrument.make, instrument.model].filter(Boolean).join(' ') ||
-                  (listed ? getDisplayValue(listed.model) : '')
-                }
-              />
-              <Info label="Serial No" value={instrument.serialNumber} />
-              <Info label="Calibration Due" value={instrument.calibrationDueDate} />
-            </div>
-
-            <div className="mt-3 pt-3 border-t border-slate-200">
-              <p className="text-xs text-slate-500">
-                <span className="font-semibold">Calibrated at:</span> {instrument.calibratedAt}
-                {instrument.reportNo && (
-                  <>
-                    {' '}&middot;{' '}
-                    <span className="font-semibold">Report:</span> {instrument.reportNo}
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
         </div>
 
         {parameters.length > 0 && (
@@ -419,15 +512,24 @@ export function MasterInstrumentCard({
                       />
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {/* Told apart from a namesake by its range, as the add flow
+                        <div className="flex items-center gap-2 flex-wrap empty:hidden">
+                          {/* Not on the row this master is already on.
+                              The masters are grouped under the parameter they serve, so
+                              that name is the heading a few lines above - saying it
+                              again here made the same words appear twice on one card.
+                              The others keep theirs: they are the alternatives, and an
+                              alternative with no name is not a choice.
+
+                              Told apart from a namesake by its range, as the add flow
                               does. A certificate calibrating one instrument over two
                               spans has two parameters called Temperature, and their two
                               masters both said "Temperature" - so which master was for
                               which span could not be read anywhere. */}
-                          <p className="text-xs font-semibold text-slate-800 truncate">
-                            {parameterLabel(param, parameters) || `Parameter ${paramIdx + 1}`}
-                          </p>
+                          {!isAssigned && (
+                            <p className="text-xs font-semibold text-slate-800 truncate">
+                              {parameterLabel(param, parameters) || `Parameter ${paramIdx + 1}`}
+                            </p>
+                          )}
                           {!isCompatible && !isAssignedToOther && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-700">
                               <AlertTriangle className="size-3" />
@@ -527,24 +629,56 @@ export function MasterInstrumentCard({
           </div>
         )}
 
-        <div className="mt-4 pt-4 border-t border-slate-200">
-          <div className="flex items-center gap-2 mb-4">
-            <Camera className="size-5 text-slate-500" />
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Instrument Photos
-            </h4>
-            <span className="text-xs text-slate-400">(Optional - max 5 photos)</span>
-          </div>
-          <ImageUploadGallery
-            certificateId={certificateId || 'pending'}
-            imageType="MASTER_INSTRUMENT"
-            masterInstrumentIndex={index}
-            images={images}
-            maxImages={5}
-            onUpload={onImageUpload}
-            onDelete={onImageDelete}
-            disabled={disabled}
-          />
+        {/* Photos are optional and rarely looked at, and the drop zone was the
+            tallest thing on the card - a permanent empty rectangle under every master
+            on every certificate. It says how many there are and opens when asked. */}
+        <div className="pt-3 border-t border-slate-200 flex items-center gap-4 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setShowPhotos((open) => !open)}
+            aria-expanded={showPhotos}
+            className="flex items-center gap-2 text-xs text-slate-500 hover:text-primary transition-colors"
+          >
+            <Camera className="size-3.5" />
+            <span>
+              {images.length === 0
+                ? 'No photos'
+                : `${images.length} photo${images.length === 1 ? '' : 's'}`}
+            </span>
+            {!disabled && (
+              <span className="text-primary font-semibold">
+                {showPhotos ? 'Hide' : images.length ? 'Show' : 'Add'}
+              </span>
+            )}
+          </button>
+
+          {/* Beside the photos rather than up in a title bar: the three things that can
+              be done to a master, on one line, at the bottom of what they act on. */}
+          {!disabled && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="ml-auto flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-600 transition-colors"
+            >
+              <Trash2 className="size-3.5" />
+              Remove this master
+            </button>
+          )}
+
+          {showPhotos && (
+            <div className="mt-3 w-full">
+              <ImageUploadGallery
+                certificateId={certificateId || 'pending'}
+                imageType="MASTER_INSTRUMENT"
+                masterInstrumentIndex={index}
+                images={images}
+                maxImages={5}
+                onUpload={onImageUpload}
+                onDelete={onImageDelete}
+                disabled={disabled}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -658,9 +792,13 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
   /** Which parameters already have a master here, and the asset that serves them. */
   const coveredBy = new Map<string, string>()
   formData.parameters.forEach((p) => {
-    if (p.masterInstrumentId === null) return
-    const entry = entryFor(p, committed)
-    if (entry) coveredBy.set(p.id, assetOf(entry.m))
+    // Every entry on this parameter, not the first of them: a parameter can have more
+    // than one master, and naming one of two reads as though the other were not there.
+    const serving = committed.filter(
+      ({ m }) => parameterIdFor(m, formData.masterInstruments, formData.parameters) === p.id,
+    )
+    if (!serving.length) return
+    coveredBy.set(p.id, serving.map(({ m }) => assetOf(m)).join(', '))
   })
 
   /**
@@ -672,9 +810,11 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     const map = new Map<string, string>()
     const others = committed.filter(({ index }) => index !== exceptIndex)
     formData.parameters.forEach((p) => {
-      if (p.masterInstrumentId === null) return
-      const entry = entryFor(p, others)
-      if (entry) map.set(p.id, assetOf(entry.m))
+      const serving = others.filter(
+        ({ m }) => parameterIdFor(m, formData.masterInstruments, formData.parameters) === p.id,
+      )
+      if (!serving.length) return
+      map.set(p.id, serving.map(({ m }) => assetOf(m)).join(', '))
     })
     return map
   }
@@ -690,14 +830,19 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     return {
       parameterIds: mine.map((p) => p.id),
       instrumentId: master.masterInstrumentId,
+      rangeFrom: master.rangeFrom,
+      rangeTo: master.rangeTo,
       declarations: Object.fromEntries(
         mine.map((p) => [
           p.id,
           {
-            profileId: p.masterProfileId,
-            subtype: p.masterSubtype,
-            sop: p.sopReference || '',
-            reason: p.masterAcceptanceReason || '',
+            // The entry's own answers where it has them. A parameter with two masters
+            // carries only the first one's, so the second would reopen on the first's
+            // capability and quietly re-declare itself as that.
+            profileId: master.masterProfileId ?? p.masterProfileId,
+            subtype: master.masterSubtype ?? p.masterSubtype,
+            sop: master.sopReference ?? p.sopReference ?? '',
+            reason: master.masterAcceptanceReason ?? p.masterAcceptanceReason ?? '',
           },
         ]),
       ),
@@ -728,6 +873,15 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
       isExpired: false,
       isExpiringSoon: inst.status === 'EXPIRING_SOON',
       availableSopReferences: sopReferencesFor(inst, getUnitForInstrument(inst)),
+      // The stretch this master was used over, and how it was used. Both belong to
+      // the pairing rather than to the parameter, which has room for one master's
+      // answers and so used to mean one master.
+      rangeFrom: result.assignments[0]?.rangeFrom,
+      rangeTo: result.assignments[0]?.rangeTo,
+      masterProfileId: result.assignments[0]?.profileId,
+      masterSubtype: result.assignments[0]?.subtype,
+      masterAcceptanceReason: result.assignments[0]?.acceptanceReason || undefined,
+      sopReference: result.assignments[0]?.sopReference,
     }
 
     // Editing writes back to the same master. Otherwise reuse the blank row the store
@@ -745,6 +899,10 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
     // A parameter this master used to serve and no longer does keeps a pointer to it
     // otherwise, which is how a certificate ends up naming a master that does not
     // claim it.
+    //
+    // Only where no other entry still serves it. A parameter can have several masters
+    // now, so releasing it on the strength of one card letting go would strip the
+    // parameter of a master that is still on the certificate.
     const previous = formData.masterInstruments[slot]
     const keeping = new Set(result.assignments.map((a) => a.parameterIndex))
     if (previous && previous.masterInstrumentId > 0) {
@@ -754,6 +912,26 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
         const wasMine =
           parameterIdFor(previous, formData.masterInstruments, formData.parameters) === p.id
         if (!wasMine || keeping.has(i)) return
+        // Another card still on this parameter keeps it. The parameter's own fields
+        // mirror whichever master comes first, so they move to that one rather than
+        // being emptied.
+        const stillServed = formData.masterInstruments.find(
+          (m, j) =>
+            j !== slot &&
+            m.masterInstrumentId > 0 &&
+            parameterIdFor(m, formData.masterInstruments, formData.parameters) === p.id,
+        )
+        if (stillServed) {
+          setParameter(i, {
+            ...p,
+            masterInstrumentId: stillServed.masterInstrumentId,
+            masterProfileId: stillServed.masterProfileId,
+            masterSubtype: stillServed.masterSubtype,
+            masterAcceptanceReason: stillServed.masterAcceptanceReason,
+            sopReference: stillServed.sopReference ?? '',
+          })
+          return
+        }
         setParameter(i, {
           ...p,
           masterInstrumentId: null,
@@ -772,6 +950,32 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
       const param =
         useCertificateStore.getState().formData.parameters[assignment.parameterIndex]
       if (!param) return
+
+      /**
+       * The parameter's own master fields mirror the first master on it, and only the
+       * first.
+       *
+       * They are what certificates saved before a parameter could hold several carry,
+       * and what everything not yet moved onto the entry still reads. A second master
+       * writing over them would take the first one's declaration off the certificate
+       * while leaving the first one's card on it.
+       */
+      const alreadyServed =
+        param.masterInstrumentId !== null &&
+        useCertificateStore
+          .getState()
+          .formData.masterInstruments.some(
+            (m, j) =>
+              j !== slot &&
+              m.masterInstrumentId > 0 &&
+              parameterIdFor(
+                m,
+                useCertificateStore.getState().formData.masterInstruments,
+                useCertificateStore.getState().formData.parameters,
+              ) === param.id,
+          )
+      if (alreadyServed) return
+
       setParameter(assignment.parameterIndex, {
         ...param,
         masterInstrumentId: inst.id,
@@ -799,6 +1003,31 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
    * scroll position on every later render.
    */
   const [justSaved, setJustSaved] = useState<number | null>(null)
+
+  /** Which master is opened out. One at a time, by the entry's own id. */
+  const [openRow, setOpenRow] = useState<string | null>(null)
+
+  /**
+   * Every master on one parameter, by the link each entry carries.
+   *
+   * A parameter can have several now, so this answers with all of them rather than
+   * the first - which is what deciding coverage on `parameter.masterInstrumentId`
+   * amounted to.
+   */
+  const servingParameter = (parameter: Parameter) =>
+    committed.filter(
+      ({ m }) =>
+        parameterIdFor(m, formData.masterInstruments, formData.parameters) === parameter.id,
+    )
+
+  /** Whether every master on a parameter names the procedure it was used under. */
+  const procedureFor = (
+    parameter: Parameter,
+    serving: { m: SelectedMasterInstrument }[],
+  ) =>
+    serving.length > 0 &&
+    serving.every(({ m }) => (m.sopReference ?? parameter.sopReference ?? '').trim() !== '')
+
 
   useEffect(() => {
     if (justSaved === null) return
@@ -835,59 +1064,146 @@ export function MasterInstrumentSection({ feedbackSlot, disabled, accordionStatu
           )}
         </div>
 
-        {/* Which parameters still have no master. Nothing said so before, and a
-            parameter can be missed without anything on screen noticing. */}
+        {/* Which parameters still have no master, and which have one but no procedure
+            to go with it. Said up here as well as on each heading below: the heading
+            answers for the parameter you are looking at, and this answers for the
+            section, which is the question asked at the point of submitting. */}
         <ParameterCoverage
           parameters={formData.parameters}
           assetByInstrumentId={assetByInstrumentId}
+          mastersByParameterId={
+            new Map(
+              formData.parameters.map((p) => [
+                p.id,
+                servingParameter(p).map(({ m }) => m.assetNo || String(m.masterInstrumentId)),
+              ]),
+            )
+          }
         />
 
+        {/**
+          * Grouped by parameter, because that is the question being asked.
+          *
+          * A card per master answered "what did we use", one master at a time, and left
+          * "is this parameter covered, and by what" to be worked out by reading down the
+          * page. Now that a parameter can have more than one master, that reading meant
+          * holding two cards in your head at once.
+          *
+          * The parameter is the heading; its masters are rows beneath it. A settled one
+          * is a line, and opens where it needs to be worked on.
+          */}
         <div className="space-y-5">
-          {committed.map(({ m, index }) =>
-            editingIndex === index ? (
-              <MasterAddFlow
-                key={m.id}
-                index={index + 1}
-                parameters={formData.parameters}
-                coveredBy={coveredByOther(index)}
-                instruments={instruments}
-                resolveUnit={getUnitForInstrument}
-                disabled={disabled}
-                seed={seedFor(index)}
-                onCancel={() => setEditingIndex(null)}
-                onAdd={commit}
-              />
-            ) : (
-            <div id={`master-card-${index}`} key={m.id}>
-            <MasterInstrumentCard
-              instrument={m}
-              index={index}
-              onRemove={() => removeMasterInstrument(index)}
-              onEdit={() => {
-                setFlowOpen(false)
-                setEditingIndex(index)
-              }}
-              parameters={formData.parameters}
-              siblings={formData.masterInstruments}
-              mastersOnCertificate={mastersOnCertificate}
-              onParameterUpdate={setParameter}
-              certificateId={certificateId}
-              images={getMasterImages(index).map((img) => ({
-                id: img.id,
-                fileName: img.fileName,
-                thumbnailUrl: img.thumbnailUrl,
-                optimizedUrl: img.optimizedUrl,
-                originalUrl: img.originalUrl,
-                caption: img.caption,
-                isProcessing: img.isProcessing,
-              }))}
-              onImageUpload={handleImageUpload(index)}
-              onImageDelete={handleImageDelete}
-              disabled={disabled}
-            />
-            </div>
-            ),
-          )}
+          {formData.parameters.map((parameter, parameterIndex) => {
+            const serving = servingParameter(parameter)
+            // Told apart from a namesake by its range, as every other screen does.
+            const label = parameterLabel(parameter, formData.parameters)
+            const range =
+              parameter.rangeMin && parameter.rangeMax
+                ? `${parameter.rangeMin} to ${parameter.rangeMax}${parameter.parameterUnit ? ` ${parameter.parameterUnit}` : ''}`
+                : parameter.parameterUnit || ''
+            // parameterLabel appends the range in brackets where two parameters share a
+            // name, which is exactly when there are two of them to tell apart. Saying it
+            // again gives "Temperature (Absolute) (-10 to 40 °C)   -10 to 40 °C".
+            const span = label.endsWith(`(${range})`) ? '' : range
+
+            return (
+              <div key={parameter.id}>
+                <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                  <p className="text-xs font-bold text-slate-800">
+                    {label}
+                    {span && <span className="ml-2 font-normal text-slate-500">{span}</span>}
+                  </p>
+                  {/* A master is half the answer. The section also wants the procedure
+                      each calibration was carried out under, and a heading that said
+                      "covered" on the master alone reported a parameter as finished
+                      while the field it still needed sat blank inside it. */}
+                  {!serving.length ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700">
+                      <AlertTriangle className="size-3" />
+                      no master
+                    </span>
+                  ) : !procedureFor(parameter, serving) ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700">
+                      <AlertTriangle className="size-3" />
+                      needs a procedure
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-700">
+                      <CheckCircle className="size-3" />
+                      {serving.length === 1 ? 'ready' : `ready \u00b7 ${serving.length} masters`}
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-1.5 rounded-xl border border-slate-200 bg-white overflow-hidden">
+                  {serving.length === 0 ? (
+                    <p className="px-3 py-2.5 text-xs text-slate-400">
+                      Nothing assigned yet.
+                    </p>
+                  ) : (
+                    serving.map(({ m, index }) =>
+                      editingIndex === index ? (
+                        <div key={m.id} className="p-3">
+                          <MasterAddFlow
+                            index={index + 1}
+                            parameters={formData.parameters}
+                            coveredBy={coveredByOther(index)}
+                            instruments={instruments}
+                            resolveUnit={getUnitForInstrument}
+                            disabled={disabled}
+                            seed={seedFor(index)}
+                            onCancel={() => setEditingIndex(null)}
+                            onAdd={commit}
+                          />
+                        </div>
+                      ) : (
+                        <div id={`master-card-${index}`} key={m.id}>
+                          <MasterRow
+                            instrument={m}
+                            parameter={parameter}
+                            unit={getUnitForInstrument({
+                              id: m.masterInstrumentId,
+                              asset_no: m.assetNo,
+                            })}
+                            threshold={DEFAULT_ACCURACY_RATIO}
+                            open={openRow === m.id}
+                            onToggle={() => setOpenRow(openRow === m.id ? null : m.id)}
+                          >
+                            <MasterInstrumentCard
+                              instrument={m}
+                              index={index}
+                              onRemove={() => removeMasterInstrument(index)}
+                              onEdit={() => {
+                                setFlowOpen(false)
+                                setEditingIndex(index)
+                              }}
+                              parameters={formData.parameters}
+                              siblings={formData.masterInstruments}
+                              mastersOnCertificate={mastersOnCertificate}
+                              onParameterUpdate={setParameter}
+                              certificateId={certificateId}
+                              images={getMasterImages(index).map((img) => ({
+                                id: img.id,
+                                fileName: img.fileName,
+                                thumbnailUrl: img.thumbnailUrl,
+                                optimizedUrl: img.optimizedUrl,
+                                originalUrl: img.originalUrl,
+                                caption: img.caption,
+                                isProcessing: img.isProcessing,
+                              }))}
+                              onImageUpload={handleImageUpload(index)}
+                              onImageDelete={handleImageDelete}
+                              disabled={disabled}
+                            />
+                          </MasterRow>
+                        </div>
+                      ),
+                    )
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         {editingIndex !== null ? null : flowOpen ? (

@@ -9,8 +9,8 @@ import { afterEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MasterAddFlow } from '@/components/forms/MasterAddFlow'
 import type { Parameter } from '@/lib/stores/certificate-store'
-import type { MasterInstrument } from '@/lib/master-instruments'
-import type { RegistryUnit } from '@/lib/master-instrument-registry'
+import type { MasterInstrument } from '@/lib/master/instruments'
+import type { RegistryUnit } from '@/lib/master/registry'
 import { useParameterStore } from '@/lib/stores/parameter-store'
 
 const bucket = (min: number, max: number, lc: number, acc: number) => ({
@@ -163,12 +163,36 @@ describe('step 1 - what the master is for', () => {
     expect(screen.getByText(/1 instrument can do it/)).toBeInTheDocument()
   })
 
-  it('takes a parameter that already has a master out of the running', () => {
+  it('names the master a parameter already has, and still lets another be added', () => {
+    /**
+     * A parameter used to be taken out of the running once it had a master. It is not
+     * any more: two masters can share one - an RTD thermometer reading while a
+     * calibrator sources the signal, or a pressure gauge to 20 bar and another beyond.
+     *
+     * So the master already on it is said rather than used to bar the way.
+     */
     renderFlow({ coveredBy: new Map([['p1', '600 HTAIPL/L']]) })
-    expect(screen.getByText(/already assigned to 600 HTAIPL\/L/)).toBeInTheDocument()
+    expect(screen.getByText(/served by 600 HTAIPL\/L/)).toBeInTheDocument()
     expect(
       within(screen.getByText('Temperature').closest('label')!).getByRole('radio'),
-    ).toBeDisabled()
+    ).toBeEnabled()
+  })
+
+  it('offers the stretch the master was used over, starting at the whole range', () => {
+    // Left alone it means this master covered all of it. Narrowed, it means this one
+    // took a part and something else takes the rest.
+    renderFlow()
+    pick('Temperature')
+    expect((screen.getByLabelText(/used from/i) as HTMLInputElement).value).toBe('-20')
+    expect((screen.getByLabelText(/used to/i) as HTMLInputElement).value).toBe('60')
+    expect(screen.getByText(/the whole of what this parameter asks for/i)).toBeInTheDocument()
+  })
+
+  it('says so when the stretch is narrowed, because the verdict then covers only that', () => {
+    renderFlow()
+    pick('Temperature')
+    fireEvent.change(screen.getByLabelText(/used to/i), { target: { value: '40' } })
+    expect(screen.getByText(/this master is judged on that part only/i)).toBeInTheDocument()
   })
 })
 
@@ -1768,6 +1792,11 @@ describe('a master whose least count was never recorded', () => {
    * The comparison cannot be made, so it goes the way of every other master the
    * registry cannot judge: the reviewer approves it from the instrument's certificate,
    * and the engineer has to say what they should approve it on.
+   *
+   * This was briefly softened - a least count is only spent turning a "+ 2 counts"
+   * term into degrees, and this band's accuracy is a plain +/-0.05 C - and put back.
+   * Half a comparison passed off as a whole one is the thing being guarded against,
+   * not the arithmetic.
    */
   const NO_LC = instrument({ id: 93, asset_no: '903 HTAIPL/L' })
   const noLeastCount = {
@@ -1834,6 +1863,68 @@ describe('a master whose least count was never recorded', () => {
     expect(onAdd.mock.calls[0][0].assignments[0].acceptanceReason).toBe(
       'Certificate states 0.01 °C resolution.',
     )
+  })
+})
+
+describe('a master whose accuracy is counted in steps of its own resolution', () => {
+  /**
+   * "+/-(0.05% of reading + 1 count)" cannot be turned into a number without knowing
+   * what one count is worth. So this one is still stopped, and still asks - which is
+   * the distinction the change turns on: the least count is wanted here and was not
+   * wanted above.
+   */
+  const COUNTS = instrument({ id: 95, asset_no: '905 HTAIPL/L' })
+  const countsNoLeastCount = {
+    capability_profiles: [
+      {
+        id: 'P1',
+        parameter: 'Temperature',
+        role: 'measuring',
+        unit: '°C',
+        min: -50,
+        max: 200,
+        buckets: [
+          {
+            id: 'B1',
+            min: -50,
+            max: 200,
+            min_inclusive: true,
+            max_inclusive: true,
+            least_count: null,
+            accuracy: {
+              type: 'formula',
+              expression: '±(0.05% of reading + 1 count)',
+              evaluable: null,
+              percent_of: 'reading',
+              percent_value: 0.0005,
+              digits: 1,
+              digits_unit: 'count',
+              polarity: '±',
+            },
+          },
+        ],
+        subtypes: [],
+      },
+    ],
+  } as unknown as RegistryUnit
+
+  it('still stops, and still asks why it should be accepted', () => {
+    render(
+      <MasterAddFlow
+        index={1}
+        parameters={[parameter({ id: 'p1', parameterName: 'Temperature' })]}
+        coveredBy={new Map()}
+        instruments={[COUNTS]}
+        resolveUnit={() => countsNoLeastCount}
+        onCancel={vi.fn()}
+        onAdd={vi.fn()}
+      />,
+    )
+    pick('Temperature')
+    pickInstrument('905 HTAIPL/L')
+
+    expect(screen.getByText(/does not hold enough to judge this master/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add this master' })).toBeDisabled()
   })
 })
 

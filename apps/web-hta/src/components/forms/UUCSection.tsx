@@ -24,133 +24,14 @@ import {
   measurandsOf,
   standardFor,
   unitsForParameter,
-} from '@/lib/parameter-mapping'
-import { numberProblem, rangeProblem } from '@/lib/parameter-validation'
+} from '@/lib/parameters/mapping'
+import { numberProblem, rangeProblem } from '@/lib/parameters/validation'
 import { FormSection } from './FormSection'
 import { useCertificateStore, Parameter, ParameterBin, SelectedMasterInstrument, AccuracyType, ACCURACY_TYPE_CONFIG } from '@/lib/stores/certificate-store'
 import { ImageUploadGallery, GalleryImage } from './ImageUploadGallery'
 import { useCertificateImages } from '@/lib/hooks/useCertificateImages'
 
 // Parameter types with their associated measurement units
-const PARAMETER_CONFIG: Record<string, { label: string; units: string[]; defaultUnit: string }> = {
-  'Temperature': {
-    label: 'Temperature',
-    units: ['°C', '°F', 'K'],
-    defaultUnit: '°C',
-  },
-  'Humidity': {
-    label: 'Humidity',
-    units: ['%RH'],
-    defaultUnit: '%RH',
-  },
-  'Pressure': {
-    label: 'Pressure',
-    units: ['Pa', 'kPa', 'MPa', 'bar', 'mbar', 'psi', 'mmHg', 'inH2O', 'mmWC'],
-    defaultUnit: 'bar',
-  },
-  'Voltage DC': {
-    label: 'Voltage (DC)',
-    units: ['µV', 'mV', 'V', 'kV'],
-    defaultUnit: 'V',
-  },
-  'Voltage AC': {
-    label: 'Voltage (AC)',
-    units: ['µV', 'mV', 'V', 'kV'],
-    defaultUnit: 'V',
-  },
-  'Current DC': {
-    label: 'Current (DC)',
-    units: ['µA', 'mA', 'A'],
-    defaultUnit: 'mA',
-  },
-  'Current AC': {
-    label: 'Current (AC)',
-    units: ['µA', 'mA', 'A'],
-    defaultUnit: 'mA',
-  },
-  'Resistance': {
-    label: 'Resistance',
-    units: ['mΩ', 'Ω', 'kΩ', 'MΩ', 'GΩ'],
-    defaultUnit: 'Ω',
-  },
-  'Frequency': {
-    label: 'Frequency',
-    units: ['Hz', 'kHz', 'MHz', 'GHz'],
-    defaultUnit: 'Hz',
-  },
-  'Time': {
-    label: 'Time',
-    units: ['µs', 'ms', 's', 'min', 'hr'],
-    defaultUnit: 's',
-  },
-  'Mass': {
-    label: 'Mass',
-    units: ['mg', 'g', 'kg'],
-    defaultUnit: 'kg',
-  },
-  'Force': {
-    label: 'Force',
-    units: ['N', 'kN', 'kgf', 'lbf'],
-    defaultUnit: 'N',
-  },
-  'Torque': {
-    label: 'Torque',
-    units: ['N·m', 'kgf·m', 'lbf·ft', 'lbf·in'],
-    defaultUnit: 'N·m',
-  },
-  'Length': {
-    label: 'Length',
-    units: ['µm', 'mm', 'cm', 'm', 'in', 'ft'],
-    defaultUnit: 'mm',
-  },
-  'Flow': {
-    label: 'Flow',
-    units: ['L/min', 'L/hr', 'm³/h', 'GPM', 'CFM'],
-    defaultUnit: 'L/min',
-  },
-  'Speed': {
-    label: 'Speed',
-    units: ['RPM', 'm/s', 'km/h', 'ft/min'],
-    defaultUnit: 'RPM',
-  },
-  'Sound Level': {
-    label: 'Sound Level',
-    units: ['dB', 'dB(A)', 'dB(C)'],
-    defaultUnit: 'dB(A)',
-  },
-  'Vibration': {
-    label: 'Vibration',
-    units: ['mm/s', 'm/s²', 'g'],
-    defaultUnit: 'mm/s',
-  },
-  'Conductivity': {
-    label: 'Conductivity',
-    units: ['µS/cm', 'mS/cm', 'S/m'],
-    defaultUnit: 'µS/cm',
-  },
-  'Lux': {
-    label: 'Illuminance (Lux)',
-    units: ['lux', 'fc'],
-    defaultUnit: 'lux',
-  },
-  'pH': {
-    label: 'pH',
-    units: ['pH'],
-    defaultUnit: 'pH',
-  },
-  'Capacitance': {
-    label: 'Capacitance',
-    units: ['pF', 'nF', 'µF', 'mF'],
-    defaultUnit: 'µF',
-  },
-  'Inductance': {
-    label: 'Inductance',
-    units: ['µH', 'mH', 'H'],
-    defaultUnit: 'mH',
-  },
-}
-
-const PARAMETER_TYPES = Object.keys(PARAMETER_CONFIG)
 
 interface ParameterCardProps {
   parameter: Parameter
@@ -174,12 +55,13 @@ function ParameterCard({
   }
 
   /**
-   * What this lab calls each parameter, seeded from the master registry.
+   * What this lab calls each parameter, read from the lab's own register.
    *
-   * PARAMETER_CONFIG stays as the fallback rather than being deleted: it is what the
-   * form runs on before the list arrives, and if the list never arrives an engineer
-   * can still fill in a certificate. Losing the dropdown is a nuisance; losing the
-   * form is not something to risk on a fetch.
+   * A copy of that table used to be compiled into this file and used until the real
+   * one arrived. It was written before parameters could be registered on the admin
+   * pages, so it did not have the ones added since and did have ones since renamed -
+   * and an engineer filling in a certificate against it was choosing from a list the
+   * lab no longer keeps. Nothing stands in for the register now: the field waits.
    */
   const { parameters: labParameters } = useParameterStore()
 
@@ -263,12 +145,7 @@ function ParameterCard({
    */
   const availableUnits = useMemo(
     () =>
-      unitsForParameter(
-        parameter.parameterName,
-        parameter.parameterUnit,
-        labParameters,
-        PARAMETER_CONFIG,
-      ),
+      unitsForParameter(parameter.parameterName, parameter.parameterUnit, labParameters),
     [parameter.parameterName, parameter.parameterUnit, labParameters],
   )
 
@@ -277,7 +154,7 @@ function ParameterCard({
     onUpdate({
       ...parameter,
       parameterName: paramType,
-      parameterUnit: defaultUnitForParameter(paramType, labParameters, PARAMETER_CONFIG),
+      parameterUnit: defaultUnitForParameter(paramType, labParameters),
     })
   }
 
@@ -437,28 +314,11 @@ function ParameterCard({
               Parameter Group <span className="text-red-500">*</span>
             </Label>
             {labParameters.length === 0 ? (
-              // Before the lab's list arrives, the table the form shipped with. A slow
-              // fetch must not cost an engineer the ability to fill in a certificate.
-              <Select
-                value={parameter.parameterName || '__select__'}
-                onValueChange={(value) =>
-                  value !== '__select__' && handleParameterTypeChange(value)
-                }
-              >
-                <SelectTrigger className="w-full h-9 rounded-lg border-slate-300 bg-white">
-                  <SelectValue placeholder="Select parameter type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__select__" disabled>
-                    Select parameter type...
-                  </SelectItem>
-                  {PARAMETER_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {PARAMETER_CONFIG[type].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              // The register has not answered yet. An empty box that says so is
+              // better than a list of parameters this lab may no longer keep.
+              <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-3 flex items-center text-xs text-slate-400">
+                Loading the parameter register\u2026
+              </div>
             ) : (
               <SearchableSelect
                 value={selected?.measures ?? parameter.parameterName ?? ''}

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { safeJsonParse } from '@/lib/utils/safe-json'
 import { resolveCertificateTat } from '@/lib/utils/certificate-tat'
 import { AdminCertificateClient } from './AdminCertificateClient'
-import { masterEntryForView } from '@/lib/master-entry-for-view'
+import { masterEntryForView } from '@/lib/master-entry/for-view'
 
 // Render at runtime, not build time (needs database)
 export const dynamic = 'force-dynamic'

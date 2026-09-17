@@ -22,7 +22,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { apiFetch } from '@/lib/api-client'
-import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate-date-format'
+import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate/date-format'
 import InstrumentBanner, { StatusPill } from '@/components/admin/instruments/InstrumentBanner'
 import SectionRail, { type Section } from '@/components/admin/instruments/SectionRail'
 import { Icon } from '@/components/admin/instruments/Icons'
@@ -311,6 +311,10 @@ export default function InstrumentDetail({ id }: { id: string }) {
           {tab === 'capabilities' && (
             <CapabilitiesTab
               instrumentId={id}
+              // The group a new capability starts in: an instrument filed under
+              // Pressure mostly measures pressure, and the one that does not can
+              // say so by changing it.
+              category={instrument.category}
               sopReferences={instrument.sopReferences}
               seed={seed}
               onSeedUsed={() => setSeed(null)}

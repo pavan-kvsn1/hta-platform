@@ -15,14 +15,14 @@ import {
   coverageByParameter,
   isMatch,
   type ParameterRequirement,
-} from '@/lib/master-instrument-capability'
+} from '@/lib/master/capability'
 import type {
   Accuracy,
   CapabilityBucket,
   MasterInstrumentRegistry,
   RegistryAsset,
   RegistryUnit,
-} from '@/lib/master-instrument-registry'
+} from '@/lib/master/registry'
 import registryData from '@/data/master-instrument-registry.json'
 
 const registry = registryData as unknown as MasterInstrumentRegistry
@@ -421,18 +421,43 @@ describe('against the real registry', () => {
     expect(coversSome.length).toBeGreaterThan(20)
   })
 
-  it('never resolves an accuracy whose basis the certificate did not state', () => {
-    // Assets 742 and 755 carry "±10% of the Master gauge" and "+/- 1%" with no basis.
-    const withUnstatedBasis = registry.assets
+  it('never resolves an accuracy that states neither a basis nor any arithmetic', () => {
+    /**
+     * This used to catch assets 742 and 755 - "±10% of the Master gauge" and "+/- 1%",
+     * a percentage of nothing stated. The lab has since settled both, so the register
+     * no longer holds one, and a band with no basis now has an expression instead.
+     *
+     * The rule it was guarding still holds and is still worth guarding: a percentage
+     * of something unnamed is not a number, and guessing which something would
+     * silently mis-rank a master.
+     */
+    const nothingToGoOn = registry.assets
       .flatMap((a) => a.units)
       .flatMap((u) => u.capability_profiles)
       .flatMap((p) => (p.subtypes?.flatMap((s) => s.buckets) ?? p.buckets))
-      .filter((b) => b.accuracy?.type === 'formula' && b.accuracy.percent_of === null)
+      .filter(
+        (b) =>
+          b.accuracy?.type === 'formula' &&
+          b.accuracy.percent_of === null &&
+          !b.accuracy.evaluable,
+      )
 
-    expect(withUnstatedBasis.length).toBeGreaterThan(0)
-    for (const b of withUnstatedBasis) {
-      expect(resolveAccuracy(b.accuracy, { reading: 100, fullScale: 1000, leastCount: 1 }))
-        .toBeNull()
-    }
+    expect(nothingToGoOn).toHaveLength(0)
+
+    expect(
+      resolveAccuracy(
+        {
+          type: 'formula',
+          expression: '+/- 1%',
+          evaluable: null,
+          percent_of: null,
+          percent_value: 0.01,
+          digits: null,
+          digits_unit: null,
+          polarity: '±',
+        },
+        { reading: 100, fullScale: 1000, leastCount: 1 },
+      ),
+    ).toBeNull()
   })
 })

@@ -42,6 +42,19 @@ export interface AccuracyContext {
 }
 
 /**
+ * Full scale for a range, which is not always its top.
+ *
+ * A vacuum gauge reads -1 to 0 bar. Its top is zero, so "0.05% of full scale" taken
+ * against the top is zero - an accuracy of nothing, which reads on screen as an
+ * instrument with nothing to rate it by. Full scale is the furthest the needle goes
+ * from zero, so it is the larger of the two bounds by magnitude.
+ */
+export function fullScaleOf(min: number | null, max: number | null): number | null {
+  const bounds = [min, max].filter((v): v is number => v !== null && Number.isFinite(v))
+  return bounds.length ? Math.max(...bounds.map(Math.abs)) : null
+}
+
+/**
  * The names an accuracy expression may use, and what they are worth here.
  *
  * Spelled out rather than spread from the context so the vocabulary is one visible
@@ -306,7 +319,8 @@ export function evaluateUnit(
       for (const bucket of buckets) {
         const resolved = resolveAccuracy(bucket.accuracy, {
           reading: req.rangeMax,
-          fullScale: variant.max,
+          fullScale: fullScaleOf(variant.min, variant.max),
+          span: variant.min == null || variant.max == null ? null : variant.max - variant.min,
           leastCount: bucket.least_count?.value ?? null,
         })
         if (!resolved) {
@@ -665,7 +679,8 @@ export function evaluateSuitability(
     const resolved = bucket
       ? resolveAccuracy(bucket.accuracy, {
           reading: range.to,
-          fullScale: declared.max,
+          fullScale: fullScaleOf(declared.min, declared.max),
+          span: declared.min == null || declared.max == null ? null : declared.max - declared.min,
           leastCount: bucket.least_count?.value ?? null,
         })
       : null
@@ -794,6 +809,38 @@ export function mappedCapability(parameter: {
     : { name: parameter.parameterName, unit: parameter.parameterUnit ?? '' }
 }
 
+/**
+ * What one master is being asked to do, where it served only part of the parameter.
+ *
+ * A parameter can be covered by more than one master: a pressure gauge to 20 bar and
+ * another beyond it. Judging each against the parameter's whole 0 to 100 would mark
+ * both short of a job neither was asked to do, so each is judged against its own
+ * stretch.
+ *
+ * A range the master's stretch does not touch is dropped rather than narrowed to
+ * nothing; one it partly covers is clipped to the overlap. Passing no stretch leaves
+ * the ranges as they are, which is the common case of one master covering all of it.
+ */
+export function clipRequired(
+  ranges: RequiredRange[],
+  from: number | null,
+  to: number | null,
+): RequiredRange[] {
+  if (from === null && to === null) return ranges
+  const low = from ?? -Infinity
+  const high = to ?? Infinity
+  if (low > high) return ranges
+
+  const clipped: RequiredRange[] = []
+  for (const range of ranges) {
+    const start = Math.max(range.from, low)
+    const end = Math.min(range.to, high)
+    if (start > end) continue
+    clipped.push({ ...range, from: start, to: end })
+  }
+  return clipped
+}
+
 export function requiredRanges(parameter: {
   rangeMin?: string
   rangeMax?: string
@@ -870,26 +917,30 @@ export function chooseCapability(
   if (candidates.length === 0) return null
 
   /**
-   * A two-part instrument is represented by its coarser half.
+   * A two-part instrument is represented by one of its halves, and which one is now
+   * the engineer's to say.
    *
-   * A reading passes through the readout and the probe, so the instrument can be no
-   * better than the worse of the two figures its certificate states. Ranking by the
-   * best of them rated 717 HTAIPL/L on its readout's ±0.01 while 621 - the same model,
-   * whose certificate happens to print one combined figure - was rated on ±0.26. Same
-   * instrument, twenty-six times the flattery, decided by how its certificate was
-   * typed.
+   * A reading passes through the readout and the probe, and the certificate gives each
+   * its own figure. This used to stand for the instrument by the coarser of the two,
+   * silently - 717 HTAIPL/L on its probe's ±0.5 rather than its readout's ±0.01.
    *
-   * This picks which certified figure stands for the instrument; it does not make one
-   * up, and the declaration still records whichever half the engineer states it against.
+   * That judgement is now a question, asked first in the declaration panel and
+   * answered there. This only decides what the list shows before anyone has opened it,
+   * so it takes the same default that panel takes - the tighter figure - or the two
+   * would disagree about the same instrument on the same screen.
+   *
+   * The card in the panel is coloured on what choosing it actually gives, so the
+   * tighter half is shown in whatever colour it earns against this job rather than
+   * being presented as the right answer.
    */
   const parts = candidates.filter((c) => c.profile.component)
   if (parts.length > 1) {
-    const coarsest = parts.reduce((worst, c) =>
-      (c.suitability.worstRatio ?? Infinity) < (worst.suitability.worstRatio ?? Infinity)
+    const tightest = parts.reduce((best, c) =>
+      (c.suitability.worstRatio ?? -Infinity) > (best.suitability.worstRatio ?? -Infinity)
         ? c
-        : worst,
+        : best,
     )
-    candidates = candidates.filter((c) => !c.profile.component || c === coarsest)
+    candidates = candidates.filter((c) => !c.profile.component || c === tightest)
   }
 
   const rank = (c: ChosenCapability) => [

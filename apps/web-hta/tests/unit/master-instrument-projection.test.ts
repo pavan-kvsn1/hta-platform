@@ -10,11 +10,11 @@ import {
   LEGACY_ONLY_FIELDS,
   isoToLegacyDate,
   projectLegacyInstrument,
-} from '@/lib/master-instrument-projection'
+} from '@/lib/master/projection'
 import registryData from '@/data/master-instrument-registry.json'
 import legacyList from '@/data/master-instruments.json'
-import type { MasterInstrumentRegistry } from '@/lib/master-instrument-registry'
-import { getSimpleValue } from '@/lib/master-instruments'
+import type { MasterInstrumentRegistry } from '@/lib/master/registry'
+import { getSimpleValue } from '@/lib/master/instruments'
 
 const registry = registryData as unknown as MasterInstrumentRegistry
 const legacy = legacyList as unknown as Record<string, unknown>[]
@@ -95,10 +95,58 @@ const SPLIT_COMPOSITES = [53]
  */
 const SOP_WAS_A_ROLE = [14, 35, 39, 103, 111, 205, 206, 207, 208, 209]
 
+/**
+ * The rows the old list crammed together, and what they became.
+ *
+ * Keyed by the id the old row kept, holding the ids the rest of its assets were
+ * given. Both are weight sets - one serial number, several weights, one asset
+ * tag each - which is why the old file had them on a single line and why the
+ * registry should not.
+ */
+const SPLIT_APART: Record<number, number[]> = {
+  190: [212], // "907,908 HTAIPL/L"     -> 907 stays 190, 908 becomes 212
+  191: [210, 211], // "904,905,906 HTAIPL/L" -> 904 stays 191, 905 and 906 become 210 and 211
+}
+const SPLIT_OFF = Object.values(SPLIT_APART).flat()
+
 describe('the projection reproduces the old list', () => {
-  it('covers every instrument, once', () => {
-    expect(projected).toHaveLength(legacy.length)
-    expect(byId.size).toBe(legacy.length)
+  it('covers every instrument, and splits only the rows that held more than one', () => {
+    // Every old row still resolves to a unit, so nothing was lost.
+    for (const row of legacy) expect(byId.has(row.id as number)).toBe(true)
+
+    // And the only units the old list does not account for are the ones it hid.
+    const legacyIds = new Set(legacy.map((row) => row.id as number))
+    const surplus = projected.map((p) => p.id).filter((id) => !legacyIds.has(id))
+    expect(surplus.sort((a, b) => a - b)).toEqual([...SPLIT_OFF].sort((a, b) => a - b))
+
+    expect(projected).toHaveLength(legacy.length + SPLIT_OFF.length)
+    expect(byId.size).toBe(projected.length)
+  })
+
+  it('gives each asset in a run-together row a unit of its own', () => {
+    for (const [keptId, alsoIds] of Object.entries(SPLIT_APART)) {
+      const row = legacy.find((r) => r.id === Number(keptId)) as Record<string, unknown>
+      const assets = String(row.asset_no).split(',').map((s) => s.trim())
+
+      // One unit per asset number the old row listed, the first keeping its id.
+      expect(alsoIds).toHaveLength(assets.length - 1)
+
+      const units = [Number(keptId), ...alsoIds].map((id) => byId.get(id)!)
+      expect(units.every(Boolean)).toBe(true)
+
+      // The suffix is on the last of them only - "904,905,906 HTAIPL/L" is three
+      // assets in one lab's numbering, not three unrelated strings.
+      const suffix = assets[assets.length - 1].replace(/^\S+\s*/, '')
+      const expected = assets.map((a) =>
+        a.includes(' ') ? a : `${a} ${suffix}`,
+      )
+      expect(units.map((u) => String(u.asset_no))).toEqual(expected)
+
+      // Same instrument, so the serial is shared - which is what made them one
+      // row in the first place.
+      const serials = new Set(units.map((u) => String(u.instrument_sl_no)))
+      expect(serials.size).toBe(1)
+    }
   })
 
   it.each([
@@ -107,7 +155,13 @@ describe('the projection reproduces the old list', () => {
       sameText,
       CERTIFICATE_DESCRIPTIONS,
     ],
-    ['asset_no', (a: unknown, b: unknown) => String(a).replace(/\s+/g, '') === String(b).replace(/\s+/g, '')],
+    // The two run-together rows are covered by their own test above; here they
+    // are expected to differ, because the projection keeps only the first asset.
+    [
+      'asset_no',
+      (a: unknown, b: unknown) => String(a).replace(/\s+/g, '') === String(b).replace(/\s+/g, ''),
+      Object.keys(SPLIT_APART).map(Number),
+    ],
     ['type', sameText],
     ['usage', sameText],
     ['calibrated_at', sameText],

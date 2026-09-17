@@ -1,3 +1,4 @@
+import { seedMasterStore } from '../helpers/seed-master-store'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ResultsSection } from '@/components/forms/ResultsSection'
@@ -47,7 +48,7 @@ const notice = () => screen.queryByText(/records no resolution/)
 
 describe('each column is judged by its own instrument', () => {
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   beforeEach(() => {
@@ -81,7 +82,7 @@ describe('each column is judged by its own instrument', () => {
 
 describe('a master whose resolution nobody recorded', () => {
   beforeAll(() => {
-    useMasterInstrumentStore.getState().loadFromRegistry()
+    seedMasterStore()
   })
 
   beforeEach(() => {

@@ -22,9 +22,9 @@ import {
   declaredCapability,
   resolveAccuracy,
   type RequiredRange,
-} from '@/lib/master-instrument-capability'
-import { ELIGIBILITY_BADGE } from '@/lib/master-instrument-eligibility'
-import type { CapabilityBucket, CapabilityProfile } from '@/lib/master-instrument-registry'
+} from '@/lib/master/capability'
+import { ELIGIBILITY_BADGE } from '@/lib/master/eligibility'
+import type { CapabilityBucket, CapabilityProfile } from '@/lib/master/registry'
 import { cn } from '@/lib/utils'
 
 const TH = 'text-left px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider'

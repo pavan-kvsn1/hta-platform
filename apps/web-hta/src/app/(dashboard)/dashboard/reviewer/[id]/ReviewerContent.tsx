@@ -27,7 +27,7 @@ import {
   type ParameterReadingImages,
 } from '@/components/certificate'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
-import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate-date-format'
+import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate/date-format'
 
 interface Parameter {
   id: string
