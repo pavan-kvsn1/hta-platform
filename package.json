@@ -14,7 +14,7 @@
     "clean": "turbo clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "typecheck": "turbo typecheck",
-    "db:schema:check": "node scripts/check-prisma-schema-parity.mjs",
+    "db:schema:check": "node scripts/checks/check-prisma-schema-parity.mjs",
     "db:generate": "pnpm --dir packages/database db:generate",
     "db:migrate": "pnpm --dir packages/database db:migrate",
     "db:migrate:deploy": "pnpm --dir packages/database db:migrate:deploy",

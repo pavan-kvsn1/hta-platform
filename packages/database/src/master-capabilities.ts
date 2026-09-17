@@ -40,6 +40,13 @@ export interface BucketRow extends Bound {
   accuracyUnit: string | null
   accuracyPolarity: string | null
   accuracyFormula: string | null
+  /** The same accuracy as arithmetic, where the parts below cannot hold its shape. */
+  accuracyExpression: string | null
+  /** The parts behind a formula: what resolveAccuracy computes with. */
+  accuracyPercentOf: string | null
+  accuracyPercentValue: number | null
+  accuracyDigits: number | null
+  accuracyDigitsUnit: string | null
   accuracyClass: string | null
   sortOrder: number
 }
@@ -57,6 +64,10 @@ export interface ProfileRow extends Bound {
   unit: string
   kind: CapabilityKind
   subtypeKind: string | null
+  /** "indicator" | "sensor" - which half of a two-part instrument this describes. */
+  part: string | null
+  /** How it measures where one instrument measures two ways: "height", "outside". */
+  mode: string | null
   sopReferences: string[]
   sortOrder: number
   subtypes: SubtypeRow[]
@@ -91,12 +102,34 @@ interface RawLeastCount {
   unit?: string | null
 }
 
+/**
+ * As the registry file writes it.
+ *
+ * This declared `formula?: string` for a key the file has never had, so `a.formula`
+ * read undefined and every one of the 120 formula accuracies seeded with a null
+ * sentence. Nothing caught it: the interface is hand-written and the JSON is untyped,
+ * so the two were free to disagree.
+ *
+ * The four parsed parts were in the file the whole time. There were no columns for
+ * them, so they were dropped as well.
+ */
 interface RawAccuracy {
   type?: string | null
   value?: number | null
   unit?: string | null
   polarity?: string | null
-  formula?: string | null
+  /** The sentence a certificate prints, e.g. "+/-(0.05% rdg + 1d)". */
+  expression?: string | null
+  /** The same accuracy as arithmetic over {reading} {full scale} {span} {least count}. */
+  evaluable?: string | null
+  /** What the percentage is of: "reading" | "full_scale" | "span" - and, in data
+   *  predating the cleanup, "fsd" | "rh" | "hd", which nothing can compute with. */
+  percent_of?: string | null
+  /** As a fraction: 0.0005 for 0.05%. */
+  percent_value?: number | null
+  /** The trailing term. A count of the least count where digits_unit says so. */
+  digits?: number | null
+  digits_unit?: string | null
   class?: string | null
 }
 
@@ -130,6 +163,8 @@ interface RawProfile {
   min_inclusive?: boolean | null
   max_inclusive?: boolean | null
   subtype_kind?: string | null
+  component?: string | null
+  mode?: string | null
   subtypes?: RawSubtype[] | null
   buckets?: RawBucket[] | null
 }
@@ -186,7 +221,17 @@ function bound(x: {
  */
 function accuracy(a: RawAccuracy | null | undefined): Pick<
   BucketRow,
-  'accuracyKind' | 'accuracyValue' | 'accuracyUnit' | 'accuracyPolarity' | 'accuracyFormula' | 'accuracyClass'
+  | 'accuracyKind'
+  | 'accuracyValue'
+  | 'accuracyUnit'
+  | 'accuracyPolarity'
+  | 'accuracyFormula'
+  | 'accuracyExpression'
+  | 'accuracyPercentOf'
+  | 'accuracyPercentValue'
+  | 'accuracyDigits'
+  | 'accuracyDigitsUnit'
+  | 'accuracyClass'
 > {
   const none = {
     accuracyKind: null,
@@ -194,6 +239,11 @@ function accuracy(a: RawAccuracy | null | undefined): Pick<
     accuracyUnit: null,
     accuracyPolarity: null,
     accuracyFormula: null,
+    accuracyExpression: null,
+    accuracyPercentOf: null,
+    accuracyPercentValue: null,
+    accuracyDigits: null,
+    accuracyDigitsUnit: null,
     accuracyClass: null,
   }
   if (!a || !a.type) return none
@@ -208,9 +258,29 @@ function accuracy(a: RawAccuracy | null | undefined): Pick<
         accuracyPolarity: a.polarity ?? '±',
       }
     case 'formula':
-      // Kept verbatim. Parsing it into terms would be guessing at what the calibrating
-      // lab wrote, and the certificate has to reproduce it exactly.
-      return { ...none, accuracyKind: 'FORMULA', accuracyFormula: a.formula ?? null, accuracyUnit: a.unit ?? null }
+      /**
+       * The sentence and the numbers behind it - two jobs, and both are needed.
+       *
+       * The sentence is kept verbatim because the certificate reproduces it exactly;
+       * re-wording what the calibrating lab wrote is not ours to do. The numbers are
+       * taken as the registry already parsed them rather than parsed again here, so
+       * there is one parse to keep right instead of two that can drift.
+       *
+       * A formula with no numbers still gets its sentence. A certificate can print
+       * "+/-(0.004 x t)" perfectly well even where the app cannot compute with it.
+       */
+      return {
+        ...none,
+        accuracyKind: 'FORMULA',
+        accuracyFormula: a.expression ?? null,
+        accuracyExpression: a.evaluable ?? null,
+        accuracyUnit: a.unit ?? null,
+        accuracyPolarity: a.polarity ?? '±',
+        accuracyPercentOf: a.percent_of ?? null,
+        accuracyPercentValue: a.percent_value ?? null,
+        accuracyDigits: a.digits ?? null,
+        accuracyDigitsUnit: a.digits_unit ?? null,
+      }
     case 'class':
       return { ...none, accuracyKind: 'CLASS', accuracyClass: a.class ?? null }
     default:
@@ -248,6 +318,10 @@ function profileRows(unit: RawUnit): ProfileRow[] {
     kind: kind(p.kind),
     ...bound(p),
     subtypeKind: p.subtype_kind ?? null,
+    // Which half of a two-part instrument, and how it measures. Both are what tells
+    // two otherwise identical records against one instrument apart on screen.
+    part: p.component ?? null,
+    mode: p.mode ?? null,
     // Decision 2: every SOP the instrument holds goes onto every profile, and admins
     // prune. Of 209 instruments 92 hold more than one SOP and only 38 of those have as
     // many SOPs as capabilities, so there is no rule that splits them correctly.

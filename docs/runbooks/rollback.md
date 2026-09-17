@@ -8,10 +8,10 @@ This runbook describes how to perform rollbacks for the HTA Platform.
 
 | Scenario | Time | Command/Action |
 |----------|------|----------------|
-| Canary issues | < 2 min | `./scripts/rollback-immediate.sh all --canary` |
-| Bad deployment | < 5 min | `./scripts/rollback-immediate.sh all --rollback` |
-| Full rollback | < 30 min | `./scripts/rollback-full.sh` |
-| Migration issues | < 30 min | `./scripts/rollback-full.sh --migrate-rollback` |
+| Canary issues | < 2 min | `./scripts/ops/rollback-immediate.sh all --canary` |
+| Bad deployment | < 5 min | `./scripts/ops/rollback-immediate.sh all --rollback` |
+| Full rollback | < 30 min | `./scripts/ops/rollback-full.sh` |
+| Migration issues | < 30 min | `./scripts/ops/rollback-full.sh --migrate-rollback` |
 
 ## Rollback Triggers
 
@@ -30,18 +30,18 @@ Initiate rollback if ANY of these conditions are met:
 ```
 Is it a canary deployment issue?
 ├── Yes → Shift traffic away from canary
-│         ./scripts/rollback-immediate.sh all --canary
+│         ./scripts/ops/rollback-immediate.sh all --canary
 │
 └── No → Is the deployment itself broken?
          ├── Yes → Rollback to previous revision
-         │         ./scripts/rollback-immediate.sh all --rollback
+         │         ./scripts/ops/rollback-immediate.sh all --rollback
          │
          └── No → Is it a database/migration issue?
                   ├── Yes → Full rollback with migration
-                  │         ./scripts/rollback-full.sh --migrate-rollback
+                  │         ./scripts/ops/rollback-full.sh --migrate-rollback
                   │
                   └── No → Need to go back to monolith?
-                           ├── Yes → ./scripts/rollback-full.sh --to-monolith
+                           ├── Yes → ./scripts/ops/rollback-full.sh --to-monolith
                            └── No → Investigate further
 ```
 
@@ -53,7 +53,7 @@ Use when: Canary deployment is causing issues, stable deployment is healthy.
 
 ```bash
 # Via script
-./scripts/rollback-immediate.sh all --canary
+./scripts/ops/rollback-immediate.sh all --canary
 
 # Or via GitHub Actions
 # Go to Actions → Rollback → Run workflow
@@ -85,7 +85,7 @@ Use when: Current deployment is broken, need to revert to previous version.
 
 ```bash
 # Via script
-./scripts/rollback-immediate.sh all --rollback
+./scripts/ops/rollback-immediate.sh all --rollback
 
 # Or via kubectl
 kubectl rollout undo deployment/hta-api -n hta-platform
@@ -101,7 +101,7 @@ Use when: Need to stop all traffic immediately.
 
 ```bash
 # Scale down canary and shift traffic
-./scripts/rollback-immediate.sh all --scale-down
+./scripts/ops/rollback-immediate.sh all --scale-down
 
 # Or manually
 kubectl scale deployment hta-api-canary -n hta-platform --replicas=0
@@ -113,7 +113,7 @@ kubectl scale deployment hta-worker-canary -n hta-platform --replicas=0
 ### Standard Full Rollback
 
 ```bash
-./scripts/rollback-full.sh
+./scripts/ops/rollback-full.sh
 ```
 
 This will:
@@ -125,7 +125,7 @@ This will:
 ### With Migration Rollback
 
 ```bash
-./scripts/rollback-full.sh --migrate-rollback
+./scripts/ops/rollback-full.sh --migrate-rollback
 ```
 
 This additionally:
@@ -136,7 +136,7 @@ This additionally:
 Use when: Need to completely abandon the separated architecture.
 
 ```bash
-./scripts/rollback-full.sh --to-monolith
+./scripts/ops/rollback-full.sh --to-monolith
 ```
 
 This additionally:

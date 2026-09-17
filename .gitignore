@@ -74,4 +74,4 @@ apps/web-hta/.env.local.bak
 check-field-change.cjs
 check-user-token.cjs
 fix-user-active.cjs
-scripts/backfill-field-change-revision.cjs
+scripts/maintenance/backfill-field-change-revision.cjs

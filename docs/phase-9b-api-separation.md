@@ -4508,8 +4508,8 @@ function buildCSP(nonce: string): string {
 | 3-year backup retention | ✅ Configured | `terraform/environments/production/main.tf` (1095 days) |
 | Storage versioning | ✅ Implemented | `terraform/modules/storage/main.tf` |
 | Cross-region replica (Delhi) | 📋 Config ready, not deployed | `terraform/modules/cloudsql/replica.tf` — set `enable_dr_replica = true` to activate |
-| DR restore script | ✅ Implemented | `scripts/dr-restore.sh` |
-| DR drill script | ✅ Implemented | `scripts/dr-drill.sh` |
+| DR restore script | ✅ Implemented | `scripts/ops/dr-restore.sh` |
+| DR drill script | ✅ Implemented | `scripts/ops/dr-drill.sh` |
 | DR monitoring alerts | ✅ Implemented | `terraform/modules/monitoring/alerts.tf` |
 | DR drill checklist | 📋 Documented | See 19.3 below |
 
@@ -4593,7 +4593,7 @@ resource "google_sql_database_instance" "main" {
 
 ```bash
 #!/bin/bash
-# scripts/dr-restore.sh
+# scripts/ops/dr-restore.sh
 
 set -e
 
@@ -4875,8 +4875,8 @@ resource "google_storage_bucket" "main" {
 
 | Task | Priority | Status | Location |
 |------|----------|--------|----------|
-| Create `scripts/dr-restore.sh` | High | ✅ Done | `scripts/dr-restore.sh` |
-| Create `scripts/dr-drill.sh` | High | ✅ Done | `scripts/dr-drill.sh` |
+| Create `scripts/ops/dr-restore.sh` | High | ✅ Done | `scripts/ops/dr-restore.sh` |
+| Create `scripts/ops/dr-drill.sh` | High | ✅ Done | `scripts/ops/dr-drill.sh` |
 | Cross-region replica config | Medium | ✅ Done | `terraform/modules/cloudsql/replica.tf` |
 | DR monitoring alerts | Medium | ✅ Done | `terraform/modules/monitoring/alerts.tf` |
 | Production terraform config | Medium | ✅ Done | `terraform/environments/production/` |
@@ -4886,7 +4886,7 @@ resource "google_storage_bucket" "main" {
 
 ### 19.9 DR Scripts Reference
 
-#### Restore Script (`scripts/dr-restore.sh`)
+#### Restore Script (`scripts/ops/dr-restore.sh`)
 
 ```bash
 # List available backups
@@ -4902,7 +4902,7 @@ resource "google_storage_bucket" "main" {
 ./scripts/dr-restore.sh --pitr "2024-01-15T10:30:00Z"
 ```
 
-#### DR Drill Script (`scripts/dr-drill.sh`)
+#### DR Drill Script (`scripts/ops/dr-drill.sh`)
 
 ```bash
 # Interactive drill (prompts for confirmation)

@@ -6,6 +6,9 @@
  *   logos/hta-logo.jpg          — clean logo (app UI, sidebar, navbar, desktop icon)
  *   logos/hta-logo-with-tag.jpg — full logo with tagline + ® (PDF certificates)
  *
+ * The certificate's cyan variant is derived from the tagged logo by
+ * scripts/recolour-cyan.py, so there is no cyan source file to keep in step.
+ *
  * Run:  pnpm --filter @hta/assets gen
  */
 
@@ -64,15 +67,46 @@ if (existsSync(DESKTOP_RESOURCES)) {
 }
 
 // 4. Generate base64 for PDF certificates (uses tagged logo)
+//
+// Two of them, not one. The mark as it stands, and the same mark with its
+// navy repainted in the brand cyan - the certificate letterhead sets the
+// company name, the title, the rule and the footer in #0099CC, and a navy
+// logo beside all of that reads as two blues that nearly match. Nothing but
+// the certificate uses the cyan one.
 mkdirSync(dirname(PDF_BASE64), { recursive: true })
 const taggedB64 = readFileSync(TAGGED_LOGO).toString('base64')
-const tsContent = [
+
+let cyanB64 = ''
+try {
+  cyanB64 = execSync(
+    `python "${resolve(__dirname, 'recolour-cyan.py')}" "${TAGGED_LOGO}"`,
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'inherit'] },
+  ).trim()
+} catch {
+  console.log('  ✗ cyan logo — python or Pillow unavailable')
+}
+
+const lines = [
   '// HTA Logo (with tagline) as Base64 Data URL for react-pdf',
   '// DO NOT EDIT — run "pnpm --filter @hta/assets gen" to regenerate',
   `export const HTA_LOGO_BASE64 = \`data:image/jpeg;base64,${taggedB64}\``,
   '',
-].join('\n')
-writeFileSync(PDF_BASE64, tsContent)
-console.log('  ✓ pdf/logo-base64.ts')
+]
+if (cyanB64) {
+  lines.push(
+    '/** The same mark with its navy in the brand cyan. The certificate only. */',
+    `export const HTA_LOGO_CYAN_BASE64 = \`data:image/jpeg;base64,${cyanB64}\``,
+    '',
+  )
+} else if (existsSync(PDF_BASE64)) {
+  // Keep the cyan export that is already there rather than dropping it and
+  // breaking the certificate because one machine has no Pillow.
+  const kept = readFileSync(PDF_BASE64, 'utf8').match(
+    /\/\*\*[^\n]*\*\/\nexport const HTA_LOGO_CYAN_BASE64 = `[^`]*`/,
+  )
+  if (kept) lines.push(kept[0], '')
+}
+writeFileSync(PDF_BASE64, lines.join('\n'))
+console.log(`  ✓ pdf/logo-base64.ts${cyanB64 ? ' (and the cyan variant)' : ''}`)
 
 console.log('\nDone.')

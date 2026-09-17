@@ -16,14 +16,14 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PrismaClient } from '@prisma/client'
-import { deriveParameterStandards, type RegistryLike } from '../src/calibration-parameters'
+import { deriveParameterStandards, type RegistryLike } from '../../src/calibration-parameters'
 
 /** Bumped when the derivation changes in a way worth telling apart in the data. */
 const SEED_VERSION = '1.0'
 
 const REGISTRY = join(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../apps/web-hta/src/data/master-instrument-registry.json',
+  '../../../../apps/web-hta/src/data/master-instrument-registry.json',
 )
 
 async function main() {

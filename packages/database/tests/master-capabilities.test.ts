@@ -34,7 +34,47 @@ describe('deriving capabilities from the registry', () => {
         for (const b of [...p.buckets, ...p.subtypes.flatMap((s) => s.buckets)])
           seen[b.accuracyKind ?? 'none'] = (seen[b.accuracyKind ?? 'none'] || 0) + 1
 
-    expect(seen).toEqual({ SYMMETRIC: 1411, FORMULA: 120, CLASS: 2, none: 31 })
+    expect(seen).toEqual({ SYMMETRIC: 1427, FORMULA: 104, CLASS: 2, none: 31 })
+  })
+
+  it('carries a formula accuracy whole - the sentence and the numbers behind it', () => {
+    /**
+     * This read `a.formula` from a file whose key is `expression`, so every one of the
+     * 120 formula accuracies seeded with a null sentence, and the four parsed parts had
+     * no columns to go to. A certificate then printed a blank where the master's
+     * accuracy belongs, and the app could not rate the instrument at all.
+     */
+    const formulas = derived.units
+      .flatMap((u) => u.profiles)
+      .flatMap((p) => [...p.buckets, ...p.subtypes.flatMap((s) => s.buckets)])
+      .filter((b) => b.accuracyKind === 'FORMULA')
+
+    expect(formulas).toHaveLength(104)
+    expect(formulas.filter((b) => b.accuracyFormula === null)).toHaveLength(0)
+
+    // Every one now carries something to compute with: 97 in the parsed fields, and 7
+    // as arithmetic, for the shapes one percentage and one digits term cannot hold.
+    const inFields = formulas.filter(
+      (b) => b.accuracyPercentValue !== null || b.accuracyDigits !== null,
+    )
+    const asArithmetic = formulas.filter((b) => b.accuracyExpression !== null)
+    expect(inFields).toHaveLength(97)
+    expect(asArithmetic).toHaveLength(7)
+    expect(inFields.length + asArithmetic.length).toBe(formulas.length)
+  })
+
+  it('reads a formula bucket exactly as the registry wrote it', () => {
+    // 1017 HTAIPL/L, the Masibus UC 12: "+/-0.02% of reading +/-2 count".
+    const bucket = derived.units
+      .find((u) => u.legacyId === 9)!
+      .profiles.find((p) => p.parameter === 'DC Voltage')!.buckets[0]
+
+    expect(bucket.accuracyKind).toBe('FORMULA')
+    expect(bucket.accuracyFormula).toBe('+/-0.02% of reading +/-2 count')
+    expect(bucket.accuracyPercentOf).toBe('reading')
+    expect(bucket.accuracyPercentValue).toBe(0.0002)
+    expect(bucket.accuracyDigits).toBe(2)
+    expect(bucket.accuracyDigitsUnit).toBe('count')
   })
 
   it('leaves least count null where none is declared, rather than calling it zero', () => {
@@ -97,6 +137,12 @@ describe('a profile with subtypes', () => {
       accuracyUnit: '°C',
       accuracyPolarity: '±',
       accuracyFormula: null,
+      accuracyExpression: null,
+      // A symmetric accuracy has no parts to carry; the four stay null.
+      accuracyPercentOf: null,
+      accuracyPercentValue: null,
+      accuracyDigits: null,
+      accuracyDigitsUnit: null,
       accuracyClass: null,
       sortOrder: 0,
     })

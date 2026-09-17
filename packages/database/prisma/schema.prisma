@@ -23,20 +23,20 @@ model Tenant {
   updatedAt DateTime @updatedAt
 
   // Relations to tenant-scoped models
-  users             User[]
-  customerUsers     CustomerUser[]
-  customerAccounts  CustomerAccount[]
-  certificates      Certificate[]
-  emailDeliveries   EmailDelivery[]
-  masterInstruments MasterInstrument[]
+  users                User[]
+  customerUsers        CustomerUser[]
+  customerAccounts     CustomerAccount[]
+  certificates         Certificate[]
+  emailDeliveries      EmailDelivery[]
+  masterInstruments    MasterInstrument[]
   capabilityProfiles   MasterCapabilityProfile[]
   capabilityAudits     MasterCapabilityAudit[]
   instrumentComponents MasterInstrumentComponent[]
-  instrumentTrainings MasterInstrumentTraining[]
+  instrumentTrainings  MasterInstrumentTraining[]
 
   // Billing relations
-  subscription      TenantSubscription?
-  invoices          TenantInvoice[]
+  subscription TenantSubscription?
+  invoices     TenantInvoice[]
 
   // Device management (Electron offline app)
   devices DeviceRegistration[]
@@ -53,33 +53,33 @@ model Tenant {
 // ============================================================================
 
 model TenantSubscription {
-  id        String   @id @default(uuid())
-  tenantId  String   @unique
+  id       String @id @default(uuid())
+  tenantId String @unique
 
   // Plan details
-  tier      TenantTier @default(STARTER)
-  status    SubscriptionStatus @default(ACTIVE)
+  tier   TenantTier         @default(STARTER)
+  status SubscriptionStatus @default(ACTIVE)
 
   // Billing period
-  currentPeriodStart DateTime @default(now())
+  currentPeriodStart DateTime  @default(now())
   currentPeriodEnd   DateTime
   trialEndsAt        DateTime?
 
   // Pricing (in paise, INR * 100)
-  basePriceInPaise   Int @default(299900) // ₹2,999
+  basePriceInPaise Int @default(299900) // ₹2,999
 
   // Extra seats purchased
-  extraStaffSeats          Int @default(0)
-  extraCustomerAccounts    Int @default(0)
-  extraCustomerUserSeats   Int @default(0)
+  extraStaffSeats        Int @default(0)
+  extraCustomerAccounts  Int @default(0)
+  extraCustomerUserSeats Int @default(0)
 
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  usage     TenantUsage[]
+  tenant Tenant        @relation(fields: [tenantId], references: [id])
+  usage  TenantUsage[]
 
   @@index([tenantId])
   @@index([status])
@@ -87,28 +87,28 @@ model TenantSubscription {
 
 // Monthly usage tracking
 model TenantUsage {
-  id                    String   @id @default(uuid())
-  subscriptionId        String
+  id             String @id @default(uuid())
+  subscriptionId String
 
   // Period
-  periodStart           DateTime
-  periodEnd             DateTime
+  periodStart DateTime
+  periodEnd   DateTime
 
   // Counters
-  certificatesIssued    Int      @default(0)
-  staffUserCount        Int      @default(0)
-  customerAccountCount  Int      @default(0)
-  customerUserCount     Int      @default(0)
-  apiCallCount          Int      @default(0)
-  storageUsedMb         Int      @default(0)
+  certificatesIssued   Int @default(0)
+  staffUserCount       Int @default(0)
+  customerAccountCount Int @default(0)
+  customerUserCount    Int @default(0)
+  apiCallCount         Int @default(0)
+  storageUsedMb        Int @default(0)
 
   // Snapshot at period end (for billing)
-  snapshotAt            DateTime?
+  snapshotAt DateTime?
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  subscription          TenantSubscription @relation(fields: [subscriptionId], references: [id])
+  subscription TenantSubscription @relation(fields: [subscriptionId], references: [id])
 
   @@unique([subscriptionId, periodStart])
   @@index([subscriptionId])
@@ -117,33 +117,33 @@ model TenantUsage {
 
 // Billing history (for future Razorpay integration)
 model TenantInvoice {
-  id                String   @id @default(uuid())
-  tenantId          String
+  id       String @id @default(uuid())
+  tenantId String
 
   // Invoice details
-  invoiceNumber     String   @unique
-  periodStart       DateTime
-  periodEnd         DateTime
+  invoiceNumber String   @unique
+  periodStart   DateTime
+  periodEnd     DateTime
 
   // Line items (JSON for flexibility)
-  lineItems         Json     // [{description, quantity, unitPrice, amount}]
+  lineItems Json // [{description, quantity, unitPrice, amount}]
 
   // Totals (in paise)
-  subtotal          Int
-  tax               Int      // GST 18%
-  total             Int
+  subtotal Int
+  tax      Int // GST 18%
+  total    Int
 
   // Payment
-  status            InvoiceStatus @default(DRAFT)
-  dueDate           DateTime
-  paidAt            DateTime?
-  paymentMethod     String?
-  paymentReference  String?  // Razorpay payment ID
+  status           InvoiceStatus @default(DRAFT)
+  dueDate          DateTime
+  paidAt           DateTime?
+  paymentMethod    String?
+  paymentReference String? // Razorpay payment ID
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([status])
@@ -155,28 +155,28 @@ model TenantInvoice {
 // ============================================================================
 
 model User {
-  id                             String                        @id @default(uuid())
-  tenantId                       String
-  email                          String
-  name                           String
-  passwordHash                   String?
-  role                           String                        @default("ENGINEER")
-  isAdmin                        Boolean                       @default(false)
-  adminType                      String?
-  assignedAdminId                String?
-  signatureUrl                   String?
-  isActive                       Boolean                       @default(false)
-  activationToken                String?                       @unique
-  activationExpiry               DateTime?
-  activatedAt                    DateTime?
-  createdAt                      DateTime                      @default(now())
-  updatedAt                      DateTime                      @updatedAt
-  googleId                       String?                       @unique
-  authProvider                   String                        @default("PASSWORD")
-  profileImageUrl                String?
+  id               String    @id @default(uuid())
+  tenantId         String
+  email            String
+  name             String
+  passwordHash     String?
+  role             String    @default("ENGINEER")
+  isAdmin          Boolean   @default(false)
+  adminType        String?
+  assignedAdminId  String?
+  signatureUrl     String?
+  isActive         Boolean   @default(false)
+  activationToken  String?   @unique
+  activationExpiry DateTime?
+  activatedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  googleId         String?   @unique
+  authProvider     String    @default("PASSWORD")
+  profileImageUrl  String?
 
   // Tenant relation
-  tenant                         Tenant                        @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   // Other relations
   createdCertificates            Certificate[]                 @relation("CertificateCreator")
@@ -208,19 +208,19 @@ model User {
   engineers                      User[]                        @relation("EngineerToAdmin")
 
   // Device management (Electron offline app)
-  devices                        DeviceRegistration[]
-  offlineCodeBatches             OfflineCodeBatch[]
+  devices            DeviceRegistration[]
+  offlineCodeBatches OfflineCodeBatch[]
 
   // Desktop VPN provisioning (WireGuard request-approval flow)
-  vpnProvisioningToken           String?                       @unique
-  vpnTokenGeneratedAt            DateTime?
-  vpnPeer                        VpnPeer?
+  vpnProvisioningToken String?   @unique
+  vpnTokenGeneratedAt  DateTime?
+  vpnPeer              VpnPeer?
 
   // Two-Factor Authentication (2FA)
-  totpSecret                     String?                       // Encrypted TOTP secret
-  totpEnabled                    Boolean                       @default(false)
-  totpVerifiedAt                 DateTime?                     // When 2FA was first verified
-  backupCodes                    String[]                      // Hashed backup codes
+  totpSecret     String? // Encrypted TOTP secret
+  totpEnabled    Boolean   @default(false)
+  totpVerifiedAt DateTime? // When 2FA was first verified
+  backupCodes    String[] // Hashed backup codes
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -228,23 +228,23 @@ model User {
 }
 
 model CustomerUser {
-  id                  String               @id @default(uuid())
-  tenantId            String
-  email               String
-  name                String
-  passwordHash        String?
-  companyName         String?
-  customerAccountId   String?
-  isActive            Boolean              @default(false)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @default(now()) @updatedAt
-  isPoc               Boolean              @default(false)
-  activatedAt         DateTime?
-  activationToken     String?              @unique
-  activationExpiry    DateTime?
+  id                String    @id @default(uuid())
+  tenantId          String
+  email             String
+  name              String
+  passwordHash      String?
+  companyName       String?
+  customerAccountId String?
+  isActive          Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+  isPoc             Boolean   @default(false)
+  activatedAt       DateTime?
+  activationToken   String?   @unique
+  activationExpiry  DateTime?
 
   // Tenant relation
-  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   // Other relations
   approvalTokens      ApprovalToken[]
@@ -264,28 +264,28 @@ model CustomerUser {
 }
 
 model CustomerAccount {
-  id              String                 @id @default(uuid())
+  id              String   @id @default(uuid())
   tenantId        String
   companyName     String
   address         String?
   contactEmail    String?
   contactPhone    String?
   assignedAdminId String?
-  isActive        Boolean                @default(true)
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-  primaryPocId    String?                @unique
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  primaryPocId    String?  @unique
 
   // Tenant relation
-  tenant          Tenant                 @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   // Other relations
-  assignedAdmin   User?                  @relation("AdminToCustomerAccount", fields: [assignedAdminId], references: [id])
-  primaryPoc      CustomerUser?          @relation("PrimaryPOC", fields: [primaryPocId], references: [id])
-  certificates    Certificate[]
-  registrations   CustomerRegistration[]
-  requests        CustomerRequest[]
-  users           CustomerUser[]         @relation("CustomerUsers")
+  assignedAdmin User?                  @relation("AdminToCustomerAccount", fields: [assignedAdminId], references: [id])
+  primaryPoc    CustomerUser?          @relation("PrimaryPOC", fields: [primaryPocId], references: [id])
+  certificates  Certificate[]
+  registrations CustomerRegistration[]
+  requests      CustomerRequest[]
+  users         CustomerUser[]         @relation("CustomerUsers")
 
   @@unique([tenantId, companyName])
   @@index([tenantId])
@@ -353,37 +353,37 @@ model CustomerRequest {
 // ============================================================================
 
 model MasterInstrument {
-  id                      String                        @id @default(uuid())
-  tenantId                String
-  instrumentId            String
-  version                 Int                           @default(1)
-  isLatest                Boolean                       @default(true)
-  legacyId                Int?
-  category                String
-  description             String
-  make                    String
-  model                   String
-  assetNumber             String
-  serialNumber            String
-  usage                   String?
-  calibratedAtLocation    String?
-  reportNo                String?
-  calibrationDueDate      DateTime?
-  rangeData               Json?
-  remarks                 String?
-  status                  String?
-  isActive                Boolean                       @default(true)
-  createdAt               DateTime                      @default(now())
-  createdById             String?
-  changeReason            String?
-  importedFromJson        Boolean                       @default(false)
-  parameterCapabilities   String[]                      @default([])
-  parameterGroup          String?
-  parameterRoles          String[]                      @default([])
-  sopReferences           String[]                      @default([])
+  id                    String    @id @default(uuid())
+  tenantId              String
+  instrumentId          String
+  version               Int       @default(1)
+  isLatest              Boolean   @default(true)
+  legacyId              Int?
+  category              String
+  description           String
+  make                  String
+  model                 String
+  assetNumber           String
+  serialNumber          String
+  usage                 String?
+  calibratedAtLocation  String?
+  reportNo              String?
+  calibrationDueDate    DateTime?
+  rangeData             Json?
+  remarks               String?
+  status                String?
+  isActive              Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  createdById           String?
+  changeReason          String?
+  importedFromJson      Boolean   @default(false)
+  parameterCapabilities String[]  @default([])
+  parameterGroup        String?
+  parameterRoles        String[]  @default([])
+  sopReferences         String[]  @default([])
 
   // Tenant relation
-  tenant                  Tenant                        @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   // Other relations
   createdBy               User?                         @relation("InstrumentModifier", fields: [createdById], references: [id])
@@ -428,22 +428,30 @@ model MasterInstrumentCertificate {
   // and an empty one means "whatever the single column says".
   capabilityProfileIds String[] @default([])
 
+  // What the capabilities said when this certificate was read, kept verbatim.
+  //
+  // Everything else on the page reads a capability live, which is what stops a
+  // card and the capability behind it disagreeing. The cost is that an edit
+  // after the fact is invisible: the drift review could say a capability had
+  // changed but not what it changed from. This is that missing half.
+  capabilitySnapshot Json?
+
   // How many pages the file has, counted from its bytes the first time it is opened and
   // kept. The certificate viewer says "2 of 4"; without this it could only say "page 2".
-  pageCount           Int?
+  pageCount Int?
 
   // Superseding is one act: the new certificate arrives and the old one is archived
   // in the same step, and the two are linked so the trail from one to the other
   // survives. As two separate steps the second half gets forgotten, which is how an
   // instrument ends up with two certificates both claiming to be current.
-  supersededById      String?
-  supersededBy        MasterInstrumentCertificate?  @relation("CertificateSupersession", fields: [supersededById], references: [id])
-  supersedes          MasterInstrumentCertificate[] @relation("CertificateSupersession")
+  supersededById String?
+  supersededBy   MasterInstrumentCertificate?  @relation("CertificateSupersession", fields: [supersededById], references: [id])
+  supersedes     MasterInstrumentCertificate[] @relation("CertificateSupersession")
 
   // Why it was archived, and when. Null on every row that exists today, which reads
   // as "archived before we started asking" rather than as a reason of "".
-  archivedReason      String?
-  archivedAt          DateTime?
+  archivedReason String?
+  archivedAt     DateTime?
 
   @@index([masterInstrumentId])
   @@index([masterInstrumentId, isLatest])
@@ -452,34 +460,38 @@ model MasterInstrumentCertificate {
 }
 
 model MasterInstrumentTraining {
-  id                  String           @id @default(uuid())
+  id                  String    @id @default(uuid())
   tenantId            String
-  instrumentId         String
-  masterInstrumentId   String?
-  engineerId           String
-  certificateFileName  String
-  certificateFileSize  Int
-  certificateMimeType  String           @default("application/pdf")
-  certificatePath      String
-  trainedAt            DateTime?
-  expiresAt            DateTime?
-  notes                String?
+  instrumentId        String
+  masterInstrumentId  String?
+  engineerId          String
+  // Optional since the evidence can be detached: the wrong file was attached, and
+  // the alternative was deleting the record and losing the dates with it. A row
+  // with no document is a sign-off nobody can vouch for, which the page says out
+  // loud rather than hiding.
+  certificateFileName String?
+  certificateFileSize Int?
+  certificateMimeType String?   @default("application/pdf")
+  certificatePath     String?
+  trainedAt           DateTime?
+  expiresAt           DateTime?
+  notes               String?
 
   // Which components the engineer is signed off on. Empty means the whole
   // instrument, which is both the common case and the honest reading of every
   // row that exists today - someone trained on the pressure modules is not
   // thereby trained on the thermocouple side, but a record that never said so
   // cannot be narrowed after the fact.
-  scopeComponentIds    String[]         @default([])
+  scopeComponentIds String[] @default([])
 
-  uploadedById         String
-  uploadedAt           DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
-  isActive             Boolean          @default(true)
-  tenant               Tenant           @relation(fields: [tenantId], references: [id])
-  engineer             User             @relation("EngineerInstrumentTrainings", fields: [engineerId], references: [id])
-  uploadedBy           User             @relation("TrainingCertificateUploader", fields: [uploadedById], references: [id])
-  masterInstrument     MasterInstrument? @relation(fields: [masterInstrumentId], references: [id])
+  uploadedById     String
+  uploadedAt       DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  isActive         Boolean           @default(true)
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  engineer         User              @relation("EngineerInstrumentTrainings", fields: [engineerId], references: [id])
+  uploadedBy       User              @relation("TrainingCertificateUploader", fields: [uploadedById], references: [id])
+  masterInstrument MasterInstrument? @relation(fields: [masterInstrumentId], references: [id])
 
   @@index([tenantId, instrumentId])
   @@index([engineerId])
@@ -491,11 +503,11 @@ model MasterInstrumentTraining {
 // ============================================================================
 
 model Certificate {
-  id                            String                        @id @default(uuid())
+  id                            String    @id @default(uuid())
   tenantId                      String
   certificateNumber             String
-  status                        String                        @default("DRAFT")
-  currentRevision               Int                           @default(1)
+  status                        String    @default("DRAFT")
+  currentRevision               Int       @default(1)
   reviewerId                    String?
   customerApprovedAt            DateTime?
   calibratedAt                  String?
@@ -504,29 +516,29 @@ model Certificate {
   dateOfCalibration             DateTime?
   calibrationStartTime          String?
   calibrationEndTime            String?
-  calibrationTenure             Int                           @default(12)
+  calibrationTenure             Int       @default(12)
   /// Whether the tenure was entered in months or in years.
   ///
   /// The tenure itself is stored in months whatever was chosen, so the due date is one
   /// sum and every certificate already written still adds up. This only remembers how
   /// the engineer wrote it - two years reads as two years, not twenty-four months.
-  calibrationTenureUnit         String                        @default("months")
-  dueDateAdjustment             Int                           @default(0)
+  calibrationTenureUnit         String    @default("months")
+  dueDateAdjustment             Int       @default(0)
   calibrationDueDate            DateTime?
-  dueDateNotApplicable          Boolean                       @default(false)
+  dueDateNotApplicable          Boolean   @default(false)
   /// How the due date is written on the certificate.
   ///
   /// A date means different things in different places - 02/09/2026 is September in
   /// Bangalore and February in Boston - and a certificate crossing a border has to be
   /// read the way its reader reads. The stored date does not change; only how it is
   /// printed.
-  calibrationDueDateFormat      String                        @default("DD/MM/YYYY")
+  calibrationDueDateFormat      String    @default("DD/MM/YYYY")
   /// Where the unit under test has no serial number or no instrument id of its own -
   /// a bare sensor, a fixture built in house. The field is not left blank, because a
   /// blank reads as unfinished; it is marked and the certificate prints "Not
   /// Applicable".
-  uucSerialNumberNotApplicable  Boolean                       @default(false)
-  uucInstrumentIdNotApplicable  Boolean                       @default(false)
+  uucSerialNumberNotApplicable  Boolean   @default(false)
+  uucInstrumentIdNotApplicable  Boolean   @default(false)
   customerName                  String?
   customerAddress               String?
   uucDescription                String?
@@ -544,8 +556,8 @@ model Certificate {
   statusNotes                   String?
   selectedConclusionStatements  Json?
   additionalConclusionStatement String?
-  createdAt                     DateTime                      @default(now())
-  updatedAt                     DateTime                      @updatedAt
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
   createdById                   String
   lastModifiedById              String
   signedPdfPath                 String?
@@ -554,31 +566,31 @@ model Certificate {
   customerAccountId             String?
 
   // Tenant relation
-  tenant                        Tenant                        @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   // Customer account link (optional — legacy certs may not have this)
-  customerAccount               CustomerAccount?              @relation(fields: [customerAccountId], references: [id])
+  customerAccount CustomerAccount? @relation(fields: [customerAccountId], references: [id])
 
   // Other relations
-  approvalTokens                ApprovalToken[]
-  createdBy                     User                          @relation("CertificateCreator", fields: [createdById], references: [id])
-  lastModifiedBy                User                          @relation("CertificateModifier", fields: [lastModifiedById], references: [id])
-  reviewer                      User?                         @relation("CertificateReviewer", fields: [reviewerId], references: [id])
-  events                        CertificateEvent[]
-  certificateImages             CertificateImage[]
-  masterInstruments             CertificateMasterInstrument[]
-  revisions                     CertificateRevision[]
-  chatThreads                   ChatThread[]
-  downloadTokens                DownloadToken[]
-  emailDeliveries               EmailDelivery[]
-  internalRequests              InternalRequest[]
-  notifications                 Notification[]
-  openSignDocuments             OpenSignDocument[]
-  parameters                    Parameter[]
-  feedbacks                     ReviewFeedback[]
-  signatures                    Signature[]
-  signingEvidence               SigningEvidence[]
-  uucImages                     UUCImage[]
+  approvalTokens    ApprovalToken[]
+  createdBy         User                          @relation("CertificateCreator", fields: [createdById], references: [id])
+  lastModifiedBy    User                          @relation("CertificateModifier", fields: [lastModifiedById], references: [id])
+  reviewer          User?                         @relation("CertificateReviewer", fields: [reviewerId], references: [id])
+  events            CertificateEvent[]
+  certificateImages CertificateImage[]
+  masterInstruments CertificateMasterInstrument[]
+  revisions         CertificateRevision[]
+  chatThreads       ChatThread[]
+  downloadTokens    DownloadToken[]
+  emailDeliveries   EmailDelivery[]
+  internalRequests  InternalRequest[]
+  notifications     Notification[]
+  openSignDocuments OpenSignDocument[]
+  parameters        Parameter[]
+  feedbacks         ReviewFeedback[]
+  signatures        Signature[]
+  signingEvidence   SigningEvidence[]
+  uucImages         UUCImage[]
 
   @@unique([tenantId, certificateNumber])
   @@index([tenantId])
@@ -633,25 +645,25 @@ model CertificateRevision {
 }
 
 model EmailDelivery {
-  id              String              @id @default(uuid())
+  id              String               @id @default(uuid())
   tenantId        String
   certificateId   String
   emailType       String
   recipientEmail  String
   recipientName   String?
-  status          EmailDeliveryStatus @default(QUEUED)
+  status          EmailDeliveryStatus  @default(QUEUED)
   bullJobId       String?
-  idempotencyKey  String              @unique
-  providerEmailId String?             @unique
-  queuedAt        DateTime            @default(now())
+  idempotencyKey  String               @unique
+  providerEmailId String?              @unique
+  queuedAt        DateTime             @default(now())
   sentAt          DateTime?
   deliveredAt     DateTime?
   lastEventAt     DateTime?
   failureReason   String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  tenant          Tenant              @relation(fields: [tenantId], references: [id])
-  certificate     Certificate         @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  certificate     Certificate          @relation(fields: [certificateId], references: [id], onDelete: Cascade)
   events          EmailDeliveryEvent[]
 
   @@index([tenantId, certificateId, createdAt])
@@ -697,18 +709,18 @@ model ReviewFeedback {
 }
 
 model Parameter {
-  id                  String                        @id @default(uuid())
-  certificateId       String
+  id                          String                        @id @default(uuid())
+  certificateId               String
   /// Where the unit under test declares no operating range of its own. The measured
   /// range then stands in for it, and at least one calibration point has to fall
   /// inside that - otherwise the certificate covers a span nothing was read at.
-  operatingRangeNotApplicable Boolean               @default(false)
-  parameterName       String
-  parameterUnit       String
+  operatingRangeNotApplicable Boolean                       @default(false)
+  parameterName               String
+  parameterUnit               String
   /// Which curve or type the unit under test is - Pt-100, Type K. The counterpart of
   /// masterSubtype, which records the same about the master that measured it. Null
   /// where the parameter has no curves, and on anything written before it was asked.
-  parameterSubtype    String?
+  parameterSubtype            String?
   /// How a master measuring something else serves this parameter.
   ///
   /// Null for the ordinary case, where the master measures the same thing and the
@@ -718,42 +730,42 @@ model Parameter {
   /// that converts its readings back. Held as one object because the three are only
   /// meaningful together - a requirement in millivolts means nothing without saying
   /// millivolts of what, and neither means anything without the conversion.
-  masterMapping       Json?
-  rangeMin            String?
-  rangeMax            String?
-  rangeUnit           String?
-  operatingMin        String?
-  operatingMax        String?
-  operatingUnit       String?
-  leastCountValue     String?
-  leastCountUnit      String?
-  accuracyValue       String?
-  accuracyUnit        String?
-  accuracyType        String                        @default("ABSOLUTE")
-  errorFormula        String                        @default("A-B")
-  showAfterAdjustment Boolean                       @default(false)
-  requiresBinning     Boolean                       @default(false)
-  bins                Json?
+  masterMapping               Json?
+  rangeMin                    String?
+  rangeMax                    String?
+  rangeUnit                   String?
+  operatingMin                String?
+  operatingMax                String?
+  operatingUnit               String?
+  leastCountValue             String?
+  leastCountUnit              String?
+  accuracyValue               String?
+  accuracyUnit                String?
+  accuracyType                String                        @default("ABSOLUTE")
+  errorFormula                String                        @default("A-B")
+  showAfterAdjustment         Boolean                       @default(false)
+  requiresBinning             Boolean                       @default(false)
+  bins                        Json?
   // Section 05 column schema: fieldDefinitions plus errorConfig for this parameter's
   // results table. Null means the parameter predates the dynamic table, in which case
   // the default Master/UUC columns are derived from its results on load.
-  fieldSchema         Json?
-  tableName           String?
-  sopReference        String?
-  masterInstrumentId  String?
+  fieldSchema                 Json?
+  tableName                   String?
+  sopReference                String?
+  masterInstrumentId          String?
   /// Which capability profile of the master instrument was used, and where that profile
   /// records curves, which curve. Declared by the engineer, not inferred: the readings
   /// cannot tell a source from a measuring device, nor a Pt-100 from a Cu-53. Null on a
   /// parameter saved before the declaration existed.
-  masterProfileId     String?
-  masterSubtype       String?
+  masterProfileId             String?
+  masterSubtype               String?
   /// Why a master whose accuracy ratio falls below the lab's threshold was accepted.
   /// Null where the ratio meets it.
-  masterAcceptanceReason String?
-  sortOrder           Int                           @default(0)
-  results             CalibrationResult[]
-  masterInstruments   CertificateMasterInstrument[]
-  certificate         Certificate                   @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  masterAcceptanceReason      String?
+  sortOrder                   Int                           @default(0)
+  results                     CalibrationResult[]
+  masterInstruments           CertificateMasterInstrument[]
+  certificate                 Certificate                   @relation(fields: [certificateId], references: [id], onDelete: Cascade)
 
   @@index([certificateId])
 }
@@ -776,39 +788,48 @@ model CalibrationResult {
 }
 
 model CertificateMasterInstrument {
-  id                 String      @id @default(uuid())
-  certificateId      String
-  parameterId        String?
-  masterInstrumentId String
-  category           String?
-  description        String?
-  make               String?
-  model              String?
-  assetNo            String?
-  serialNumber       String?
-  calibratedAt       String?
-  reportNo           String?
-  calibrationDueDate String?
-  sopReference       String
+  id                   String      @id @default(uuid())
+  certificateId        String
+  parameterId          String?
+  masterInstrumentId   String
+  category             String?
+  description          String?
+  make                 String?
+  model                String?
+  assetNo              String?
+  serialNumber         String?
+  calibratedAt         String?
+  reportNo             String?
+  calibrationDueDate   String?
+  sopReference         String
   /**
    * What the master's own certificate says, snapshotted when it was chosen.
-   *
    * These live on the capability profile in the master registry, which is regenerated
    * as instruments are recalibrated - so reading them live would make a reissued
    * certificate print numbers the original never carried. A certificate records what
    * was true at calibration, so it holds its own copy.
-   *
    * Null on certificates written before this existed; the PDF prints "Not recorded".
    */
-  capabilityParameter String?
-  masterLeastCount    String?
+  capabilityParameter  String?
+  masterLeastCount     String?
   masterLeastCountUnit String?
-  masterAccuracy      String?
-  masterAccuracyUnit  String?
-  certificate        Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
-  parameter          Parameter?  @relation(fields: [parameterId], references: [id])
+  masterAccuracy       String?
+  masterAccuracyUnit   String?
+  /// The stretch of the parameter's range this master was used over, and what it was
+  /// judged against. Null means the whole of it - two masters can share a parameter,
+  /// either both covering it or each taking a part.
+  rangeFrom            String?
+  rangeTo              String?
+  /// How this master was used, for the parameter it serves. On the pairing rather than
+  /// on the parameter, which had room for one master's answers and so for one master.
+  masterProfileId        String?
+  masterSubtype          String?
+  masterAcceptanceReason String?
+  certificate          Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  parameter            Parameter?  @relation(fields: [parameterId], references: [id])
 
   @@index([certificateId])
+  @@index([parameterId])
 }
 
 model Signature {
@@ -856,19 +877,19 @@ model AuditLog {
 }
 
 model AuthActivityLog {
-  id          String   @id @default(cuid())
-  tenantId    String?
-  userId      String?
-  customerId  String?
-  email       String?
-  userType    String?
-  eventType   String
-  surface     String?
-  deviceId    String?
-  ipAddress   String?
-  userAgent   String?
-  metadata    Json?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  tenantId   String?
+  userId     String?
+  customerId String?
+  email      String?
+  userType   String?
+  eventType  String
+  surface    String?
+  deviceId   String?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
 
   @@index([tenantId, createdAt])
   @@index([userId, createdAt])
@@ -1134,7 +1155,7 @@ model RefreshToken {
   token         String    @unique
   userId        String?
   customerId    String?
-  deviceId      String?   // Present only for desktop app tokens (bound to device)
+  deviceId      String? // Present only for desktop app tokens (bound to device)
   userType      String
   expiresAt     DateTime
   createdAt     DateTime  @default(now())
@@ -1267,16 +1288,16 @@ model OfflineCode {
   id        String           @id @default(cuid())
   batchId   String
   batch     OfflineCodeBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  key       String           // Challenge label (e.g., "A7")
-  value     String           // Plaintext response (e.g., "KX9P") — visible for card lifetime
-  valueHash String           // SHA-256 hash for validation
+  key       String // Challenge label (e.g., "A7")
+  value     String // Plaintext response (e.g., "KX9P") — visible for card lifetime
+  valueHash String // SHA-256 hash for validation
   sequence  Int
   used      Boolean          @default(false)
   usedAt    DateTime?
 
-  @@index([batchId, used])
   @@unique([batchId, key])
   @@unique([batchId, sequence])
+  @@index([batchId, used])
 }
 
 // ============================================================================
@@ -1334,10 +1355,10 @@ enum InternalRequestStatus {
 
 // Subscription & Billing Enums
 enum TenantTier {
-  STARTER   // ₹2,999/mo - 500 certs, 5 staff, 20 customers
-  GROWTH    // ₹5,999/mo - 5K certs, 15 staff, 100 customers
-  SCALE     // ₹11,999/mo - Unlimited
-  INTERNAL  // HTA's own tier - no billing
+  STARTER // ₹2,999/mo - 500 certs, 5 staff, 20 customers
+  GROWTH // ₹5,999/mo - 5K certs, 15 staff, 100 customers
+  SCALE // ₹11,999/mo - Unlimited
+  INTERNAL // HTA's own tier - no billing
 }
 
 enum SubscriptionStatus {
@@ -1364,15 +1385,15 @@ enum InvoiceStatus {
 
 model VpnPeer {
   id               String    @id @default(cuid())
-  userId           String    @unique              // one VPN peer per engineer
+  userId           String    @unique // one VPN peer per engineer
   user             User      @relation(fields: [userId], references: [id])
   tenantId         String
-  publicKey        String    @unique              // WireGuard Curve25519 public key
-  ipAddress        String    @unique              // assigned 10.100.0.x
+  publicKey        String    @unique // WireGuard Curve25519 public key
+  ipAddress        String    @unique // assigned 10.100.0.x
   provisionedAt    DateTime  @default(now())
   revokedAt        DateTime?
   isActive         Boolean   @default(true)
-  reprovisionToken String?   @unique              // device-bound token for silent re-provisioning
+  reprovisionToken String?   @unique // device-bound token for silent re-provisioning
 
   @@index([tenantId])
   @@index([isActive])
@@ -1415,7 +1436,7 @@ model CalibrationParameterStandard {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  parameters   CalibrationParameter[]
+  parameters CalibrationParameter[]
 
   @@index([category])
 }
@@ -1434,13 +1455,12 @@ model CalibrationParameter {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant      Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  standard    CalibrationParameterStandard @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  tenant   Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  standard CalibrationParameterStandard @relation(fields: [standardId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, standardId])
   @@index([tenantId, active])
 }
-
 
 // ---------------------------------------------------------------------------
 // Master instrument capabilities
@@ -1456,65 +1476,72 @@ model CalibrationParameter {
 // ---------------------------------------------------------------------------
 
 enum CapabilityKind {
-  RANGE      // 365 profiles — a measuring or sourcing span
-  ARTIFACT   //   4 profiles — a fixed value, e.g. a 2 kg mass
+  RANGE // 365 profiles — a measuring or sourcing span
+  ARTIFACT //   4 profiles — a fixed value, e.g. a 2 kg mass
 }
 
 enum CapabilityRole {
-  MEASURING  // 301
-  SOURCE     //  68
+  MEASURING // 301
+  SOURCE //  68
 }
 
 enum AccuracyKind {
-  SYMMETRIC  // 1411 buckets — ±0.6 °C
-  FORMULA    //  120 buckets — ±(0.02% of reading + 2 counts)
-  CLASS      //    2 buckets — Class 1
+  SYMMETRIC // 1411 buckets — ±0.6 °C
+  ASYMMETRIC //    0 buckets so far — +0.5 / −0.3 °C, which is not a ± anything
+  FORMULA //  120 buckets — ±(0.02% of reading + 2 counts)
+  CLASS //    2 buckets — Class 1
 }
 
 model MasterCapabilityProfile {
-  id           String          @id @default(uuid())
+  id           String @id @default(uuid())
   tenantId     String
-  instrumentId String          // stable identity, NOT MasterInstrument.id
+  instrumentId String // stable identity, NOT MasterInstrument.id
 
-  profileKey   String          // "P1" — the registry's own id, kept for traceability
-  parameter    String          // "Thermocouple", "Pressure", "Mass"
-  role         CapabilityRole
-  unit         String          // "°C", "bar", "kg"
-  kind         CapabilityKind  @default(RANGE)
+  profileKey String // "P1" — the registry's own id, kept for traceability
+  parameter  String // "Thermocouple", "Pressure", "Mass"
+  role       CapabilityRole
+  unit       String // "°C", "bar", "kg"
+  kind       CapabilityKind @default(RANGE)
 
   // Overall span. Null for ARTIFACT, which carries its value on its single bucket.
-  minValue       Decimal?      @db.Decimal(20, 9)
-  maxValue       Decimal?      @db.Decimal(20, 9)
-  minInclusive   Boolean       @default(true)
-  maxInclusive   Boolean       @default(true)
+  minValue     Decimal? @db.Decimal(20, 9)
+  maxValue     Decimal? @db.Decimal(20, 9)
+  minInclusive Boolean  @default(true)
+  maxInclusive Boolean  @default(true)
 
   // Set when the parameter splits: "thermocouple_type", "rtd_type". Null means the
   // buckets hang directly off this profile.
-  subtypeKind    String?
+  subtypeKind String?
+  /// "indicator" | "sensor" - which half of a two-part instrument this describes.
+  /// Not "component": that name is already the relation to the component row, which
+  /// is about identity. 580 HTAIPL/L has the part without the identity.
+  part        String?
+  /// How it measures where one instrument measures two ways, e.g. "height", "outside".
+  mode        String?
 
   // Decision 2 of master-instrument-model-decisions.md: a procedure belongs to a
   // parameter, not to a box.
-  sopReferences  String[]      @default([])
+  sopReferences String[] @default([])
 
   // Which part of the instrument has this capability. Null means the instrument as a
   // whole. 188 HTAIPL/L is one indicator with three transducers, and its 0-700 bar
   // profile belongs to the high pressure one - without this there is no honest answer
   // to which capability a certificate covers.
-  componentId    String?
+  componentId String?
 
   // How the seed knows what an admin has touched and must not overwrite.
-  source         String        @default("registry")  // "registry" | "manual"
-  sortOrder      Int           @default(0)
+  source    String @default("registry") // "registry" | "manual"
+  sortOrder Int    @default(0)
 
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  createdById    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
 
-  tenant         Tenant                     @relation(fields: [tenantId], references: [id])
-  component      MasterInstrumentComponent? @relation(fields: [componentId], references: [id], onDelete: SetNull)
-  subtypes       MasterCapabilitySubtype[]
-  buckets        MasterCapabilityBucket[]
-  certificates   MasterInstrumentCertificate[]
+  tenant       Tenant                        @relation(fields: [tenantId], references: [id])
+  component    MasterInstrumentComponent?    @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  subtypes     MasterCapabilitySubtype[]
+  buckets      MasterCapabilityBucket[]
+  certificates MasterInstrumentCertificate[]
 
   @@unique([tenantId, instrumentId, profileKey])
   @@index([tenantId, instrumentId])
@@ -1523,10 +1550,10 @@ model MasterCapabilityProfile {
 }
 
 model MasterCapabilitySubtype {
-  id           String   @id @default(uuid())
-  profileId    String
+  id        String @id @default(uuid())
+  profileId String
 
-  subtypeKey   String   // "Type J", "Pt-100"
+  subtypeKey String // "Type J", "Pt-100"
 
   // Its own span: Type J stops at 1200 °C where Type K goes further.
   minValue     Decimal? @db.Decimal(20, 9)
@@ -1534,21 +1561,21 @@ model MasterCapabilitySubtype {
   minInclusive Boolean  @default(true)
   maxInclusive Boolean  @default(true)
 
-  sortOrder    Int      @default(0)
+  sortOrder Int @default(0)
 
-  profile      MasterCapabilityProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  buckets      MasterCapabilityBucket[]
+  profile MasterCapabilityProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  buckets MasterCapabilityBucket[]
 
   @@unique([profileId, subtypeKey])
   @@index([profileId])
 }
 
 model MasterCapabilityBucket {
-  id           String   @id @default(uuid())
-  profileId    String
-  subtypeId    String?  // null when the profile has no subtypes
+  id        String  @id @default(uuid())
+  profileId String
+  subtypeId String? // null when the profile has no subtypes
 
-  bucketKey    String   // "B1"
+  bucketKey String // "B1"
 
   minValue     Decimal? @db.Decimal(20, 9)
   maxValue     Decimal? @db.Decimal(20, 9)
@@ -1562,70 +1589,96 @@ model MasterCapabilityBucket {
 
   // Null on 31 buckets. The three shapes are the three the data actually holds.
   accuracyKind     AccuracyKind?
-  accuracyValue    Decimal?      @db.Decimal(20, 9)  // SYMMETRIC
-  accuracyUnit     String?                            // SYMMETRIC — "°C", "%FS"
-  accuracyPolarity String?                            // SYMMETRIC — "±"
-  accuracyFormula  String?                            // FORMULA — kept verbatim
-  accuracyClass    String?                            // CLASS — "Class 1"
+  accuracyValue    Decimal?      @db.Decimal(20, 9) // SYMMETRIC
+  accuracyUnit     String? // SYMMETRIC — "°C", "%FS"
+  accuracyPolarity String? // SYMMETRIC — "±"
+  accuracyFormula  String? // FORMULA — kept verbatim
+  accuracyClass    String? // CLASS — "Class 1"
 
-  sortOrder    Int      @default(0)
+  // FORMULA, taken apart. The text is what the certificate says; these are what the
+  // app computes with. "+/-0.02% of reading +/-2 count" at a 12 V reading is
+  // 0.0002 x 12 plus 2 x the least count, and none of that can be got from the
+  // sentence - percentOf alone is the difference between 0.02% of the reading and
+  // 0.02% of full scale, which on a 0-30 V range is two and a half times.
+  //
+  // digitsUnit earns its own column because the register writes the same idea eight
+  // ways - d, digit, digits, dgt, count, Count - and twice it is not a display digit
+  // at all but ohms.
+  accuracyPercentOf    String? // "reading" | "full_scale" | "fsd" | "rh" | "hd"
+  accuracyPercentValue Decimal? @db.Decimal(20, 9) // 0.0002 for 0.02%
+  // Decimal, not Int: the data holds 0.01 and 0.1 as well as 1 and 2.
+  accuracyDigits       Decimal? @db.Decimal(20, 9)
+  accuracyDigitsUnit   String?
+  /// The accuracy as arithmetic over {reading} {full scale} {span} {least count},
+  /// for the shapes the four columns above cannot hold. Null where they can.
+  accuracyExpression   String?
 
-  profile      MasterCapabilityProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  subtype      MasterCapabilitySubtype? @relation(fields: [subtypeId], references: [id], onDelete: Cascade)
+  // ASYMMETRIC. A bound that is +0.5 on one side and −0.3 on the other is not a
+  // ± anything, and rounding it to the larger of the two would overstate the
+  // instrument. accuracyValue and accuracyPolarity stay null for this kind.
+  accuracyUpper Decimal? @db.Decimal(20, 9)
+  accuracyLower Decimal? @db.Decimal(20, 9)
+
+  sortOrder Int @default(0)
+
+  profile MasterCapabilityProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  subtype MasterCapabilitySubtype? @relation(fields: [subtypeId], references: [id], onDelete: Cascade)
 
   // Uniqueness is enforced by a NULLS NOT DISTINCT index created in the migration;
   // a plain @@unique does not hold when subtypeId is null. See below.
   @@index([profileId])
   @@index([subtypeId])
 }
+
 model MasterInstrumentComponent {
-  id           String        @id @default(uuid())
+  id           String @id @default(uuid())
   tenantId     String
-  instrumentId String        // stable identity, as with capability profiles
+  instrumentId String // stable identity, as with capability profiles
 
   // Whatever the lab calls this part: Indicator, Sensor, High Pressure Transducer,
   // Readout, Bath. Not an enum — the registry only ever recorded an indicator and a
   // sensor, and baking those two in would make every other kind of part unrecordable.
   name         String
-  componentKey String        // stable across edits, never reused
+  componentKey String // stable across edits, never reused
 
-  make         String?       // null means "same as the instrument's own make"
+  make         String? // null means "same as the instrument's own make"
   model        String?
   serialNumber String?
 
-  sortOrder    Int           @default(0)
+  sortOrder Int @default(0)
 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  tenant       Tenant                    @relation(fields: [tenantId], references: [id])
   capabilities MasterCapabilityProfile[]
 
   @@unique([tenantId, instrumentId, componentKey])
   @@index([tenantId, instrumentId])
 }
+
 model MasterCapabilityAudit {
-  id           String   @id @default(uuid())
+  id           String @id @default(uuid())
   tenantId     String
   instrumentId String
 
-  action       String   // PROFILE_ADDED, BUCKET_UPDATED, PROFILE_DELETED, ...
-  profileKey   String?  // "P1"
-  subtypeKey   String?  // "Type J"
-  bucketKey    String?  // internal, stable, never reused
+  action      String // PROFILE_ADDED, BUCKET_UPDATED, PROFILE_DELETED, ...
+  profileKey  String? // "P1"
+  subtypeKey  String? // "Type J"
+  bucketKey   String? // internal, stable, never reused
   // The range as it read when the change was made - "0 to 100 bar". Ranges are shown by
   // position now, and positions shift when one is deleted, so a past entry saying
   // "range 2" would quietly come to mean a different range. This does not.
-  bucketLabel  String?
-  field        String?  // "leastCountValue"
-  beforeValue  String?
-  afterValue   String?
+  bucketLabel String?
+  field       String? // "leastCountValue"
+  beforeValue String?
+  afterValue  String?
 
-  actorId      String?
-  createdAt    DateTime @default(now())
+  actorId   String?
+  createdAt DateTime @default(now())
 
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  actor        User?    @relation(fields: [actorId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  actor  User?  @relation(fields: [actorId], references: [id])
 
   @@index([tenantId, instrumentId, createdAt])
 }

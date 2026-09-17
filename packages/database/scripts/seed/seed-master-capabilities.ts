@@ -21,11 +21,11 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PrismaClient, type Prisma } from '@prisma/client'
-import { deriveCapabilities, type CapabilityRegistry, type UnitCapabilities } from '../src/master-capabilities'
+import { deriveCapabilities, type CapabilityRegistry, type UnitCapabilities } from '../../src/master-capabilities'
 
 const REGISTRY = join(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../apps/web-hta/src/data/master-instrument-registry.json',
+  '../../../../apps/web-hta/src/data/master-instrument-registry.json',
 )
 
 interface Tally {
@@ -80,6 +80,8 @@ async function seedUnit(
         minInclusive: p.minInclusive,
         maxInclusive: p.maxInclusive,
         subtypeKind: p.subtypeKind,
+        part: p.part,
+        mode: p.mode,
         sopReferences: p.sopReferences,
         source: 'registry',
         sortOrder: p.sortOrder,
@@ -119,6 +121,11 @@ async function seedUnit(
             accuracyUnit: b.accuracyUnit,
             accuracyPolarity: b.accuracyPolarity,
             accuracyFormula: b.accuracyFormula,
+            accuracyExpression: b.accuracyExpression,
+            accuracyPercentOf: b.accuracyPercentOf,
+            accuracyPercentValue: b.accuracyPercentValue,
+            accuracyDigits: b.accuracyDigits,
+            accuracyDigitsUnit: b.accuracyDigitsUnit,
             accuracyClass: b.accuracyClass,
             sortOrder: b.sortOrder,
           })),
@@ -144,6 +151,11 @@ async function seedUnit(
           accuracyUnit: b.accuracyUnit,
           accuracyPolarity: b.accuracyPolarity,
           accuracyFormula: b.accuracyFormula,
+          accuracyExpression: b.accuracyExpression,
+          accuracyPercentOf: b.accuracyPercentOf,
+          accuracyPercentValue: b.accuracyPercentValue,
+          accuracyDigits: b.accuracyDigits,
+          accuracyDigitsUnit: b.accuracyDigitsUnit,
           accuracyClass: b.accuracyClass,
           sortOrder: b.sortOrder,
         })),

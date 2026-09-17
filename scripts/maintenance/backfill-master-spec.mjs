@@ -18,7 +18,6 @@
  *   node scripts/backfill-master-spec.mjs --check
  *   node scripts/backfill-master-spec.mjs
  */
-import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createRequire } from 'node:module'
 
@@ -39,19 +38,80 @@ const ISSUED = new Set([
   'CUSTOMER_REVISION_REQUIRED',
 ])
 
-const registry = JSON.parse(
-  readFileSync(
-    resolve(process.cwd(), 'apps/web-hta/src/data/master-instrument-registry.json'),
-    'utf8',
-  ),
+/**
+ * The capabilities, read from the database.
+ *
+ * This used to read the register file the app shipped. The app does not ship it any
+ * more - it was generated at build time, so an instrument edited on the admin pages
+ * was not in it - and a repair script working from a stale copy would write stale
+ * figures onto certificates, which is the opposite of repairing them.
+ *
+ * Shaped as the file shaped it, so everything below reads unchanged: a profile with
+ * buckets, and subtypes carrying buckets of their own.
+ */
+const num = (v) => (v === null || v === undefined ? null : Number(v))
+
+const bucketOf = (b) => ({
+  id: b.bucketKey,
+  min: num(b.minValue),
+  max: num(b.maxValue),
+  min_inclusive: b.minInclusive,
+  max_inclusive: b.maxInclusive,
+  least_count:
+    b.leastCountValue === null
+      ? null
+      : { value: num(b.leastCountValue), unit: b.leastCountUnit ?? '' },
+  accuracy:
+    b.accuracyKind === 'SYMMETRIC'
+      ? { type: 'symmetric', value: num(b.accuracyValue), unit: b.accuracyUnit ?? '' }
+      : b.accuracyKind === 'FORMULA'
+        ? { type: 'formula', expression: b.accuracyFormula ?? '' }
+        : b.accuracyKind === 'CLASS'
+          ? { type: 'class', class: b.accuracyClass ?? '' }
+          : null,
+})
+
+const instrumentRows = await prisma.masterInstrument.findMany({
+  where: { isActive: true, isLatest: true },
+  select: { instrumentId: true, legacyId: true },
+})
+const legacyOf = new Map(
+  instrumentRows.filter((i) => i.legacyId !== null).map((i) => [i.instrumentId, i.legacyId]),
 )
+
+const profileRows = await prisma.masterCapabilityProfile.findMany({
+  include: {
+    buckets: { orderBy: { sortOrder: 'asc' } },
+    subtypes: {
+      orderBy: { sortOrder: 'asc' },
+      include: { buckets: { orderBy: { sortOrder: 'asc' } } },
+    },
+  },
+})
 
 /** Every unit by its legacy id, which is what a certificate stores. */
 const unitsByLegacyId = new Map()
-for (const asset of registry.assets ?? []) {
-  for (const unit of asset.units ?? []) {
-    if (unit.legacy_id != null) unitsByLegacyId.set(String(unit.legacy_id), unit)
-  }
+for (const row of profileRows) {
+  const legacy = legacyOf.get(row.instrumentId)
+  if (legacy == null) continue
+  const key = String(legacy)
+  const unit = unitsByLegacyId.get(key) ?? { legacy_id: legacy, capability_profiles: [] }
+  unit.capability_profiles.push({
+    id: row.profileKey,
+    parameter: row.parameter,
+    role: row.role.toLowerCase(),
+    unit: row.unit || null,
+    min: num(row.minValue),
+    max: num(row.maxValue),
+    buckets: row.buckets.map(bucketOf),
+    subtypes: row.subtypes.map((s) => ({
+      id: s.subtypeKey,
+      min: num(s.minValue),
+      max: num(s.maxValue),
+      buckets: s.buckets.map(bucketOf),
+    })),
+  })
+  unitsByLegacyId.set(key, unit)
 }
 
 /** The buckets a declared capability resolves to - the subtype's where one was named. */

@@ -15,7 +15,14 @@
  * Usage:  node scripts/clean-sop-references.mjs [--check]
  */
 
-import { PrismaClient } from '@prisma/client'
+// pnpm does not hoist, and ESM resolves from this file rather than the working
+// directory, so the client is required from the package that depends on it. Run from
+// the repository root.
+import { createRequire } from 'node:module'
+import { resolve } from 'node:path'
+const { PrismaClient } = createRequire(
+  resolve(process.cwd(), 'packages/database/package.json'),
+)('@prisma/client')
 
 const NOT_A_REFERENCE = 'AS A SOURCE'
 const check = process.argv.includes('--check')

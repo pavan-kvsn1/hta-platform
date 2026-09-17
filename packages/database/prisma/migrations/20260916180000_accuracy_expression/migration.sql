@@ -1,0 +1,13 @@
+-- The accuracy as arithmetic the app can evaluate, beside the sentence it prints.
+--
+-- accuracyFormula holds what the calibrating lab wrote, and a certificate reproduces
+-- it exactly. The four part columns beside it hold one percentage and one digits term,
+-- which covers most of the register but not all of it: "+/-(330ppm + 1% rdg)" needs a
+-- constant, and "+/-(3% of reading + 0.3% FS)" needs two percentages on two bases.
+--
+-- This holds the same accuracy as an expression over {reading}, {full scale}, {span}
+-- and {least count}, evaluated by the parser the certificate's result columns already
+-- use. Nothing reads it until a row has one, so adding it changes no behaviour.
+--
+-- Additive and idempotent: safe to run twice, and nothing existing is touched.
+ALTER TABLE "MasterCapabilityBucket" ADD COLUMN IF NOT EXISTS "accuracyExpression" TEXT;
