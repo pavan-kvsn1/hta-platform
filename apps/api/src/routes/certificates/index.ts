@@ -1206,12 +1206,46 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: calibrationTimes.error })
     }
 
+    // Told apart from a payload that simply does not carry the field: a save from a
+    // screen with no reviewer control must not clear the one already chosen.
+    const reviewerSubmitted = Object.prototype.hasOwnProperty.call(body, 'reviewerId')
+    const nextReviewerId = (reviewerId as string | null) || null
+    const reviewerChanged = reviewerSubmitted && nextReviewerId !== existing.reviewerId
+
+    if (reviewerChanged && nextReviewerId) {
+      // A reviewer has to be someone who can actually review. Left unchecked, a bad id
+      // would fail as a foreign key deep inside the transaction and lose the save.
+      const candidate = await prisma.user.findFirst({
+        where: { id: nextReviewerId, tenantId, isActive: true },
+        select: { id: true, role: true },
+      })
+      if (!candidate || !['ENGINEER', 'ADMIN'].includes(candidate.role)) {
+        return reply.status(400).send({ error: 'That reviewer is not available' })
+      }
+      if (nextReviewerId === existing.createdById) {
+        return reply.status(400).send({ error: 'A certificate cannot be reviewed by the engineer who wrote it' })
+      }
+    }
+
     const certificate = await prisma.$transaction(async (tx: any) => {
       const cert = await tx.certificate.update({
         where: { id },
         data: {
           ...(certificateNumber && existing.status === 'DRAFT' ? { certificateNumber } : {}),
-          ...(reviewerId && !existing.reviewerId ? { reviewerId } : {}),
+          /**
+           * The reviewer can be changed, not only chosen once.
+           *
+           * This used to set it only when the certificate had none, so the first save
+           * that named a reviewer settled it forever - 37 of the 58 editable
+           * certificates in the lab were in that state, and an engineer whose reviewer
+           * had left or gone on leave had no way to reassign. Nothing else guarded it:
+           * the route already refuses anyone but the creator or an admin, and any
+           * status but DRAFT or REVISION_REQUIRED.
+           *
+           * Absent means "not being edited"; null means the engineer cleared it, which
+           * a draft is allowed to be in - submitting still insists on one.
+           */
+          ...(reviewerChanged ? { reviewerId: nextReviewerId } : {}),
           calibratedAt,
           srfNumber: srfNumber || null,
           srfDate: srfDate ? new Date(srfDate) : null,
@@ -1248,6 +1282,30 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           lastModifiedById: userId,
         },
       })
+
+      /**
+       * A reassignment is recorded. Changing who reviews a certificate is not the same
+       * kind of edit as correcting a reading - it decides who is answerable for it -
+       * and on a certificate sent back for revision it also decides who sees whether
+       * their comments were acted on. The history should be able to say it happened.
+       */
+      if (reviewerChanged && existing.reviewerId) {
+        const lastEvent = await tx.certificateEvent.findFirst({
+          where: { certificateId: id },
+          orderBy: { sequenceNumber: 'desc' },
+        })
+        await tx.certificateEvent.create({
+          data: {
+            certificateId: id,
+            sequenceNumber: (lastEvent?.sequenceNumber ?? 0) + 1,
+            revision: existing.currentRevision,
+            eventType: 'REVIEWER_REASSIGNED',
+            eventData: { from: existing.reviewerId, to: nextReviewerId },
+            userId,
+            userRole: request.user!.role,
+          },
+        })
+      }
 
       // Delete existing parameters and results, then recreate
       await tx.calibrationResult.deleteMany({
@@ -1495,7 +1553,10 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const isResubmission = certificate.status === 'REVISION_REQUIRED'
-    const effectiveReviewerId = certificate.reviewerId || body.reviewerId
+    // The reviewer chosen on this submission wins over the one stored earlier. The
+    // other way round, changing the reviewer and submitting notified the old one and
+    // left the certificate assigned to them.
+    const effectiveReviewerId = (body.reviewerId as string | null) || certificate.reviewerId
 
     // Validate reviewer
     if (!effectiveReviewerId) {
@@ -1530,7 +1591,9 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           status: 'PENDING_REVIEW',
           currentRevision: newRevision,
           lastModifiedById: userId,
-          ...(body.reviewerId && !certificate.reviewerId ? { reviewerId: body.reviewerId } : {}),
+          ...(effectiveReviewerId !== certificate.reviewerId
+            ? { reviewerId: effectiveReviewerId }
+            : {}),
         },
       })
 

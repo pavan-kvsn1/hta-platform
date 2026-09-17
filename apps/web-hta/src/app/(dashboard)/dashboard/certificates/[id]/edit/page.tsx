@@ -18,6 +18,7 @@ import {
 } from '@/components/forms'
 import { FeedbackTimeline, type InternalRequestItem } from '@/components/feedback/shared'
 import { useCertificateStore, CertificateFormData, Parameter, CalibrationResult, ensureParameterFields } from '@/lib/stores/certificate-store'
+import { reviewerNameFrom, useReviewers } from '@/lib/hooks/useReviewers'
 import { rangeCoverage } from '@/lib/certificate/fields'
 import { readStoredFieldSchema } from '@/lib/certificate/fields'
 import { cn } from '@/lib/utils'
@@ -1183,7 +1184,15 @@ export default function EditCertificatePage() {
   const [feedbacks, setFeedbacks] = useState<ApiFeedback[]>([])
   const [isTopFeedbackExpanded, setIsTopFeedbackExpanded] = useState(true)
   const [currentRevision, setCurrentRevision] = useState(1)
-  const [reviewerName, setReviewerName] = useState<string | null>(null)
+  /**
+   * The reviewer the certificate was loaded with. Not what the screen shows: the header
+   * follows the form, so changing the reviewer renames it there and then rather than at
+   * the next reload. It used to read this captured value and nothing else, which made
+   * the header disagree with the picker directly beside it.
+   */
+  const [loadedReviewerName, setLoadedReviewerName] = useState<string | null>(null)
+  const { reviewers } = useReviewers()
+  const reviewerName = reviewerNameFrom(reviewers, formData.reviewerId, loadedReviewerName)
 
   /**
    * Whether this certificate has ever been sent to a reviewer.
@@ -1483,7 +1492,7 @@ export default function EditCertificatePage() {
         setCertificateCreatedAt(tatState.certificate.startedAt)
 
         setCurrentRevision(data.currentRevision ?? 1)
-        setReviewerName(data.reviewer?.name || null)
+        setLoadedReviewerName(data.reviewer?.name || null)
       } catch (error) {
         console.error('Error fetching certificate:', error)
 
@@ -1526,7 +1535,7 @@ export default function EditCertificatePage() {
                   setFeedbacks(mergedFeedbacks)
                 }
                 setCurrentRevision(cached.currentRevision ?? 1)
-                setReviewerName(cached.reviewer?.name || null)
+                setLoadedReviewerName(cached.reviewer?.name || null)
                 return
               }
             }

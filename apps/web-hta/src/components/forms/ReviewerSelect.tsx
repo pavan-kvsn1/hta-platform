@@ -1,21 +1,16 @@
 'use client'
 
-import { apiFetch } from '@/lib/api-client'
-
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Check, ChevronsUpDown, User, Briefcase, Loader2, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-
-interface Reviewer {
-  id: string
-  name: string
-  email: string
-  role: 'ENGINEER' | 'ADMIN'
-  adminType?: string | null
-  hasSignature: boolean
-  pendingReviews: number
-}
+/**
+ * The list is shared rather than owned here. It used to be private to this component,
+ * which made the picker the only thing on the page able to turn a reviewer's id into
+ * their name - so the header beside it went on naming whoever the certificate loaded
+ * with, however many times the engineer changed their mind.
+ */
+import { useReviewers } from '@/lib/hooks/useReviewers'
 
 interface ReviewerSelectProps {
   value: string | null
@@ -33,45 +28,7 @@ export function ReviewerSelect({
   className,
 }: ReviewerSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [reviewers, setReviewers] = useState<Reviewer[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [fetchError, setFetchError] = useState<string | null>(null)
-
-  // Fetch reviewers on mount
-  useEffect(() => {
-    const fetchReviewers = async () => {
-      setIsLoading(true)
-      setFetchError(null)
-
-      try {
-        const res = await apiFetch('/api/users/reviewers')
-        if (!res.ok) throw new Error('Failed to fetch reviewers')
-
-        const data = await res.json()
-        setReviewers(data.reviewers)
-      } catch (err) {
-        // Offline fallback: try cached reviewers from Electron IPC
-        const electronAPI = typeof window !== 'undefined'
-          ? (window as unknown as { electronAPI?: { getReviewers?: () => Promise<Reviewer[]> } }).electronAPI
-          : undefined
-        if (electronAPI?.getReviewers) {
-          try {
-            const cached = await electronAPI.getReviewers()
-            if (cached?.length) {
-              setReviewers(cached)
-              return
-            }
-          } catch { /* fall through to error */ }
-        }
-        setFetchError('Unable to load reviewers')
-        console.error('Fetch reviewers error:', err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchReviewers()
-  }, [])
+  const { reviewers, isLoading, error: fetchError } = useReviewers()
 
   const selectedReviewer = reviewers.find((r) => r.id === value)
 
