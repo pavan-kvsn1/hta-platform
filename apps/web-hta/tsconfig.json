@@ -35,7 +35,6 @@
     "tests",
     "**/__tests__/**",
     "**/*.test.ts",
-    "**/*.test.tsx",
-    "scripts/seed.ts"
+    "**/*.test.tsx"
   ]
 }

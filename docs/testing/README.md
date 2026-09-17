@@ -397,7 +397,7 @@ Steps:
 
 ### P2-4: Seed script must create offline code test data (DONE)
 
-**File:** `apps/web-hta/scripts/seed.ts`
+**File:** `packages/database/scripts/seed/seed-platform.ts`
 
 The seed script needs to create:
 - A registered device for the test engineer

@@ -1,14 +1,37 @@
-import * as dotenv from 'dotenv'
 import * as path from 'path'
+import { fileURLToPath } from 'node:url'
 
-// Explicitly load .env from project root
-dotenv.config({ path: path.resolve(__dirname, '../.env') })
+/**
+ * This package is ESM; the app it came from was not, so __dirname was free there.
+ * Derived rather than removed, because the paths below read better as offsets from
+ * this file than as offsets from wherever someone happened to run it.
+ */
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+/**
+ * No dotenv.
+ *
+ * This used to load apps/web-hta/.env - a file that does not exist, so it loaded
+ * nothing and took whatever DATABASE_URL happened to be in the environment. Beside the
+ * schema it does not need to: Prisma Client reads the .env next to the schema it is
+ * pointed at, which is the same file the migrations use, and the two agreeing is the
+ * whole reason for this script living here.
+ *
+ * Which database that turns out to be is printed before anything is written. This
+ * creates a tenant, users, customers and certificates, and it should not take reading
+ * a port number to know where they are going.
+ */
 
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import * as fs from 'fs'
 import * as crypto from 'crypto'
 const prisma = new PrismaClient()
+
+console.log(
+  'Seeding:',
+  (process.env.DATABASE_URL ?? '(no DATABASE_URL set)').replace(/:\/\/[^:]+:[^@]*@/, '://***:***@'),
+)
 
 // GCS upload helper — used when GCS_BUCKET is set (production/staging)
 const GCS_BUCKET = process.env.GCS_BUCKET || process.env.GCS_CERTIFICATES_BUCKET
@@ -20,8 +43,8 @@ async function getGCSBucket() {
 }
 
 // Certificate PDF source directory (within project)
-const CERTIFICATE_PDF_SOURCE = path.resolve(__dirname, '../reference_docs/certificate_pdfs')
-const CERTIFICATE_STORAGE_PATH = path.resolve(__dirname, '..', process.env.CERTIFICATE_STORAGE_PATH || './storage/master-instrument-certificates')
+const CERTIFICATE_PDF_SOURCE = path.resolve(__dirname, '../../../../apps/web-hta/reference_docs/certificate_pdfs')
+const CERTIFICATE_STORAGE_PATH = path.resolve(__dirname, '../../../../apps/web-hta', process.env.CERTIFICATE_STORAGE_PATH || './storage/master-instrument-certificates')
 
 // Default tenant for HTA Calibration
 const DEFAULT_TENANT = {
@@ -505,7 +528,7 @@ async function main() {
   // ==================
   console.log('\n--- Syncing Master Instruments from JSON ---')
 
-  const jsonPath = path.join(__dirname, '../src/data/master-instruments.json')
+  const jsonPath = path.join(__dirname, '../../../../apps/web-hta/src/data/master-instruments.json')
   try {
     const jsonData = fs.readFileSync(jsonPath, 'utf-8')
     const instruments: MasterInstrumentJson[] = JSON.parse(jsonData)

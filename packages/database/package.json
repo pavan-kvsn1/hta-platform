@@ -23,12 +23,19 @@
     "test:unit": "vitest run",
     "typecheck": "tsc --noEmit",
     "db:seed:parameters": "tsx scripts/seed/seed-calibration-parameters.ts",
-    "db:seed:capabilities": "tsx scripts/seed/seed-master-capabilities.ts"
+    "db:seed:capabilities": "tsx scripts/seed/seed-master-capabilities.ts",
+    "db:seed:platform": "tsx scripts/seed/seed-platform.ts"
+  },
+  "prisma": {
+    "seed": "tsx scripts/seed/seed-platform.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.4.0"
   },
   "devDependencies": {
+    "@google-cloud/storage": "^7.14.0",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^2.4.3",
     "prisma": "^6.4.0",
     "typescript": "^5.5.0",
     "vitest": "^2.1.0"
