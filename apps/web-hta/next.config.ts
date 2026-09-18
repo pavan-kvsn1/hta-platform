@@ -17,6 +17,19 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   transpilePackages: ['@hta/ui', '@hta/shared', '@hta/database'],
 
+  /**
+   * Loggers stay out of the bundle.
+   *
+   * @hta/shared depends on pino, which writes through thread-stream - a worker thread
+   * started by requiring a file path at runtime. Webpack cannot follow that: it emits a
+   * reference to a chunk it never wrote, and the server dies on boot with
+   * "Cannot find module .next/server/vendor-chunks/lib/worker.js".
+   *
+   * Listing them here leaves them as ordinary requires from node_modules, which is what
+   * they need to be.
+   */
+  serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
+
   // Performance optimizations
   images: {
     unoptimized: process.env.HTA_DESKTOP === '1',
