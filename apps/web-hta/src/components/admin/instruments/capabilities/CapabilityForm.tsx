@@ -262,7 +262,7 @@ function working(r: RangeRow, unit: string, fullScale: string): string[] {
     }
     const part = dg * lc
     total += part
-    lines.push(`${r.digits.trim()} \× ${trimNumber(lc)}  =  ${trimNumber(part)}${u}`)
+    lines.push(`${r.digits.trim()} × ${trimNumber(lc)}  =  ${trimNumber(part)}${u}`)
   }
   if (!lines.length) return []
   return lines.length === 1
@@ -390,7 +390,7 @@ function AccuracyPanel({
         <span className="acchint">
           {row.basis === 'expr'
             ? 'What the certificate prints. The arithmetic above is what the master is rated by.'
-            : 'Written for you from the figures. Edit it to match the datasheet \— what you type is what the certificate prints.'}
+            : 'Written for you from the figures. Edit it to match the datasheet — what you type is what the certificate prints.'}
         </span>
       </div>
     </div>

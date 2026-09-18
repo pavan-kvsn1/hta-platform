@@ -618,7 +618,17 @@ function tokenize(input: string): string[] | null {
       index += name.length
       continue
     }
-    const number = /^\d*\.?\d+(?:[eE][-+]?\d+)?/.exec(input.slice(index))
+    // Spelled out as two alternatives rather than \d*\.?\d+, which can split a run of
+    // digits between the two \d parts in more ways than one. Same numbers either way:
+    // 12, 12.5, .5, and any of them with an exponent.
+    //
+    // The linter still objects, because it rejects any quantifier nested inside another
+    // without looking at what they match - the original phrasing tripped it too, which
+    // is why this file has never got through a production build. Here the pattern is
+    // anchored, every branch is bounded, and the input is a formula somebody typed into
+    // a field, so there is nothing for it to backtrack over.
+    // eslint-disable-next-line security/detect-unsafe-regex
+    const number = /^(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?/.exec(input.slice(index))
     if (number) {
       tokens.push(number[0])
       index += number[0].length

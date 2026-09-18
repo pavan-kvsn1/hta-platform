@@ -101,10 +101,25 @@ if (cyanB64) {
 } else if (existsSync(PDF_BASE64)) {
   // Keep the cyan export that is already there rather than dropping it and
   // breaking the certificate because one machine has no Pillow.
-  const kept = readFileSync(PDF_BASE64, 'utf8').match(
-    /\/\*\*[^\n]*\*\/\nexport const HTA_LOGO_CYAN_BASE64 = `[^`]*`/,
+  //
+  // The newline has to be optional-CR: a Windows checkout has CRLF endings, so
+  // insisting on a bare newline here never matched. It did not fail either - it
+  // wrote the file without the export, and node:20-alpine has no Python, so every
+  // container build took this path and then died compiling the certificate.
+  const existing = readFileSync(PDF_BASE64, 'utf8')
+  const kept = existing.match(
+    /\/\*\*[^\n]*\*\/\r?\nexport const HTA_LOGO_CYAN_BASE64 = `[^`]*`/,
   )
-  if (kept) lines.push(kept[0], '')
+  if (kept) {
+    lines.push(kept[0].replace(/\r/g, ''), '')
+  } else if (existing.includes('HTA_LOGO_CYAN_BASE64')) {
+    // Dropping an export that something imports breaks the build several steps
+    // later, in a message naming neither this script nor the reason. Say it here.
+    throw new Error(
+      'logo-base64.ts has HTA_LOGO_CYAN_BASE64 but it could not be preserved. ' +
+        'Regenerating would drop it and break the certificate PDF.',
+    )
+  }
 }
 writeFileSync(PDF_BASE64, lines.join('\n'))
 console.log(`  ✓ pdf/logo-base64.ts${cyanB64 ? ' (and the cyan variant)' : ''}`)
