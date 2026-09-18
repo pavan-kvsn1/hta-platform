@@ -12,6 +12,14 @@ export interface CollapsibleSectionProps {
   feedbackSlot?: React.ReactNode
   /** Optional action button (e.g., View Images) displayed in header */
   actionButton?: React.ReactNode
+  /**
+   * The reviewer's sign-off for this section, shown in the header beside the title.
+   *
+   * Rendered outside the toggle rather than within it. It was inside at first, next to
+   * the title, which put a button inside a button - invalid HTML, and React says so at
+   * hydration. It now sits with the action button, before it.
+   */
+  signoffSlot?: React.ReactNode
 }
 
 function extractSectionNumber(title: string): string | null {
@@ -36,6 +44,7 @@ export function CollapsibleSection({
   badge,
   feedbackSlot,
   actionButton,
+  signoffSlot,
 }: CollapsibleSectionProps) {
   const sectionNum = extractSectionNumber(title)
   const sectionLabel = extractSectionLabel(title)
@@ -66,8 +75,13 @@ export function CollapsibleSection({
             <ChevronDown className="h-[15px] w-[15px] text-[#94a3b8]" />
           )}
         </button>
-        {actionButton && (
-          <div className="pr-4">
+        {/* Outside the toggle, not inside it. The sign-off is a control of its own and
+            a button cannot nest in a button - inside, it was invalid HTML and React
+            said so at hydration. It sits before the action button so the order reads
+            title, state, then what can be done. */}
+        {(signoffSlot || actionButton) && (
+          <div className="flex items-center gap-2.5 pr-4 pl-2 shrink-0">
+            {signoffSlot}
             {actionButton}
           </div>
         )}

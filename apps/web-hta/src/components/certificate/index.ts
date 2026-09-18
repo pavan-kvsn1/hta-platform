@@ -35,3 +35,4 @@ export type { ImageGalleryModalProps, GalleryImage } from './ImageGalleryModal'
 
 export { ReadingImagesViewModal } from './ReadingImagesViewModal'
 export type { ReadingImagesViewModalProps, ParameterReadingImages, ReadingImageData } from './ReadingImagesViewModal'
+export { MasterInstrumentsByParameter } from './MasterInstrumentsByParameter'

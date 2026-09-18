@@ -35,11 +35,17 @@ import {
   PenLine,
   ChevronDown,
   ChevronUp,
+  Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ViewToggleButton } from '@/components/certificate/ViewToggleButton'
 import { MetaInfoItem } from '@/components/certificate/MetaInfoItem'
 import { REVISION_SECTIONS } from '@/components/feedback/shared/feedback-utils'
+import {
+  REVIEW_SECTION_IDS,
+  rejectedMasters,
+  useReviewProgress,
+} from '@/lib/stores/review-progress-store'
 import type { ClientEvidence } from '@/types/signatures'
 import type {
   CertificateData,
@@ -313,13 +319,83 @@ export function ReviewerPageClient({
   const isElectronOffline = typeof window !== 'undefined' && !!(window as unknown as { electronAPI?: { isOffline?: () => boolean } }).electronAPI?.isOffline?.()
 
   // Modal states
+  /**
+   * Whether the certificate may be sent.
+   *
+   * Two gates, for two different reasons. The sections say somebody read all of it -
+   * so "did anybody look at the conclusion?" has an answer. The master decisions say
+   * somebody agreed with the one judgement the app could not make for itself; until
+   * now, approving accepted it silently.
+   *
+   * Neither applies to Request Revision or Reject. The gates exist to stop a
+   * certificate going out unread, not to stop one being stopped.
+   */
+  const review = useReviewProgress()
+  const uncheckedSections = REVIEW_SECTION_IDS.filter((s) => !review.signoffs[s])
+  const undecidedMasters = review.openMasterIds.filter((id) => !review.decisions[id])
+  const rejected = rejectedMasters(review)
+  const approveBlockedBecause =
+    undecidedMasters.length > 0
+      ? `${undecidedMasters.length} master${undecidedMasters.length === 1 ? '' : 's'} still to accept or reject`
+      : rejected.length > 0
+        ? `You rejected ${rejected.length} master${rejected.length === 1 ? '' : 's'}. Send it back for revision, or reject the certificate.`
+        : uncheckedSections.length > 0
+          ? `${uncheckedSections.length} section${uncheckedSections.length === 1 ? '' : 's'} not checked yet`
+          : null
+
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showRevisionModal, setShowRevisionModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
 
   // Form states - New section feedback entries structure
+  /**
+   * A rejected master is already a section, a subject and a reason. Carrying it into
+   * the revision request is the whole point of asking for the reason where the problem
+   * was seen: the modal stops being data entry and becomes a confirmation.
+   */
+  /**
+   * The rejections, as entries the modal can show but not change.
+   *
+   * Keyed on the master so reopening the modal does not add them twice, and merged
+   * with whatever the reviewer had already typed rather than replacing it.
+   */
+  const withRejections = (
+    existing: typeof sectionFeedbackEntries,
+  ): typeof sectionFeedbackEntries => {
+    const rejections = rejectedMasters(useReviewProgress.getState())
+    if (rejections.length === 0) return existing
+
+    const locked = rejections.map((d) => ({
+      id: `rejection-${d.masterId}`,
+      section: 'master-inst',
+      comment: d.reason?.trim() ?? '',
+      fromRejection: d.masterId,
+    }))
+
+    // The reviewer's own entries, minus any that are now stale copies of a rejection
+    // and minus the empty row the modal starts with, which the locked ones replace.
+    const mine = existing.filter(
+      (e) => !e.fromRejection && !(e.section === '' && e.comment.trim() === ''),
+    )
+    return [...locked, ...mine]
+  }
+
   const [sectionFeedbackEntries, setSectionFeedbackEntries] = useState<
-    { id: string; section: string; comment: string; fromCustomer?: boolean }[]
+    {
+      id: string
+      section: string
+      comment: string
+      fromCustomer?: boolean
+      /**
+       * This entry is a master the reviewer already rejected, carried across.
+       *
+       * Locked, because it has been written once and recorded against that master. A
+       * rejection the engineer receives has to be the rejection that was made; letting
+       * it be edited here would leave the certificate saying one thing and the message
+       * another.
+       */
+      fromRejection?: string
+    }[]
   >([{ id: crypto.randomUUID(), section: '', comment: '' }])
   const [forwardedCustomerItems, setForwardedCustomerItems] = useState<Set<number>>(new Set())
   const [generalNotes, setGeneralNotes] = useState('')
@@ -414,12 +490,29 @@ export function ReviewerPageClient({
 
       const responseData = await response.json().catch(() => null) as {
         error?: string
+        message?: string
         warning?: string
         emailQueued?: boolean
+        status?: string
       } | null
 
+      /**
+       * A second click on an approve that already worked is not a failure.
+       *
+       * The first request lands, the certificate moves on, and the second arrives at a
+       * certificate that is no longer reviewable. Reporting that as an error sends the
+       * reviewer looking for what went wrong when the answer is that nothing did - so
+       * the screen catches up to where the certificate actually is and says so.
+       */
+      if (response.status === 409 && responseData?.error === 'ALREADY_DECIDED') {
+        if (responseData.status) setCurrentStatus(responseData.status)
+        setShowApproveModal(false)
+        router.refresh()
+        return
+      }
+
       if (!response.ok) {
-        throw new Error(responseData?.error || 'Failed to approve certificate')
+        throw new Error(responseData?.message || responseData?.error || 'Failed to approve certificate')
       }
 
       setCurrentStatus('PENDING_CUSTOMER_APPROVAL')
@@ -794,7 +887,11 @@ export function ReviewerPageClient({
   }, [certificate.id, certificate.certificateNumber])
 
   return (
-    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
+    /* The two columns are inset 10px from every edge of the window and, until now, sat
+       flush against each other: the left padded pr-0 and the right pl-0, so the space
+       between them was the only seam on the screen with no gap at all. The parent
+       supplies it, which keeps it one number rather than two halves that can drift. */
+    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden gap-2.5">
       {/* Left Side - Header + Content (Scrollable) */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden p-2.5 pr-0">
         {/* TAT Banner */}
@@ -900,7 +997,17 @@ export function ReviewerPageClient({
       <div className="w-[380px] flex-shrink-0 flex flex-col gap-2.5 p-2.5 pl-0 h-full overflow-hidden">
 
         {/* ===== CHAT SECTION ===== */}
-        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden">
+        {/* It grows to fill the column only while it has something in it. flex-1 was
+            unconditional, so collapsing removed the messages and left the empty box
+            holding exactly as much height as before - the chevron turned, nothing
+            moved, and the panel looked broken rather than closed. The two panels below
+            are flex-shrink-0 and have always collapsed properly. */}
+        <div
+          className={cn(
+            'flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden',
+            isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0',
+          )}
+        >
           {/* Chat Header - Collapsible */}
           <button
             onClick={() => setIsChatExpanded(!isChatExpanded)}
@@ -1069,16 +1176,42 @@ export function ReviewerPageClient({
 
               {canReview && !isElectronOffline && !hasPendingFieldChange && (
                 <div className="space-y-2">
+                  {/* How far through the review the reviewer is. Shown whether or not
+                      anything is outstanding: seven of seven is worth seeing too. */}
+                  <div className="flex items-center gap-2 text-[11.5px] text-[#64748b]">
+                    <span className="font-semibold text-[#334155]">
+                      {REVIEW_SECTION_IDS.length - uncheckedSections.length} of{' '}
+                      {REVIEW_SECTION_IDS.length} checked
+                    </span>
+                    <span className="flex-1 h-1.5 rounded-full bg-[#e2e8f0] overflow-hidden">
+                      <span
+                        className="block h-full rounded-full bg-[#16a34a] transition-all"
+                        style={{
+                          width: `${((REVIEW_SECTION_IDS.length - uncheckedSections.length) / REVIEW_SECTION_IDS.length) * 100}%`,
+                        }}
+                      />
+                    </span>
+                  </div>
+                  {approveBlockedBecause && (
+                    <p className="rounded-lg bg-[#fffbeb] border border-[#fde68a] px-2.5 py-1.5 text-[11.5px] text-[#92400e]">
+                      {approveBlockedBecause}
+                    </p>
+                  )}
                   <Button
                     onClick={() => setShowApproveModal(true)}
+                    disabled={!!approveBlockedBecause}
                     size="sm"
-                    className="w-full bg-[#16a34a] hover:bg-[#15803d] text-white h-9 rounded-[9px] text-[12.5px] font-semibold"
+                    title={approveBlockedBecause ?? undefined}
+                    className="w-full bg-[#16a34a] hover:bg-[#15803d] text-white h-9 rounded-[9px] text-[12.5px] font-semibold disabled:opacity-40 disabled:hover:bg-[#16a34a]"
                   >
                     <CheckCircle className="size-3.5 mr-1.5" />
                     Approve & Send
                   </Button>
                   <Button
-                    onClick={() => setShowRevisionModal(true)}
+                    onClick={() => {
+                      setSectionFeedbackEntries((prev) => withRejections(prev))
+                      setShowRevisionModal(true)
+                    }}
                     size="sm"
                     className="w-full bg-[#d97706] hover:bg-[#b45309] text-white h-9 rounded-[9px] text-[12.5px] font-semibold"
                   >
@@ -1086,7 +1219,13 @@ export function ReviewerPageClient({
                     Request Revision
                   </Button>
                   <Button
-                    onClick={() => setShowRejectModal(true)}
+                    onClick={() => {
+                      const rejections = rejectedMasters(useReviewProgress.getState())
+                      if (rejections.length > 0 && !rejectReason.trim()) {
+                        setRejectReason(rejections.map((r) => r.reason?.trim() ?? '').join('\n'))
+                      }
+                      setShowRejectModal(true)
+                    }}
                     size="sm"
                     className="w-full bg-[#dc2626] hover:bg-[#b91c1c] text-white h-9 rounded-[9px] text-[12.5px] font-semibold"
                   >
@@ -1479,9 +1618,11 @@ export function ReviewerPageClient({
                         key={entry.id}
                         className={cn(
                           'border rounded-xl p-3 transition-colors',
-                          isComplete
-                            ? 'border-[#fde68a] bg-[#fffbeb]'
-                            : 'border-[#e2e8f0] bg-white'
+                          entry.fromRejection
+                            ? 'border-[#fecaca] bg-[#fef2f2]'
+                            : isComplete
+                              ? 'border-[#fde68a] bg-[#fffbeb]'
+                              : 'border-[#e2e8f0] bg-white'
                         )}
                       >
                         <div className="flex items-start gap-3">
@@ -1490,8 +1631,9 @@ export function ReviewerPageClient({
                             <div className="relative">
                             <select
                               value={entry.section}
+                              disabled={!!entry.fromRejection}
                               onChange={(e) => updateSectionEntry(entry.id, 'section', e.target.value)}
-                              className="w-full appearance-none pl-2.5 pr-8 py-2 text-[12.5px] border border-[#e2e8f0] rounded-lg bg-white text-[#0f172a] focus:ring-2 focus:ring-[#d97706]/20 focus:border-[#d97706]"
+                              className="w-full appearance-none pl-2.5 pr-8 py-2 text-[12.5px] border border-[#e2e8f0] rounded-lg bg-white text-[#0f172a] focus:ring-2 focus:ring-[#d97706]/20 focus:border-[#d97706] disabled:bg-[#f8fafc] disabled:text-[#64748b]"
                             >
                               <option value="">Select section...</option>
                               {(currentSection ? [currentSection, ...availableSections.filter(s => s.id !== currentSection.id)] : availableSections).map((section) => (
@@ -1505,6 +1647,11 @@ export function ReviewerPageClient({
                             {entry.fromCustomer && (
                               <span className="text-[10px] text-[#7c3aed] font-medium mt-1 block">From customer</span>
                             )}
+                            {entry.fromRejection && (
+                              <span className="text-[10px] text-[#b91c1c] font-medium mt-1 block">
+                                From your rejection
+                              </span>
+                            )}
                             {isComplete && !entry.fromCustomer && (
                               <span className="text-[10px] text-[#16a34a] font-medium mt-1 block">Complete</span>
                             )}
@@ -1512,24 +1659,45 @@ export function ReviewerPageClient({
 
                           {/* Feedback textarea — fills remaining space */}
                           <div className="flex-1 min-w-0">
-                            <Textarea
-                              placeholder="Describe what needs to be revised..."
-                              value={entry.comment}
-                              onChange={(e) => updateSectionEntry(entry.id, 'comment', e.target.value)}
-                              rows={2}
-                              className="resize-none text-[12.5px] md:text-[12.5px] border-[#e2e8f0] rounded-lg focus:ring-[#d97706]/20 focus:border-[#d97706] placeholder:text-[#94a3b8]"
-                            />
+                            {entry.fromRejection ? (
+                              // Shown, not offered for editing. It was written against
+                              // that master and recorded there; the engineer must
+                              // receive the rejection that was actually made.
+                              <p className="rounded-lg border border-[#fecaca] bg-white px-2.5 py-2 text-[12.5px] leading-relaxed text-[#7f1d1d]/80">
+                                {entry.comment}
+                              </p>
+                            ) : (
+                              <Textarea
+                                placeholder="Describe what needs to be revised..."
+                                value={entry.comment}
+                                onChange={(e) => updateSectionEntry(entry.id, 'comment', e.target.value)}
+                                rows={2}
+                                className="resize-none text-[12.5px] md:text-[12.5px] border-[#e2e8f0] rounded-lg focus:ring-[#d97706]/20 focus:border-[#d97706] placeholder:text-[#94a3b8]"
+                              />
+                            )}
                           </div>
 
-                          {/* Delete button */}
-                          <button
-                            type="button"
-                            onClick={() => removeSectionEntry(entry.id)}
-                            className="p-1.5 text-[#94a3b8] hover:text-[#dc2626] hover:bg-[#fef2f2] rounded-lg transition-colors flex-shrink-0 mt-1"
-                            title="Remove entry"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
+                          {/* Delete button. Not offered on a rejection: removing it
+                              here would send the engineer a revision that says nothing
+                              about the master the certificate records as rejected.
+                              Undoing it is done where it was made, on the master. */}
+                          {entry.fromRejection ? (
+                            <span
+                              className="p-1.5 text-[#cbd5e1] flex-shrink-0 mt-1"
+                              title="Undo this on the master itself, in Section 3"
+                            >
+                              <Lock className="size-3.5" />
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => removeSectionEntry(entry.id)}
+                              className="p-1.5 text-[#94a3b8] hover:text-[#dc2626] hover:bg-[#fef2f2] rounded-lg transition-colors flex-shrink-0 mt-1"
+                              title="Remove entry"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     )

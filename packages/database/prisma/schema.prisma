@@ -202,6 +202,7 @@ model User {
   passwordResetTokens            PasswordResetToken[]
   resolvedFeedback               ReviewFeedback[]              @relation("FeedbackResolver")
   authoredFeedback               ReviewFeedback[]              @relation("FeedbackAuthor")
+  sectionSignoffs                CertificateSectionSignoff[]   @relation("SectionSignoffActor")
   signatures                     Signature[]
   uploadedUUCImages              UUCImage[]
   assignedAdmin                  User?                         @relation("EngineerToAdmin", fields: [assignedAdminId], references: [id])
@@ -589,6 +590,7 @@ model Certificate {
   parameters        Parameter[]
   feedbacks         ReviewFeedback[]
   signatures        Signature[]
+  sectionSignoffs   CertificateSectionSignoff[]
   signingEvidence   SigningEvidence[]
   uucImages         UUCImage[]
 
@@ -788,20 +790,20 @@ model CalibrationResult {
 }
 
 model CertificateMasterInstrument {
-  id                     String      @id @default(uuid())
-  certificateId          String
-  parameterId            String?
-  masterInstrumentId     String
-  category               String?
-  description            String?
-  make                   String?
-  model                  String?
-  assetNo                String?
-  serialNumber           String?
-  calibratedAt           String?
-  reportNo               String?
-  calibrationDueDate     String?
-  sopReference           String
+  id                       String      @id @default(uuid())
+  certificateId            String
+  parameterId              String?
+  masterInstrumentId       String
+  category                 String?
+  description              String?
+  make                     String?
+  model                    String?
+  assetNo                  String?
+  serialNumber             String?
+  calibratedAt             String?
+  reportNo                 String?
+  calibrationDueDate       String?
+  sopReference             String
   /**
    * What the master's own certificate says, snapshotted when it was chosen.
    * These live on the capability profile in the master registry, which is regenerated
@@ -810,11 +812,11 @@ model CertificateMasterInstrument {
    * was true at calibration, so it holds its own copy.
    * Null on certificates written before this existed; the PDF prints "Not recorded".
    */
-  capabilityParameter    String?
-  masterLeastCount       String?
-  masterLeastCountUnit   String?
-  masterAccuracy         String?
-  masterAccuracyUnit     String?
+  capabilityParameter      String?
+  masterLeastCount         String?
+  masterLeastCountUnit     String?
+  masterAccuracy           String?
+  masterAccuracyUnit       String?
   /// The master's own bands over the stretch it was used, as its register states them.
   ///
   /// The two scalars above are one pair, taken from whichever band the used range
@@ -826,22 +828,81 @@ model CertificateMasterInstrument {
   /// So the overlapping bands are kept as written, in order:
   /// [{ from, to, leastCount, leastCountUnit, accuracy, accuracyUnit }]. Null on every
   /// certificate written before this, which reads the scalars as it always did.
-  masterBands            Json?
+  masterBands              Json?
+  /**
+   * What the reviewer decided about this master, where the app could not rate it.
+   * The engineer is stopped and made to write why a master they could not vouch for
+   * was used anyway. Nobody was ever asked to agree with that: approving the
+   * certificate accepted it silently. ACCEPTED or REJECTED, and for a rejection the
+   * reason - which is the text that pre-fills Request Revision, so the reviewer writes
+   * it once, where they saw it.
+   * Held against the revision it was made at, for the same reason a section sign-off
+   * is: a decision about a master the engineer has since changed is not a decision
+   * about the master now on the certificate.
+   */
+  reviewerDecision         String?
+  reviewerDecisionReason   String?
+  reviewerDecisionById     String?
+  reviewerDecisionAt       DateTime?
+  reviewerDecisionRevision Int?
   /// The stretch of the parameter's range this master was used over, and what it was
   /// judged against. Null means the whole of it - two masters can share a parameter,
   /// either both covering it or each taking a part.
-  rangeFrom              String?
-  rangeTo                String?
+  rangeFrom                String?
+  rangeTo                  String?
   /// How this master was used, for the parameter it serves. On the pairing rather than
   /// on the parameter, which had room for one master's answers and so for one master.
-  masterProfileId        String?
-  masterSubtype          String?
-  masterAcceptanceReason String?
-  certificate            Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
-  parameter              Parameter?  @relation(fields: [parameterId], references: [id])
+  masterProfileId          String?
+  masterSubtype            String?
+  masterAcceptanceReason   String?
+  certificate              Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  parameter                Parameter?  @relation(fields: [parameterId], references: [id])
 
   @@index([certificateId])
   @@index([parameterId])
+}
+
+/**
+ * One section of a certificate, read and signed off by a reviewer.
+ * A reviewer could already say precisely what was wrong - Request Revision files a
+ * comment against a named section - but saying something was right had one setting:
+ * one Approve covering all seven sections, recording nothing about which of them
+ * anyone read. This is the other half, so "did anybody look at the conclusion?" is a
+ * question with an answer.
+ * Kept against the revision it was made at rather than cleared when one is raised. A
+ * tick cannot vouch for a section the reviewer never saw, so a sign-off from revision
+ * 1 simply does not count towards revision 2 - and the history still shows that
+ * somebody read it once, which is worth keeping.
+ */
+model CertificateSectionSignoff {
+  id            String      @id @default(uuid())
+  certificateId String
+  /// One of REVISION_SECTIONS: summary, uuc-details, master-inst, environment,
+  /// results, remarks, conclusion.
+  section       String
+  revision      Int
+  userId        String?
+  userRole      String
+  checkedAt     DateTime    @default(now())
+  /**
+   * A hash of the section's content as it stood when the tick was made.
+   *
+   * Held against a revision alone, a tick was wrong in both directions: a new revision
+   * cleared all seven even though the engineer touched two, and the two they touched
+   * are not reliably the ones the revision request named - an engineer sent back to
+   * fix Section 3 may correct a reading in Section 5 while they are in there.
+   *
+   * The tick stands while this still matches and lapses when it does not, whatever
+   * moved the content. Null on rows written before this, which fall back to counting
+   * for their own revision only.
+   */
+  contentHash   String?
+  certificate   Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  user          User?       @relation("SectionSignoffActor", fields: [userId], references: [id])
+
+  /// A reviewer who unticks and ticks again is replacing an answer, not adding one.
+  @@unique([certificateId, section, revision])
+  @@index([certificateId])
 }
 
 model Signature {

@@ -183,6 +183,8 @@ export default function ReviewerReviewPage() {
               })) || [],
             })),
             masterInstruments: cert.masterInstruments || [],
+            // Which sections this reviewer has already ticked, at which revision.
+            sectionSignoffs: cert.sectionSignoffs || [],
           },
           assignee: {
             id: cert.createdBy?.id,

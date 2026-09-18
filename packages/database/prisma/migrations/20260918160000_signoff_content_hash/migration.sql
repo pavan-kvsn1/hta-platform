@@ -1,0 +1,22 @@
+-- A sign-off remembers what it was signing off.
+--
+-- Ticks were held against a revision, on the assumption that a revision is what
+-- changes a certificate. It is not precise enough in either direction.
+--
+-- Too blunt one way: a new revision cleared every tick, including the five sections the
+-- engineer never touched, so a reviewer re-read work they had already read.
+--
+-- Too blunt the other: the sections that changed are not necessarily the ones named in
+-- the revision request. An engineer sent back to fix Section 3 may well correct a
+-- reading in Section 5 while they are in there, and nothing in the request says so.
+--
+-- So the tick records a hash of the section's content as it stood when it was made. It
+-- stands while the content matches and lapses when it does not, whatever moved it and
+-- whoever asked - a revision, an admin field change, a correction nobody announced.
+-- What a reviewer vouched for is the thing they read, not the number on the revision.
+--
+-- Null on rows written before this, which are treated as belonging to their revision
+-- alone, exactly as they did.
+--
+-- Additive and idempotent. Nothing existing is touched.
+ALTER TABLE "CertificateSectionSignoff" ADD COLUMN IF NOT EXISTS "contentHash" TEXT;

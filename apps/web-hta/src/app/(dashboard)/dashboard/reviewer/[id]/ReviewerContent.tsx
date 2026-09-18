@@ -2,7 +2,7 @@
 
 import { apiFetch } from '@/lib/api-client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   AlertCircle,
   CheckCircle,
@@ -29,6 +29,8 @@ import {
 } from '@/components/certificate'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 import { formatCertificateDate, DEFAULT_DATE_FORMAT } from '@/lib/certificate/date-format'
+import { SectionSignoffChip } from '@/components/certificate/SectionSignoffChip'
+import { useReviewProgress } from '@/lib/stores/review-progress-store'
 
 interface Parameter {
   id: string
@@ -99,6 +101,10 @@ interface MasterInstrument {
   capabilityParameter?: string | null
   masterSubtype?: string | null
   masterAcceptanceReason?: string | null
+  /** What the reviewer decided about this master, and at which revision. */
+  reviewerDecision?: string | null
+  reviewerDecisionReason?: string | null
+  reviewerDecisionRevision?: number | null
 }
 
 interface Feedback {
@@ -175,6 +181,8 @@ interface CertificateData {
   currentRevision: number
   parameters: Parameter[]
   masterInstruments: MasterInstrument[]
+  /** Sections a reviewer has ticked, with the revision each was ticked at. */
+  sectionSignoffs?: { section: string; revision: number; checkedAt: string; stale?: boolean }[]
 }
 
 interface Assignee {
@@ -360,6 +368,84 @@ export function ReviewerContent({
     })
   }
 
+  /**
+   * How many photos are attached, and to what.
+   *
+   * Asked for once, up front, so a section can offer to open its images only when
+   * there are images to open. A button that leads to an empty gallery is worse than a
+   * line saying there are none: the reader clicks, waits, learns nothing, and is left
+   * unsure whether the photos are missing or the screen is broken.
+   */
+  const [photoCounts, setPhotoCounts] = useState<{
+    uuc: number
+    readings: number
+    masters: Record<number, number>
+  }>({ uuc: 0, readings: 0, masters: {} })
+
+  useEffect(() => {
+    let alive = true
+    apiFetch(`/api/certificates/${certificate.id}/images`)
+      .then((r) => (r.ok ? r.json() : { images: [] }))
+      .then((data: { images?: { imageType: string; masterInstrumentIndex?: number | null }[] }) => {
+        if (!alive) return
+        const counts = { uuc: 0, readings: 0, masters: {} as Record<number, number> }
+        for (const img of data.images ?? []) {
+          if (img.imageType === 'UUC') counts.uuc += 1
+          else if (img.imageType.startsWith('READING')) counts.readings += 1
+          else if (img.imageType === 'MASTER_INSTRUMENT') {
+            const i = img.masterInstrumentIndex ?? -1
+            counts.masters[i] = (counts.masters[i] ?? 0) + 1
+          }
+        }
+        setPhotoCounts(counts)
+      })
+      // Not an error state. The sections still read; what is lost is knowing in advance
+      // whether a gallery has anything in it.
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [certificate.id])
+
+  /**
+   * What the server already knows about this review: which sections are ticked at this
+   * revision, which masters have been decided, and which are still waiting.
+   *
+   * Seeded rather than fetched separately - it all arrives with the certificate.
+   */
+  const startReview = useReviewProgress((s) => s.start)
+  useEffect(() => {
+    startReview(certificate.id, certificate.currentRevision, {
+      // Not filtered by revision: the server decides whether each one still stands,
+      // by comparing the section's content against what it looked like when ticked.
+      signoffs: (certificate.sectionSignoffs ?? []).map((s) => ({
+        section: s.section,
+        checkedAt: s.checkedAt,
+        revision: s.revision,
+        stale: s.stale,
+      })),
+      decisions: certificate.masterInstruments
+        .filter((m) => m.reviewerDecision && m.reviewerDecisionRevision === certificate.currentRevision)
+        .map((m) => ({
+          masterId: m.id,
+          decision: m.reviewerDecision as 'ACCEPTED' | 'REJECTED',
+          reason: m.reviewerDecisionReason,
+        })),
+      // A master the engineer had to justify is one the reviewer must answer for.
+      openMasterIds: certificate.masterInstruments
+        .filter((m) => (m.masterAcceptanceReason ?? '').trim() !== '')
+        .map((m) => m.id),
+    })
+    // Primitives, not the certificate object: the page above rebuilds it on every
+    // render, so depending on it re-ran this effect forever.
+  }, [
+    certificate.id,
+    certificate.currentRevision,
+    certificate.sectionSignoffs,
+    certificate.masterInstruments,
+    startReview,
+  ])
+
   /** The date convention this certificate was written in, which the PDF also prints. */
   const dateFormat = certificate.calibrationDueDateFormat || DEFAULT_DATE_FORMAT
 
@@ -387,6 +473,7 @@ export function ReviewerContent({
       {/* Section 1: Summary */}
       <CollapsibleSection
         title="Section 1: Summary"
+        signoffSlot={<SectionSignoffChip section="summary" />}
         isExpanded={expandedSections.section1}
         onToggle={() => toggleSection('section1')}
         feedbackSlot={
@@ -447,6 +534,7 @@ export function ReviewerContent({
       {/* Section 2: UUC Details */}
       <CollapsibleSection
         title="Section 2: UUC Details"
+        signoffSlot={<SectionSignoffChip section="uuc-details" />}
         isExpanded={expandedSections.section2}
         onToggle={() => toggleSection('section2')}
         feedbackSlot={
@@ -459,17 +547,24 @@ export function ReviewerContent({
           />
         }
         actionButton={
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              fetchUucImages()
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-white/90 border border-white/20 rounded-lg hover:bg-white transition-colors"
-          >
-            <ImageIcon className="size-3.5" />
-            View Images
-          </button>
+          photoCounts.uuc > 0 ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                fetchUucImages()
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-white/90 border border-white/20 rounded-lg hover:bg-white transition-colors"
+            >
+              <ImageIcon className="size-3.5" />
+              View Images
+            </button>
+          ) : (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400">
+              <ImageIcon className="size-3.5" />
+              No photos
+            </span>
+          )
         }
       >
         <div className="space-y-6">
@@ -641,6 +736,7 @@ export function ReviewerContent({
       {/* Section 3: Master Instruments */}
       <CollapsibleSection
         title="Section 3: Master Instruments"
+        signoffSlot={<SectionSignoffChip section="master-inst" />}
         isExpanded={expandedSections.section3}
         onToggle={() => toggleSection('section3')}
         feedbackSlot={
@@ -657,15 +753,22 @@ export function ReviewerContent({
           instruments={withAcceptanceReasons(
             certificate.masterInstruments,
             certificate.parameters,
-          )}
+          ).map((entry, index) => ({
+            ...entry,
+            // Photos are stored against a master's position in the list as the engineer
+            // built it, which is the order the certificate keeps them in.
+            photoCount: photoCounts.masters[index] ?? 0,
+          }))}
           parameters={certificate.parameters}
           onViewPhotos={fetchMasterImages}
+          askDecision
         />
       </CollapsibleSection>
 
       {/* Section 4: Environmental Conditions */}
       <CollapsibleSection
         title="Section 4: Environmental Conditions"
+        signoffSlot={<SectionSignoffChip section="environment" />}
         isExpanded={expandedSections.section4}
         onToggle={() => toggleSection('section4')}
         feedbackSlot={
@@ -693,6 +796,7 @@ export function ReviewerContent({
       {/* Section 5: Calibration Results */}
       <CollapsibleSection
         title="Section 5: Calibration Results"
+        signoffSlot={<SectionSignoffChip section="results" />}
         isExpanded={expandedSections.section5}
         onToggle={() => toggleSection('section5')}
         badge={
@@ -712,7 +816,7 @@ export function ReviewerContent({
           />
         }
         actionButton={
-          certificate.parameters.length > 0 ? (
+          certificate.parameters.length === 0 ? undefined : photoCounts.readings > 0 ? (
             <button
               type="button"
               onClick={(e) => {
@@ -724,7 +828,12 @@ export function ReviewerContent({
               <ImageIcon className="size-3.5" />
               View Images
             </button>
-          ) : undefined
+          ) : (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400">
+              <ImageIcon className="size-3.5" />
+              No photos
+            </span>
+          )
         }
       >
         <CalibrationResultsTable parameters={certificate.parameters} showLimits showFormulas />
@@ -733,6 +842,7 @@ export function ReviewerContent({
       {/* Section 6: Remarks */}
       <CollapsibleSection
         title="Section 6: Remarks"
+        signoffSlot={<SectionSignoffChip section="remarks" />}
         isExpanded={expandedSections.section6}
         onToggle={() => toggleSection('section6')}
         feedbackSlot={
@@ -794,6 +904,7 @@ export function ReviewerContent({
       {/* Section 7: Conclusion */}
       <CollapsibleSection
         title="Section 7: Conclusion"
+        signoffSlot={<SectionSignoffChip section="conclusion" />}
         isExpanded={expandedSections.section7}
         onToggle={() => toggleSection('section7')}
         feedbackSlot={

@@ -18,6 +18,7 @@ import { detectCertificateChanges, generateChangeSummary } from '../../lib/chang
 import { appendSigningEvidence, collectFastifyEvidence } from '../../lib/signing-evidence.js'
 import { writeCertificateEditSession } from '../../lib/activity-audit.js'
 import { resolveParameterIndexes } from '../../lib/master-parameter-link.js'
+import { sectionHash, sectionHashes, type ReviewSection } from '../../lib/section-content.js'
 import type { EmailDeliverySummary } from '@hta/shared'
 
 // Type for Prisma transaction client
@@ -324,6 +325,22 @@ const editSessionSchema = z.object({
   activeDurationSeconds: z.number().int().min(0).max(24 * 60 * 60).optional().nullable(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 })
+
+/**
+ * The seven sections a reviewer reads, in the order the certificate presents them.
+ *
+ * The same list the web app calls REVISION_SECTIONS: a revision request has always
+ * been filed against one of these, and a sign-off is now recorded against one too.
+ */
+const REVIEW_SECTIONS = [
+  'summary',
+  'uuc-details',
+  'master-inst',
+  'environment',
+  'results',
+  'remarks',
+  'conclusion',
+] as const
 
 const certificateRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/certificates - List certificates for the current user
@@ -1090,6 +1107,13 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
           orderBy: { sortOrder: 'asc' },
         },
         masterInstruments: true,
+        // Which sections the reviewer has ticked, and who ticked them. The name is for
+        // downstream - the authorising admin and the history; on the reviewer's own
+        // screen the chip shows the time, since they know who they are.
+        sectionSignoffs: {
+          include: { user: { select: { id: true, name: true } } },
+          orderBy: { checkedAt: 'asc' },
+        },
         certificateImages: true,
         uucImages: true,
         feedbacks: {
@@ -1138,7 +1162,24 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(403).send({ error: 'Forbidden' })
     }
 
-    return certificate
+    /**
+     * Which ticks still stand.
+     *
+     * A sign-off is compared against the section it signed off, not against the
+     * revision it was made at. A resubmission that touched two sections leaves the
+     * other five ticked, and a section edited without a revision - by an admin field
+     * change, say - loses its tick even though the number did not move.
+     */
+    const current = sectionHashes(certificate)
+    return {
+      ...certificate,
+      sectionSignoffs: certificate.sectionSignoffs.map((s) => ({
+        ...s,
+        stale: s.contentHash
+          ? s.contentHash !== current[s.section as ReviewSection]
+          : s.revision !== certificate.currentRevision,
+      })),
+    }
   })
 
   // PUT /api/certificates/:id - Update certificate
@@ -1839,6 +1880,180 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // POST /api/certificates/:id/review - Review certificate (approve/reject/request revision)
+  /**
+   * Tick or untick one section.
+   *
+   * Recorded against the revision it was made at, so a tick from revision 1 does not
+   * count towards revision 2 - it would be vouching for a section the reviewer never
+   * saw. The row is kept rather than deleted on a new revision: somebody did read it
+   * once, and the history is worth having.
+   */
+  fastify.post<{ Params: { id: string }; Body: { section: string; checked: boolean } }>(
+    '/:id/section-signoff',
+    { preHandler: [requireStaff] },
+    async (request, reply) => {
+      const { id } = request.params
+      const userId = request.user!.sub
+      const { section, checked } = request.body ?? ({} as { section: string; checked: boolean })
+
+      if (!REVIEW_SECTIONS.includes(section as (typeof REVIEW_SECTIONS)[number])) {
+        return reply.status(400).send({ error: 'Unknown section' })
+      }
+
+      const certificate = await prisma.certificate.findFirst({
+        where: { tenantId: request.tenantId, id },
+        select: { id: true, reviewerId: true, currentRevision: true, status: true },
+      })
+      if (!certificate) return reply.status(404).send({ error: 'Certificate not found' })
+      if (certificate.reviewerId !== userId && !request.user!.isAdmin) {
+        return reply.status(403).send({ error: 'You are not the reviewer for this certificate' })
+      }
+
+      // A section cannot be called checked while it still holds a question nobody has
+      // answered. Today that is a master the app could not rate; the shape allows more.
+      if (checked && section === 'master-inst') {
+        const undecided = await prisma.certificateMasterInstrument.count({
+          where: {
+            certificateId: id,
+            masterAcceptanceReason: { not: null },
+            OR: [
+              { reviewerDecision: null },
+              { reviewerDecisionRevision: { not: certificate.currentRevision } },
+            ],
+          },
+        })
+        if (undecided > 0) {
+          return reply.status(400).send({
+            error: 'SECTION_HAS_OPEN_ITEMS',
+            message: `${undecided} master${undecided === 1 ? '' : 's'} to accept or reject first`,
+          })
+        }
+      }
+
+      const where = {
+        certificateId_section_revision: {
+          certificateId: id,
+          section,
+          revision: certificate.currentRevision,
+        },
+      }
+
+      if (!checked) {
+        await prisma.certificateSectionSignoff.deleteMany({
+          where: { certificateId: id, section, revision: certificate.currentRevision },
+        })
+        return { section, checked: false }
+      }
+
+      /**
+       * The tick remembers what it was signing off, so it can lapse when that changes
+       * and survive when it does not. A revision number alone cleared all seven
+       * sections on every resubmission, including the ones nobody touched.
+       */
+      const full = await prisma.certificate.findUnique({
+        where: { id },
+        include: { parameters: { include: { results: true } }, masterInstruments: true },
+      })
+      const contentHash = full ? sectionHash(full, section as ReviewSection) : null
+
+      const row = await prisma.certificateSectionSignoff.upsert({
+        where,
+        create: {
+          certificateId: id,
+          section,
+          revision: certificate.currentRevision,
+          userId,
+          userRole: request.user!.role,
+          contentHash,
+        },
+        update: {
+          userId,
+          userRole: request.user!.role,
+          checkedAt: new Date(),
+          contentHash,
+        },
+      })
+      return { section, checked: true, checkedAt: row.checkedAt, revision: row.revision }
+    },
+  )
+
+  /**
+   * Accept or reject one master the engineer had to justify.
+   *
+   * A rejection carries a reason, and that reason is what pre-fills Request Revision
+   * and Reject - so the reviewer writes it once, where they saw the problem, rather
+   * than retyping it into a modal afterwards.
+   */
+  fastify.post<{
+    Params: { id: string }
+    Body: { masterId: string; decision: 'ACCEPTED' | 'REJECTED' | null; reason?: string }
+  }>('/:id/master-decision', { preHandler: [requireStaff] }, async (request, reply) => {
+    const { id } = request.params
+    const userId = request.user!.sub
+    const { masterId, decision, reason } = (request.body ?? {}) as {
+      masterId: string
+      decision: 'ACCEPTED' | 'REJECTED' | null
+      reason?: string
+    }
+
+    // Null puts the question back. A reviewer changing their mind should return to
+    // being asked, not be flipped to the opposite answer - which is what happens if
+    // the only way out of a decision is the other decision.
+    if (decision !== null && decision !== 'ACCEPTED' && decision !== 'REJECTED') {
+      return reply.status(400).send({ error: 'Decision must be ACCEPTED, REJECTED or null' })
+    }
+    if (decision === 'REJECTED' && !reason?.trim()) {
+      return reply.status(400).send({ error: 'A rejection needs a reason' })
+    }
+
+    const certificate = await prisma.certificate.findFirst({
+      where: { tenantId: request.tenantId, id },
+      select: { id: true, reviewerId: true, currentRevision: true },
+    })
+    if (!certificate) return reply.status(404).send({ error: 'Certificate not found' })
+    if (certificate.reviewerId !== userId && !request.user!.isAdmin) {
+      return reply.status(403).send({ error: 'You are not the reviewer for this certificate' })
+    }
+
+    const master = await prisma.certificateMasterInstrument.findFirst({
+      where: { id: masterId, certificateId: id },
+      select: { id: true },
+    })
+    if (!master) return reply.status(404).send({ error: 'Master not found on this certificate' })
+
+    // Deciding a master unsettles the section it is in: what was checked is not what
+    // stands now.
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.certificateMasterInstrument.update({
+        where: { id: masterId },
+        data: decision === null
+          ? {
+              reviewerDecision: null,
+              reviewerDecisionReason: null,
+              reviewerDecisionById: null,
+              reviewerDecisionAt: null,
+              reviewerDecisionRevision: null,
+            }
+          : {
+              reviewerDecision: decision,
+              reviewerDecisionReason: decision === 'REJECTED' ? reason!.trim() : null,
+              reviewerDecisionById: userId,
+              reviewerDecisionAt: new Date(),
+              reviewerDecisionRevision: certificate.currentRevision,
+            },
+      })
+      await tx.certificateSectionSignoff.deleteMany({
+        where: {
+          certificateId: id,
+          section: 'master-inst',
+          revision: certificate.currentRevision,
+        },
+      })
+    })
+
+    return { masterId, decision, revision: certificate.currentRevision }
+  })
+
   fastify.post<{ Params: { id: string } }>('/:id/review', {
     preHandler: [requireStaff],
   }, async (request, reply) => {
@@ -1877,6 +2092,34 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
     // Check status
     const reviewableStatuses = ['DRAFT', 'PENDING_REVIEW', 'CUSTOMER_REVISION_REQUIRED']
     if (!reviewableStatuses.includes(certificate.status)) {
+      /**
+       * A reviewer who reaches here has usually just succeeded.
+       *
+       * They clicked Approve, the request took a moment, they clicked again, and the
+       * second one arrives at a certificate the first has already moved on. Telling
+       * them it is "not in a reviewable state" reads as a failure and sends them
+       * looking for what went wrong, when the answer is that nothing did.
+       *
+       * So the states a certificate reaches *by being reviewed* are named as what they
+       * are. The rest keep the general message, because arriving at one of those really
+       * is unexpected.
+       */
+      const alreadyDone: Record<string, string> = {
+        PENDING_CUSTOMER_APPROVAL: 'This certificate has already been approved and sent to the customer.',
+        PENDING_ADMIN_AUTHORIZATION: 'This certificate has already been approved and is waiting for admin authorisation.',
+        APPROVED: 'This certificate has already been approved.',
+        AUTHORIZED: 'This certificate has already been authorised.',
+        REJECTED: 'This certificate has already been rejected.',
+        REVISION_REQUIRED: 'This certificate has already been sent back to the engineer for revision.',
+      }
+      const settled = alreadyDone[certificate.status]
+      if (settled) {
+        return reply.status(409).send({
+          error: 'ALREADY_DECIDED',
+          message: settled,
+          status: certificate.status,
+        })
+      }
       return reply.status(400).send({ error: `Certificate is not in a reviewable state: ${certificate.status}` })
     }
 
@@ -1895,6 +2138,105 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (body.action === 'reject' && !body.comment?.trim()) {
       return reply.status(400).send({ error: 'Comment is required for rejections' })
+    }
+
+    /**
+     * A reviewer signs off a section at a time, and Approve waits for all of them.
+     *
+     * Two gates, and they exist for different reasons. The sections say somebody read
+     * the certificate - all of it, not the parts that caught the eye - so
+     * "did anybody look at the conclusion?" has an answer. The master decisions say
+     * somebody agreed with the one judgement on the document the app could not make
+     * for itself; until now approving accepted that silently.
+     *
+     * A rejected master closes Approve for this revision. The reviewer has finished
+     * reviewing and found something wrong, so the way out is Request Revision or
+     * Reject - both of which arrive pre-filled with what was just written.
+     *
+     * Neither gate applies to request_revision or reject. The gates exist to stop a
+     * certificate going out unread, not to stop one being stopped: a reviewer who
+     * finds something fatal in Section 2 should not have to tick five more boxes to
+     * say so.
+     */
+    if (body.action === 'approve') {
+      /**
+       * Everything the three gates need, in one read.
+       *
+       * It was four: the undecided masters, the rejected ones, the certificate for its
+       * section hashes, and the sign-offs. Each awaited the last, and one of them
+       * carried parameters, results and master rows - about 140ms on a database reached
+       * through a tunnel. Roughly a third of a second added to every approve, spent
+       * before the approve began.
+       *
+       * That is not merely slow. A reviewer who clicks Approve and watches nothing
+       * happen clicks again, the first request lands, and the second meets a
+       * certificate that is no longer reviewable - which is how this was found.
+       */
+      const full = await prisma.certificate.findUnique({
+        where: { id },
+        include: {
+          parameters: { include: { results: true } },
+          masterInstruments: true,
+          sectionSignoffs: { select: { section: true, revision: true, contentHash: true } },
+        },
+      })
+      if (!full) return reply.status(404).send({ error: 'Certificate not found' })
+
+      // A master the engineer had to justify, which nobody has answered for at this
+      // revision. Read from the rows already in hand rather than asked for again.
+      const open = full.masterInstruments.filter(
+        (m) =>
+          (m.masterAcceptanceReason ?? '').trim() !== '' &&
+          (m.reviewerDecision === null ||
+            m.reviewerDecisionRevision !== certificate.currentRevision),
+      )
+      if (open.length > 0) {
+        return reply.status(400).send({
+          error: 'UNDECIDED_MASTERS',
+          message: `${open.length} master${open.length === 1 ? '' : 's'} still needs accepting or rejecting`,
+          masters: open.map((m) => m.assetNo ?? m.masterInstrumentId),
+        })
+      }
+
+      const rejected = full.masterInstruments.filter(
+        (m) =>
+          m.reviewerDecision === 'REJECTED' &&
+          m.reviewerDecisionRevision === certificate.currentRevision,
+      )
+      if (rejected.length > 0) {
+        return reply.status(400).send({
+          error: 'MASTER_REJECTED',
+          message:
+            'A master on this certificate was rejected. Send it back for revision, or reject the certificate.',
+        })
+      }
+
+      /**
+       * A tick counts while the section still reads as it did when it was made.
+       *
+       * Not "was it made at this revision": that cleared five sections the engineer
+       * never touched, and would have kept a tick on a section an admin edited without
+       * raising one.
+       */
+      const current = sectionHashes(full)
+      const done = new Set(
+        full.sectionSignoffs
+          .filter((s) =>
+            s.contentHash
+              ? s.contentHash === current[s.section as ReviewSection]
+              : // Written before the hash existed; it stands for its own revision only.
+                s.revision === certificate.currentRevision,
+          )
+          .map((s) => s.section),
+      )
+      const missing = REVIEW_SECTIONS.filter((s) => !done.has(s))
+      if (missing.length > 0) {
+        return reply.status(400).send({
+          error: 'SECTIONS_UNCHECKED',
+          message: `${missing.length} section${missing.length === 1 ? '' : 's'} not checked yet`,
+          sections: missing,
+        })
+      }
     }
 
     if (body.action === 'approve') {
