@@ -110,12 +110,80 @@ jobs:
           cluster_name: ${{ env.GKE_CLUSTER }}
           location: ${{ env.GKE_LOCATION }}
       - uses: imranismail/setup-kustomize@v2
+      # A preflight that passes while the deploy fails is worse than none: it buys
+      # confidence immediately before the irreversible step. This one used to check
+      # one of the three secrets the manifests read, none of the config map every
+      # workload depends on, and two of the ten resource kinds it goes on to apply -
+      # so a renamed worker secret, or an RBAC binding short of Gateways, showed green
+      # here and then failed halfway through the apply with some resources already
+      # changed. It now checks what it is about to touch.
       - name: Verify cluster access and prerequisites
         run: |
+          set -euo pipefail
+
           kubectl get namespace "${K8S_NAMESPACE}"
-          kubectl -n "${K8S_NAMESPACE}" get secret api-secrets
-          kubectl auth can-i create jobs.batch -n "${K8S_NAMESPACE}" | grep -qx yes
-          kubectl auth can-i patch deployments.apps -n "${K8S_NAMESPACE}" | grep -qx yes
+
+          # Every secret and config map the applied manifests name. Missing one does
+          # not fail the apply - the pod is created and then cannot assemble its
+          # settings, which surfaces minutes later as CreateContainerConfigError.
+          missing=()
+          for secret in api-secrets web-secrets worker-secrets; do
+            kubectl -n "${K8S_NAMESPACE}" get secret "${secret}" >/dev/null 2>&1 \
+              || missing+=("secret/${secret}")
+          done
+          for cm in hta-config; do
+            kubectl -n "${K8S_NAMESPACE}" get configmap "${cm}" >/dev/null 2>&1 \
+              || missing+=("configmap/${cm}")
+          done
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "Missing in ${K8S_NAMESPACE}: ${missing[*]}" >&2
+            echo "The manifests name these; the pods would start and fail to configure." >&2
+            exit 1
+          fi
+
+          # Permission on every kind the apply touches, not only Deployments. An apply
+          # that runs out of permission partway leaves the namespace half updated,
+          # which is the one outcome worth a preflight.
+          #
+          # A misspelt kind is treated as a failure rather than waved through. "kubectl
+          # auth can-i patch notarealkind.example.com" answers "yes" and exits 0, with
+          # the only hint on stderr - so a typo in this list would quietly assert
+          # nothing, which is the same fault this step exists to catch.
+          denied=()
+          unknown=()
+          check() {
+            local answer
+            answer="$(kubectl auth can-i "$1" "$2" -n "${K8S_NAMESPACE}" 2>&1 || true)"
+            case "${answer}" in
+              *"resource type"*) unknown+=("$2") ;;
+              yes) ;;
+              *) denied+=("$1 $2") ;;
+            esac
+          }
+          check create jobs.batch
+          check patch deployments.apps
+          check patch serviceaccounts
+          check patch configmaps
+          check patch services
+          check patch horizontalpodautoscalers.autoscaling
+          check patch gateways.gateway.networking.k8s.io
+          check patch httproutes.gateway.networking.k8s.io
+          check patch healthcheckpolicies.networking.gke.io
+          check patch gcpbackendpolicies.networking.gke.io
+
+          if [[ ${#unknown[@]} -gt 0 ]]; then
+            printf 'This step asked about kinds the cluster does not know:\n' >&2
+            printf '  %s\n' "${unknown[@]}" >&2
+            echo "Fix the names here - as written they assert nothing." >&2
+            exit 1
+          fi
+          if [[ ${#denied[@]} -gt 0 ]]; then
+            printf 'Not permitted in %s:\n' "${K8S_NAMESPACE}" >&2
+            printf '  %s\n' "${denied[@]}" >&2
+            exit 1
+          fi
+
+          echo "Preflight passed: namespace, 3 secrets, 1 config map, 10 permissions."
       - name: Run database migrations
         env:
           MIGRATION_IMAGE: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/hta-migrate:${{ github.sha }}
