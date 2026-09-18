@@ -75,3 +75,16 @@ check-field-change.cjs
 check-user-token.cjs
 fix-user-active.cjs
 scripts/maintenance/backfill-field-change-revision.cjs
+
+# Generated and reference material, kept on disk but out of the history.
+#
+# Both were committed and both are large. graphify-out is the graph tool's output -
+# regenerated on demand, so a copy in git is a copy that goes stale. reference_docs is
+# 270MB of sample certificates, and is most of why .git is 285MB.
+#
+# Untracking them stops the history growing further. It does not shrink what is already
+# there: those files stay in every past commit, and removing them from history means
+# rewriting it - which changes every commit id and breaks every existing clone. That is
+# a decision to take deliberately, not a side effect of tidying.
+graphify-out/
+apps/web-hta/reference_docs/

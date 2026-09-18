@@ -1,0 +1,61 @@
+# What gcloud must not upload.
+#
+# `gcloud builds submit` sends the build context to Cloud Build before anything is
+# built. Without this file gcloud falls back to .gitignore - which is close, but not the
+# same question: .gitignore says what should not be *committed*, and the things that
+# hurt here are the large ones that happen to be committed. reference_docs is 270MB of
+# sample certificates in git; graphify-out is generated output that is also in git.
+# Both would go up on every build.
+#
+# Measured before this file existed: about 1.7GB of context, of which some 2.2GB across
+# these paths was build output, installers and documents no image has ever needed.
+#
+# Mirrors .dockerignore deliberately. The two answer the same question for two different
+# tools, and a path in one and not the other is how a build context quietly grows back.
+
+.git
+.gitignore
+
+# Dependencies - installed inside the image
+node_modules
+**/node_modules
+
+# Build output - rebuilt inside the image
+dist
+**/dist
+.next
+**/.next
+.turbo
+**/.turbo
+coverage
+**/coverage
+
+# Desktop app: packaged installers, over a gigabyte of them
+apps/desktop/release
+apps/desktop/.next-standalone
+apps/desktop/resources/wireguard-amd64.msi
+
+# Large committed directories no image needs
+apps/web-hta/reference_docs
+apps/web-hta/storage
+**/storage
+graphify-out
+
+# Infrastructure describes the cluster; it does not run in the image
+terraform
+infra
+
+# Secrets never travel
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Local tooling
+.claude
+**/.claude
+.vscode
+.idea
+*.log

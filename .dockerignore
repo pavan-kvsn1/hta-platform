@@ -46,6 +46,19 @@ apps/desktop/.next-standalone
 apps/desktop/release
 apps/desktop/resources/wireguard-amd64.msi
 
+# Large things no image needs.
+#
+# The build context is everything not excluded here, and it is sent in full before a
+# build starts - so anything left in costs time on every build, local or remote. These
+# four came to about half a gigabyte: sample certificates kept for reference, uploads
+# written at runtime, the graph tool's output, and infrastructure code that describes
+# the cluster rather than running in it.
+apps/web-hta/reference_docs
+apps/web-hta/storage
+**/storage
+graphify-out
+terraform
+
 # Turborepo
 .turbo
 **/.turbo
