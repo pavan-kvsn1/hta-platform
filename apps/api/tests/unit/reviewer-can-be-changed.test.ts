@@ -194,11 +194,24 @@ describe('a reassignment leaves a trace', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           eventType: 'REVIEWER_REASSIGNED',
-          eventData: { from: OLD_REVIEWER, to: NEW_REVIEWER },
+          eventData: JSON.stringify({ from: OLD_REVIEWER, to: NEW_REVIEWER }),
           userId: ENGINEER,
         }),
       }),
     )
+  })
+
+  it('writes its data the way every other event on the certificate does', async () => {
+    /**
+     * As a string, not as an object. The column is Json and takes either, but the
+     * screens that read a certificate's history call JSON.parse on it - so an object
+     * came back as "[object Object]" and threw on every load of the edit page. Thirteen
+     * other events in this route stringify; this one did not.
+     */
+    await put(buildApp(), save({ reviewerId: NEW_REVIEWER }))
+    const { eventData } = db.certificateEvent.create.mock.calls[0][0].data
+    expect(typeof eventData).toBe('string')
+    expect(JSON.parse(eventData)).toEqual({ from: OLD_REVIEWER, to: NEW_REVIEWER })
   })
 
   it('follows the events already on the certificate', async () => {

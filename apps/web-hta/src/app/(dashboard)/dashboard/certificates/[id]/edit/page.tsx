@@ -813,7 +813,16 @@ function mergeDateAdjustmentsWithFeedbacks(
 
   events.forEach((event) => {
     try {
-      const data = JSON.parse(event.eventData)
+      /**
+       * An event's data arrives either way round. The column is Json, so a writer that
+       * hands Prisma an object gets an object back, while every writer in the
+       * certificates route stringifies first and gets a string. Calling JSON.parse on
+       * the object turned it into "[object Object]" and threw - caught here, but one
+       * console error per event on every load of the page.
+       */
+      const data =
+        typeof event.eventData === 'string' ? JSON.parse(event.eventData) : event.eventData
+      if (!data || typeof data !== 'object') return
       const eventTime = new Date(event.createdAt).getTime()
 
       let edits: ReviewerEdit[] = []

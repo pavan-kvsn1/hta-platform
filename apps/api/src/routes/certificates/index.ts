@@ -1304,7 +1304,11 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             sequenceNumber: (lastEvent?.sequenceNumber ?? 0) + 1,
             revision: existing.currentRevision,
             eventType: 'REVIEWER_REASSIGNED',
-            eventData: { from: existing.reviewerId, to: nextReviewerId },
+            // Stringified, as every other event on this certificate is. The column is
+            // Json and would take the object happily, but the screens that read the
+            // history call JSON.parse on it - so an object came back as the string
+            // "[object Object]" and threw, taking the edit page's load down with it.
+            eventData: JSON.stringify({ from: existing.reviewerId, to: nextReviewerId }),
             userId,
             userRole: request.user!.role,
           },
