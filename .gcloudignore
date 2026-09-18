@@ -38,7 +38,6 @@ apps/desktop/resources/wireguard-amd64.msi
 # Large committed directories no image needs
 apps/web-hta/reference_docs
 apps/web-hta/storage
-**/storage
 graphify-out
 
 # Infrastructure describes the cluster; it does not run in the image

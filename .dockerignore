@@ -55,7 +55,6 @@ apps/desktop/resources/wireguard-amd64.msi
 # the cluster rather than running in it.
 apps/web-hta/reference_docs
 apps/web-hta/storage
-**/storage
 graphify-out
 terraform
 
