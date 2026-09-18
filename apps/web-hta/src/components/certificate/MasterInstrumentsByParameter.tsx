@@ -15,12 +15,14 @@
  * same fact.
  */
 
-import { Fragment, useState } from 'react'
-import { AlertTriangle, Camera, ChevronRight } from 'lucide-react'
+import { Fragment, useEffect, useState } from 'react'
+import { AlertTriangle, Camera, ChevronRight, Image as ImageIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import type { MasterBand } from '@/lib/master-entry/snapshot'
+import { masterSpecFor, type MasterBand } from '@/lib/master-entry/snapshot'
+import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
 import { masterFit } from '@/lib/certificate/master-fit'
+import { MasterDecision } from '@/components/certificate/MasterDecision'
 import { COMPATIBILITY_BADGE, type Compatibility } from '@/lib/master/eligibility'
 import { DEFAULT_ACCURACY_RATIO } from '@/lib/master/capability'
 
@@ -51,6 +53,8 @@ export interface MasterByParameterEntry {
    * pair above and is read exactly as it was.
    */
   masterBands?: MasterBand[] | null
+  /** Which capability of the master was declared, for reading the register back. */
+  masterProfileId?: string | null
   capabilityParameter?: string | null
   masterSubtype?: string | null
   masterAcceptanceReason?: string | null
@@ -79,6 +83,13 @@ export interface MasterInstrumentsByParameterProps {
    * and the count is then stated without offering to open it.
    */
   onViewPhotos?: (entry: MasterByParameterEntry) => void
+  /**
+   * Whether to put the engineer's justification to the reader as a decision.
+   *
+   * On for the reviewer, whose job it is to answer it. Off everywhere else, where the
+   * sentence is a note explaining what was done rather than a question being asked.
+   */
+  askDecision?: boolean
 }
 
 const PILL =
@@ -117,6 +128,16 @@ function bandRange(band: MasterBand): string {
   return `${from} – ${to}`
 }
 
+/** The span this master was used over, in its own units where it measures another. */
+function rangeUsed(
+  entry: MasterByParameterEntry,
+  parameter: MasterByParameterParameter,
+): { from: number; to: number } | null {
+  const from = Number(clean(entry.rangeFrom) ?? parameter.rangeMin)
+  const to = Number(clean(entry.rangeTo) ?? parameter.rangeMax)
+  return Number.isFinite(from) && Number.isFinite(to) ? { from, to } : null
+}
+
 const clean = (value: string | null | undefined) => {
   const trimmed = (value ?? '').trim()
   return trimmed === '' ? null : trimmed
@@ -135,8 +156,34 @@ export function MasterInstrumentsByParameter({
   parameters,
   emptyMessage = 'No master instruments listed.',
   onViewPhotos,
+  askDecision = false,
 }: MasterInstrumentsByParameterProps) {
   const [open, setOpen] = useState<string | null>(null)
+  /**
+   * The register, for masters whose certificate never recorded their figures.
+   *
+   * A certificate keeps its own copy of what the master's certificate said, so a
+   * reissue prints what the original carried. Nothing wrote that copy until now, so
+   * every certificate in the lab has it empty - and a reviewer reading "Not recorded"
+   * twice learns nothing the engineer did not already know from the edit page, which
+   * has been resolving the same figures live all along.
+   *
+   * So: the certificate's own copy wherever it has one, the register otherwise, and the
+   * screen says which it is reading. The snapshot always wins, so a certificate that
+   * recorded its figures is never re-described by a register that has moved on.
+   */
+  const { getUnitByLegacyId, isLoaded, loadInstruments, loadCapabilities } =
+    useMasterInstrumentStore()
+
+  /**
+   * The register has to be asked for. Until now only the engineer's form did, so on
+   * this screen the store was empty and every master read "Not recorded" whatever the
+   * register held.
+   */
+  useEffect(() => {
+    if (!isLoaded) loadInstruments()
+    loadCapabilities()
+  }, [isLoaded, loadInstruments, loadCapabilities])
 
   if (instruments.length === 0) {
     return <p className="text-gray-500 text-sm">{emptyMessage}</p>
@@ -157,8 +204,27 @@ export function MasterInstrumentsByParameter({
   )
 
   const renderEntry = (entry: MasterByParameterEntry, parameter?: MasterByParameterParameter) => {
+    /**
+     * What the certificate recorded, or - where it recorded nothing - what the register
+     * says today. `live` is true in the second case, and the screen says so rather than
+     * passing off today's figures as the ones the calibration was done with.
+     */
+    const recorded = clean(entry.masterLeastCount) || clean(entry.masterAccuracy)
+    const fromRegister =
+      !recorded && entry.masterInstrumentId != null && parameter
+        ? masterSpecFor(
+            getUnitByLegacyId(Number(entry.masterInstrumentId)),
+            entry.masterProfileId,
+            entry.masterSubtype,
+            rangeUsed(entry, parameter),
+          )
+        : null
+    const live = !!fromRegister && !!(fromRegister.masterLeastCount || fromRegister.masterAccuracy)
+    const spec = live && fromRegister ? fromRegister : entry
+    const bands = (live && fromRegister ? fromRegister.masterBands : entry.masterBands) ?? []
+
     const fit = parameter
-      ? masterFit(entry, parameter)
+      ? masterFit(live && fromRegister ? fromRegister : entry, parameter)
       : {
           leastCount: 'unknown' as const,
           accuracy: 'unknown' as const,
@@ -167,7 +233,6 @@ export function MasterInstrumentsByParameter({
           accuracyNote: 'The certificate does not record which parameter this served.',
           otherScale: null,
         }
-    const bands = entry.masterBands ?? []
     const isOpen = open === entry.id
     const usedOver =
       clean(entry.rangeFrom) && clean(entry.rangeTo)
@@ -248,16 +313,16 @@ export function MasterInstrumentsByParameter({
                     <Info
                       label="Least count"
                       value={
-                        entry.masterLeastCount
-                          ? `${entry.masterLeastCount} ${entry.masterLeastCountUnit ?? ''}`.trim()
+                        spec.masterLeastCount
+                          ? `${spec.masterLeastCount} ${spec.masterLeastCountUnit ?? ''}`.trim()
                           : 'Not recorded'
                       }
                     />
                     <Info
                       label="Accuracy"
                       value={
-                        entry.masterAccuracy
-                          ? `±${entry.masterAccuracy} ${entry.masterAccuracyUnit ?? ''}`.trim()
+                        spec.masterAccuracy
+                          ? `±${spec.masterAccuracy} ${spec.masterAccuracyUnit ?? ''}`.trim()
                           : 'Not recorded'
                       }
                     />
@@ -314,6 +379,13 @@ export function MasterInstrumentsByParameter({
                 </div>
               )}
 
+              {live && (
+                <p className="text-[11px] text-slate-500">
+                  Least count and accuracy read from the master register as it stands
+                  today. This certificate was written before it kept its own copy.
+                </p>
+              )}
+
               {fit.otherScale && parameter?.parameterUnit && (
                 <p className="flex items-start gap-2 text-xs text-amber-800">
                   <AlertTriangle className="size-3.5 shrink-0 text-amber-600 mt-px" />
@@ -330,30 +402,48 @@ export function MasterInstrumentsByParameter({
                   edit page: the UUC and the readings each have a viewer on this screen
                   and the masters had none. */}
               <div className="pt-3 border-t border-slate-200 flex items-center gap-4 flex-wrap">
-                <span className="flex items-center gap-2 text-xs text-slate-500">
-                  <Camera className="size-3.5" />
-                  {entry.photoCount
-                    ? `${entry.photoCount} photo${entry.photoCount === 1 ? '' : 's'}`
-                    : 'No photos'}
-                </span>
-                {onViewPhotos && (
+                {/* Offered only when there is something to open. A button leading to
+                    an empty gallery makes the reader click, wait, and then wonder
+                    whether the photos are missing or the screen is broken; a line
+                    saying there are none answers it without the round trip. The same
+                    control as Section 2's, so opening a master's photos looks like
+                    opening the UUC's rather than a second idea about the same act. */}
+                {onViewPhotos && (entry.photoCount ?? 0) > 0 ? (
                   <button
                     type="button"
                     onClick={() => onViewPhotos(entry)}
-                    className="text-xs font-semibold text-primary hover:underline"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                   >
-                    View
+                    <ImageIcon className="size-3.5" />
+                    View Images
+                    <span className="text-slate-400">({entry.photoCount})</span>
                   </button>
+                ) : (
+                  <span className="flex items-center gap-2 text-xs text-slate-400">
+                    <Camera className="size-3.5" />
+                    No photos
+                  </span>
                 )}
               </div>
             </div>
 
-            {reason && (
-              <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                <span className="font-semibold">Accepted by the engineer, with a reason:</span>{' '}
-                {reason}
-              </div>
-            )}
+            {/* The engineer's justification, and - where this screen can take one - the
+                reviewer's answer to it. Without askDecision it stays a note, which is
+                what the customer-facing views show. */}
+            {reason &&
+              (askDecision ? (
+                <MasterDecision
+                  masterId={entry.id}
+                  parameterName={parameter?.parameterName}
+                  engineerReason={reason}
+                  note={fit.leastCount === 'unknown' ? fit.leastCountNote : fit.accuracyNote}
+                />
+              ) : (
+                <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  <span className="font-semibold">Accepted by the engineer, with a reason:</span>{' '}
+                  {reason}
+                </div>
+              ))}
           </div>
         )}
       </div>

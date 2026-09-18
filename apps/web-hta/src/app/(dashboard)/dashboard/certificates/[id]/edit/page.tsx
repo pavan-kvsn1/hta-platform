@@ -1211,6 +1211,14 @@ export default function EditCertificatePage() {
    */
   const submittedAtLeastOnce = formData.status !== 'DRAFT'
   const [isChatExpanded, setIsChatExpanded] = useState(true)
+  /**
+   * Held here rather than inside the panel because the column has to arbitrate.
+   *
+   * Chat and the unlock panel share what is left of the side panel's height. Whichever
+   * one is collapsed should hand its space to the other; only when both are open does
+   * the unlock panel take its capped share and leave the rest to chat.
+   */
+  const [isUnlockExpanded, setIsUnlockExpanded] = useState(false)
   const [isFieldChangeLogsExpanded, setIsFieldChangeLogsExpanded] = useState(true)
   const [fieldChangeRequests, setFieldChangeRequests] = useState<FieldChangeRequest[]>([])
   const [unlockRequests, setUnlockRequests] = useState<InternalRequestItem[]>([])
@@ -1960,7 +1968,10 @@ export default function EditCertificatePage() {
       {submittedAtLeastOnce && (
         <div className="w-[340px] flex-shrink-0 flex flex-col gap-2.5 p-2.5 pl-0 h-full overflow-hidden">
 
-          {/* ===== CHAT SECTION ===== */}
+          {/* ===== CHAT SECTION =====
+              Grows unless it is closed. With the unlock panel closed too there is
+              simply slack at the bottom, which is what a column of closed things
+              should look like. */}
           <div className={cn(
             'flex flex-col bg-white rounded-[14px] border border-[#f1f5f9] overflow-hidden',
             isChatExpanded ? 'flex-1 min-h-0' : 'flex-shrink-0'
@@ -2023,10 +2034,28 @@ export default function EditCertificatePage() {
           </div>
 
           {/* ===== SECTION UNLOCK SECTION ===== */}
-          <div className="flex-shrink-0 max-h-[40vh] overflow-auto">
+          {/* The scrolling happens inside the panel, under its own header - scrolling
+              this wrapper took the header with it.
+
+              The height depends on what else is open. Closed, it is its header. Open
+              beside an open chat, it takes a capped share and leaves the rest. Open
+              while chat is closed, it takes everything going: one panel collapsed
+              should widen the other, not leave a gap where it used to be. */}
+          <div
+            className={cn(
+              'flex flex-col min-h-0',
+              !isUnlockExpanded
+                ? 'flex-shrink-0'
+                : isChatExpanded
+                  ? 'flex-shrink-0 max-h-[40vh]'
+                  : 'flex-1',
+            )}
+          >
             <SectionUnlockRequest
               certificateId={certificateId}
               certificateStatus={formData.status}
+              expanded={isUnlockExpanded}
+              onExpandedChange={setIsUnlockExpanded}
             />
           </div>
 

@@ -230,17 +230,47 @@ describe('what opens on a row', () => {
 
   it('offers the photos, which no reviewer could open before', () => {
     const onViewPhotos = vi.fn()
-    renderIt({ onViewPhotos })
+    render(
+      <MasterInstrumentsByParameter
+        instruments={[{ ...rtd, photoCount: 2 }, druck]}
+        parameters={parameters}
+        onViewPhotos={onViewPhotos}
+      />,
+    )
     fireEvent.click(screen.getByText('717 HTAIPL/L'))
-    fireEvent.click(screen.getByText('View'))
+    fireEvent.click(screen.getByText('View Images'))
     expect(onViewPhotos).toHaveBeenCalledWith(expect.objectContaining({ id: 'mi1' }))
+  })
+
+  it('says how many there are, so the count is known before the click', () => {
+    render(
+      <MasterInstrumentsByParameter
+        instruments={[{ ...rtd, photoCount: 2 }]}
+        parameters={parameters}
+        onViewPhotos={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByText('717 HTAIPL/L'))
+    expect(screen.getByText('(2)')).toBeInTheDocument()
+  })
+
+  it('offers nothing to open where nothing is attached', () => {
+    /**
+     * A button leading to an empty gallery makes the reader click, wait, and then
+     * wonder whether the photos are missing or the screen is broken. The line answers
+     * it without the round trip.
+     */
+    renderIt({ onViewPhotos: vi.fn() })
+    fireEvent.click(screen.getByText('717 HTAIPL/L'))
+    expect(screen.getByText('No photos')).toBeInTheDocument()
+    expect(screen.queryByText('View Images')).not.toBeInTheDocument()
   })
 
   it('does not offer to open photos where the caller cannot show them', () => {
     renderIt()
     fireEvent.click(screen.getByText('717 HTAIPL/L'))
     expect(screen.getByText('No photos')).toBeInTheDocument()
-    expect(screen.queryByText('View')).not.toBeInTheDocument()
+    expect(screen.queryByText('View Images')).not.toBeInTheDocument()
   })
 })
 

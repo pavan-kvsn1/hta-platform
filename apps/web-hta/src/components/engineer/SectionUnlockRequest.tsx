@@ -50,12 +50,32 @@ interface UnlockedSections {
 }
 
 interface SectionUnlockRequestProps {
+  /**
+   * Whether the panel is open, when the column wants a say.
+   *
+   * It keeps its own state when these are absent, which is how it behaved before.
+   * The edit page passes them because the column has to know: chat and this panel
+   * share the height, and whichever is collapsed should give its space to the other.
+   */
+  expanded?: boolean
+  onExpandedChange?: (expanded: boolean) => void
   certificateId: string
   certificateStatus: string
 }
 
-export function SectionUnlockRequest({ certificateId, certificateStatus }: SectionUnlockRequestProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+export function SectionUnlockRequest({
+  certificateId,
+  certificateStatus,
+  expanded,
+  onExpandedChange,
+}: SectionUnlockRequestProps) {
+  const [ownExpanded, setOwnExpanded] = useState(false)
+  // Controlled where the caller supplies both; its own otherwise.
+  const isExpanded = expanded ?? ownExpanded
+  const setIsExpanded = (next: boolean) => {
+    if (onExpandedChange) onExpandedChange(next)
+    else setOwnExpanded(next)
+  }
   const [selectedSections, setSelectedSections] = useState<string[]>([])
   const [reason, setReason] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -173,11 +193,16 @@ export function SectionUnlockRequest({ certificateId, certificateStatus }: Secti
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    /* A column, so the header can stay put while the content beneath it scrolls.
+       The panel used to be a plain block inside a scrolling wrapper, which meant the
+       header scrolled away with everything else and a reader partway down a list of
+       unlock requests had nothing telling them what they were looking at. The two
+       panels either side of this one have always worked this way. */
+    <div className="flex flex-col min-h-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       {/* Header - Collapsible */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+        className="w-full flex-shrink-0 flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
       >
         <div className="flex items-center gap-2">
           {isExpanded ? (
@@ -196,9 +221,9 @@ export function SectionUnlockRequest({ certificateId, certificateStatus }: Secti
         </div>
       </button>
 
-      {/* Content - Only when expanded */}
+      {/* Content - Only when expanded. This is what scrolls. */}
       {isExpanded && (
-        <div className="px-4 pb-4 border-t border-slate-100">
+        <div className="flex-1 min-h-0 overflow-auto px-4 pb-4 border-t border-slate-100">
           {/* Info banner */}
           <div className="flex items-start gap-2 p-3 mt-3 bg-blue-50 border border-blue-100 rounded-lg">
             <Info className="size-4 text-blue-500 mt-0.5 flex-shrink-0" />

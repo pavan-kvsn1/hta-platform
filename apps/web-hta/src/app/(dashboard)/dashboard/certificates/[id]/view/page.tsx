@@ -30,6 +30,7 @@ import { FeedbackTimeline, type InternalRequestItem } from '@/components/feedbac
 import {
   CalibrationResultsTable,
   ConclusionStatementText,
+  MasterInstrumentsByParameter,
   ImageGalleryModal,
   ReadingImagesViewModal,
   ViewToggleButton,
@@ -131,6 +132,35 @@ interface ApiCertificate {
     model: string | null
     serialNumber: string | null
     calibrationDueDate: string | null
+    /**
+     * Everything the flat table had no column for: which parameter each master served,
+     * how much of its range it covered, and what its own certificate said at the time.
+     * Optional throughout - a certificate written before any of it existed reads as
+     * "not recorded", which is the honest answer.
+     */
+    parameterId?: string | null
+    masterInstrumentId?: string | number | null
+    assetNo?: string | null
+    calibratedAt?: string | null
+    reportNo?: string | null
+    sopReference?: string | null
+    rangeFrom?: string | null
+    rangeTo?: string | null
+    masterLeastCount?: string | null
+    masterLeastCountUnit?: string | null
+    masterAccuracy?: string | null
+    masterAccuracyUnit?: string | null
+    masterBands?: {
+      from: number | null
+      to: number | null
+      leastCount: string
+      leastCountUnit: string
+      accuracy: string
+      accuracyUnit: string
+    }[] | null
+    masterProfileId?: string | null
+    masterSubtype?: string | null
+    masterAcceptanceReason?: string | null
   }[]
   feedbacks?: Feedback[]
   events?: ApiEvent[]
@@ -409,7 +439,12 @@ export default function CertificateViewPage() {
 
   return (
     <>
-    <div className="flex h-[calc(100vh-4rem)] bg-[#f1f5f9] overflow-hidden">
+    {/* Inset from every edge with the same 10px, and the gap between the two columns
+        supplied by the parent - the shape the reviewer uses. This page had no inset at
+        all: a rounded card flush against the window on the left, and the chat pressed
+        straight up against it with only a hairline border between, so the one seam a
+        reader notices was the one with no space in it. */}
+    <div className="flex h-[calc(100vh-4rem)] bg-[#f1f5f9] overflow-hidden gap-2.5 p-2.5">
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex-1 flex flex-col bg-white rounded-[14px] border border-[#e2e8f0] overflow-hidden">
       {/* Header Row */}
@@ -566,44 +601,18 @@ export default function CertificateViewPage() {
                 isExpanded={expandedSections.section3}
                 onToggle={() => toggleSection('section3')}
               >
-                {certificate.masterInstruments.length === 0 ? (
-                  <p className="text-slate-500 text-xs">No master instruments listed.</p>
-                ) : (
-                  <div className="overflow-x-auto rounded-lg border border-slate-200">
-                    <table className="w-full text-sm">
-                      <thead className="bg-section-inner">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Description
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Make
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Model
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Serial No.
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-700 uppercase">
-                            Cal. Due Date
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {certificate.masterInstruments.map((mi) => (
-                          <tr key={mi.id}>
-                            <td className="px-4 py-2 text-slate-900 text-xs">{mi.description || '-'}</td>
-                            <td className="px-4 py-2 text-slate-700 text-xs">{mi.make || '-'}</td>
-                            <td className="px-4 py-2 text-slate-700 text-xs">{mi.model || '-'}</td>
-                            <td className="px-4 py-2 text-slate-700 text-xs">{mi.serialNumber || '-'}</td>
-                            <td className="px-4 py-2 text-slate-700 text-xs">{mi.calibrationDueDate || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                {/* The same grouping the reviewer reads, and for the same reason: a
+                    flat list of instruments answers "what was used" and never "was this
+                    parameter measured by something good enough for it".
+
+                    Without the decisions. An engineer looking back at their own
+                    certificate is reading what was done, not being asked to approve it,
+                    so askDecision stays off and a master that needed a justification
+                    shows that sentence as the note it is. */}
+                <MasterInstrumentsByParameter
+                  instruments={certificate.masterInstruments}
+                  parameters={certificate.parameters}
+                />
               </CollapsibleSection>
 
               {/* Section 4: Environmental Conditions */}
@@ -754,8 +763,12 @@ export default function CertificateViewPage() {
         </div>
       </div>
 
-      {/* Right Panel - Chat */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col border-l border-[#e2e8f0] bg-white h-full overflow-hidden">
+      {/* Right Panel - Chat.
+          A card like the one beside it, not a panel welded to its edge. The left border
+          was doing the separating; with a real gap it has a border all round and the
+          same corner radius, so the two read as two things rather than one thing with
+          a line through it. */}
+      <div className="w-[380px] flex-shrink-0 flex flex-col rounded-[14px] border border-[#e2e8f0] bg-white h-full overflow-hidden">
         {/* Chat Header */}
         <div className="flex-shrink-0 px-[18px] py-[13px] border-b border-[#f1f5f9] flex items-center gap-2">
           <MessageSquare className="size-[14px] text-[#94a3b8]" />
