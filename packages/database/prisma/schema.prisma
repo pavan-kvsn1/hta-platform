@@ -788,20 +788,20 @@ model CalibrationResult {
 }
 
 model CertificateMasterInstrument {
-  id                   String      @id @default(uuid())
-  certificateId        String
-  parameterId          String?
-  masterInstrumentId   String
-  category             String?
-  description          String?
-  make                 String?
-  model                String?
-  assetNo              String?
-  serialNumber         String?
-  calibratedAt         String?
-  reportNo             String?
-  calibrationDueDate   String?
-  sopReference         String
+  id                     String      @id @default(uuid())
+  certificateId          String
+  parameterId            String?
+  masterInstrumentId     String
+  category               String?
+  description            String?
+  make                   String?
+  model                  String?
+  assetNo                String?
+  serialNumber           String?
+  calibratedAt           String?
+  reportNo               String?
+  calibrationDueDate     String?
+  sopReference           String
   /**
    * What the master's own certificate says, snapshotted when it was chosen.
    * These live on the capability profile in the master registry, which is regenerated
@@ -810,23 +810,35 @@ model CertificateMasterInstrument {
    * was true at calibration, so it holds its own copy.
    * Null on certificates written before this existed; the PDF prints "Not recorded".
    */
-  capabilityParameter  String?
-  masterLeastCount     String?
-  masterLeastCountUnit String?
-  masterAccuracy       String?
-  masterAccuracyUnit   String?
+  capabilityParameter    String?
+  masterLeastCount       String?
+  masterLeastCountUnit   String?
+  masterAccuracy         String?
+  masterAccuracyUnit     String?
+  /// The master's own bands over the stretch it was used, as its register states them.
+  ///
+  /// The two scalars above are one pair, taken from whichever band the used range
+  /// resolved to. That is the whole truth for a master with one band, and half this
+  /// lab's profiles have exactly one. For the rest it describes part of a range and
+  /// stands in for all of it: a Fluke 5522A sourcing DC current declares five bands
+  /// between 0 and 329.9, with different resolutions and accuracies in each.
+  ///
+  /// So the overlapping bands are kept as written, in order:
+  /// [{ from, to, leastCount, leastCountUnit, accuracy, accuracyUnit }]. Null on every
+  /// certificate written before this, which reads the scalars as it always did.
+  masterBands            Json?
   /// The stretch of the parameter's range this master was used over, and what it was
   /// judged against. Null means the whole of it - two masters can share a parameter,
   /// either both covering it or each taking a part.
-  rangeFrom            String?
-  rangeTo              String?
+  rangeFrom              String?
+  rangeTo                String?
   /// How this master was used, for the parameter it serves. On the pairing rather than
   /// on the parameter, which had room for one master's answers and so for one master.
   masterProfileId        String?
   masterSubtype          String?
   masterAcceptanceReason String?
-  certificate          Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
-  parameter            Parameter?  @relation(fields: [parameterId], references: [id])
+  certificate            Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  parameter              Parameter?  @relation(fields: [parameterId], references: [id])
 
   @@index([certificateId])
   @@index([parameterId])

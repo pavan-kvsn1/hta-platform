@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { apiFetch } from '@/lib/api-client'
 import { parameterIdFor } from '@/lib/master-entry/parameter-link'
-import { masterSpecFor } from '@/lib/master-entry/snapshot'
+import { masterSpecFor, type MasterBand } from '@/lib/master-entry/snapshot'
 import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
 import {
   errorPrecision,
@@ -231,6 +231,15 @@ export interface SelectedMasterInstrument {
   masterLeastCountUnit?: string
   masterAccuracy?: string
   masterAccuracyUnit?: string
+  /**
+   * Every band the used range touches, where the master declares more than one.
+   *
+   * The four above are one pair of figures, from the band the range resolved to. Half
+   * this lab's capabilities carry several bands with a different resolution and
+   * accuracy in each, and one pair cannot say what a calibration crossing two was done
+   * with.
+   */
+  masterBands?: MasterBand[]
 
   /**
    * The part of the parameter's range this master was used over.
@@ -706,6 +715,7 @@ function masterSpecSnapshot(
     masterLeastCountUnit: entry.masterLeastCountUnit ?? '',
     masterAccuracy: entry.masterAccuracy ?? '',
     masterAccuracyUnit: entry.masterAccuracyUnit ?? '',
+    masterBands: entry.masterBands ?? [],
   }
   if (!parameter) return held
 

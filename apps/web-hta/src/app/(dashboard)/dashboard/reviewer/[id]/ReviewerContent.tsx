@@ -87,6 +87,15 @@ interface MasterInstrument {
   masterLeastCountUnit?: string | null
   masterAccuracy?: string | null
   masterAccuracyUnit?: string | null
+  /** The bands the master declares over the stretch it was used, where several apply. */
+  masterBands?: {
+    from: number | null
+    to: number | null
+    leastCount: string
+    leastCountUnit: string
+    accuracy: string
+    accuracyUnit: string
+  }[] | null
   capabilityParameter?: string | null
   masterSubtype?: string | null
   masterAcceptanceReason?: string | null

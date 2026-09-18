@@ -272,6 +272,28 @@ const createCertificateSchema = z.object({
     masterLeastCountUnit: z.string().optional().nullable(),
     masterAccuracy: z.string().optional().nullable(),
     masterAccuracyUnit: z.string().optional().nullable(),
+    /**
+     * Every band the master declares over the range it was used, where it declares
+     * more than one.
+     *
+     * The four fields above are a single pair, taken from the band that range
+     * resolved to. That is the whole truth for a master with one band; for the half
+     * of this lab's capabilities that carry several, each with its own resolution and
+     * accuracy, it describes part of a range and stands in for all of it.
+     */
+    masterBands: z
+      .array(
+        z.object({
+          from: z.number().nullable(),
+          to: z.number().nullable(),
+          leastCount: z.string(),
+          leastCountUnit: z.string(),
+          accuracy: z.string(),
+          accuracyUnit: z.string(),
+        }),
+      )
+      .optional()
+      .nullable(),
   })).optional(),
 })
 
@@ -891,6 +913,14 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
                 masterLeastCountUnit: mi.masterLeastCountUnit || null,
                 masterAccuracy: mi.masterAccuracy || null,
                 masterAccuracyUnit: mi.masterAccuracyUnit || null,
+                // Where the master declares several bands over the range it was used, one
+                // pair of figures above cannot say what the calibration was done with. Null
+                // rather than an empty array when there are none, so a row that never had
+                // them is told apart from one whose master had a single band.
+                masterBands:
+                  Array.isArray(mi.masterBands) && mi.masterBands.length > 0
+                    ? (mi.masterBands as Prisma.InputJsonValue)
+                    : Prisma.DbNull,
               },
             })
           }
@@ -1435,6 +1465,14 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
             masterLeastCountUnit: mi.masterLeastCountUnit || null,
             masterAccuracy: mi.masterAccuracy || null,
             masterAccuracyUnit: mi.masterAccuracyUnit || null,
+            // Where the master declares several bands over the range it was used, one
+            // pair of figures above cannot say what the calibration was done with. Null
+            // rather than an empty array when there are none, so a row that never had
+            // them is told apart from one whose master had a single band.
+            masterBands:
+              Array.isArray(mi.masterBands) && mi.masterBands.length > 0
+                ? (mi.masterBands as Prisma.InputJsonValue)
+                : Prisma.DbNull,
           }))
         if (rows.length > 0) {
           await tx.certificateMasterInstrument.createMany({ data: rows })

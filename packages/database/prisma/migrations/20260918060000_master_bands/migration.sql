@@ -1,0 +1,22 @@
+-- A master's own resolution and accuracy are not always one pair.
+--
+-- The certificate already keeps `masterLeastCount` and `masterAccuracy`, copied from
+-- the register at the moment the master was chosen so that a reissue prints what the
+-- original carried. One pair, taken from whichever band the used range resolved to.
+--
+-- That is right for a master with one band, and 218 of this lab's 369 capability
+-- profiles have exactly that. It is wrong for the other half: 264 of 538
+-- capability-and-curve combinations carry several range bands, each with its own
+-- least count and accuracy. A Fluke 5522A sourcing DC current declares five between
+-- 0 and 329.9, and no single one of them describes a calibration crossing two.
+--
+-- So the bands themselves are recorded - the ones overlapping the range the master was
+-- used over, as written, in order. A JSON array of { from, to, leastCount,
+-- leastCountUnit, accuracy, accuracyUnit }.
+--
+-- The two scalar columns stay and are still written. They are what every certificate
+-- already in the lab carries, and what anything reading a single figure still reads;
+-- where there are bands, the first of them agrees with the scalars.
+--
+-- Additive and idempotent. Nothing existing is touched.
+ALTER TABLE "CertificateMasterInstrument" ADD COLUMN IF NOT EXISTS "masterBands" JSONB;

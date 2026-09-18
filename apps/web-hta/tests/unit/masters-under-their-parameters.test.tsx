@@ -243,3 +243,82 @@ describe('what opens on a row', () => {
     expect(screen.queryByText('View')).not.toBeInTheDocument()
   })
 })
+
+/**
+ * A master whose own figures change across the range it was used over.
+ *
+ * Half this lab's capabilities declare several bands, each with its own resolution and
+ * accuracy. Showing one pair of figures for those describes part of a range and stands
+ * in for all of it, which on a traceability document is a number saying something the
+ * calibration did not.
+ */
+describe('a master with more than one band', () => {
+  /** The Fluke 5522A's real DC current bands, units as the register wrote them. */
+  const banded = {
+    ...druck,
+    id: 'mi4',
+    assetNo: '682 HTAIPL/L',
+    description: 'Multi Product Calibrator',
+    make: 'Fluke',
+    model: '5522A',
+    masterLeastCount: '0.00001',
+    masterLeastCountUnit: 'A',
+    masterAccuracy: '0.00094',
+    masterAccuracyUnit: 'A',
+    masterBands: [
+      { from: 0, to: 2.999, leastCount: '0.00001', leastCountUnit: 'A', accuracy: '0.00094', accuracyUnit: 'A' },
+      { from: 2.999, to: 3.299, leastCount: '0.00001', leastCountUnit: 'mA', accuracy: '0.00031', accuracyUnit: 'mA' },
+      { from: 3.299, to: 20.5, leastCount: '0.0001', leastCountUnit: 'A', accuracy: '0.0168', accuracyUnit: 'A' },
+    ],
+  }
+
+  const openIt = (entry: Record<string, unknown>) => {
+    render(<MasterInstrumentsByParameter instruments={[entry as never]} parameters={parameters} />)
+    fireEvent.click(screen.getByText(entry.assetNo as string))
+  }
+
+  it('shows the bands rather than one pair standing in for them', () => {
+    openIt(banded)
+    expect(screen.getByText('What this master was judged by')).toBeInTheDocument()
+    expect(screen.getByText('3 bands over the range used')).toBeInTheDocument()
+  })
+
+  it('gives each band its own resolution and accuracy', () => {
+    openIt(banded)
+    expect(screen.getByText('0 – 2.999')).toBeInTheDocument()
+    expect(screen.getByText('±0.00031 mA')).toBeInTheDocument()
+    expect(screen.getByText('±0.0168 A')).toBeInTheDocument()
+  })
+
+  it('does not also print the single pair, which would be one band twice', () => {
+    // "Least count" still appears - as the band table's own column heading. What must
+    // not appear is a second one labelling a lone figure beside it.
+    openIt(banded)
+    expect(screen.getAllByText('Least count')).toHaveLength(1)
+    expect(screen.getAllByText('±0.00094 A')).toHaveLength(1)
+  })
+
+  it('keeps the two lines for a master with one band', () => {
+    openIt({ ...banded, masterBands: [banded.masterBands[0]] })
+    expect(screen.getByText('Least count')).toBeInTheDocument()
+    expect(screen.queryByText('What this master was judged by')).not.toBeInTheDocument()
+  })
+
+  it('keeps the two lines for a certificate written before bands were recorded', () => {
+    openIt({ ...banded, masterBands: null })
+    expect(screen.getByText('Least count')).toBeInTheDocument()
+    expect(screen.getByText('±0.00094 A')).toBeInTheDocument()
+  })
+
+  it('says nothing rather than a dash where a band records no least count', () => {
+    openIt({
+      ...banded,
+      masterBands: [
+        { from: -100, to: 300, leastCount: '', leastCountUnit: '', accuracy: '0.25', accuracyUnit: '°C' },
+        { from: 300, to: 500, leastCount: '0.1', leastCountUnit: '°C', accuracy: '0.5', accuracyUnit: '°C' },
+      ],
+    })
+    expect(screen.getByText('±0.25 °C')).toBeInTheDocument()
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+})

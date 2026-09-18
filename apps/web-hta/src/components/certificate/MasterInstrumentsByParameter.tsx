@@ -15,10 +15,11 @@
  * same fact.
  */
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { AlertTriangle, Camera, ChevronRight } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import type { MasterBand } from '@/lib/master-entry/snapshot'
 import { masterFit } from '@/lib/certificate/master-fit'
 import { COMPATIBILITY_BADGE, type Compatibility } from '@/lib/master/eligibility'
 import { DEFAULT_ACCURACY_RATIO } from '@/lib/master/capability'
@@ -44,6 +45,12 @@ export interface MasterByParameterEntry {
   masterLeastCountUnit?: string | null
   masterAccuracy?: string | null
   masterAccuracyUnit?: string | null
+  /**
+   * The bands the master declares over the stretch it was used, where it declares more
+   * than one. Absent on every certificate written before this, which carries the single
+   * pair above and is read exactly as it was.
+   */
+  masterBands?: MasterBand[] | null
   capabilityParameter?: string | null
   masterSubtype?: string | null
   masterAcceptanceReason?: string | null
@@ -92,6 +99,22 @@ function Info({ label, value }: { label: string; value: string | null | undefine
       <p className="font-semibold text-slate-800 leading-5 break-words text-xs">{value || '—'}</p>
     </div>
   )
+}
+
+/**
+ * A band's span as it reads.
+ *
+ * Every band in this lab's register states both ends, so the open cases below are
+ * defensive rather than exercised. They read an open end as open rather than filling
+ * it with a number the register does not state.
+ */
+function bandRange(band: MasterBand): string {
+  const from = band.from === null ? '' : String(band.from)
+  const to = band.to === null ? '' : String(band.to)
+  if (!from && !to) return '—'
+  if (!to) return `${from} and above`
+  if (!from) return `up to ${to}`
+  return `${from} – ${to}`
 }
 
 const clean = (value: string | null | undefined) => {
@@ -144,6 +167,7 @@ export function MasterInstrumentsByParameter({
           accuracyNote: 'The certificate does not record which parameter this served.',
           otherScale: null,
         }
+    const bands = entry.masterBands ?? []
     const isOpen = open === entry.id
     const usedOver =
       clean(entry.rangeFrom) && clean(entry.rangeTo)
@@ -217,23 +241,78 @@ export function MasterInstrumentsByParameter({
                     calibration, and the certificate prints it too. */}
                 {usedOver && <Info label="Used over" value={usedOver} />}
                 {entry.sopReference && <Info label="SOP" value={entry.sopReference} />}
-                <Info
-                  label="Least count"
-                  value={
-                    entry.masterLeastCount
-                      ? `${entry.masterLeastCount} ${entry.masterLeastCountUnit ?? ''}`.trim()
-                      : 'Not recorded'
-                  }
-                />
-                <Info
-                  label="Accuracy"
-                  value={
-                    entry.masterAccuracy
-                      ? `±${entry.masterAccuracy} ${entry.masterAccuracyUnit ?? ''}`.trim()
-                      : 'Not recorded'
-                  }
-                />
+                {/* One band is two figures and reads as two figures. Several is a
+                    table, below, rather than one of them standing in for the rest. */}
+                {bands.length < 2 && (
+                  <>
+                    <Info
+                      label="Least count"
+                      value={
+                        entry.masterLeastCount
+                          ? `${entry.masterLeastCount} ${entry.masterLeastCountUnit ?? ''}`.trim()
+                          : 'Not recorded'
+                      }
+                    />
+                    <Info
+                      label="Accuracy"
+                      value={
+                        entry.masterAccuracy
+                          ? `±${entry.masterAccuracy} ${entry.masterAccuracyUnit ?? ''}`.trim()
+                          : 'Not recorded'
+                      }
+                    />
+                  </>
+                )}
               </div>
+
+              {/* The master's own bands over the stretch it was used.
+                  Set as a list rather than a table, the way the UUC's bands are set in
+                  Section 2: a reviewer comparing the two is reading the same shape
+                  twice. Only the bands the calibration reached - the instrument's full
+                  capability is a fact about the instrument and belongs in the register,
+                  not on a certificate. */}
+              {bands.length >= 2 && (
+                <div>
+                  <div className="flex items-baseline justify-between gap-3 mb-2.5">
+                    <span className="text-xs font-semibold text-gray-500">
+                      What this master was judged by
+                    </span>
+                    <span className="text-[11px] text-gray-400 tabular-nums">
+                      {bands.length} bands over the range used
+                    </span>
+                  </div>
+                  <dl className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-8 items-baseline">
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 pb-1.5 border-b">
+                      Range
+                    </dt>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 pb-1.5 border-b text-right">
+                      Least count
+                    </dt>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 pb-1.5 border-b text-right">
+                      Accuracy
+                    </dt>
+                    {bands.map((band, i) => {
+                      const last = i === bands.length - 1
+                      const cell = cn('py-1.5 text-xs tabular-nums', !last && 'border-b border-gray-100')
+                      return (
+                        <Fragment key={`${band.from}-${band.to}-${i}`}>
+                          <dd className={cn(cell, 'text-gray-900')}>{bandRange(band)}</dd>
+                          <dd className={cn(cell, 'text-gray-600 text-right')}>
+                            {band.leastCount
+                              ? `${band.leastCount} ${band.leastCountUnit ?? ''}`.trim()
+                              : '—'}
+                          </dd>
+                          <dd className={cn(cell, 'text-gray-600 text-right')}>
+                            {band.accuracy
+                              ? `±${band.accuracy} ${band.accuracyUnit ?? ''}`.trim()
+                              : '—'}
+                          </dd>
+                        </Fragment>
+                      )
+                    })}
+                  </dl>
+                </div>
+              )}
 
               {fit.otherScale && parameter?.parameterUnit && (
                 <p className="flex items-start gap-2 text-xs text-amber-800">
