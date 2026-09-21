@@ -44,6 +44,11 @@ interface FormMaster {
   masterInstrumentId: number
   parameterId?: string
   masterLeastCount?: string
+  /** What the photograph of this instrument is captioned with. */
+  assetNo?: string
+  description?: string
+  make?: string
+  model?: string
   [key: string]: unknown
 }
 
@@ -157,7 +162,7 @@ export async function loadAppendix(
       masterLeastCount: leastCountByParameter.get(param.id) ?? null,
     }))
 
-    const appendix = buildAppendixData(appendixParameters, photos)
+    const appendix = buildAppendixData(appendixParameters, photos, masterInstruments)
 
     /**
      * One line saying what the appendix came to.

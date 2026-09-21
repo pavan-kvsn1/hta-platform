@@ -250,7 +250,7 @@ function ReadingsTable({ table, figures }: { table: AppendixTable; figures: Reco
 // ---------------------------------------------------------------------------------
 
 export function CertificateAppendix({ appendix }: { appendix: AppendixData }) {
-  const { unitPhotos, masterPhotos, tables, strandedCount, figures } = appendix
+  const { unitPhotos, masterPhotos, masters, tables, strandedCount, figures } = appendix
 
   const hasA = unitPhotos.length > 0 || masterPhotos.length > 0
   const hasB = tables.length > 0
@@ -279,7 +279,13 @@ export function CertificateAppendix({ appendix }: { appendix: AppendixData }) {
                 <Text style={styles.heading}>A.2   MASTER INSTRUMENTS</Text>
               </View>
               <View style={{ marginTop: 4 }}>
-                <PhotoPairs photos={masterPhotos} figures={figures} labelOf={() => 'Master instrument'} />
+                {/* Which instrument, not just that it is one: a certificate can carry
+                    several, and the photograph is there to identify this one. */}
+                <PhotoPairs
+                  photos={masterPhotos}
+                  figures={figures}
+                  labelOf={(p) => masters[p.masterInstrumentIndex ?? 0]?.label ?? 'Master instrument'}
+                />
               </View>
             </>
           )}

@@ -18,6 +18,7 @@ import {
   columnRule,
   coverageLine,
   errorRule,
+  masterLabel,
   tableColumns,
   type AppendixParameter,
   type AppendixPhoto,
@@ -301,6 +302,44 @@ describe('each side is rounded to the resolution it was read at', () => {
   it('keeps a reading’s own resolution inside the working', () => {
     // 2.5 was entered as 2.5; the working must not print 2.500 or 3.
     expect(valueOf(param('0.001'), 'Standard Value')).toContain('2.5 × 10')
+  })
+})
+
+describe('naming a master instrument', () => {
+  // HTA/S22734/165/26 carries three. Captioning all three "Master instrument" leaves
+  // the reader unable to say which one they are looking at, which is the only thing a
+  // photograph of a master is for.
+  it('leads with the asset number, then what the instrument is', () => {
+    expect(masterLabel({ assetNo: '717 HTAIPL/L', description: 'Digital RTD Thermometer' }, 0))
+      .toBe('717 HTAIPL/L · Digital RTD Thermometer')
+  })
+
+  it('falls back to make and model when there is no description', () => {
+    expect(masterLabel({ assetNo: '781 HTAIPL/L', make: 'Fluke', model: '754' }, 0))
+      .toBe('781 HTAIPL/L · Fluke 754')
+  })
+
+  it('will print an asset number on its own', () => {
+    expect(masterLabel({ assetNo: '717 HTAIPL/L' }, 0)).toBe('717 HTAIPL/L')
+  })
+
+  it('never prints an empty caption under a photograph', () => {
+    expect(masterLabel(undefined, 2)).toBe('Master instrument 3')
+    expect(masterLabel({ assetNo: '   ' }, 0)).toBe('Master instrument 1')
+  })
+
+  it('is carried per instrument, in the order a photograph indexes them', () => {
+    const data = buildAppendixData(
+      [legacy()],
+      [photo({ id: 'm0', imageType: 'MASTER_INSTRUMENT', masterInstrumentIndex: 0, parameterIndex: null, pointNumber: null }),
+       photo({ id: 'm1', imageType: 'MASTER_INSTRUMENT', masterInstrumentIndex: 1, parameterIndex: null, pointNumber: null })],
+      [{ assetNo: '717 HTAIPL/L', description: 'Digital RTD Thermometer' },
+       { assetNo: '781 HTAIPL/L', description: 'Pressure Gauge' }],
+    )
+    expect(data.masters.map((m) => m.label)).toEqual([
+      '717 HTAIPL/L · Digital RTD Thermometer',
+      '781 HTAIPL/L · Pressure Gauge',
+    ])
   })
 })
 

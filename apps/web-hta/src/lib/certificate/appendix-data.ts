@@ -75,9 +75,23 @@ export interface AppendixTable {
   points: AppendixPoint[]
 }
 
+/**
+ * What a master instrument is called, by its position on the certificate.
+ *
+ * A certificate can carry several - this one carries three - and captioning every
+ * photograph "Master instrument" leaves the reader unable to say which instrument they
+ * are looking at, which is the one thing a photograph of a master is for.
+ */
+export interface AppendixMaster {
+  /** "717 HTAIPL/L · Digital RTD Thermometer", as near as the entry allows. */
+  label: string
+}
+
 export interface AppendixData {
   unitPhotos: AppendixPhoto[]
   masterPhotos: AppendixPhoto[]
+  /** Indexed by masterInstrumentIndex, which is what a photograph records. */
+  masters: AppendixMaster[]
   tables: AppendixTable[]
   /** Photographs whose reading is no longer on the certificate. Counted, not shown. */
   strandedCount: number
@@ -378,9 +392,34 @@ function resolvedValues(
 // The whole appendix
 // ---------------------------------------------------------------------------------
 
+/** What a master entry on the certificate is carrying, as far as naming it goes. */
+export interface AppendixMasterSource {
+  assetNo?: string | null
+  description?: string | null
+  make?: string | null
+  model?: string | null
+}
+
+/**
+ * A master instrument's caption: its asset number and what it is.
+ *
+ * The asset number first, because that is what identifies the instrument on this
+ * certificate and in the register. Falls back through make and model to something
+ * honest rather than printing an empty caption under a photograph.
+ */
+export function masterLabel(entry: AppendixMasterSource | undefined, index: number): string {
+  const asset = entry?.assetNo?.trim()
+  const what = entry?.description?.trim() || [entry?.make, entry?.model].filter(Boolean).join(' ').trim()
+  if (asset && what) return `${asset} · ${what}`
+  if (asset) return asset
+  if (what) return what
+  return `Master instrument ${index + 1}`
+}
+
 export function buildAppendixData(
   parameters: AppendixParameter[],
   photos: AppendixPhoto[],
+  masterInstruments: AppendixMasterSource[] = [],
 ): AppendixData {
   const unitPhotos = photos.filter((p) => p.imageType === 'UUC')
   const masterPhotos = photos
@@ -444,5 +483,8 @@ export function buildAppendixData(
     }
   }
 
-  return { unitPhotos, masterPhotos, tables, strandedCount: stranded, figures }
+  /** One caption per master, by the position a photograph records against. */
+  const masters: AppendixMaster[] = masterInstruments.map((entry, i) => ({ label: masterLabel(entry, i) }))
+
+  return { unitPhotos, masterPhotos, masters, tables, strandedCount: stranded, figures }
 }
