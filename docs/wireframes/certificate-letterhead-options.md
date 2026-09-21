@@ -1,6 +1,17 @@
 # Certificate letterhead — options B and C
 
-**Status**: designed and proofed, not implemented. The certificate component is unchanged.
+**Status**: option B is implemented in `CalibrationCertificatePDF.tsx` — the left anchor,
+the word-spaced name, the accreditation line, the right-aligned contact block, the rule,
+and the Oswald title. The company name is Impact 20 pt as specified below.
+
+Impact is licensed with Windows and is on no CDN, and the certificate renders both on the
+server and in the browser, so it is embedded as a data URL from
+`packages/assets/fonts/impact.ttf` rather than fetched like Roboto and Oswald. Its ascent
+is read from the font by `packages/assets/scripts/generate-impact-font.mjs`: react-pdf
+places text by the top of the em box, and Impact's 1.0088 against Oswald's 1.193 is worth
+three and a half points on the baseline.
+
+Option C is still only designed.
 
 Two replacements for the letterhead in `apps/web-hta/src/components/pdf/CalibrationCertificatePDF.tsx`
 (Section A, plus the Section B title). Both were proofed by drawing them onto a real

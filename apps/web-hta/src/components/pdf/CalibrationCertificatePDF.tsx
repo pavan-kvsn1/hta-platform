@@ -52,6 +52,20 @@ Font.register({
   ],
 })
 
+/**
+ * Impact, for the company name on the letterhead.
+ *
+ * Embedded rather than fetched. The certificate renders on the server for the real PDF
+ * and in the browser for the preview, so a font has to load in both; Impact is licensed
+ * with Windows and is on no CDN that could serve it. A file path would not do either -
+ * process.cwd() is apps/web-hta in development and /app in the image, and the browser
+ * has no filesystem - so it travels as a data URL, the way the logo and watermark do.
+ */
+Font.register({
+  family: 'Impact',
+  fonts: [{ src: IMPACT_BASE64, fontWeight: 'normal' }],
+})
+
 // Disable hyphenation to prevent word breaks
 Font.registerHyphenationCallback((word) => [word])
 
@@ -107,7 +121,8 @@ const LH = {
   /** Right-aligned to x 555, which is the content edge. */
   RIGHT_X: 555,
 
-  NAME_SIZE: 19.5,
+  /** 20 pt, the size the letterhead was proofed at in Impact. 19.5 was an Oswald fit. */
+  NAME_SIZE: 20,
   NAME_BASELINE: 50.7,
   /** +0.10 em, opened at the word spaces rather than tracked across the letters. */
   NAME_WORD_SPACING: 0.1,
@@ -154,6 +169,7 @@ const CONTACT_LINES = [
   'www.htaipl.com  \u00b7  calibration@htaipl.com',
 ]
 import { CertificateFormData, ACCURACY_TYPE_CONFIG } from '@/lib/stores/certificate-store'
+import { IMPACT_ASCENT, IMPACT_BASE64 } from './impact-base64'
 import { HTA_LOGO_BASE64 } from './logo-base64'
 import { HTA_WATERMARK_BASE64 } from './watermark-base64'
 import {
@@ -274,8 +290,9 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   nameWord: {
-    fontFamily: 'Oswald',
-    fontWeight: 600,
+    // Impact has one weight. Asking for a bold would make react-pdf look for a face
+    // that does not exist; the letterhead's weight is the face itself.
+    fontFamily: 'Impact',
     fontSize: LH.NAME_SIZE,
     color: LH.INK,
   },
@@ -1168,7 +1185,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
           {/* Set word by word: the spaces open by a tenth of an em while the
               letters keep the face's own fit. A tracked line would space the
               letters too, which is not what the printed letterhead does. */}
-          <View style={[styles.nameRow, { top: baselineTop(LH.NAME_BASELINE, LH.NAME_SIZE, OSWALD_ASCENT) }]}>
+          <View style={[styles.nameRow, { top: baselineTop(LH.NAME_BASELINE, LH.NAME_SIZE, IMPACT_ASCENT) }]}>
             {COMPANY_INFO.name.split(' ').map((word, i, all) => (
               <Text
                 key={i}
