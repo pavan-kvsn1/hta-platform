@@ -55,6 +55,20 @@ function buildCSP(): string {
     'connect-src': [
       "'self'",
       'blob:',
+      /**
+       * react-pdf fetches two things as data: URLs, and a fetch is connect-src even
+       * when what it carries is not.
+       *
+       * Its layout engine ships as WebAssembly inlined into the bundle - script-src
+       * already allows running it ('wasm-unsafe-eval'), but without this the browser
+       * refuses to fetch it in the first place. And the certificate's appendix hands
+       * the renderer each photograph as an inlined data: URL, because react-pdf lays
+       * out synchronously and cannot await an image.
+       *
+       * data: in connect-src is not the risk it is in script-src: the bytes come from
+       * the document itself, so nothing new becomes reachable.
+       */
+      'data:',
       'https://unpkg.com',  // @react-pdf/renderer fetches fonts from unpkg
       'https://*.sentry.io',
       'wss://*.pusher.com',
