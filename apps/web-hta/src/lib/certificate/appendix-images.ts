@@ -109,14 +109,32 @@ export async function loadAppendix(
   parameters: FormParameter[],
   masterInstruments: FormMaster[],
 ): Promise<AppendixData | null> {
-  if (!certificateId) return null
+  /**
+   * Every way out of here says which way it went.
+   *
+   * All of them return null, because a certificate is worth more than its appendix -
+   * but that means five different faults produce one identical symptom: a certificate
+   * with no appendix, which is also what a certificate with no photographs looks like.
+   * Saying so costs one line and is the difference between diagnosing this in a minute
+   * and guessing at it for an afternoon.
+   */
+  if (!certificateId) {
+    console.info('[Appendix] skipped: the certificate has no id yet')
+    return null
+  }
 
   try {
     const res = await apiFetch(`/api/certificates/${certificateId}/images`)
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.info('[Appendix] skipped: the images could not be listed (HTTP %d)', res.status)
+      return null
+    }
     const body = (await res.json()) as { images?: ListedImage[] }
     const images = body.images ?? []
-    if (images.length === 0) return null
+    if (images.length === 0) {
+      console.info('[Appendix] skipped: this certificate has no photographs')
+      return null
+    }
 
     const photos = await inlineAll(certificateId, images)
 
@@ -158,8 +176,15 @@ export async function loadAppendix(
       appendix.strandedCount,
     )
 
+    if (appendix.tables.length === 0 && appendix.unitPhotos.length === 0 && appendix.masterPhotos.length === 0) {
+      // Photographs exist, but none of them landed on a point this certificate still
+      // has - every one is stranded, so there is nothing the appendix can show.
+      console.info('[Appendix] nothing to show: %d photographs, all of them stranded', photos.length)
+    }
+
     return appendix
-  } catch {
+  } catch (error) {
+    console.info('[Appendix] skipped:', error instanceof Error ? error.message : error)
     return null
   }
 }
