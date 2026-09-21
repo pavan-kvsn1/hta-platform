@@ -83,12 +83,24 @@ export const logger = pino({
   messageKey: 'message',
   timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
 
-  ...(process.env.NODE_ENV !== 'production' && {
-    transport: {
-      target: 'pino-pretty',
-      options: { colorize: true },
-    },
-  }),
+  // Pretty output for the API and the worker in development - but never inside Next.
+  //
+  // A pino transport does not run in this process: it starts a worker thread, and
+  // thread-stream launches that worker by requiring a file path it works out at
+  // runtime. Webpack cannot follow a path it never sees, so it writes a reference to a
+  // chunk it did not create, and the dev server dies on the first log line with
+  // "Cannot find module .next/server/vendor-chunks/lib/worker.js".
+  //
+  // Next sets NEXT_RUNTIME in its server runtime, which is the one thing here that
+  // distinguishes "bundled by webpack" from "run by node". Production never took this
+  // branch at all, which is why only local dev ever broke.
+  ...(process.env.NODE_ENV !== 'production' &&
+    !process.env.NEXT_RUNTIME && {
+      transport: {
+        target: 'pino-pretty',
+        options: { colorize: true },
+      },
+    }),
 })
 
 export const createLogger = (module: string) => {
