@@ -31,19 +31,6 @@ Font.register({
   ],
 })
 
-/**
- * Oswald, for the letterhead name and the document title.
- *
- * SemiBold rather than Bold: against Impact at 20 pt it sets 4.5 pt wider where
- * Bold sets 10 pt wider, and the letterhead has about 300 pt to give.
- */
-Font.register({
-  family: 'Oswald',
-  fonts: [
-    { src: 'https://unpkg.com/@fontsource/oswald@5.0.8/files/oswald-latin-600-normal.woff', fontWeight: 600 },
-  ],
-})
-
 // Medium, for the accreditation line under the company name.
 Font.register({
   family: 'RobotoMedium',
@@ -135,8 +122,15 @@ const LH = {
   CONTACT_FIRST_BASELINE: 27,
   CONTACT_LEADING: 11.8,
 
-  /** Oswald's ink is tall; 9.33 pt reads as a 12 pt title. */
-  TITLE_SIZE: 9.33,
+  /**
+   * 9.56 pt, which is 9.33 pt of Oswald re-fitted to Impact.
+   *
+   * The proofed 9.33 was the size whose ink read as a 12 pt title in Oswald, so it does
+   * not survive a change of face. Impact's cap is 0.7905 of the em against Oswald's
+   * 0.8100, and 9.56 pt is the size that puts the same 7.56 pt of cap height on the
+   * page - the title looks exactly as big as it did, set in a different face.
+   */
+  TITLE_SIZE: 9.56,
   TITLE_TRACKING: 0.8,
   FOLIO_SIZE: 8,
 } as const
@@ -145,7 +139,9 @@ const LH = {
  * The baseline that sits a line optically centred in the title band.
  *
  * The band's midpoint is not the baseline, because a line's ink is not centred
- * in its em box. k is measured per face: 0.452 for Oswald set in sentence case.
+ * in its em box. k is measured per face, off rendered pages: 0.400 for Impact, which is
+ * what the title and the company name are now set in; 0.452 for Oswald, which the title
+ * used to be.
  */
 const centredBaseline = (size: number, k: number) => (LH.CONTENT_Y + LH.RULE_Y) / 2 + k * size
 
@@ -156,7 +152,6 @@ const centredBaseline = (size: number, k: number) => (LH.CONTENT_Y + LH.RULE_Y) 
  * what stays true when a size changes. react-pdf positions the top of the line
  * box, which sits one ascent above it - so every placement below converts.
  */
-const OSWALD_ASCENT = 1.193
 const ROBOTO_ASCENT = 1900 / 2048
 const baselineTop = (baseline: number, size: number, ascent: number) => baseline - size * ascent
 
@@ -344,8 +339,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    fontFamily: 'Oswald',
-    fontWeight: 600,
+    // The same face as the company name above it. Impact has one weight, so there is
+    // no fontWeight to ask for.
+    fontFamily: 'Impact',
     fontSize: LH.TITLE_SIZE,
     letterSpacing: LH.TITLE_TRACKING,
     textAlign: 'center',
@@ -362,8 +358,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    fontFamily: 'Oswald',
-    fontWeight: 600,
+    fontFamily: 'Impact',
     fontSize: LH.TITLE_SIZE,
     letterSpacing: LH.TITLE_TRACKING,
     textAlign: 'center',
@@ -1233,7 +1228,8 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
           <Text
             style={[
               isAuthorized ? styles.title : styles.titleReview,
-              { top: baselineTop(centredBaseline(LH.TITLE_SIZE, 0.452), LH.TITLE_SIZE, OSWALD_ASCENT) },
+              // 0.400 is the doc's measured k for Impact, against 0.452 for Oswald.
+              { top: baselineTop(centredBaseline(LH.TITLE_SIZE, 0.4), LH.TITLE_SIZE, IMPACT_ASCENT) },
             ]}
           >
             {documentTitle}

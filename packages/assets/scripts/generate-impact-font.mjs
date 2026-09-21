@@ -49,7 +49,7 @@ writeFileSync(
 // Regenerate with "node packages/assets/scripts/generate-impact-font.mjs".
 //
 // Licensed with Windows and on no public CDN, so it travels with the app rather than
-// being fetched like Roboto and Oswald. See packages/assets/fonts/impact.ttf.
+// being fetched like Roboto. See packages/assets/fonts/impact.ttf.
 
 /** Ascent as a fraction of the em, from the font's own hhea/head tables: ${ascender}/${unitsPerEm}. */
 export const IMPACT_ASCENT = ${ascent.toFixed(6)}
