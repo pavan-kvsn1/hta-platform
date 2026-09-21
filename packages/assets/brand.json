@@ -1,0 +1,10 @@
+{
+  "description": "Brand colours. One declared source; see brand-colour.test.ts, which fails if a copy drifts from this file.",
+  "cyan": "#0099CC",
+  "cyanUsedBy": [
+    "apps/web-hta/src/components/pdf/CalibrationCertificatePDF.tsx (HTA_BLUE) - the company name, the title, the rule, the footer",
+    "apps/web-tenant-template/src/components/pdf/CalibrationCertificatePDF.tsx (HTA_BLUE)",
+    "packages/assets/scripts/recolour-cyan.py (BRAND) - the cyan logo on the letterhead",
+    "packages/assets/scripts/generate-watermark.py - imports BRAND from recolour-cyan.py"
+  ]
+}

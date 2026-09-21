@@ -22,6 +22,7 @@ Writes the recoloured JPEG as base64 on stdout; generate.mjs writes the file.
 """
 import base64
 import io
+import json
 import sys
 from pathlib import Path
 
@@ -31,7 +32,20 @@ except ImportError:
     sys.stderr.write('Pillow is not installed\n')
     sys.exit(2)
 
-BRAND = (0x00, 0x99, 0xCC)
+
+def _brand_cyan() -> tuple:
+    """The cyan from brand.json, so the ink matches the type it sits beside.
+
+    Read rather than repeated: the certificate sets its own HTA_BLUE and a second copy
+    of a hex here is a copy that eventually says something else. brand-colour.test.ts
+    fails if any of them drift.
+    """
+    path = Path(__file__).resolve().parents[1] / 'brand.json'
+    value = json.loads(path.read_text(encoding='utf-8'))['cyan'].lstrip('#')
+    return tuple(int(value[i : i + 2], 16) for i in (0, 2, 4))
+
+
+BRAND = _brand_cyan()
 
 # Rec. 601 luma, which is what "how dark does this look" means here.
 def luma(r: int, g: int, b: int) -> float:

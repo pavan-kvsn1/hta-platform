@@ -88,3 +88,7 @@ scripts/maintenance/backfill-field-change-revision.cjs
 # a decision to take deliberately, not a side effect of tidying.
 graphify-out/
 apps/web-hta/reference_docs/
+
+# Python bytecode. generate-watermark.py imports recolour-cyan.py, which writes one.
+__pycache__/
+*.pyc
