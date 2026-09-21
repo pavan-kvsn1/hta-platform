@@ -1712,7 +1712,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                             borderBottomColor: '#000',
                           }]}
                         >
-                          <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>{padSerialNumber(result.pointNumber)}</Text>
+                          <Text style={[styles.calCellText, result.isOutOfLimit ? styles.failedCalCellText : {}]}>{padSerialNumber(resultIdx + 1)}</Text>
                         </View>
                       )
                     })}

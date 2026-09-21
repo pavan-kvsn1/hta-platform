@@ -268,7 +268,7 @@ export function CalibrationResultsTable({
                   )}
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {param.results.map((result) => {
+                  {param.results.map((result, resultIdx) => {
                     // The reading the least count is judged at: the master field under a
                     // declared schema, the legacy standardReading otherwise.
                     // A row may predate the schema and hold only the legacy three, so
@@ -323,7 +323,7 @@ export function CalibrationResultsTable({
                         className={cn(failed && 'bg-red-50 text-red-700 font-bold')}
                       >
                         <td className={cn(CELL, failed ? 'text-red-700 font-bold' : 'text-gray-900')}>
-                          {result.pointNumber}
+                          {resultIdx + 1}
                         </td>
 
                         {dynamic ? (

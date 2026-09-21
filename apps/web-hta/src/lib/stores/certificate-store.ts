@@ -165,6 +165,14 @@ export interface Parameter {
   fieldDefinitions: FieldDefinition[]
   errorConfig: ErrorConfig
   resultRows: CalibrationResultRow[]
+  /**
+   * The highest point number ever issued on this parameter in this editing session.
+   *
+   * Not sent to the server and not read back from it: it exists only to stop a number
+   * being reused between deleting a row and saving, which is the one window in which
+   * reuse would move a photograph onto a different reading. See issuePointNumber.
+   */
+  pointSequence?: number
   // Master instrument reference for this parameter
   masterInstrumentId: number | null
   // SOP reference for this parameter's calibration procedure
@@ -584,6 +592,42 @@ export const syncLegacyResults = (parameter: Parameter): Parameter => {
   }
 }
 
+/**
+ * The next point number to hand out on a parameter, and the parameter that remembers it.
+ *
+ * pointNumber is the only thing about a reading that survives a save. The certificate
+ * rewrites every parameter and every row on each save, and both get fresh database ids,
+ * so a photograph taken of a reading can only say "parameter 0, point 3" and hope that
+ * still means the same reading.
+ *
+ * It used not to. Deleting a row renumbered the ones below it, so deleting point 3
+ * turned point 4 into point 3 - and the photographs of point 4 stayed on 4, which was
+ * now a different reading, or nothing at all. Silently, on a document whose whole
+ * purpose is to say what was measured.
+ *
+ * So numbers are permanent: delete point 3 of five and the rows left are 1, 2, 4, 5.
+ * The certificate still prints 1, 2, 3, 4, because the printed serial is the row's
+ * position and always was a presentation detail.
+ *
+ * One past the highest row is not enough on its own. Delete the highest row and that
+ * number is free again, so the next row takes it - and any photograph of the row just
+ * deleted lands on the new one. pointSequence is the high-water mark: it only ever goes
+ * up, so a number issued in this session is never issued twice.
+ *
+ * It is deliberately not persisted. On the next load the rows come back without it, and
+ * the mark resets to one past the highest - which is safe by then, because saving is
+ * what archives the photographs of a deleted reading. The mark only has to cover the
+ * window between deleting a row and saving, which is exactly the window it survives.
+ */
+const issuePointNumber = <T extends { results?: unknown[]; pointSequence?: number }>(
+  param: T,
+  rows: Array<{ pointNumber: number }>,
+): { pointNumber: number; pointSequence: number } => {
+  const highestPresent = rows.reduce((highest, row) => Math.max(highest, row.pointNumber || 0), 0)
+  const pointNumber = Math.max(highestPresent, param.pointSequence ?? 0) + 1
+  return { pointNumber, pointSequence: pointNumber }
+}
+
 const createDefaultResult = (pointNumber: number): CalibrationResult => ({
   id: generateId(),
   pointNumber,
@@ -855,10 +899,13 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
     set((state) => {
       const newParameters = [...state.formData.parameters]
       const currentResults = newParameters[parameterIndex].results
-      const newPointNumber = currentResults.length + 1
+      // One past the highest ever issued, not one past the count: with a gap left by a
+      // deleted row, counting would hand out a number a photograph already points at.
+      const issued = issuePointNumber(newParameters[parameterIndex], currentResults)
       newParameters[parameterIndex] = {
         ...newParameters[parameterIndex],
-        results: [...currentResults, createDefaultResult(newPointNumber)],
+        pointSequence: issued.pointSequence,
+        results: [...currentResults, createDefaultResult(issued.pointNumber)],
       }
       return {
         formData: { ...state.formData, parameters: newParameters },
@@ -872,9 +919,8 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
     set((state) => {
       const newParameters = [...state.formData.parameters]
       if (newParameters[parameterIndex].results.length <= 1) return state
-      const newResults = newParameters[parameterIndex].results
-        .filter((_, i) => i !== resultIndex)
-        .map((r, i) => ({ ...r, pointNumber: i + 1 }))
+      // The rows that remain keep the numbers they had. See nextPointNumber.
+      const newResults = newParameters[parameterIndex].results.filter((_, i) => i !== resultIndex)
       newParameters[parameterIndex] = { ...newParameters[parameterIndex], results: newResults }
       return {
         formData: { ...state.formData, parameters: newParameters },
@@ -1104,7 +1150,9 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
       const parameters = [...state.formData.parameters]
       const parameter = { ...parameters[parameterIndex] }
       const rows = parameter.resultRows ?? []
-      parameter.resultRows = [...rows, createRow(rows.length + 1)]
+      const issued = issuePointNumber(parameter, rows)
+      parameter.pointSequence = issued.pointSequence
+      parameter.resultRows = [...rows, createRow(issued.pointNumber)]
       parameters[parameterIndex] = syncLegacyResults(parameter)
       return { formData: { ...state.formData, parameters }, isDirty: true }
     })
@@ -1117,9 +1165,8 @@ export const useCertificateStore = create<CertificateStore>((set, get) => ({
       const rows = parameter.resultRows ?? []
       // Always leave one row: an empty table has nowhere to type.
       if (rows.length <= 1) return state
-      parameter.resultRows = rows
-        .filter((_, i) => i !== rowIndex)
-        .map((row, i) => ({ ...row, pointNumber: i + 1 }))
+      // The rows that remain keep the numbers they had. See nextPointNumber.
+      parameter.resultRows = rows.filter((_, i) => i !== rowIndex)
       parameters[parameterIndex] = syncLegacyResults(parameter)
       return { formData: { ...state.formData, parameters }, isDirty: true }
     })

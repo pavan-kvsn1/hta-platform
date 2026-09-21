@@ -1476,6 +1476,50 @@ const certificateRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
+      /**
+       * Photographs of readings that are no longer on the certificate.
+       *
+       * A photograph names its reading by parameter position and point number, because
+       * that is all that survives a save - every parameter and every row is rewritten
+       * here and handed fresh ids. Point numbers are now permanent, which is what makes
+       * this possible: a point missing from the saved set was deleted, rather than
+       * renumbered into a different row, so its photographs can be retired with
+       * confidence.
+       *
+       * Archived, never deleted. The file stays, the row stays, and it stops appearing
+       * on the certificate and in the appendix. If the engineer was wrong to delete the
+       * reading, the evidence is still there to restore.
+       */
+      const livePoints = new Set(
+        (parameters ?? []).flatMap((param: any, index: number) =>
+          (param.results ?? []).map((r: any) => `${index}:${r.pointNumber}`),
+        ),
+      )
+
+      const readingPhotos = await tx.certificateImage.findMany({
+        where: {
+          certificateId: id,
+          imageType: { in: ['READING_UUC', 'READING_MASTER'] },
+          archivedAt: null,
+        },
+        select: { id: true, parameterIndex: true, pointNumber: true },
+      })
+
+      const stranded = readingPhotos
+        .filter((img: { parameterIndex: number | null; pointNumber: number | null }) => !livePoints.has(`${img.parameterIndex}:${img.pointNumber}`))
+        .map((img: { id: string }) => img.id)
+
+      if (stranded.length > 0) {
+        await tx.certificateImage.updateMany({
+          where: { id: { in: stranded } },
+          data: { archivedAt: new Date(), isLatest: false },
+        })
+        fastify.log.info(
+          { certificateId: id, count: stranded.length },
+          'Archived photographs whose reading was removed',
+        )
+      }
+
       // The master links, likewise in one statement rather than one apiece.
       if (masterInstruments && masterInstruments.length > 0) {
         const links = resolveParameterIndexes(masterInstruments, parameters ?? [])
