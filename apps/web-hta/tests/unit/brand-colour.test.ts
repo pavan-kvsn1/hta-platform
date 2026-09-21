@@ -10,7 +10,7 @@
  * This test is what makes that declaration mean anything. Change brand.json and these
  * fail until every copy follows; change one copy and it fails on its own.
  */
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 
 import { describe, expect, it } from 'vitest'
@@ -21,7 +21,7 @@ const read = (...parts: string[]) => readFileSync(join(repoRoot, ...parts), 'utf
 const brand = JSON.parse(read('packages', 'assets', 'brand.json')) as { cyan: string }
 
 /** `const HTA_BLUE = '#0099CC'`, whatever the hex happens to be. */
-const tsConstant = (source: string) => source.match(/const HTA_BLUE = '(#[0-9A-Fa-f]{6})'/)?.[1]
+const tsConstant = (source: string) => source.match(/HTA_BLUE = '(#[0-9A-Fa-f]{6})'/)?.[1]
 
 describe('the brand cyan', () => {
   it('is a six-digit hex in brand.json', () => {
@@ -29,7 +29,7 @@ describe('the brand cyan', () => {
   })
 
   it('is what the certificate prints', () => {
-    const source = read('apps', 'web-hta', 'src', 'components', 'pdf', 'CalibrationCertificatePDF.tsx')
+    const source = read('apps', 'web-hta', 'src', 'components', 'pdf', 'brand.ts')
     expect(tsConstant(source)).toBe(brand.cyan)
   })
 
@@ -47,14 +47,28 @@ describe('the brand cyan', () => {
     expect(source).not.toMatch(/BRAND\s*=\s*\(0x/)
   })
 
-  it('is the only cyan the certificate uses', () => {
-    // A literal that slipped past HTA_BLUE would show up here.
-    const source = read('apps', 'web-hta', 'src', 'components', 'pdf', 'CalibrationCertificatePDF.tsx')
-    const hexes = source.match(/#[0-9A-Fa-f]{6}/g) ?? []
-    const cyans = hexes.filter((h) => {
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
-      return b > 150 && g > 100 && r < 100
-    })
-    expect([...new Set(cyans.map((c) => c.toUpperCase()))]).toEqual([brand.cyan])
+  /** Anything that reads as the brand cyan to an eye, so a near-miss is caught too. */
+  const cyansIn = (source: string) =>
+    [...new Set(
+      (source.match(/#[0-9A-Fa-f]{6}/g) ?? [])
+        .filter((h) => {
+          const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
+          return b > 150 && g > 100 && r < 100
+        })
+        .map((c) => c.toUpperCase()),
+    )]
+
+  it('is written down in exactly one place', () => {
+    expect(cyansIn(read('apps', 'web-hta', 'src', 'components', 'pdf', 'brand.ts'))).toEqual([brand.cyan])
+  })
+
+  it('is never written down again in the pages that use it', () => {
+    // Both take the colour from brand.ts. A literal that slipped past the constant -
+    // a hand-typed #0099CC, or worse a #0099CD nobody would spot - shows up here.
+    for (const file of ['CalibrationCertificatePDF.tsx', 'certificate-appendix.tsx']) {
+      const path = join(repoRoot, 'apps', 'web-hta', 'src', 'components', 'pdf', file)
+      if (!existsSync(path)) continue
+      expect(cyansIn(readFileSync(path, 'utf8')), `${file} hard-codes a cyan`).toEqual([])
+    }
   })
 })
