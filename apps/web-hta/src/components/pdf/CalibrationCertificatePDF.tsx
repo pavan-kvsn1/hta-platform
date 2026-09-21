@@ -344,6 +344,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Impact',
     fontSize: LH.TITLE_SIZE,
     letterSpacing: LH.TITLE_TRACKING,
+    // Transformed rather than written in capitals, so documentTitle stays readable and
+    // both states of the title are capitalised by one decision instead of two.
+    textTransform: 'uppercase',
     textAlign: 'center',
     color: HTA_BLUE,
   },
@@ -361,6 +364,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Impact',
     fontSize: LH.TITLE_SIZE,
     letterSpacing: LH.TITLE_TRACKING,
+    textTransform: 'uppercase',
     textAlign: 'center',
     color: HTA_BLUE,
   },
