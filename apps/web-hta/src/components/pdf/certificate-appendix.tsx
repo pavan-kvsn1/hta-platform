@@ -21,7 +21,15 @@ import { HAIRLINE, INK, SLATE } from './brand'
 
 const CONTENT_W = 515
 const PHOTO_W = 245
-const PHOTO_H = 155
+/**
+ * 100pt, about two inches on paper.
+ *
+ * A row costs its height plus a caption and a margin, and the page has 687pt of content
+ * once the letterhead and the footer have taken theirs - so 155 gave three rows and 100
+ * gives five. Enough to see that a photograph was taken and what of; not enough to read
+ * a serial number off a nameplate, which is the trade being made.
+ */
+const PHOTO_H = 100
 const GUTTER = CONTENT_W - PHOTO_W * 2 // 25pt, so a pair sits flush to both margins
 
 /** Column, Type, Unit, How it is worked out. */
@@ -105,18 +113,20 @@ function Banner({ children }: { children: string }) {
   )
 }
 
-function Table({ widths, head, rows }: { widths: number[]; head: string[]; rows: string[][] }) {
+function Table({ widths, head, rows }: { widths: number[]; head?: string[]; rows: string[][] }) {
   return (
     <View style={styles.table}>
-      <View style={styles.headRow}>
-        {head.map((label, i) => (
-          <View key={label} style={[i === head.length - 1 ? styles.cellLast : styles.cell, { width: widths[i] }]}>
-            <Text style={styles.headText}>{label}</Text>
-          </View>
-        ))}
-      </View>
+      {head ? (
+        <View style={styles.headRow}>
+          {head.map((label, i) => (
+            <View key={label} style={[i === head.length - 1 ? styles.cellLast : styles.cell, { width: widths[i] }]}>
+              <Text style={styles.headText}>{label}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
       {rows.map((cells, r) => (
-        <View key={r} style={r === 0 ? styles.rowFirst : styles.row}>
+        <View key={r} style={r === 0 && head ? styles.rowFirst : styles.row}>
           {cells.map((cell, i) => (
             <View key={i} style={[i === cells.length - 1 ? styles.cellLast : styles.cell, { width: widths[i] }]}>
               <Text style={styles.cellText}>{cell}</Text>
@@ -213,11 +223,12 @@ function ReadingsTable({ table, figures }: { table: AppendixTable; figures: Reco
         <View key={point.pointNumber} wrap={false}>
           <View style={styles.pointRule} />
           <Text style={styles.pointLabel}>Point {point.pointNumber}</Text>
-          <Table
-            widths={VAL_COLS}
-            head={['Column', 'This point']}
-            rows={point.values.map((v) => [v.name, v.value])}
-          />
+          {/* No header row on a point's own figures. It would repeat two words above
+              every point on every page, saying nothing the reader cannot already see -
+              and the sixteen points it costs decide whether three points fit on a page
+              or two, because a point is kept whole and 234pt does not go three times
+              into 687. */}
+          <Table widths={VAL_COLS} rows={point.values.map((v) => [v.name, v.value])} />
           <View style={styles.photoRow}>
             {point.masterPhoto ? (
               <Photo
