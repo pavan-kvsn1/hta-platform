@@ -113,7 +113,7 @@ export function PDFPreviewSection({ showPreview = false }: PDFPreviewSectionProp
     try {
       // Use two-pass generation for optimal spacing
       const { generatePDFWithOptimalSpacing } = await import('./pdf-two-pass')
-      const result = await generatePDFWithOptimalSpacing(formData)
+      const result = await generatePDFWithOptimalSpacing(formData, undefined, { certificateId })
 
       console.log(`Preview generated: ${result.pageCount} pages, multiplier: ${result.multiplier.toFixed(2)}, iterations: ${result.iterations}`)
 
