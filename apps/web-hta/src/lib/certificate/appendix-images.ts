@@ -139,7 +139,26 @@ export async function loadAppendix(
       masterLeastCount: leastCountByParameter.get(param.id) ?? null,
     }))
 
-    return buildAppendixData(appendixParameters, photos)
+    const appendix = buildAppendixData(appendixParameters, photos)
+
+    /**
+     * One line saying what the appendix came to.
+     *
+     * The appendix is absent whenever anything here fails, because a certificate is
+     * worth more than its appendix - which means a missing appendix and a certificate
+     * with no photographs look identical from the outside. This is the difference,
+     * and it sits beside the passes pdf-two-pass already logs.
+     */
+    console.info(
+      '[Appendix] %d photographs, %d loaded, %d tables, %d points, %d stranded',
+      photos.length,
+      photos.filter((p) => p.dataUrl).length,
+      appendix.tables.length,
+      appendix.tables.reduce((n, t) => n + t.points.length, 0),
+      appendix.strandedCount,
+    )
+
+    return appendix
   } catch {
     return null
   }
