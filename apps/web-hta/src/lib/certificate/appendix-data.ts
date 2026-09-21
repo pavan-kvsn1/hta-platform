@@ -20,7 +20,7 @@ import {
   type ErrorConfig,
   type FieldDefinition,
 } from './fields'
-import { formatToCalibrationPrecision, resolveCalibrationPrecision } from '@/lib/utils/calibration-precision'
+import { formatToCalibrationPrecision, getPrecisionFromLeastCount, resolveCalibrationPrecision } from '@/lib/utils/calibration-precision'
 
 // ---------------------------------------------------------------------------------
 // Shapes
@@ -91,6 +91,8 @@ export interface AppendixParameter {
   parameterUnit?: string | null
   tableName?: string | null
   fieldDefinitions?: FieldDefinition[] | null
+  /** The linked master instrument's least count, so its columns round to its resolution. */
+  masterLeastCount?: string | null
   errorConfig?: ErrorConfig | null
   results?: Array<{
     pointNumber: number
@@ -212,6 +214,23 @@ function pointValues(
   const masterReading = errorConfig ? values[errorConfig.masterFieldId] : result.standardReading
   const { precision } = resolveCalibrationPrecision(param as never, masterReading ?? null)
 
+  /**
+   * Each side is rounded to the resolution it was read at.
+   *
+   * resolveCalibrationPrecision answers for the unit under calibration - it reads the
+   * parameter's own least count, binned where the parameter bins. The master is a
+   * different instrument with a different least count, and rounding its column to the
+   * unit's resolution either invents digits it cannot resolve or discards ones it can.
+   *
+   * Falls back to the unit's precision when the master's least count is not recorded,
+   * which is every certificate written before the register carried one.
+   */
+  const masterPrecision = param.masterLeastCount
+    ? getPrecisionFromLeastCount(param.masterLeastCount, precision)
+    : precision
+  const precisionFor = (group: FieldDefinition['group']) =>
+    group === 'master' ? masterPrecision : precision
+
   const out: AppendixValue[] = []
 
   for (const field of orderedFields(fields)) {
@@ -232,7 +251,7 @@ function pointValues(
         name: field.name || 'Untitled',
         value:
           substituted && computed !== null && computed !== undefined
-            ? `${substituted}   =   ${formatToCalibrationPrecision(computed, precision)}${unit}`
+            ? `${substituted}   =   ${formatToCalibrationPrecision(computed, precisionFor(field.group))}${unit}`
             : raw
               ? `${raw}${unit}`
               : '—',
@@ -253,15 +272,22 @@ function pointValues(
 
   if (errorConfig && columns.some((c) => c.name === ERROR_COLUMN)) {
     const unit = errorConfig.unit ? ` ${errorConfig.unit}` : ''
-    const [a, b] =
-      errorConfig.formula === 'B-A'
-        ? [values[errorConfig.uucFieldId], values[errorConfig.masterFieldId]]
-        : [values[errorConfig.masterFieldId], values[errorConfig.uucFieldId]]
-    const shown = (v: string | undefined) => {
-      const text = formatToCalibrationPrecision(v ?? '', precision, '—')
+    /**
+     * Each operand at the resolution of the instrument it was read from, which is the
+     * same figure printed on its own row above. A reader matching the subtraction
+     * against the rows should not find two spellings of one number.
+     */
+    const masterSide = { raw: values[errorConfig.masterFieldId], precision: masterPrecision }
+    const uucSide = { raw: values[errorConfig.uucFieldId], precision }
+    const [a, b] = errorConfig.formula === 'B-A' ? [uucSide, masterSide] : [masterSide, uucSide]
+
+    const rounded = (side: typeof a) => Number(formatToCalibrationPrecision(side.raw ?? '', side.precision, ''))
+    const shown = (side: typeof a) => {
+      const text = formatToCalibrationPrecision(side.raw ?? '', side.precision, '—')
       // Brackets round a negative, so "15.00 - -0.20" never reaches a customer.
       return text.startsWith('−') || text.startsWith('-') ? `(${text})` : text
     }
+
     const error = result.errorObserved
     const bare =
       error !== null && error !== undefined
@@ -272,15 +298,14 @@ function pointValues(
      * The working is shown only when it adds up on the page.
      *
      * The stored error is computed from the full readings, while the operands beside it
-     * are rounded for printing, so in the last digit the two can disagree - the figures
-     * would read "25.00 - 25.05 = -0.04". The stored error is the authoritative one and
-     * is what the results table prints, so in that rare case the arithmetic is dropped
-     * rather than printed wrong.
+     * are rounded for printing - and now to two different resolutions - so in the last
+     * digit the three figures can disagree: "25.00 - 25.05 = -0.04". The stored error is
+     * the authoritative one and is what the results table prints, so in that case the
+     * arithmetic is dropped rather than printed wrong.
      */
     const reconciles = () => {
-      if (a === undefined || b === undefined || error === null || error === undefined) return false
-      const round = (v: string) => Number(formatToCalibrationPrecision(v, precision, ''))
-      const [ra, rb] = [round(a), round(b)]
+      if (error === null || error === undefined) return false
+      const [ra, rb] = [rounded(a), rounded(b)]
       if (!Number.isFinite(ra) || !Number.isFinite(rb)) return false
       const shownError = Number(formatToCalibrationPrecision(error, precision))
       return Math.abs(ra - rb - shownError) < Math.pow(10, -precision) / 2

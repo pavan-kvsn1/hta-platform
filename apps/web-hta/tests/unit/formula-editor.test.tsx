@@ -84,7 +84,10 @@ describe('FormulaEditor', () => {
       .map((li) => (li.textContent ?? '').replace(/^=/, ''))
     expect(steps).toEqual([
       '( UUC Reading + Cold Junction ) × 2',
-      '( 12.4 + 0.35 ) × 2',
+      // 12.40, not 12.4: a reading keeps the resolution it was read to. The instrument
+      // resolves to a hundredth and the working should not quietly say otherwise.
+      // Only figures the arithmetic produced are trimmed - 12.75 and 25.5 below.
+      '( 12.40 + 0.35 ) × 2',
       '12.75 × 2',
       '25.5 mV',
     ])

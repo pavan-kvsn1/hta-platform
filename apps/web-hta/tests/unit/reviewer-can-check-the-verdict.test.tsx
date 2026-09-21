@@ -155,7 +155,11 @@ describe('a column that was computed rather than measured', () => {
     const steps = screen.getAllByRole('listitem').map((li) => li.textContent)
     expect(steps).toEqual([
       '( Run 1 + Run 2 ) ÷ 2',
-      '( 49.7 + 49.74 ) ÷ 2',
+      // 49.70, matching the "Reads Run 1 = 49.70" line below: a reading keeps the
+      // resolution it was read to. It used to print 49.7 here and 49.70 there, which
+      // is the panel disagreeing with itself about what the engineer wrote down.
+      '( 49.70 + 49.74 ) ÷ 2',
+      // Trimmed, because these two the arithmetic produced rather than the instrument.
       '99.44 ÷ 2',
       '49.72',
     ])

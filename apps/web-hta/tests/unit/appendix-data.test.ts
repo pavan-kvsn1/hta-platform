@@ -266,6 +266,44 @@ describe('a parameter whose error reads two computed columns', () => {
   })
 })
 
+describe('each side is rounded to the resolution it was read at', () => {
+  // The master is a different instrument from the unit, with its own least count.
+  // Rounding its column to the unit's resolution either invents digits it cannot
+  // resolve or throws away ones it can.
+  const src: FieldDefinition = { id: 'src', name: 'Source Output', group: 'master', type: 'numeric', unit: 'mV', order: 0 }
+  const stdv: FieldDefinition = { id: 'sv', name: 'Standard Value', group: 'master', type: 'expression', unit: '°C', order: 1, expression: '{src} * 10' }
+  const uucv: FieldDefinition = { id: 'uv', name: 'UUC Value', group: 'uuc', type: 'expression', unit: '°C', order: 0, expression: '{src} * 10 + 0.004' }
+
+  const param = (masterLeastCount?: string): AppendixParameter => ({
+    parameterName: 'Temperature', parameterUnit: '°C',
+    leastCountValue: '0.01',
+    masterLeastCount,
+    fieldDefinitions: [src, stdv, uucv],
+    errorConfig: { masterFieldId: 'sv', uucFieldId: 'uv', formula: 'A-B', unit: '°C' },
+    results: [{ pointNumber: 1, values: { src: '2.5' }, errorObserved: -0.004 }],
+  })
+
+  const valueOf = (p: AppendixParameter, name: string) =>
+    buildAppendixData([p], [photo({ pointNumber: 1 })]).tables[0].points[0].values
+      .find((v) => v.name === name)?.value
+
+  it('gives a master column the master’s resolution', () => {
+    // Master reads to a thousandth, the unit to a hundredth.
+    expect(valueOf(param('0.001'), 'Standard Value')).toContain('25.000 °C')
+    expect(valueOf(param('0.001'), 'UUC Value')).toContain('25.00 °C')
+  })
+
+  it('falls back to the unit’s resolution when the master’s is not recorded', () => {
+    // Every certificate written before the register carried a least count.
+    expect(valueOf(param(undefined), 'Standard Value')).toContain('25.00 °C')
+  })
+
+  it('keeps a reading’s own resolution inside the working', () => {
+    // 2.5 was entered as 2.5; the working must not print 2.500 or 3.
+    expect(valueOf(param('0.001'), 'Standard Value')).toContain('2.5 × 10')
+  })
+})
+
 describe('coverage wording', () => {
   it('handles the ordinary cases without reading oddly', () => {
     expect(coverageLine([1, 2, 3], 3)).toBe('All 3 points were photographed.')

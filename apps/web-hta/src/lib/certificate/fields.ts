@@ -1078,7 +1078,10 @@ export function expressionFromDisplay(
  * showing the working needs a tree that can be reduced one step at a time.
  */
 export type ExpressionAst =
-  | { k: 'num'; value: number }
+  //  is the reading exactly as it was entered, kept so a working shows the
+  // resolution it was read to: 1.000 mV renders as 1.000, not 1. Absent on literals in
+  // the formula and on anything arithmetic produced, which showNumber then trims.
+  | { k: 'num'; value: number; text?: string }
   | { k: 'ref'; id: string }
   | { k: 'neg'; inner: ExpressionAst }
   | { k: 'fn'; name: ExpressionFunction; inner: ExpressionAst }
@@ -1182,7 +1185,7 @@ export function renderAst(
 ): string {
   switch (node.k) {
     case 'num': {
-      const text = showNumber(node.value)
+      const text = node.text ?? showNumber(node.value)
       // A negative literal needs brackets only where the sign would otherwise attach
       // to the wrong thing: -5 ^ 3 reads as -(5 ^ 3), and a − -5 needs them to be
       // legible at all. As a left operand of + − × ÷ it does not.
@@ -1240,7 +1243,7 @@ function substituteValues(
       const raw = values.get(node.id)
       if (raw === undefined || raw.trim() === '') return null
       const value = Number(raw)
-      return Number.isFinite(value) ? { k: 'num', value } : null
+      return Number.isFinite(value) ? { k: 'num', value, text: raw.trim() } : null
     }
     case 'neg': {
       const inner = substituteValues(node.inner, values)
