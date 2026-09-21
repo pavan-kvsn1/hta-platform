@@ -154,7 +154,7 @@ const CONTACT_LINES = [
   'www.htaipl.com  \u00b7  calibration@htaipl.com',
 ]
 import { CertificateFormData, ACCURACY_TYPE_CONFIG } from '@/lib/stores/certificate-store'
-import { HTA_LOGO_CYAN_BASE64 } from './logo-base64'
+import { HTA_LOGO_BASE64 } from './logo-base64'
 import { HTA_WATERMARK_BASE64 } from './watermark-base64'
 import {
   formatDateDDMMYYYY,
@@ -1160,7 +1160,10 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
         {/* block, a brand rule across the foot of the band.                    */}
         {/* ================================================================ */}
         <View style={styles.letterhead} fixed>
-          <Image style={styles.logo} src={HTA_LOGO_CYAN_BASE64} />
+          {/* The mark in its own colours. The watermark behind the page is the cyan
+              one; the letterhead is where the brand is stated, so it is stated as it
+              is drawn. */}
+          <Image style={styles.logo} src={HTA_LOGO_BASE64} />
 
           {/* Set word by word: the spaces open by a tenth of an em while the
               letters keep the face's own fit. A tracked line would space the
