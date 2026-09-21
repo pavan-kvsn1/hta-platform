@@ -10,7 +10,32 @@ import { prisma } from '@hta/database'
 import { renderEmail } from '@hta/emails'
 import type { EmailJobData } from '../types.js'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+/**
+ * The Resend client, built on the first email rather than on import.
+ *
+ * It used to be constructed at module scope, and Resend throws from its constructor
+ * when there is no API key. Importing this file is how the worker starts, so a machine
+ * without an email key did not get a worker without email - it got no worker at all,
+ * and the image and cleanup queues it also runs sat untouched with nothing in the log
+ * to say why.
+ *
+ * Failing here instead means the job that needs the key is the job that fails, and it
+ * fails onto the queue where it can be retried once the key is set.
+ */
+let resendClient: Resend | null = null
+
+function getResend(): Resend {
+  if (!resendClient) {
+    const key = process.env.RESEND_API_KEY
+    if (!key) {
+      throw new Error(
+        'RESEND_API_KEY is not set, so this email cannot be sent. The rest of the worker is unaffected.',
+      )
+    }
+    resendClient = new Resend(key)
+  }
+  return resendClient
+}
 
 const FROM_EMAIL = process.env.EMAIL_FROM || 'HTA Calibration <noreply@hta-calibration.com>'
 
@@ -52,8 +77,8 @@ export async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
       html,
     }
     const result = verifiedDeliveryId
-      ? await resend.emails.send(payload, { idempotencyKey: data.idempotencyKey! })
-      : await resend.emails.send(payload)
+      ? await getResend().emails.send(payload, { idempotencyKey: data.idempotencyKey! })
+      : await getResend().emails.send(payload)
 
     if (result.error) {
       throw new Error(`Resend error: ${result.error.message}`)

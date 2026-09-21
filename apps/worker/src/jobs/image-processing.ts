@@ -28,10 +28,13 @@ function getCertificateImageBucket(): string {
   return bucket
 }
 
-function getImageVariantKeys(originalKey: string): { optimized: string; thumbnail: string } {
+function getImageVariantKeys(
+  originalKey: string,
+): { optimized: string; print: string; thumbnail: string } {
   const basePath = originalKey.replace(/\.[^.]+$/, '')
   return {
     optimized: `${basePath}-optimized.jpg`,
+    print: `${basePath}-print.jpg`,
     thumbnail: `${basePath}-thumbnail.jpg`,
   }
 }
@@ -45,6 +48,31 @@ async function createOptimizedImage(buffer: Buffer): Promise<Buffer> {
       withoutEnlargement: true,
     })
     .jpeg({ quality: 90, mozjpeg: true })
+    .toBuffer()
+}
+
+/**
+ * The copy that goes into the certificate's appendix.
+ *
+ * The appendix prints each photograph in a 245 x 155 pt box - about 3.4 inches across -
+ * so roughly 510 pixels covers it at 150 dpi. 1000 px is double that, which keeps it
+ * sharp if somebody zooms the PDF, and is still a quarter the weight of the optimized
+ * copy: about 90 KB against 500.
+ *
+ * That difference is the whole reason this variant exists. Embedding the 2000 px copy
+ * put a certificate with 47 photographs somewhere north of 20 MB, which is not a
+ * document anybody can email - and the alternative on the table was to stop printing
+ * some of the photographs.
+ */
+async function createPrintImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .resize({
+      width: 1000,
+      height: 1000,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: 80, mozjpeg: true })
     .toBuffer()
 }
 
@@ -87,8 +115,9 @@ export async function processImageProcessingJob(job: Job<ImageProcessingJobData>
   const [originalBuffer] = await bucket.file(image.storageKey).download()
   const variants = getImageVariantKeys(image.storageKey)
 
-  const [optimizedBuffer, thumbnailBuffer] = await Promise.all([
+  const [optimizedBuffer, printBuffer, thumbnailBuffer] = await Promise.all([
     createOptimizedImage(originalBuffer),
+    createPrintImage(originalBuffer),
     createThumbnail(originalBuffer),
   ])
 
@@ -99,6 +128,15 @@ export async function processImageProcessingJob(job: Job<ImageProcessingJobData>
         metadata: {
           sourceImageId: image.id,
           variant: 'optimized',
+        },
+      },
+    }),
+    bucket.file(variants.print).save(printBuffer, {
+      contentType: 'image/jpeg',
+      metadata: {
+        metadata: {
+          sourceImageId: image.id,
+          variant: 'print',
         },
       },
     }),
@@ -113,10 +151,16 @@ export async function processImageProcessingJob(job: Job<ImageProcessingJobData>
     }),
   ])
 
+  console.log(
+    `[ImageProcessing] ${image.id}: optimized ${Math.round(optimizedBuffer.length / 1024)}KB, `
+    + `print ${Math.round(printBuffer.length / 1024)}KB, thumbnail ${Math.round(thumbnailBuffer.length / 1024)}KB`,
+  )
+
   await prisma.certificateImage.update({
     where: { id: image.id },
     data: {
       optimizedKey: variants.optimized,
+      printKey: variants.print,
       thumbnailKey: variants.thumbnail,
     },
   })

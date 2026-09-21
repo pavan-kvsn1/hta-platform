@@ -1,0 +1,11 @@
+-- The print-sized copy of a certificate photograph.
+--
+-- The appendix draws each photograph in a 245x155pt box. The optimized variant is
+-- 2000px at quality 90, which is four times more image than that box can show and put
+-- a certificate carrying 47 photographs past 20MB. This column holds a 1000px copy
+-- instead, about 90KB against 500.
+--
+-- Additive only. Null means the photograph was processed before this existed; the
+-- appendix falls back to optimizedKey and then to the original, so nothing stops
+-- printing while the backfill runs.
+ALTER TABLE "CertificateImage" ADD COLUMN IF NOT EXISTS "printKey" TEXT;

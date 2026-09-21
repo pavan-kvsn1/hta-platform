@@ -1136,6 +1136,10 @@ model CertificateImage {
   storageBucket         String?
   storageKey            String
   optimizedKey          String?
+  /// The copy the certificate appendix prints: 1000px, quality 80. Sized for the
+  /// 245x155pt box it lands in, where the 2000px optimized copy was four times the
+  /// weight for no visible gain. Null on anything processed before this existed.
+  printKey              String?
   thumbnailKey          String?
   version               Int                  @default(1)
   isLatest              Boolean              @default(true)

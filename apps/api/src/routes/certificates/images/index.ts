@@ -719,6 +719,26 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
         }
         break
 
+      /**
+       * What the certificate's appendix embeds.
+       *
+       * Falls back the whole way down rather than 404ing: a photograph processed
+       * before the print variant existed still has an optimized copy, and one the
+       * worker has not reached yet still has the original. A heavier certificate is a
+       * far better outcome than a certificate missing a figure.
+       */
+      case 'print':
+        if (image.printKey) {
+          storageKey = image.printKey
+          mimeType = 'image/jpeg'
+        } else if (image.optimizedKey) {
+          storageKey = image.optimizedKey
+          mimeType = 'image/jpeg'
+        } else {
+          storageKey = image.storageKey
+        }
+        break
+
       case 'original':
       default:
         storageKey = image.storageKey
