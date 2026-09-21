@@ -867,7 +867,7 @@ export function ReviewerPageClient({
       const data = await response.json() as CertificateFormData & { signatures?: PDFSignatureData }
       const { signatures, ...certificateData } = data
       const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
-      const result = await generatePDFWithOptimalSpacing(certificateData, signatures)
+      const result = await generatePDFWithOptimalSpacing(certificateData, signatures, { certificateId: certificate.id })
 
       const url = window.URL.createObjectURL(result.blob)
       const link = document.createElement('a')

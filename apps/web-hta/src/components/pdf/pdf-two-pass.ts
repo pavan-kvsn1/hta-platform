@@ -8,6 +8,7 @@
 
 import React from 'react'
 import { CertificateFormData } from '@/lib/stores/certificate-store'
+import { loadAppendix } from '@/lib/certificate/appendix-images'
 import { PDFSignatureData } from './pdf-utils'
 
 // Binary search bounds for multiplier
@@ -53,7 +54,14 @@ async function getPageCountFromPDF(blob: Blob): Promise<number> {
  */
 export async function generatePDFWithOptimalSpacing(
   formData: CertificateFormData,
-  signatures?: PDFSignatureData
+  signatures?: PDFSignatureData,
+  options?: {
+    /**
+     * Whose photographs to pull for the appendix. Omitted, the certificate prints
+     * exactly as it did before, which is what every caller without an id wants.
+     */
+    certificateId?: string | null
+  },
 ): Promise<TwoPassResult> {
   console.log('generatePDFWithOptimalSpacing called')
 
@@ -64,6 +72,20 @@ export async function generatePDFWithOptimalSpacing(
     import('./CalibrationCertificatePDF'),
   ])
   console.log('PDF modules loaded')
+
+  /**
+   * Pulled once, before any pass.
+   *
+   * The binary search below renders the document several times looking for the spacing
+   * that fills the last page, and re-fetching thirty photographs on each attempt would
+   * turn a preview into a minute of waiting. It is also what keeps the page count the
+   * search is measuring honest: every pass draws the same document.
+   */
+  const appendix = await loadAppendix(
+    options?.certificateId,
+    formData.parameters as never,
+    (formData.masterInstruments ?? []) as never,
+  )
 
   let iterations = 0
   let bestBlob: Blob | null = null
@@ -76,6 +98,7 @@ export async function generatePDFWithOptimalSpacing(
     data: formData,
     spacingMultiplier: 1.0,
     signatures,
+    appendix,
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pass1Blob = await (pdfRenderer.pdf(pass1Element as any).toBlob())
@@ -104,6 +127,7 @@ export async function generatePDFWithOptimalSpacing(
       data: formData,
       spacingMultiplier: mid,
       signatures,
+      appendix,
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const testBlob = await (pdfRenderer.pdf(testElement as any).toBlob())

@@ -54,7 +54,7 @@ export function AdminAuthorizationPanel({
 
     const { signatures, ...certificateData } = await pdfDataResponse.json()
     const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
-    const result = await generatePDFWithOptimalSpacing(certificateData, signatures)
+    const result = await generatePDFWithOptimalSpacing(certificateData, signatures, { certificateId })
 
     const formData = new FormData()
     formData.append(

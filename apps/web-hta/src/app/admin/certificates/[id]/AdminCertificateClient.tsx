@@ -176,7 +176,7 @@ export function AdminCertificateClient({
       const { signatures, ...certData } = data
 
       const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
-      const result = await generatePDFWithOptimalSpacing(certData, signatures)
+      const result = await generatePDFWithOptimalSpacing(certData, signatures, { certificateId: certificate.id })
 
       const fileName = `${certificate.certificateNumber.replace(/\//g, '-')}.pdf`
       const url = URL.createObjectURL(result.blob)

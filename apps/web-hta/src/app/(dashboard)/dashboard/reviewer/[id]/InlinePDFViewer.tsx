@@ -71,7 +71,7 @@ export function InlinePDFViewer({ certificateId, certificateNumber }: InlinePDFV
 
       // Dynamic import of PDF generation
       const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
-      const result = await generatePDFWithOptimalSpacing(certificateData, signatureData)
+      const result = await generatePDFWithOptimalSpacing(certificateData, signatureData, { certificateId })
 
       const url = URL.createObjectURL(result.blob)
       setPdfUrl(url)
@@ -91,7 +91,7 @@ export function InlinePDFViewer({ certificateId, certificateNumber }: InlinePDFV
       setIsGenerating(true)
 
       const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
-      const result = await generatePDFWithOptimalSpacing(certificateData, signatureData)
+      const result = await generatePDFWithOptimalSpacing(certificateData, signatureData, { certificateId })
 
       const fileName = `${certificateNumber.replace(/\//g, '-')}-PREVIEW.pdf`
       const url = URL.createObjectURL(result.blob)

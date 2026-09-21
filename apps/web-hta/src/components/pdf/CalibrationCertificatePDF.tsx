@@ -57,7 +57,10 @@ Font.register({
 Font.registerHyphenationCallback((word) => [word])
 
 // HTA Brand Blue Color
-const HTA_BLUE = '#0099CC'
+import { HTA_BLUE } from './brand'
+
+// Re-exported so nothing that already imports the certificate has to move.
+export { HTA_BLUE }
 
 /**
  * A tint that keeps its printed colour but stops hiding what is under it.
@@ -164,6 +167,8 @@ const CONTACT_LINES = [
   'www.htaipl.com  \u00b7  calibration@htaipl.com',
 ]
 import { CertificateFormData, ACCURACY_TYPE_CONFIG } from '@/lib/stores/certificate-store'
+import { CertificateAppendix } from './certificate-appendix'
+import type { AppendixData } from '@/lib/certificate/appendix-data'
 import { IMPACT_ASCENT, IMPACT_BASE64 } from './impact-base64'
 import { HTA_LOGO_BASE64 } from './logo-base64'
 import { HTA_WATERMARK_BASE64 } from './watermark-base64'
@@ -957,12 +962,19 @@ interface CalibrationCertificatePDFProps {
   data: CertificateFormData
   spacingMultiplier?: number // Override from two-pass system (1.0 = default, >1 = expand, <1 = compress)
   signatures?: PDFSignatureData
+  /**
+   * The photographs and their workings, already resolved.
+   *
+   * Absent on a certificate with no photographs, and on any render that could not
+   * reach them - the certificate is worth more than the appendix.
+   */
+  appendix?: AppendixData | null
 }
 
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMultiplier, signatures }: CalibrationCertificatePDFProps) {
+export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMultiplier, signatures, appendix }: CalibrationCertificatePDFProps) {
   // ========================================================================
   // LAYOUT PLANNING
   // ========================================================================
@@ -2197,6 +2209,13 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
             </Text>
           ))}
         </View>
+
+        {/* ================================================================ */}
+        {/* APPENDIX: the photographs, and the readings they are evidence of */}
+        {/* Opens on a fresh page of its own and keeps the letterhead, the   */}
+        {/* watermark and the folio, so it reads as part of the certificate. */}
+        {/* ================================================================ */}
+        {appendix ? <CertificateAppendix appendix={appendix} /> : null}
       </Page>
     </Document>
   )

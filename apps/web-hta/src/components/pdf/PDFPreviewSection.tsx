@@ -9,7 +9,7 @@ interface PDFPreviewSectionProps {
 }
 
 export function PDFPreviewSection({ showPreview = false }: PDFPreviewSectionProps) {
-  const { formData } = useCertificateStore()
+  const { formData, certificateId } = useCertificateStore()
   const [isClient, setIsClient] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
@@ -80,7 +80,7 @@ export function PDFPreviewSection({ showPreview = false }: PDFPreviewSectionProp
       // Use two-pass generation for optimal spacing
       const twoPass = await import('./pdf-two-pass')
       console.log('Two-pass module loaded')
-      const result = await twoPass.generatePDFWithOptimalSpacing(formData)
+      const result = await twoPass.generatePDFWithOptimalSpacing(formData, undefined, { certificateId })
 
       console.log(`PDF generated: ${result.pageCount} pages, multiplier: ${result.multiplier.toFixed(2)}, iterations: ${result.iterations}`)
 

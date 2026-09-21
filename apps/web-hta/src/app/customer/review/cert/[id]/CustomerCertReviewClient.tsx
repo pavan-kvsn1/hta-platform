@@ -154,7 +154,7 @@ export function CustomerCertReviewClient({
       const { signatures, ...certData } = data
 
       const { generatePDFWithOptimalSpacing } = await import('@/components/pdf/pdf-two-pass')
-      const result = await generatePDFWithOptimalSpacing(certData, signatures)
+      const result = await generatePDFWithOptimalSpacing(certData, signatures, { certificateId: certificate.id })
 
       const url = URL.createObjectURL(result.blob)
       const link = document.createElement('a')
