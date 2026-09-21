@@ -72,6 +72,20 @@ async function main() {
   }
 
   const now = new Date()
+
+  // Read the sequence number before opening the transaction, not inside it.
+  //
+  // An interactive transaction gets five seconds by default, and this is run against a
+  // database reached through a cloud-sql-proxy tunnel where a single round trip is a
+  // few hundred milliseconds - this ordered read over the event history was enough on
+  // its own to blow the budget, and the whole revert rolled back. Nothing is lost by
+  // reading first: the write below still fails if something else claims the number.
+  const last = await prisma.certificateEvent.findFirst({
+    where: { certificateId: CERT_ID },
+    orderBy: { sequenceNumber: 'desc' },
+    select: { sequenceNumber: true },
+  })
+
   await prisma.$transaction(async (tx) => {
     // The link first, so there is no moment where it is live against a certificate
     // that has moved back.
@@ -85,10 +99,6 @@ async function main() {
       data: { status: BACK_TO },
     })
 
-    const last = await tx.certificateEvent.findFirst({
-      where: { certificateId: CERT_ID },
-      orderBy: { sequenceNumber: 'desc' },
-    })
     await tx.certificateEvent.create({
       data: {
         certificateId: CERT_ID,
@@ -106,6 +116,11 @@ async function main() {
         userRole: 'ENGINEER',
       },
     })
+  }, {
+    // Three writes over a tunnel. The default five seconds is the local-database
+    // assumption, and it is not the one this script runs under.
+    timeout: 20000,
+    maxWait: 10000,
   })
 
   const after = await prisma.certificate.findUnique({
