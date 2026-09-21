@@ -5,6 +5,7 @@
  * Supports image types: UUC, MASTER_INSTRUMENT, READING_UUC, READING_MASTER
  */
 
+import { variantCandidates } from '../../../lib/image-variants.js'
 import { FastifyPluginAsync } from 'fastify'
 import { MultipartFile } from '@fastify/multipart'
 import { prisma, Prisma } from '@hta/database'
@@ -694,65 +695,45 @@ const certificateImagesRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ error: 'Image not found' })
     }
 
-    // Determine which variant to serve
-    const variant = query.variant || 'optimized'
+    /**
+     * Which copies of this photograph to try, best first.
+     *
+     * Each derived variant names the column that claims it exists. That claim can be
+     * wrong - a file deleted from the bucket leaves the row still pointing at it - and
+     * the row is the only thing consulted, so nothing notices until a download fails.
+     *
+     * It used to fail by returning 404 on the first miss, with the original sitting
+     * untouched in the bucket the whole time. Now a miss moves down the list, and the
+     * column that lied is cleared, so the next request skips it: one wasted round trip,
+     * once, rather than on every request forever.
+     */
+    const candidates = variantCandidates(image, query.variant || 'optimized')
 
-    let storageKey: string
+    const storage = getImageStorageProvider()
+    let buffer: Buffer | null = null
     let mimeType: string = image.mimeType
 
-    switch (variant) {
-      case 'thumbnail':
-        if (image.thumbnailKey) {
-          storageKey = image.thumbnailKey
-          mimeType = 'image/jpeg'
-        } else {
-          storageKey = image.storageKey
+    for (const candidate of candidates) {
+      try {
+        buffer = await storage.download(candidate.key)
+        mimeType = candidate.mime
+        break
+      } catch (error) {
+        fastify.log.warn(
+          { error, storageKey: candidate.key, imageId: image.id },
+          'Image variant missing from storage; trying the next copy',
+        )
+        if (candidate.column) {
+          // Self-healing, and deliberately not awaited into the response path: the
+          // reader is owed their photograph, not a database write.
+          prisma.certificateImage
+            .update({ where: { id: image.id }, data: { [candidate.column]: null } })
+            .catch((err) => fastify.log.error({ err, imageId: image.id }, 'Could not clear stale variant key'))
         }
-        break
-
-      case 'optimized':
-        if (image.optimizedKey) {
-          storageKey = image.optimizedKey
-          mimeType = 'image/jpeg'
-        } else {
-          storageKey = image.storageKey
-        }
-        break
-
-      /**
-       * What the certificate's appendix embeds.
-       *
-       * Falls back the whole way down rather than 404ing: a photograph processed
-       * before the print variant existed still has an optimized copy, and one the
-       * worker has not reached yet still has the original. A heavier certificate is a
-       * far better outcome than a certificate missing a figure.
-       */
-      case 'print':
-        if (image.printKey) {
-          storageKey = image.printKey
-          mimeType = 'image/jpeg'
-        } else if (image.optimizedKey) {
-          storageKey = image.optimizedKey
-          mimeType = 'image/jpeg'
-        } else {
-          storageKey = image.storageKey
-        }
-        break
-
-      case 'original':
-      default:
-        storageKey = image.storageKey
-        break
+      }
     }
 
-    // Download from storage
-    const storage = getImageStorageProvider()
-    let buffer: Buffer
-
-    try {
-      buffer = await storage.download(storageKey)
-    } catch (error) {
-      fastify.log.error({ error, storageKey }, 'Image file download error')
+    if (!buffer) {
       return reply.status(404).send({ error: 'File not found in storage' })
     }
 
