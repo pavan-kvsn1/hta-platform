@@ -76,9 +76,28 @@ const PARAMETER_FIELD_LABELS: Record<string, string> = {
   masterInstrumentId: 'Master Instrument',
 }
 
+/**
+ * A Prisma Decimal, without importing the client into a module that only compares.
+ *
+ * Decimal.js instances carry these three; no plain object or array reaching here does.
+ */
+function isDecimal(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  const candidate = value as Record<string, unknown>
+  return (
+    typeof candidate.toFixed === 'function' &&
+    typeof candidate.toNumber === 'function' &&
+    typeof candidate.isPositive === 'function'
+  )
+}
+
 function normalizeValue(value: unknown): unknown {
   if (value === null || value === undefined || value === '') return null
   if (value instanceof Date) return value.toISOString().split('T')[0]
+  // A Decimal column reads back as an object, and two objects holding the same number
+  // are still two objects. Compared as they arrive, every save after the least count
+  // became a number would report that the least count had changed from 0.05 to 0.05.
+  if (isDecimal(value)) return String(value)
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.split('T')[0]
   if (Array.isArray(value)) return JSON.stringify([...value].sort())
   return value
@@ -87,6 +106,18 @@ function normalizeValue(value: unknown): unknown {
 function valuesAreDifferent(prev: unknown, next: unknown): boolean {
   const a = normalizeValue(prev)
   const b = normalizeValue(next)
+
+  // One side came out of a Decimal column and the other is the text a form posted, so
+  // 0.05 and 0.050 are the same least count written two ways. Compared as text they
+  // would be reported as a change on every save until the page was reloaded. Confined
+  // to the case where a Decimal is involved: elsewhere the text is the value, and "0"
+  // and "0.0" being told apart is what the field is for.
+  if ((isDecimal(prev) || isDecimal(next)) && a !== null && b !== null) {
+    const x = Number(a)
+    const y = Number(b)
+    if (Number.isFinite(x) && Number.isFinite(y)) return x !== y
+  }
+
   if (typeof a === 'string' && typeof b === 'string') {
     try {
       const pa = JSON.parse(a)

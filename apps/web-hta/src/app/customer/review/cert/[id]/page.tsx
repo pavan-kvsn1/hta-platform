@@ -5,6 +5,7 @@ import { safeJsonParse } from '@/lib/utils/safe-json'
 import { resolveCertificateTat } from '@/lib/utils/certificate-tat'
 import { CustomerCertReviewClient } from './CustomerCertReviewClient'
 import { masterEntryForView } from '@/lib/master-entry/for-view'
+import { leastCountText } from '@/lib/utils/least-count'
 
 // Render at runtime, not build time (needs database)
 export const dynamic = 'force-dynamic'
@@ -217,7 +218,7 @@ export default async function CustomerCertReviewPage({ params }: Props) {
       operatingMin: p.operatingMin,
       operatingMax: p.operatingMax,
       operatingUnit: p.operatingUnit,
-      leastCountValue: p.leastCountValue,
+      leastCountValue: p.leastCountValue === null ? null : leastCountText(p.leastCountValue),
       leastCountUnit: p.leastCountUnit,
       accuracyValue: p.accuracyValue,
       accuracyUnit: p.accuracyUnit,

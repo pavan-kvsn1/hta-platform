@@ -9,6 +9,8 @@
  *
  * One mapper, so a field added to the row reaches every reader at once.
  */
+import { leastCountText, type LeastCountFromStore } from '@/lib/utils/least-count'
+
 export interface MasterInstrumentRow {
   id: string
   masterInstrumentId?: string | null
@@ -23,7 +25,8 @@ export interface MasterInstrumentRow {
   reportNo?: string | null
   calibrationDueDate?: string | null
   capabilityParameter?: string | null
-  masterLeastCount?: string | null
+  /** DECIMAL in the database, so a server component reading Prisma gets an object. */
+  masterLeastCount?: LeastCountFromStore
   masterLeastCountUnit?: string | null
   masterAccuracy?: string | null
   masterAccuracyUnit?: string | null
@@ -46,7 +49,7 @@ export function masterEntryForView(mi: MasterInstrumentRow) {
     calibrationDueDate: mi.calibrationDueDate || '',
     /** What the master's own certificate said when it was chosen. */
     capabilityParameter: mi.capabilityParameter || '',
-    masterLeastCount: mi.masterLeastCount || '',
+    masterLeastCount: leastCountText(mi.masterLeastCount),
     masterLeastCountUnit: mi.masterLeastCountUnit || '',
     masterAccuracy: mi.masterAccuracy || '',
     masterAccuracyUnit: mi.masterAccuracyUnit || '',

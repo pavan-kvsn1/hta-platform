@@ -12,6 +12,21 @@
  */
 import { decimalsWritten } from './calibration-precision'
 
+/**
+ * A least count as it arrives from the database, which is no longer always a string.
+ *
+ * The column is DECIMAL, so a server component reading Prisma directly gets a Decimal
+ * object where it used to get text, and everything downstream expects text. Written
+ * plainly a Decimal gives back exactly what the text column held - 0.05, not
+ * 0.050000000 - so nothing about how a least count reads on screen changes.
+ */
+export type LeastCountFromStore = string | number | { toString(): string } | null | undefined
+
+export function leastCountText(value: LeastCountFromStore): string {
+  if (value === null || value === undefined) return ''
+  return String(value)
+}
+
 export type StepCheck =
   /** The value is a whole number of steps. */
   | { kind: 'ok' }

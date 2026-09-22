@@ -739,7 +739,17 @@ model Parameter {
   operatingMin                String?
   operatingMax                String?
   operatingUnit               String?
-  leastCountValue             String?
+  /// The size of one division on the unit under test - 0.05, 0.025, 5, 100.
+  ///
+  /// A quantity, not text, because it is what every reading in this parameter is
+  /// checked against: a reading has to be a whole number of these. Held as text it
+  /// accepted "NA" and, on one parameter, three least counts typed into a field that
+  /// holds one, and nothing could be checked against either.
+  leastCountValue             Decimal?                      @db.Decimal(20, 9)
+  /// What was typed where it was not a quantity and the conversion could not keep it.
+  /// Null on every row whose least count converted cleanly. Read-only salvage - nothing
+  /// writes it, and it is here so the original text did not have to be thrown away.
+  leastCountValueLegacy       String?
   leastCountUnit              String?
   accuracyValue               String?
   accuracyUnit                String?
@@ -813,7 +823,7 @@ model CertificateMasterInstrument {
    * Null on certificates written before this existed; the PDF prints "Not recorded".
    */
   capabilityParameter      String?
-  masterLeastCount         String?
+  masterLeastCount         Decimal?    @db.Decimal(20, 9)
   masterLeastCountUnit     String?
   masterAccuracy           String?
   masterAccuracyUnit       String?
@@ -886,12 +896,10 @@ model CertificateSectionSignoff {
   checkedAt     DateTime    @default(now())
   /**
    * A hash of the section's content as it stood when the tick was made.
-   *
    * Held against a revision alone, a tick was wrong in both directions: a new revision
    * cleared all seven even though the engineer touched two, and the two they touched
    * are not reliably the ones the revision request named - an engineer sent back to
    * fix Section 3 may correct a reading in Section 5 while they are in there.
-   *
    * The tick stands while this still matches and lapses when it does not, whatever
    * moved the content. Null on rows written before this, which fall back to counting
    * for their own revision only.

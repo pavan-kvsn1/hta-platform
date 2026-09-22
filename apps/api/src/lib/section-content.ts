@@ -38,8 +38,30 @@ type Row = Record<string, unknown>
 const val = (v: unknown): string => {
   if (v === null || v === undefined) return ''
   if (v instanceof Date) return v.toISOString()
+  // A Decimal column reads back as an object, and JSON.stringify would wrap it in
+  // quotes - so a least count of 0.05 would hash as "0.05" where it used to hash as
+  // 0.05. That is a different string, and every section sign-off taken before the
+  // column became a number would read as a section that had changed since it was
+  // signed. Written plainly it is character for character what the text column held.
+  if (isDecimal(v)) return String(v)
   if (typeof v === 'object') return JSON.stringify(v)
   return String(v)
+}
+
+/**
+ * A Prisma Decimal, without importing the client into a module that only formats.
+ *
+ * Decimal.js instances carry these three; no plain object or array this function is
+ * given does.
+ */
+function isDecimal(v: unknown): boolean {
+  if (typeof v !== 'object' || v === null) return false
+  const candidate = v as Record<string, unknown>
+  return (
+    typeof candidate.toFixed === 'function' &&
+    typeof candidate.toNumber === 'function' &&
+    typeof candidate.isPositive === 'function'
+  )
 }
 
 const pick = (row: Row | undefined, keys: string[]): string =>

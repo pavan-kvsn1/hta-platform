@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { prisma, Prisma } from '@hta/database'
 import { requireStaff, requireAuth, requireAdmin } from '../../middleware/auth.js'
 import { parsePagination, paginationResponse } from '../../lib/pagination.js'
+import { leastCountInput } from '../../lib/least-count.js'
 import { enforceLimit, updateUsageTracking } from '../../services/index.js'
 import {
   buildCertificateUucDetails,
@@ -193,7 +194,7 @@ const createCertificateSchema = z.object({
     operatingMin: z.string().optional().nullable(),
     operatingMax: z.string().optional().nullable(),
     operatingUnit: z.string().optional().nullable(),
-    leastCountValue: z.string().optional().nullable(),
+    leastCountValue: leastCountInput,
     leastCountUnit: z.string().optional().nullable(),
     accuracyValue: z.string().optional().nullable(),
     accuracyUnit: z.string().optional().nullable(),
@@ -269,7 +270,7 @@ const createCertificateSchema = z.object({
     masterSubtype: z.string().optional().nullable(),
     masterAcceptanceReason: z.string().optional().nullable(),
     capabilityParameter: z.string().optional().nullable(),
-    masterLeastCount: z.string().optional().nullable(),
+    masterLeastCount: leastCountInput,
     masterLeastCountUnit: z.string().optional().nullable(),
     masterAccuracy: z.string().optional().nullable(),
     masterAccuracyUnit: z.string().optional().nullable(),

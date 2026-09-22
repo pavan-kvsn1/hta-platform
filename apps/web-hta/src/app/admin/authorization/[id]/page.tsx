@@ -8,6 +8,7 @@ import type { ParameterBin } from '@/lib/stores/certificate-store'
 import type { SignatureInfo } from '@/components/certificates'
 import type { CertificateFormData } from './AdminAuthContent'
 import { masterEntryForView } from '@/lib/master-entry/for-view'
+import { leastCountText } from '@/lib/utils/least-count'
 
 // Render at runtime, not build time (needs database)
 export const dynamic = 'force-dynamic'
@@ -211,7 +212,7 @@ async function getCertificateData(id: string) {
       operatingMin: param.operatingMin || '',
       operatingMax: param.operatingMax || '',
       operatingUnit: param.operatingUnit || '',
-      leastCountValue: param.leastCountValue || '',
+      leastCountValue: leastCountText(param.leastCountValue),
       leastCountUnit: param.leastCountUnit || '',
       accuracyValue: param.accuracyValue || '',
       accuracyUnit: param.accuracyUnit || '',
