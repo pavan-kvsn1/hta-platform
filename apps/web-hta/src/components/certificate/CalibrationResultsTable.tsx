@@ -28,6 +28,7 @@ import {
   type FieldDefinition,
 } from '@/lib/certificate/fields'
 import {
+  errorPrecision,
   formatToCalibrationPrecision,
   resolveCalibrationPrecision,
   MAX_CALIBRATION_PRECISION,
@@ -278,6 +279,27 @@ export function CalibrationResultsTable({
                       ? (rowValues[errorConfig?.masterFieldId ?? ''] ?? null)
                       : result.standardReading
                     const { precision } = resolveCalibrationPrecision(param, masterReading)
+                    /**
+                     * The error is printed to the readings, not to the least count.
+                     *
+                     * The least count is what the instrument can show, so it governs
+                     * what can be read and written down. An error is the difference of
+                     * two readings and is good to whatever they were - printed to the
+                     * least count instead, an error of -0.41 on a band resolving to a
+                     * degree came out as "-0", and the certificate reported no error
+                     * where there was one. The store already keeps the figure to this
+                     * precision; only the printing still had to be told.
+                     *
+                     * Never fewer decimals than the readings are shown to. An engineer
+                     * who typed 10 on an instrument resolving to 0.1 meant 10.0, and the
+                     * column prints it that way, so an error of -2 beside it reads as
+                     * -2.0 rather than -2. This only ever adds decimals to what was
+                     * printed before; it never takes one away.
+                     */
+                    const uucReading = dynamic
+                      ? (rowValues[errorConfig?.uucFieldId ?? ''] ?? null)
+                      : result.beforeAdjustment
+                    const errorDecimals = Math.max(errorPrecision(masterReading, uucReading), precision)
                     // The same band that set the precision also sets what the point was
                     // allowed, so both are read from the master's reading.
                     const allowed = calculateErrorLimit(
@@ -368,7 +390,7 @@ export function CalibrationResultsTable({
                         )}
 
                         <td className={cell}>
-                          {formatToCalibrationPrecision(result.errorObserved, precision)}
+                          {formatToCalibrationPrecision(result.errorObserved, errorDecimals)}
                         </td>
                         {showLimits && (
                           <td className={cn(cell, 'text-slate-500')}>

@@ -189,7 +189,7 @@ import {
   formatCertificateDate,
 } from '@/lib/certificate/date-format'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
-import { resolveCalibrationPrecision } from '@/lib/utils/calibration-precision'
+import { errorPrecision, resolveCalibrationPrecision } from '@/lib/utils/calibration-precision'
 import {
   errorFormulaLabel,
   columnLabel,
@@ -1750,6 +1750,17 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                         ? (rowValues[param.errorConfig?.masterFieldId ?? ''] ?? null)
                         : result.standardReading
                       const { precision } = resolveCalibrationPrecision(param, masterReading)
+                      /**
+                       * The error is printed to the readings, not to the least count.
+                       * A least count is what the instrument can show; an error is the
+                       * difference of two readings and is good to whatever they were.
+                       * Printed to the least count, an error of -0.41 on a band
+                       * resolving to a degree came out as "-0".
+                       */
+                      const uucReading = isDynamic
+                        ? (rowValues[param.errorConfig?.uucFieldId ?? ''] ?? null)
+                        : result.beforeAdjustment
+                      const errorDecimals = Math.max(errorPrecision(masterReading, uucReading), precision)
                       const failedText = result.isOutOfLimit ? styles.failedCalCellText : {}
                       // Expression columns are computed here rather than stored, so the
                       // certificate shows the same value the engineer saw.
@@ -1807,7 +1818,7 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                           <View style={[styles.calCell, { width: isDynamic ? dataWidth : '25%' }]}>
                             <Text style={[styles.calCellText, failedText]}>
                               {result.errorObserved !== null
-                                ? formatWithPrecision(result.errorObserved, precision)
+                                ? formatWithPrecision(result.errorObserved, errorDecimals)
                                 : '-'}
                             </Text>
                           </View>

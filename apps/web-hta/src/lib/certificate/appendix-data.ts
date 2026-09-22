@@ -302,10 +302,21 @@ function pointValues(
       return text.startsWith('−') || text.startsWith('-') ? `(${text})` : text
     }
 
+    /**
+     * The error is shown to the wider of the two figures beside it.
+     *
+     * errorPrecision counts the decimals a reading was written to, which is right where
+     * a person typed it and wrong here: a computed column's value is a float this file
+     * worked out, so counting its decimals gave the error five of them. What the reader
+     * has in front of them is each side already rounded to its own resolution, so the
+     * error follows those.
+     */
+    const errorDecimals = Math.max(masterSide.precision, uucSide.precision)
+
     const error = result.errorObserved
     const bare =
       error !== null && error !== undefined
-        ? `${formatToCalibrationPrecision(error, precision)}${unit}`
+        ? `${formatToCalibrationPrecision(error, errorDecimals)}${unit}`
         : '—'
 
     /**
@@ -321,7 +332,7 @@ function pointValues(
       if (error === null || error === undefined) return false
       const [ra, rb] = [rounded(a), rounded(b)]
       if (!Number.isFinite(ra) || !Number.isFinite(rb)) return false
-      const shownError = Number(formatToCalibrationPrecision(error, precision))
+      const shownError = Number(formatToCalibrationPrecision(error, errorDecimals))
       return Math.abs(ra - rb - shownError) < Math.pow(10, -precision) / 2
     }
 
