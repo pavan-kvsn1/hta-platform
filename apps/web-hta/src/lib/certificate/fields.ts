@@ -785,68 +785,149 @@ export function resolveRowValues(
  * the unit read, and the master's figure is what it is being judged against. Expression
  * columns count - a converted reading is still the reading.
  */
+/**
+ * Where a parameter states the two spans it is read against.
+ *
+ * They are different claims and they earn different rules. The range is what the unit
+ * is being calibrated over, so every point has to sit inside it - a reading beyond it
+ * is off the part of the scale this certificate speaks for. The operating range is the
+ * stretch the unit is actually used at, so it only asks that the readings reach into
+ * it: a certificate covering 0 to 100 that was never read anywhere near the 20 to 40
+ * the unit runs at says nothing useful about how it behaves in service.
+ */
+export interface RangeSpans {
+  rangeMin?: string
+  rangeMax?: string
+  operatingMin?: string
+  operatingMax?: string
+  operatingRangeNotApplicable?: boolean
+}
+
+const spanNumber = (v?: string) => {
+  const parsed = parseFloat((v ?? '').trim())
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+/**
+ * Where each point sits, read off the unit under test.
+ *
+ * The certificate is about what the unit read; the master is what it is judged against.
+ * A master inside the span with the unit outside it proves nothing, so both rules below
+ * ask the same column - a point is one thing, and two rules disagreeing about what one
+ * is would put two different answers on the same table.
+ */
+function uucReadings(
+  rows: CalibrationResultRow[],
+  fields: FieldDefinition[],
+  errorConfig: ErrorConfig | null | undefined,
+): { row: CalibrationResultRow; value: number }[] {
+  const uucField = fields.find((f) => f.id === errorConfig?.uucFieldId)
+  if (!uucField) return []
+  return rows
+    .map((row) => ({
+      row,
+      value: parseFloat(resolveRowValues(row, fields)[uucField.id] ?? ''),
+    }))
+    .filter((entry) => Number.isFinite(entry.value))
+}
+
 export interface RangeCoverage {
-  /** Whether the rule applies at all: it needs a range and at least one row. */
+  /** Whether the rule applies at all: it needs an operating range and at least one row. */
   checked: boolean
   /** The span the readings have to reach into. */
   from: number
   to: number
-  /** Where the span came from, for saying so on screen. */
-  source: 'operating range' | 'range being calibrated'
   /** Row ids whose reading falls inside it. */
   inside: string[]
   /** True where at least one does, or where the rule does not apply. */
   satisfied: boolean
 }
 
+/**
+ * Whether the readings reach the stretch the unit is actually used at.
+ *
+ * One point inside is enough - this asks that the certificate says something about the
+ * operating range, not that it was spent there.
+ *
+ * Where no operating range is declared there is nothing to reach into and the rule does
+ * not apply. It used to fall back to the range being calibrated, which now has a rule
+ * of its own that every point must satisfy, so the fallback asked for less than that
+ * rule already does.
+ */
 export function rangeCoverage(
-  parameter: {
-    rangeMin?: string
-    rangeMax?: string
-    operatingMin?: string
-    operatingMax?: string
-    operatingRangeNotApplicable?: boolean
-  },
+  parameter: RangeSpans,
   rows: CalibrationResultRow[],
   fields: FieldDefinition[],
   errorConfig: ErrorConfig | null | undefined,
 ): RangeCoverage {
-  const num = (v?: string) => {
-    const parsed = parseFloat((v ?? '').trim())
-    return Number.isFinite(parsed) ? parsed : null
-  }
-
-  const useOperating =
+  const declared =
     !parameter.operatingRangeNotApplicable &&
-    num(parameter.operatingMin) !== null &&
-    num(parameter.operatingMax) !== null
+    spanNumber(parameter.operatingMin) !== null &&
+    spanNumber(parameter.operatingMax) !== null
 
-  const from = useOperating ? num(parameter.operatingMin) : num(parameter.rangeMin)
-  const to = useOperating ? num(parameter.operatingMax) : num(parameter.rangeMax)
-  const source: RangeCoverage['source'] = useOperating
-    ? 'operating range'
-    : 'range being calibrated'
+  const from = declared ? spanNumber(parameter.operatingMin) : null
+  const to = declared ? spanNumber(parameter.operatingMax) : null
 
-  // Nothing stated to check against, or nothing entered yet. Not a failure - there is
+  // Nothing stated to reach into, or nothing entered yet. Not a failure - there is
   // simply no question to answer, and a red mark on an empty table is only noise.
   if (from === null || to === null || rows.length === 0) {
-    return { checked: false, from: from ?? 0, to: to ?? 0, source, inside: [], satisfied: true }
+    return { checked: false, from: from ?? 0, to: to ?? 0, inside: [], satisfied: true }
   }
 
   const low = Math.min(from, to)
   const high = Math.max(from, to)
-  const uucField = fields.find((f) => f.id === errorConfig?.uucFieldId)
+  const inside = uucReadings(rows, fields, errorConfig)
+    .filter(({ value }) => value >= low && value <= high)
+    .map(({ row }) => row.id)
 
-  const inside = uucField
-    ? rows
-        .filter((row) => {
-          const value = parseFloat(resolveRowValues(row, fields)[uucField.id] ?? '')
-          return Number.isFinite(value) && value >= low && value <= high
-        })
-        .map((row) => row.id)
-    : []
+  return { checked: true, from: low, to: high, inside, satisfied: inside.length > 0 }
+}
 
-  return { checked: true, from: low, to: high, source, inside, satisfied: inside.length > 0 }
+export interface RangeExcursion {
+  rowId: string
+  pointNumber: number
+  /** The reading, as a number; written to the table's own precision by the caller. */
+  value: number
+}
+
+export interface RangeMembership {
+  /** Whether the rule applies: it needs a range and at least one row. */
+  checked: boolean
+  from: number
+  to: number
+  /** Points read outside the range the unit is being calibrated over. */
+  outside: RangeExcursion[]
+}
+
+/**
+ * Points that fall outside the range being calibrated.
+ *
+ * Every point has to be inside it, not just one: the range is what the certificate
+ * claims to speak for, and a reading past its end was taken somewhere the certificate
+ * says nothing about. This is what the operating range was being asked before - and
+ * asking it of the operating range failed any certificate whose points sensibly spanned
+ * the whole scale, which is most of them.
+ */
+export function pointsOutsideRange(
+  parameter: RangeSpans,
+  rows: CalibrationResultRow[],
+  fields: FieldDefinition[],
+  errorConfig: ErrorConfig | null | undefined,
+): RangeMembership {
+  const from = spanNumber(parameter.rangeMin)
+  const to = spanNumber(parameter.rangeMax)
+
+  if (from === null || to === null || rows.length === 0) {
+    return { checked: false, from: from ?? 0, to: to ?? 0, outside: [] }
+  }
+
+  const low = Math.min(from, to)
+  const high = Math.max(from, to)
+  const outside = uucReadings(rows, fields, errorConfig)
+    .filter(({ value }) => value < low || value > high)
+    .map(({ row, value }) => ({ rowId: row.id, pointNumber: row.pointNumber, value }))
+
+  return { checked: true, from: low, to: high, outside }
 }
 
 export function computeRowError(

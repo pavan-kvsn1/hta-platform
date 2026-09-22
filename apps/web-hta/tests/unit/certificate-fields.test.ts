@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   addConversionColumn,
+  pointsOutsideRange,
   rangeCoverage,
   conversionColumnMissing,
   errorConfigProblem,
@@ -767,7 +768,6 @@ describe('whether the readings cover the range claimed', () => {
 
   it('checks the operating range where the unit declares one', () => {
     const c = rangeCoverage(operating, [row('r1', '25')], fields, config)
-    expect(c.source).toBe('operating range')
     expect(c.from).toBe(20)
     expect(c.to).toBe(40)
     expect(c.satisfied).toBe(true)
@@ -780,17 +780,28 @@ describe('whether the readings cover the range claimed', () => {
     expect(c.inside).toEqual([])
   })
 
-  it('falls back to the range being calibrated where there is no operating range', () => {
+  it('asks nothing where no operating range is declared', () => {
+    // It used to fall back to the range being calibrated. That span now has a rule of
+    // its own that every point must satisfy, so a fallback asking for one point inside
+    // it was asking for less than the other rule already gets.
     const c = rangeCoverage(
       { ...operating, operatingRangeNotApplicable: true },
       [row('r1', '90')],
       fields,
       config,
     )
-    expect(c.source).toBe('range being calibrated')
-    expect(c.from).toBe(0)
-    expect(c.to).toBe(100)
+    expect(c.checked).toBe(false)
     expect(c.satisfied).toBe(true)
+  })
+
+  it('asks nothing where the operating range was left blank', () => {
+    const c = rangeCoverage(
+      { rangeMin: '0', rangeMax: '100' },
+      [row('r1', '90')],
+      fields,
+      config,
+    )
+    expect(c.checked).toBe(false)
   })
 
   it('reads the unit under test, not the master', () => {
@@ -820,5 +831,61 @@ describe('whether the readings cover the range claimed', () => {
     const c = rangeCoverage({ operatingRangeNotApplicable: true }, [row('r1', '25')], fields, config)
     expect(c.checked).toBe(false)
     expect(c.satisfied).toBe(true)
+  })
+})
+
+describe('every point sits within the range being calibrated', () => {
+  const fields: FieldDefinition[] = [
+    { id: 'm1', name: 'Master', group: 'master', type: 'numeric', unit: 'bar', order: 0 },
+    { id: 'u1', name: 'UUC', group: 'uuc', type: 'numeric', unit: 'bar', order: 0 },
+  ]
+  const config: ErrorConfig = { masterFieldId: 'm1', uucFieldId: 'u1', formula: 'A-B', unit: 'bar' }
+  const at = (id: string, point: number, uuc: string): CalibrationResultRow => ({
+    id, pointNumber: point, values: { m1: uuc, u1: uuc }, errorObserved: null, isOutOfLimit: false,
+  })
+  const span = { rangeMin: '0', rangeMax: '100', operatingMin: '20', operatingMax: '40' }
+
+  it('passes where every point is inside', () => {
+    const m = pointsOutsideRange(span, [at('r1', 1, '0'), at('r2', 2, '50'), at('r3', 3, '100')], fields, config)
+    expect(m.checked).toBe(true)
+    expect(m.outside).toEqual([])
+  })
+
+  it('names each point that is not, with its number', () => {
+    const m = pointsOutsideRange(span, [at('r1', 1, '-5'), at('r2', 2, '50'), at('r3', 3, '120')], fields, config)
+    expect(m.outside).toEqual([
+      { rowId: 'r1', pointNumber: 1, value: -5 },
+      { rowId: 'r3', pointNumber: 3, value: 120 },
+    ])
+  })
+
+  it('does not mind a point outside the operating range', () => {
+    // The whole point of the split: spanning the scale is normal and must not be a
+    // fault. Only one point has to reach the operating range, and that is asked
+    // separately.
+    const m = pointsOutsideRange(span, [at('r1', 1, '5'), at('r2', 2, '90')], fields, config)
+    expect(m.outside).toEqual([])
+  })
+
+  it('counts the ends as inside', () => {
+    const m = pointsOutsideRange(span, [at('r1', 1, '0'), at('r2', 2, '100')], fields, config)
+    expect(m.outside).toEqual([])
+  })
+
+  it('reads the unit under test, not the master', () => {
+    const rows = [{ ...at('r1', 1, '50'), values: { m1: '50', u1: '150' } }]
+    expect(pointsOutsideRange(span, rows, fields, config).outside).toHaveLength(1)
+  })
+
+  it('asks nothing of an empty table or an unstated range', () => {
+    expect(pointsOutsideRange(span, [], fields, config).checked).toBe(false)
+    expect(pointsOutsideRange({ operatingMin: '20', operatingMax: '40' }, [at('r1', 1, '5')], fields, config).checked).toBe(false)
+  })
+
+  it('reads a range written high to low', () => {
+    const m = pointsOutsideRange({ rangeMin: '100', rangeMax: '0' }, [at('r1', 1, '50')], fields, config)
+    expect(m.from).toBe(0)
+    expect(m.to).toBe(100)
+    expect(m.outside).toEqual([])
   })
 })

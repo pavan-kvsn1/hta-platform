@@ -9,7 +9,7 @@ import type {
   ErrorConfig,
   FieldDefinition,
 } from '@/lib/certificate/fields'
-import { needsResolution, rangeCoverage } from '@/lib/certificate/fields'
+import { needsResolution, pointsOutsideRange, rangeCoverage } from '@/lib/certificate/fields'
 import {
   instrumentResolutions,
   masterBucketsFor,
@@ -256,30 +256,25 @@ function ResultsTable({
   // Get accuracy type config
   const accuracyTypeConfig = ACCURACY_TYPE_CONFIG[parameter.accuracyType]
 
-  // Validate if standard reading is within operating range
-
-  // Count operating range violations
-  const operatingRangeViolations = useMemo(() => {
-    let count = 0
-    const opMin = parseFloat(parameter.operatingMin)
-    const opMax = parseFloat(parameter.operatingMax)
-
-    // If operating range is not defined, no violations possible
-    if (isNaN(opMin) && isNaN(opMax)) return 0
-
-    parameter.results.forEach(result => {
-      const value = result.standardReading
-      if (!value || value.trim() === '') return
-
-      const numValue = parseFloat(value)
-      if (isNaN(numValue)) return
-
-      if ((!isNaN(opMin) && numValue < opMin) || (!isNaN(opMax) && numValue > opMax)) {
-        count++
-      }
-    })
-    return count
-  }, [parameter])
+  /**
+   * Points read outside the range the unit is being calibrated over.
+   *
+   * Every point has to sit inside it: the range is what the certificate claims to speak
+   * for, and a reading past its end was taken somewhere the certificate says nothing
+   * about. This used to ask the operating range instead, which failed any certificate
+   * whose points sensibly spanned the whole scale - the operating range asks something
+   * quite different, and only of one point.
+   */
+  const outsideRange = useMemo(
+    () =>
+      pointsOutsideRange(
+        parameter,
+        parameter.resultRows,
+        parameter.fieldDefinitions,
+        parameter.errorConfig,
+      ),
+    [parameter],
+  )
 
   /**
    * Readings that no instrument could have shown.
@@ -351,19 +346,17 @@ function ResultsTable({
       const sentence = stepViolationSentence(offStepHere)
       if (sentence) return sentence
 
-      const opMin = parseFloat(parameter.operatingMin)
-      const opMax = parseFloat(parameter.operatingMax)
-      if (!isNaN(masterReading) && (!isNaN(opMin) || !isNaN(opMax))) {
-        const belowMin = !isNaN(opMin) && masterReading < opMin
-        const aboveMax = !isNaN(opMax) && masterReading > opMax
-        if (belowMin || aboveMax) {
-          return `This point is outside the operating range ${parameter.operatingMin || '—'} to ${parameter.operatingMax || '—'} ${parameter.parameterUnit}.`
-        }
+      // Against the range being calibrated, not the operating range. A point outside
+      // the operating range is perfectly ordinary - the operating range only asks that
+      // one point reaches into it, and that is said once under the table rather than
+      // against every row that sits outside it.
+      if (outsideRange.outside.some((point) => point.rowId === row.id)) {
+        return `This point is outside the range being calibrated, ${bound(outsideRange.from)} to ${bound(outsideRange.to)} ${parameter.parameterUnit}.`
       }
 
       return null
     },
-    [parameter, offStep],
+    [parameter, offStep, outsideRange],
   )
 
   // Calculate base limit for display (for ABSOLUTE and PERCENT_SCALE which are constant)
@@ -480,15 +473,19 @@ function ResultsTable({
           </div>
         </div>
 
-        {/* Operating range violation alert */}
-        {operatingRangeViolations > 0 && (
-          <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800">
-            <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
+        {/* A point read outside the range the certificate speaks for. */}
+        {outsideRange.outside.length > 0 && (
+          <div className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800">
+            <AlertTriangle className="mt-px size-3.5 shrink-0 text-amber-500" />
             <div>
-              <span className="font-bold">Operating Range Warning:</span>{' '}
-              {operatingRangeViolations} standard reading{operatingRangeViolations !== 1 ? 's are' : ' is'} outside the operating range.
+              <span className="font-bold">Range Warning:</span>{' '}
+              {outsideRange.outside.length} point{outsideRange.outside.length !== 1 ? 's were' : ' was'} read
+              outside the range being calibrated, {bound(outsideRange.from)} to{' '}
+              {bound(outsideRange.to)} {parameter.parameterUnit}. The certificate says
+              nothing about readings beyond it.
               <span className="ml-1 text-amber-600">
-                (Operating range: {parameter.operatingMin || '—'} to {parameter.operatingMax || '—'} {parameter.parameterUnit})
+                (Point{outsideRange.outside.length !== 1 ? 's' : ''}{' '}
+                {outsideRange.outside.map((p) => p.pointNumber).join(', ')})
               </span>
             </div>
           </div>
@@ -589,18 +586,18 @@ function ResultsTable({
               <>
                 {coverage.inside.length} of {parameter.resultRows.length}{' '}
                 {coverage.inside.length === 1 ? 'point falls' : 'points fall'} within the{' '}
-                {coverage.source}, {bound(coverage.from)} to {bound(coverage.to)}{' '}
+                operating range, {bound(coverage.from)} to {bound(coverage.to)}{' '}
                 {parameter.parameterUnit}.
               </>
             ) : (
               <>
-                No point falls within the {coverage.source},{' '}
+                No point falls within the operating range,{' '}
                 <b>
                   {bound(coverage.from)} to {bound(coverage.to)} {parameter.parameterUnit}
                 </b>
-                . A certificate that covers a span nothing was read at says nothing about
-                it, so at least one reading has to land inside before this can be
-                submitted.
+                . That is the stretch the unit is actually used at, and a certificate
+                that was never read there says nothing about how it behaves in service,
+                so at least one reading has to land inside before this can be submitted.
               </>
             )}
           </p>

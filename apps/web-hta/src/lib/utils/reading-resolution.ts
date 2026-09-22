@@ -108,9 +108,18 @@ export function uucResolution(
   const bins = parameter.requiresBinning ? (parameter.bins ?? []) : []
 
   if (bins.length > 0) {
-    // No bin claims the reading - the first one stands in, as it does for the limit,
-    // so a reading typed before the bins were settled still has something to go on.
-    const bin = binFor(bins, reading) ?? bins[0]
+    // No bin claims the reading, so there is no least count for it - the same answer
+    // the accuracy limit already gives, which calls such a point "one the parameter
+    // says nothing about".
+    //
+    // The first bin used to stand in. That was invisible while a wrong least count only
+    // changed how many decimals were printed; now a reading is checked against its step
+    // and told it is invalid, so borrowing a step from a stretch of the range the
+    // reading is nowhere near produces a confident, wrong instruction. Gaps between
+    // bins are refused at save, so on a finished certificate this cannot arise.
+    const bin = binFor(bins, reading)
+    if (!bin) return { kind: 'unrecorded', side: 'uuc' }
+
     const leastCount = numeric(bin.leastCount)
     return leastCount === null || leastCount <= 0
       ? { kind: 'unrecorded', side: 'uuc' }

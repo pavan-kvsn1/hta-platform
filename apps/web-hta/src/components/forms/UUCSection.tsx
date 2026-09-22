@@ -26,6 +26,7 @@ import {
   unitsForParameter,
 } from '@/lib/parameters/mapping'
 import { numberProblem, rangeProblem } from '@/lib/parameters/validation'
+import { binIssueSentence, binIssues } from '@/lib/certificate/bin-coverage'
 import { FormSection } from './FormSection'
 import { useCertificateStore, Parameter, ParameterBin, SelectedMasterInstrument, AccuracyType, ACCURACY_TYPE_CONFIG } from '@/lib/stores/certificate-store'
 import { ImageUploadGallery, GalleryImage } from './ImageUploadGallery'
@@ -198,6 +199,9 @@ function ParameterCard({
     }
   }
 
+  /** Stretches of the range the bins leave uncovered, or claim twice. */
+  const binProblems = useMemo(() => binIssues(parameter), [parameter])
+
   // Handle bin field update
   const updateBin = (binIndex: number, field: keyof ParameterBin, value: string) => {
     const newBins = [...(parameter.bins || [])]
@@ -210,25 +214,33 @@ function ParameterCard({
   const FieldProblem = ({ problem }: { problem: string | null }) =>
     problem ? <p className="text-[10px] text-red-500 font-medium">{problem}</p> : null
 
-  // Validate if a bin value is within operating range
+  /**
+   * Whether a bin edge sits inside the range being calibrated.
+   *
+   * Bins divide the range, not the operating range. Each one carries the least count
+   * and accuracy for its stretch, and every reading has to land in one - readings run
+   * the length of the range, and a point outside the operating range is an ordinary
+   * point, not a fault. Bounded by the operating range instead, bins left legal
+   * readings with no bin to be judged by.
+   */
   const validateBinValue = (value: string, _type: 'min' | 'max'): { isValid: boolean; message: string | null } => {
     if (!value) return { isValid: true, message: null }
 
     const numValue = parseFloat(value)
     if (isNaN(numValue)) return { isValid: true, message: null }
 
-    const opMin = parseFloat(parameter.operatingMin)
-    const opMax = parseFloat(parameter.operatingMax)
+    const rangeMin = parseFloat(parameter.rangeMin)
+    const rangeMax = parseFloat(parameter.rangeMax)
 
-    // If operating range is not defined, skip validation
-    if (isNaN(opMin) && isNaN(opMax)) return { isValid: true, message: null }
+    // No range stated yet, so there is nothing to be inside of.
+    if (isNaN(rangeMin) && isNaN(rangeMax)) return { isValid: true, message: null }
 
-    if (!isNaN(opMin) && numValue < opMin) {
-      return { isValid: false, message: `Below operating min (${parameter.operatingMin})` }
+    if (!isNaN(rangeMin) && numValue < rangeMin) {
+      return { isValid: false, message: `Below range min (${parameter.rangeMin})` }
     }
 
-    if (!isNaN(opMax) && numValue > opMax) {
-      return { isValid: false, message: `Exceeds operating max (${parameter.operatingMax})` }
+    if (!isNaN(rangeMax) && numValue > rangeMax) {
+      return { isValid: false, message: `Exceeds range max (${parameter.rangeMax})` }
     }
 
     return { isValid: true, message: null }
@@ -477,6 +489,12 @@ function ParameterCard({
                 rangeProblem(parameter.rangeMin, parameter.rangeMax)
               }
             />
+            {/* Said under the span the bins divide. It sat under the operating range,
+                which bins have nothing to do with - and was hidden entirely when that
+                range was marked not applicable, so a binned parameter said nothing. */}
+            {parameter.requiresBinning && (
+              <p className="text-[10px] text-blue-500">Divided into bins below</p>
+            )}
           </div>
 
           {/* Operating Range */}
@@ -509,21 +527,28 @@ function ParameterCard({
                 className="w-full rounded-lg border-slate-300 text-xs py-2 disabled:bg-slate-50 disabled:text-slate-400"
               />
             </div>
-            {parameter.requiresBinning && !parameter.operatingRangeNotApplicable && (
-              /* Under the inputs, not in the label - the label row now ends with the
-                 tick, and this note is long enough to collide with it. */
-              <p className="text-[10px] text-blue-500">Divided into bins below</p>
-            )}
-            {parameter.operatingRangeNotApplicable && (
-              /* The rule this choice carries, said where the choice is made. The range
-                 being calibrated stands in for the operating one, and a certificate
-                 that covers a span nothing was read at says nothing about it. */
+            {/* The rules these two spans carry, said where they are entered. They are
+                different claims: the range is what the certificate speaks for, so every
+                point has to sit inside it; the operating range is where the unit is
+                actually used, so it only asks that the readings reach into it. */}
+            {parameter.operatingRangeNotApplicable ? (
               <p className="text-[10px] text-slate-500">
-                At least one calibration point must fall within{' '}
+                With no operating range, nothing has to be read at one. Every calibration
+                point must still sit within{' '}
                 <b className="text-slate-600">
                   {parameter.rangeMin || '—'} to {parameter.rangeMax || '—'} {displayUnit}
                 </b>
                 , the range being calibrated. Checked in Section 05.
+              </p>
+            ) : (
+              <p className="text-[10px] text-slate-500">
+                At least one calibration point must fall within{' '}
+                <b className="text-slate-600">
+                  {parameter.operatingMin || '—'} to {parameter.operatingMax || '—'}{' '}
+                  {displayUnit}
+                </b>
+                , the stretch the unit is used at. Every point must also sit within the
+                range being calibrated. Checked in Section 05.
               </p>
             )}
           </div>
@@ -663,13 +688,33 @@ function ParameterCard({
               <div></div>
             </div>
 
-            {/* Operating range reminder */}
-            {(parameter.operatingMin || parameter.operatingMax) && (
+            {/* What the bins have to add up to. Named the operating range before,
+                which bins have nothing to do with. */}
+            {(parameter.rangeMin || parameter.rangeMax) && (
               <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs">
                 <span className="text-blue-700 font-medium">
-                  Operating Range: {parameter.operatingMin || '—'} to {parameter.operatingMax || '—'} {displayUnit}
+                  Range: {parameter.rangeMin || '—'} to {parameter.rangeMax || '—'} {displayUnit}
                 </span>
-                <span className="text-blue-500">— All bin ranges must be within this range</span>
+                <span className="text-blue-500">
+                  — the bins must cover it end to end, with no stretch left out and none
+                  claimed twice
+                </span>
+              </div>
+            )}
+
+            {/* A reading in an uncovered stretch has no least count and no accuracy to
+                be judged by, so this holds the certificate rather than warning about it. */}
+            {binProblems.length > 0 && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                <p className="font-semibold">
+                  The bins do not divide the range. This has to be fixed before the
+                  certificate can be saved.
+                </p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                  {binProblems.map((issue, i) => (
+                    <li key={i}>{binIssueSentence(issue, displayUnit)}</li>
+                  ))}
+                </ul>
               </div>
             )}
 

@@ -31,7 +31,8 @@ import {
 } from '@/components/ui/dialog'
 import { FormSection } from './FormSection'
 import { ReviewerSelect } from './ReviewerSelect'
-import { fieldsWithResolutionProblems } from '@/lib/certificate/fields'
+import { binIssues } from '@/lib/certificate/bin-coverage'
+import { fieldsWithResolutionProblems, pointsOutsideRange } from '@/lib/certificate/fields'
 import { masterBucketsFor, stepViolations } from '@/lib/certificate/step-violations'
 import { useCertificateStore } from '@/lib/stores/certificate-store'
 import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
@@ -114,15 +115,22 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
   const latestRevisionFeedback = feedbacks.find(f => f.feedbackType === 'REVISION_REQUESTED' || f.feedbackType === 'REVISION_REQUEST')
   const isRevisionRequired = formData.status === 'REVISION_REQUIRED'
 
-  // Check for bin range violations (bins outside operating range)
+  /**
+   * Bin edges that fall outside the range being calibrated.
+   *
+   * Bins divide the range. Each carries the least count and accuracy for its stretch
+   * and every reading has to land in one, so a bin reaching past the range describes
+   * readings the certificate does not speak for. Measured against the operating range
+   * before, which bins have nothing to do with.
+   */
   const binRangeViolations = formData.parameters.reduce((acc, param) => {
     if (!param.requiresBinning || !param.bins?.length) return acc
 
-    const opMin = parseFloat(param.operatingMin)
-    const opMax = parseFloat(param.operatingMax)
+    const rangeMin = parseFloat(param.rangeMin)
+    const rangeMax = parseFloat(param.rangeMax)
 
-    // Skip if operating range not defined
-    if (isNaN(opMin) && isNaN(opMax)) return acc
+    // No range stated yet, so there is nothing to be inside of.
+    if (isNaN(rangeMin) && isNaN(rangeMax)) return acc
 
     let violations = 0
     param.bins.forEach(bin => {
@@ -130,37 +138,45 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       const binMax = parseFloat(bin.binMax)
 
       if (!isNaN(binMin)) {
-        if (!isNaN(opMin) && binMin < opMin) violations++
-        if (!isNaN(opMax) && binMin > opMax) violations++
+        if (!isNaN(rangeMin) && binMin < rangeMin) violations++
+        if (!isNaN(rangeMax) && binMin > rangeMax) violations++
       }
       if (!isNaN(binMax)) {
-        if (!isNaN(opMin) && binMax < opMin) violations++
-        if (!isNaN(opMax) && binMax > opMax) violations++
+        if (!isNaN(rangeMin) && binMax < rangeMin) violations++
+        if (!isNaN(rangeMax) && binMax > rangeMax) violations++
       }
     })
     return acc + violations
   }, 0)
 
-  // Check for standard reading violations (readings outside operating range)
-  const standardReadingViolations = formData.parameters.reduce((acc, param) => {
-    const opMin = parseFloat(param.operatingMin)
-    const opMax = parseFloat(param.operatingMax)
+  /**
+   * Points read outside the range the unit is being calibrated over.
+   *
+   * The range is what the certificate claims to speak for, so every point has to sit
+   * inside it. This asked the operating range before, which is a different claim
+   * answered by a different rule: the operating range is the stretch the unit is used
+   * at, and it only asks that the readings reach into it, not that they stay within it.
+   */
+  const pointsOutOfRange = formData.parameters.reduce(
+    (acc, param) =>
+      acc +
+      pointsOutsideRange(param, param.resultRows, param.fieldDefinitions, param.errorConfig)
+        .outside.length,
+    0,
+  )
 
-    // Skip if operating range not defined
-    if (isNaN(opMin) && isNaN(opMax)) return acc
-
-    let violations = 0
-    param.results.forEach(result => {
-      if (!result.standardReading) return
-
-      const reading = parseFloat(result.standardReading)
-      if (isNaN(reading)) return
-
-      if (!isNaN(opMin) && reading < opMin) violations++
-      if (!isNaN(opMax) && reading > opMax) violations++
-    })
-    return acc + violations
-  }, 0)
+  /**
+   * Stretches of the range the bins leave uncovered, or claim twice.
+   *
+   * Blocking. A reading in an uncovered stretch has no least count and no accuracy to
+   * be judged by, so the certificate would be stating a precision and a verdict that
+   * nothing backs. Bins reading 0 to 10 and 20 to 100 look tidy and say nothing at all
+   * about anything read between them.
+   */
+  const binGaps = formData.parameters.reduce(
+    (acc, param) => acc + binIssues(param).length,
+    0,
+  )
 
   /**
    * Columns that never said what step their figures move in.
@@ -192,7 +208,8 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
 
   const hasCriticalErrors =
     binRangeViolations > 0 ||
-    standardReadingViolations > 0 ||
+    binGaps > 0 ||
+    pointsOutOfRange > 0 ||
     undeclaredLeastCounts > 0 ||
     offStepReadings > 0
 
@@ -249,19 +266,27 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
     },
     // Critical errors - block saving
     {
+      id: 'binCoverage',
+      label: binGaps > 0
+        ? `Bins do not divide the range (${binGaps} problem${binGaps !== 1 ? 's' : ''})`
+        : 'Bins divide the range end to end',
+      isValid: binGaps === 0,
+      isCritical: true,
+    },
+    {
       id: 'binRanges',
       label: binRangeViolations > 0
-        ? `Bin ranges outside operating range (${binRangeViolations} violation${binRangeViolations !== 1 ? 's' : ''})`
-        : 'Bin ranges within operating range',
+        ? `Bin ranges outside the range being calibrated (${binRangeViolations} violation${binRangeViolations !== 1 ? 's' : ''})`
+        : 'Bin ranges within the range being calibrated',
       isValid: binRangeViolations === 0,
       isCritical: true,
     },
     {
-      id: 'standardReadings',
-      label: standardReadingViolations > 0
-        ? `Standard readings outside operating range (${standardReadingViolations} violation${standardReadingViolations !== 1 ? 's' : ''})`
-        : 'Standard readings within operating range',
-      isValid: standardReadingViolations === 0,
+      id: 'pointsInRange',
+      label: pointsOutOfRange > 0
+        ? `Points read outside the range being calibrated (${pointsOutOfRange} point${pointsOutOfRange !== 1 ? 's' : ''})`
+        : 'Every point sits within the range being calibrated',
+      isValid: pointsOutOfRange === 0,
       isCritical: true,
     },
     {
@@ -291,10 +316,13 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
     if (hasCriticalErrors) {
       const errors: string[] = []
       if (binRangeViolations > 0) {
-        errors.push(`• ${binRangeViolations} bin range value${binRangeViolations !== 1 ? 's are' : ' is'} outside the operating range`)
+        errors.push(`• ${binRangeViolations} bin range value${binRangeViolations !== 1 ? 's are' : ' is'} outside the range being calibrated`)
       }
-      if (standardReadingViolations > 0) {
-        errors.push(`• ${standardReadingViolations} standard reading${standardReadingViolations !== 1 ? 's are' : ' is'} outside the operating range`)
+      if (binGaps > 0) {
+        errors.push(`• the bins do not divide the range end to end (${binGaps} problem${binGaps !== 1 ? 's' : ''})`)
+      }
+      if (pointsOutOfRange > 0) {
+        errors.push(`• ${pointsOutOfRange} point${pointsOutOfRange !== 1 ? 's were' : ' was'} read outside the range being calibrated`)
       }
       if (undeclaredLeastCounts > 0) {
         errors.push(`• ${undeclaredLeastCounts} column${undeclaredLeastCounts !== 1 ? 's do' : ' does'} not say what least count ${undeclaredLeastCounts !== 1 ? 'they step' : 'it steps'} in`)
@@ -317,10 +345,13 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
     if (hasCriticalErrors) {
       const errors: string[] = []
       if (binRangeViolations > 0) {
-        errors.push(`• ${binRangeViolations} bin range value${binRangeViolations !== 1 ? 's are' : ' is'} outside the operating range`)
+        errors.push(`• ${binRangeViolations} bin range value${binRangeViolations !== 1 ? 's are' : ' is'} outside the range being calibrated`)
       }
-      if (standardReadingViolations > 0) {
-        errors.push(`• ${standardReadingViolations} standard reading${standardReadingViolations !== 1 ? 's are' : ' is'} outside the operating range`)
+      if (binGaps > 0) {
+        errors.push(`• the bins do not divide the range end to end (${binGaps} problem${binGaps !== 1 ? 's' : ''})`)
+      }
+      if (pointsOutOfRange > 0) {
+        errors.push(`• ${pointsOutOfRange} point${pointsOutOfRange !== 1 ? 's were' : ' was'} read outside the range being calibrated`)
       }
       if (undeclaredLeastCounts > 0) {
         errors.push(`• ${undeclaredLeastCounts} column${undeclaredLeastCounts !== 1 ? 's do' : ' does'} not say what least count ${undeclaredLeastCounts !== 1 ? 'they step' : 'it steps'} in`)
@@ -534,10 +565,13 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
               </div>
               <div className="space-y-1 text-sm text-red-700">
                 {binRangeViolations > 0 && (
-                  <p>• {binRangeViolations} bin range value{binRangeViolations !== 1 ? 's' : ''} outside operating range (Section 02)</p>
+                  <p>• {binRangeViolations} bin range value{binRangeViolations !== 1 ? 's' : ''} outside the range being calibrated (Section 02)</p>
                 )}
-                {standardReadingViolations > 0 && (
-                  <p>• {standardReadingViolations} standard reading{standardReadingViolations !== 1 ? 's' : ''} outside operating range (Section 05)</p>
+                {binGaps > 0 && (
+                  <p>• The bins do not divide the range end to end ({binGaps} problem{binGaps !== 1 ? 's' : ''}, Section 02)</p>
+                )}
+                {pointsOutOfRange > 0 && (
+                  <p>• {pointsOutOfRange} point{pointsOutOfRange !== 1 ? 's' : ''} read outside the range being calibrated (Section 05)</p>
                 )}
                 {/* Listed here as well as on the button, so the reason is on screen
                     before anything is pressed. */}
