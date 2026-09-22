@@ -135,7 +135,10 @@ const createCertificateSchema = z.object({
   calibrationTenure: z.number().optional().default(12),
   // Months either way; this is only how the engineer wrote it.
   calibrationTenureUnit: z.enum(['months', 'years']).optional(),
-  dueDateAdjustment: z.number().optional().default(0),
+  // Whole days either way, matching the slider on the form. Bounded here too because
+  // the form is not the only thing that can post this, and a due date moved by a year
+  // through a stray keystroke is not an adjustment.
+  dueDateAdjustment: z.number().int().min(-15).max(15).optional().default(0),
   calibrationDueDate: z.string().optional().nullable(),
   dueDateNotApplicable: z.boolean().optional().default(false),
   calibrationDueDateFormat: z.string().optional(),

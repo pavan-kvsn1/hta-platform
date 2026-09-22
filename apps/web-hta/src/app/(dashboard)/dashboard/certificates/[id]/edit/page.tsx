@@ -617,7 +617,7 @@ function transformApiToFormData(apiData: ApiCertificate): Partial<CertificateFor
     calibrationTenureUnit: (apiData.calibrationTenureUnit === 'years' ? 'years' : 'months') as
       | 'months'
       | 'years',
-    dueDateAdjustment: (apiData.dueDateAdjustment || 0) as -3 | -2 | -1 | 0,
+    dueDateAdjustment: apiData.dueDateAdjustment || 0,
     calibrationDueDate: apiData.calibrationDueDate ? apiData.calibrationDueDate.split('T')[0] : '',
     dueDateNotApplicable: apiData.dueDateNotApplicable || false,
     customerName: apiData.customerName || '',

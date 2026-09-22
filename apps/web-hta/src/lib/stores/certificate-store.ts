@@ -310,7 +310,14 @@ export interface CertificateFormData {
   calibrationTenure: number
   /** Whether it was entered in months or years, so it reads back the way it was said. */
   calibrationTenureUnit: 'months' | 'years'
-  dueDateAdjustment: -3 | -2 | -1 | 0  // Adjustment in days (negative only)
+  /**
+   * Days added to or taken off the due date the tenure works out to.
+   *
+   * Whole days, and either direction: a due date is sometimes pulled forward to land
+   * before a shutdown, and sometimes pushed back to meet a site visit. The form offers
+   * -15 to +15, which is the range the API accepts.
+   */
+  dueDateAdjustment: number
   calibrationDueDate: string
   dueDateNotApplicable: boolean  // If true, due date shows as "Not Applicable" on certificate
   /**

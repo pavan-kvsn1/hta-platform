@@ -56,6 +56,110 @@ interface SummarySectionProps {
   hasFeedback?: boolean
 }
 
+/** How far the due date may be moved either way, in whole days. */
+const ADJUSTMENT_LIMIT = 15
+
+/** "3 days later", "1 day earlier" - which direction, said in words rather than a sign. */
+function formatDayOffset(days: number): string {
+  const size = Math.abs(days)
+  return `${size} ${size === 1 ? 'day' : 'days'} ${days < 0 ? 'earlier' : 'later'}`
+}
+
+const clampAdjustment = (days: number) =>
+  Math.max(-ADJUSTMENT_LIMIT, Math.min(ADJUSTMENT_LIMIT, Math.trunc(days)))
+
+/**
+ * Moving the due date off what the tenure works out to.
+ *
+ * A slider for the common case - nudging by a day or two while watching the date above
+ * change - and a box for the engineer who already knows they want -12.
+ *
+ * The box keeps what is being typed rather than the committed number. Reading straight
+ * from the store meant a half-typed "-" was not a number, became 0, and the minus sign
+ * vanished under the cursor: -15 could not be typed at all, only dragged to. What is
+ * typed is held as text until it reads as a whole number in range, and tidied on blur.
+ */
+function DueDateAdjustment({
+  days,
+  onChange,
+}: {
+  days: number
+  onChange: (days: number) => void
+}) {
+  const [typed, setTyped] = useState<string | null>(null)
+
+  const commit = (text: string) => {
+    setTyped(text)
+    if (text.trim() === '' || text.trim() === '-') return
+    const parsed = Number(text)
+    if (Number.isInteger(parsed) && Math.abs(parsed) <= ADJUSTMENT_LIMIT) onChange(parsed)
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+        Adjust Due Date
+      </p>
+
+      {/* A grid rather than nested rows: the track, the box and "days" share row one so
+          they sit on the same line, and the end labels take column one of row two so
+          they sit under the track. Laid out as flex rows, the labels lined up under the
+          box instead, and the box floated off the track's centre line. */}
+      <div className="grid grid-cols-[11rem_auto_auto] items-center gap-x-3 gap-y-1.5">
+        <input
+          type="range"
+          min={-ADJUSTMENT_LIMIT}
+          max={ADJUSTMENT_LIMIT}
+          step={1}
+          value={days}
+          aria-label="Adjust due date, in days"
+          // Named on the slider as well as in the box, since a screen reader announcing
+          // "-12" alone does not say what has been chosen.
+          aria-valuetext={days === 0 ? 'No adjustment' : formatDayOffset(days)}
+          onChange={(e) => {
+            setTyped(null)
+            onChange(clampAdjustment(Number(e.target.value)))
+          }}
+          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-primary"
+        />
+
+        <input
+          type="number"
+          min={-ADJUSTMENT_LIMIT}
+          max={ADJUSTMENT_LIMIT}
+          step={1}
+          value={typed ?? String(days)}
+          aria-label="Due date adjustment in days"
+          onChange={(e) => commit(e.target.value)}
+          onBlur={() => {
+            const parsed = Number(typed)
+            // An empty box, a lone minus, or something out of range settles back to a
+            // real number rather than being left as an unsaveable half-entry.
+            if (typed !== null && (typed.trim() === '' || !Number.isFinite(parsed))) {
+              onChange(0)
+            } else if (typed !== null && Number.isFinite(parsed)) {
+              onChange(clampAdjustment(parsed))
+            }
+            setTyped(null)
+          }}
+          className="w-14 rounded-lg border border-slate-300 bg-white px-2 py-1 text-center text-xs font-bold text-slate-700 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
+        />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+          days
+        </span>
+
+        {/* Row two, column one: the ends and the middle, so the range reads without
+            being dragged. */}
+        <div className="flex justify-between text-[9px] font-semibold text-slate-400">
+          <span>-{ADJUSTMENT_LIMIT}</span>
+          <span>0</span>
+          <span>+{ADJUSTMENT_LIMIT}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function SummarySection({ isNewCertificate = true, certificateId, reviewerName, feedbackSlot, disabled, accordionStatus, hasFeedback }: SummarySectionProps) {
   const { formData, setFormField } = useCertificateStore()
   const [isCheckingNumber, setIsCheckingNumber] = useState(false)
@@ -532,9 +636,16 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                 {!formData.dueDateNotApplicable && (
                   <p className="text-xs text-slate-500">
                     Based on calibration date + tenure
-                    {formData.dueDateAdjustment < 0 && (
-                      <span className="text-amber-600 font-semibold ml-1">
-                        ({formData.dueDateAdjustment} days)
+                    {formData.dueDateAdjustment !== 0 && (
+                      <span
+                        className={cn(
+                          'ml-1 font-semibold',
+                          // Pulled forward is the one worth noticing: the certificate
+                          // expires sooner than the tenure alone would say.
+                          formData.dueDateAdjustment < 0 ? 'text-amber-600' : 'text-primary',
+                        )}
+                      >
+                        ({formatDayOffset(formData.dueDateAdjustment)})
                       </span>
                     )}
                   </p>
@@ -548,28 +659,10 @@ export function SummarySection({ isNewCertificate = true, certificateId, reviewe
                   are two chances to disagree. */}
               {/* Adjust Due Date - Only shown when not "Not Applicable" */}
               {!formData.dueDateNotApplicable && (
-                <div className="flex flex-col items-end gap-2">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    Adjust Due Date
-                  </p>
-                  <div className="flex gap-1">
-                    {([-3, -2, -1, 0] as const).map((days) => (
-                      <button
-                        key={days}
-                        type="button"
-                        onClick={() => setFormField('dueDateAdjustment', days)}
-                        className={cn(
-                          "w-10 h-8 rounded-lg text-xs font-bold transition-all border",
-                          formData.dueDateAdjustment === days
-                            ? "bg-primary text-white border-primary"
-                            : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"
-                        )}
-                      >
-                        {days === 0 ? '0' : days}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <DueDateAdjustment
+                  days={formData.dueDateAdjustment}
+                  onChange={(days) => setFormField('dueDateAdjustment', days)}
+                />
               )}
             </div>
           </div>
