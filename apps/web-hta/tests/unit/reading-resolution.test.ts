@@ -5,6 +5,7 @@ import {
   bucketForReading,
   precisionOf,
   errorResolution,
+  recordedResolution,
 } from '@/lib/utils/reading-resolution'
 import type { CapabilityBucket } from '@/lib/master/registry'
 
@@ -164,5 +165,34 @@ describe('the resolution an error is reported at', () => {
     const master = masterResolution([bucket({ least_count: { value: 1, unit: '°C' } })], 25)
     expect(precisionOf(errorResolution(master, uucResolution(banded, 25)))).toBe(2)
     expect(precisionOf(errorResolution(master, uucResolution(banded, 70)))).toBe(1)
+  })
+})
+
+describe('a resolution the certificate recorded itself', () => {
+  // The register moves on; a certificate has to keep saying what the instrument was
+  // good to on the day, so it keeps its own copy of the master's least count.
+  it('reads a recorded least count, keeping the step', () => {
+    const r = recordedResolution('master', '0.025')
+    expect(r.kind === 'declared' && r.leastCount).toBe(0.025)
+    expect(precisionOf(r)).toBe(3)
+  })
+
+  it('takes a number as readily as a string', () => {
+    expect(precisionOf(recordedResolution('master', 0.5))).toBe(1)
+  })
+
+  it('treats absent, blank and zero as not recorded, not as zero', () => {
+    for (const v of [null, undefined, '', '   ', '0', 'NA']) {
+      expect(recordedResolution('master', v).kind, String(v)).toBe('unrecorded')
+    }
+  })
+
+  it('is what lets the PDF report an error at the finer of the two', () => {
+    // HTA/S22734/165/26: unit says whole degrees, the recorded master says 0.001.
+    const chosen = errorResolution(
+      recordedResolution('master', '0.001'),
+      uucResolution({ leastCountValue: '1' }, 40),
+    )
+    expect(precisionOf(chosen)).toBe(3)
   })
 })

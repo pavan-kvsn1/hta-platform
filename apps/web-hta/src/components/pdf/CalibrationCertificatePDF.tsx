@@ -190,6 +190,13 @@ import {
 } from '@/lib/certificate/date-format'
 import { formatCalibrationHours, formatCalibrationTimeRange } from '@/lib/utils/calibration-time'
 import { resolveCalibrationPrecision } from '@/lib/utils/calibration-precision'
+import { parameterIdFor } from '@/lib/master-entry/parameter-link'
+import {
+  errorResolution,
+  precisionOf,
+  recordedResolution,
+  uucResolution,
+} from '@/lib/utils/reading-resolution'
 import {
   errorFormulaLabel,
   columnLabel,
@@ -1087,6 +1094,24 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
    * and certificate number; grouping prints the instrument once and lists what it was
    * used for underneath.
    */
+  /**
+   * The master's own least count, for the parameter it was used for.
+   *
+   * An instrument used over two spans arrives as two entries, so this is per parameter
+   * rather than per instrument. parameterIdFor is the link the rest of the certificate
+   * uses, fallback and all - an entry records its parameter, and where that has been
+   * lost the entries holding one instrument take the parameters naming it in order.
+   */
+  const masterLeastCountFor = (() => {
+    const byParameter = new Map<string, string>()
+    for (const entry of data.masterInstruments) {
+      if (!entry.masterInstrumentId) continue
+      const linked = parameterIdFor(entry, data.masterInstruments, data.parameters)
+      if (linked && entry.masterLeastCount) byParameter.set(linked, entry.masterLeastCount)
+    }
+    return (parameterId: string) => byParameter.get(parameterId)
+  })()
+
   const masterGroups = (() => {
     const byInstrument = new Map<string, {
       entry: typeof data.masterInstruments[0]
@@ -1750,6 +1775,21 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                         ? (rowValues[param.errorConfig?.masterFieldId ?? ''] ?? null)
                         : result.standardReading
                       const { precision } = resolveCalibrationPrecision(param, masterReading)
+                      /**
+                       * The error is reported at the finer of the two instruments'
+                       * resolutions, which is neither reading's own.
+                       *
+                       * The master's comes from the copy the certificate kept when the
+                       * instrument was chosen, not from the register - the register
+                       * moves on and a certificate has to keep saying what the
+                       * instrument was good to on the day.
+                       */
+                      const errorPrecision = precisionOf(
+                        errorResolution(
+                          recordedResolution('master', masterLeastCountFor(param.id)),
+                          uucResolution(param, Number(masterReading)),
+                        ),
+                      )
                       const failedText = result.isOutOfLimit ? styles.failedCalCellText : {}
                       // Expression columns are computed here rather than stored, so the
                       // certificate shows the same value the engineer saw.
@@ -1807,7 +1847,12 @@ export function CalibrationCertificatePDF({ data, spacingMultiplier: externalMul
                           <View style={[styles.calCell, { width: isDynamic ? dataWidth : '25%' }]}>
                             <Text style={[styles.calCellText, failedText]}>
                               {result.errorObserved !== null
-                                ? formatWithPrecision(result.errorObserved, precision)
+                                ? /* errorPrecision, not the readings' - an error is a
+                                     difference between two instruments and is bound by
+                                     neither alone. Printed at the unit's resolution, a
+                                     real error of 0.28 against a unit reading whole
+                                     degrees came out as "0". */
+                                  formatWithPrecision(result.errorObserved, errorPrecision)
                                 : '-'}
                             </Text>
                           </View>

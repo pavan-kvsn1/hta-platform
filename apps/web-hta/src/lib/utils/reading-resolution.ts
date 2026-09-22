@@ -182,6 +182,32 @@ export function precisionOf(
 }
 
 /**
+ * A resolution the certificate recorded for itself, rather than one read live.
+ *
+ * masterResolution answers from the register, which is right while a certificate is
+ * being written and wrong once it has been issued: the register moves on, and a
+ * certificate has to keep saying what the instrument was good to on the day. So the
+ * certificate keeps its own copy of the master's least count, and this reads that.
+ *
+ * Absent is not zero, and the distinction carries: a master chosen before the
+ * certificate kept a copy, or one whose own certificate states no resolution, comes
+ * back unrecorded rather than as a number nobody wrote down.
+ */
+export function recordedResolution(
+  side: ReadingSide,
+  leastCount: string | number | null | undefined,
+): ReadingResolution {
+  const value = numeric(typeof leastCount === 'number' ? String(leastCount) : leastCount)
+  if (value === null || value <= 0) return { kind: 'unrecorded', side }
+  return {
+    kind: 'declared',
+    side,
+    leastCount: value,
+    precision: getPrecisionFromLeastCount(String(leastCount)),
+  }
+}
+
+/**
  * The resolution an error is reported at: the finer of the two it was taken from.
  *
  * An error is a difference between two instruments and is bound by neither one alone.
