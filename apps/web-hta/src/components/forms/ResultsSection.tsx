@@ -5,7 +5,7 @@ import { CheckCircle, AlertTriangle, Info } from 'lucide-react'
 import { ColumnSetup } from '@/components/forms/ColumnSetup'
 import { DynamicResultsTable } from '@/components/forms/DynamicResultsTable'
 import type { ErrorConfig, FieldDefinition } from '@/lib/certificate/fields'
-import { rangeCoverage } from '@/lib/certificate/fields'
+import { fieldResolution, rangeCoverage } from '@/lib/certificate/fields'
 
 /** A range bound as it reads, without a float's tail. */
 const bound = (value: number) => String(Number(value.toFixed(6)))
@@ -311,11 +311,36 @@ function ResultsTable({
     [masterBuckets, parameter],
   )
 
-  /** Which instrument a column belongs to, so it is judged by that one. */
+  /**
+   * The step a column's figures move in.
+   *
+   * A column that declared a step of its own uses it. Otherwise it inherits from the
+   * instrument it belongs to, which is what every column did before the declaration
+   * existed - and is still the right answer for the two reading columns, whose steps
+   * the registry and the parameter already state.
+   */
   const resolutionForField = useCallback(
     (field: FieldDefinition, row: { values: Record<string, string> }): ReadingResolution => {
+      const side = field.group === 'master' ? 'master' : 'uuc'
+      const declared = fieldResolution(field)
+      if (declared.source === 'custom') {
+        const leastCount = Number(declared.leastCount.trim())
+        // An unusable custom step is not a reason to fall back to the instrument's:
+        // the column said it steps in something else, and borrowing a number it
+        // explicitly declined would judge its readings against the wrong thing. The
+        // save gate is what gets this fixed.
+        return Number.isFinite(leastCount) && leastCount > 0
+          ? {
+              kind: 'declared',
+              side,
+              leastCount,
+              precision: getPrecisionFromLeastCount(declared.leastCount.trim()),
+            }
+          : { kind: 'unrecorded', side }
+      }
+
       const { master, uuc } = resolutionsFor(row)
-      return field.group === 'master' ? master : uuc
+      return side === 'master' ? master : uuc
     },
     [resolutionsFor],
   )

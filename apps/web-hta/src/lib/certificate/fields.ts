@@ -31,6 +31,27 @@ export interface LegacyCalibrationResult {
 export type FieldGroup = 'master' | 'uuc'
 export type FieldType = 'numeric' | 'expression' | 'text'
 
+/**
+ * Where a column's least count comes from.
+ *
+ * Every numeric column needs one, because a least count is the step a figure moves in
+ * and nothing can be checked against a column that has not said what its step is. Two
+ * of the columns already have an answer - the reading off the master and the reading
+ * off the UUC, whose steps the registry and the certificate already state - and those
+ * inherit. The rest do not: a column holding a conversion, a correction or a percentage
+ * is a figure this system produced, and its step is a choice somebody has to make.
+ *
+ * Inheriting is a declaration, not a default, which is why it is a value here and not
+ * the absence of one. A column that reads the same instrument in the same unit as the
+ * reading beside it genuinely does share its step, and saying so is different from
+ * never having been asked.
+ */
+export type FieldResolution =
+  /** This column steps with its own instrument - the master's registry capability, or the UUC's parameter or band. */
+  | { source: 'instrument' }
+  /** This column steps in a size of its own, stated here. */
+  | { source: 'custom'; leastCount: string }
+
 export interface FieldDefinition {
   id: string
   /** Column heading, e.g. "Standard Meter Reading (Y)". */
@@ -41,6 +62,12 @@ export interface FieldDefinition {
   unit: string
   /** Formula for expression fields, referencing other fields as {fieldId}. */
   expression?: string
+  /**
+   * The step this column's figures move in. Absent on a text column, which has no
+   * step, and on a column declared before this was asked for, which reads as inherited
+   * because that is what every column did until now.
+   */
+  resolution?: FieldResolution
   /** Display order within the group. */
   order: number
 }
@@ -205,6 +232,79 @@ export function createField(group: FieldGroup, fields: FieldDefinition[]): Field
     unit: '',
     order: siblings.length,
   }
+}
+
+// ---------------------------------------------------------------------------------
+// Column resolution
+// ---------------------------------------------------------------------------------
+
+/** What a column says about its step. Absent reads as inherited. */
+export function fieldResolution(field: FieldDefinition): FieldResolution {
+  return field.resolution ?? { source: 'instrument' }
+}
+
+/** Text columns hold words, and words do not step. */
+export function needsResolution(field: FieldDefinition): boolean {
+  return field.type === 'numeric' || field.type === 'expression'
+}
+
+/**
+ * Why a column's declared step cannot be used, or null when it can.
+ *
+ * Only the custom case can fail, and it fails in the one way that matters: the box was
+ * unticked and nothing was typed, or what was typed is not a step. A step is a size, so
+ * zero and negatives are not steps either - a column stepping in 0 would divide every
+ * reading by nothing.
+ */
+export function fieldResolutionProblem(field: FieldDefinition): string | null {
+  if (!needsResolution(field)) return null
+
+  const resolution = fieldResolution(field)
+  if (resolution.source === 'instrument') return null
+
+  const name = field.name.trim() || 'This column'
+  const text = resolution.leastCount.trim()
+  if (!text) {
+    return `${name} does not say what its least count is. Either it steps with its instrument, or type the step it uses.`
+  }
+
+  const value = Number(text)
+  if (!Number.isFinite(value) || value <= 0) {
+    return `${name} has a least count of "${text}", which is not a step. A least count is the size of one division, so it has to be a number greater than nought.`
+  }
+  return null
+}
+
+/** Every column whose step is undeclared or unusable. */
+export function fieldsWithResolutionProblems(
+  fields: FieldDefinition[],
+): { field: FieldDefinition; problem: string }[] {
+  return fields.flatMap((field) => {
+    const problem = fieldResolutionProblem(field)
+    return problem ? [{ field, problem }] : []
+  })
+}
+
+/**
+ * The step this column's figures move in, as a number.
+ *
+ * `instrumentLeastCount` is what the column would inherit - the master's from the
+ * registry, the UUC's from the parameter or the band the reading falls in. Null where
+ * that instrument never recorded one, and null comes back out: a column that inherits
+ * from an instrument with no stated step has no step either, and inventing one would
+ * put a resolution on the certificate that nobody measured to.
+ */
+export function fieldLeastCount(
+  field: FieldDefinition,
+  instrumentLeastCount: number | null,
+): number | null {
+  if (!needsResolution(field)) return null
+
+  const resolution = fieldResolution(field)
+  if (resolution.source === 'instrument') return instrumentLeastCount
+
+  const value = Number(resolution.leastCount.trim())
+  return Number.isFinite(value) && value > 0 ? value : null
 }
 
 /**

@@ -26,6 +26,10 @@ import {
   detectExpressionCycles,
   errorConfigProblem,
   errorFieldCandidates,
+  fieldResolution,
+  fieldResolutionProblem,
+  fieldsWithResolutionProblems,
+  needsResolution,
   removeField,
   type ConversionMapping,
   type ErrorConfig,
@@ -90,6 +94,9 @@ export function ColumnSetup({
   const masterFields = fields.filter((f) => f.group === 'master')
   const uucFields = fields.filter((f) => f.group === 'uuc')
   const cycles = detectExpressionCycles(fields)
+  // Columns that were asked what step they move in and have not answered. Blocking
+  // rather than a warning: a reading cannot be checked against a step nobody stated.
+  const resolutionProblems = fieldsWithResolutionProblems(fields)
 
 
   const updateField = (id: string, patch: Partial<FieldDefinition>) => {
@@ -131,6 +138,72 @@ export function ColumnSetup({
       onChange={(expression) => updateField(fieldDef.id, { expression })}
     />
   )
+
+  /**
+   * What step this column's figures move in.
+   *
+   * The two reading columns already have an answer and inherit it - the master's from
+   * its registry capability, the UUC's from the parameter or the band. A column holding
+   * a conversion, a correction or a percentage does not: it is a figure this system
+   * produced, and until now it silently borrowed the step of whichever instrument it sat
+   * under, which is how a percentage column came to be checked against a thermometer's
+   * 0.001.
+   *
+   * Offered as a tick rather than a blank box because inheriting is the common answer
+   * and typing the same number twice invites the two to drift apart.
+   */
+  const renderResolution = (fieldDef: FieldDefinition) => {
+    const resolution = fieldResolution(fieldDef)
+    const inherits = resolution.source === 'instrument'
+    const instrument = fieldDef.group === 'master' ? 'master' : 'UUC'
+    const problem = fieldResolutionProblem(fieldDef)
+    const label = fieldDef.name || 'this column'
+
+    return (
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+        <label className="inline-flex cursor-pointer items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={inherits}
+            disabled={disabled}
+            aria-label={`${label} uses the same least count as the ${instrument}`}
+            onChange={(e) =>
+              updateField(fieldDef.id, {
+                resolution: e.target.checked
+                  ? { source: 'instrument' }
+                  : // Carries nothing over, so the box starts empty and the column is
+                    // plainly unanswered rather than pre-filled with a number nobody chose.
+                    { source: 'custom', leastCount: '' },
+              })
+            }
+            className="h-3 w-3 rounded border-slate-300 text-primary focus:ring-1 focus:ring-primary/30"
+          />
+          Same least count as the {instrument}
+        </label>
+
+        {!inherits && (
+          <span className="inline-flex items-center gap-1.5">
+            <span>Steps in</span>
+            <input
+              type="text"
+              value={resolution.source === 'custom' ? resolution.leastCount : ''}
+              disabled={disabled}
+              placeholder="0.05"
+              aria-label={`Least count for ${label}`}
+              aria-invalid={problem ? true : undefined}
+              onChange={(e) =>
+                updateField(fieldDef.id, {
+                  resolution: { source: 'custom', leastCount: e.target.value },
+                })
+              }
+              className={cn(CONTROL, 'w-20 shrink-0', problem && 'border-red-300 bg-red-50/40')}
+            />
+            <span>{fieldDef.unit}</span>
+          </span>
+        )}
+      </div>
+    )
+  }
 
   const renderFieldRow = (fieldDef: FieldDefinition, index: number) => (
     <div key={fieldDef.id} className="group px-3 py-2 transition-colors hover:bg-slate-50/70">
@@ -182,6 +255,8 @@ export function ColumnSetup({
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
+
+      {needsResolution(fieldDef) && renderResolution(fieldDef)}
 
       {fieldDef.type === 'expression' && (
         <div className="mt-2">{renderExpressionBuilder(fieldDef)}</div>
@@ -304,6 +379,21 @@ export function ColumnSetup({
               >
                 Add the conversion column
               </button>
+            </div>
+          )}
+
+          {resolutionProblems.length > 0 && (
+            <div className="rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-800">
+              <p className="flex items-start gap-1.5 font-semibold">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                This parameter cannot be saved until every column says what its least
+                count is.
+              </p>
+              <ul className="mt-1.5 list-disc space-y-0.5 pl-7">
+                {resolutionProblems.map(({ field, problem }) => (
+                  <li key={field.id}>{problem}</li>
+                ))}
+              </ul>
             </div>
           )}
 

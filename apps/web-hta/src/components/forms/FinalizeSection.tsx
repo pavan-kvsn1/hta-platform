@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog'
 import { FormSection } from './FormSection'
 import { ReviewerSelect } from './ReviewerSelect'
+import { fieldsWithResolutionProblems } from '@/lib/certificate/fields'
 import { useCertificateStore } from '@/lib/stores/certificate-store'
 import { cn } from '@/lib/utils'
 import { PDFPreviewSection } from '@/components/pdf'
@@ -158,7 +159,20 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
     return acc + violations
   }, 0)
 
-  const hasCriticalErrors = binRangeViolations > 0 || standardReadingViolations > 0
+  /**
+   * Columns that never said what step their figures move in.
+   *
+   * Blocking rather than a warning. A least count is what every reading in that column
+   * is checked against, so a column with none cannot be checked at all - and the
+   * certificate would go out stating a precision nobody chose.
+   */
+  const undeclaredLeastCounts = formData.parameters.reduce(
+    (acc, param) => acc + fieldsWithResolutionProblems(param.fieldDefinitions ?? []).length,
+    0,
+  )
+
+  const hasCriticalErrors =
+    binRangeViolations > 0 || standardReadingViolations > 0 || undeclaredLeastCounts > 0
 
   // Validation checks
   const validationItems: ValidationItem[] = [
@@ -228,6 +242,14 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       isValid: standardReadingViolations === 0,
       isCritical: true,
     },
+    {
+      id: 'leastCounts',
+      label: undeclaredLeastCounts > 0
+        ? `Columns with no least count declared (${undeclaredLeastCounts} column${undeclaredLeastCounts !== 1 ? 's' : ''})`
+        : 'Every column declares its least count',
+      isValid: undeclaredLeastCounts === 0,
+      isCritical: true,
+    },
   ]
 
   const requiredItemsValid = validationItems
@@ -243,6 +265,9 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       }
       if (standardReadingViolations > 0) {
         errors.push(`• ${standardReadingViolations} standard reading${standardReadingViolations !== 1 ? 's are' : ' is'} outside the operating range`)
+      }
+      if (undeclaredLeastCounts > 0) {
+        errors.push(`• ${undeclaredLeastCounts} column${undeclaredLeastCounts !== 1 ? 's do' : ' does'} not say what least count ${undeclaredLeastCounts !== 1 ? 'they step' : 'it steps'} in`)
       }
       setModalState({ open: true, title: 'Cannot Save Draft', message: `Critical errors found:\n\n${errors.join('\n')}\n\nPlease fix these issues in Section 02 (UUC Details) and Section 05 (Results).`, type: 'error' })
       return
@@ -263,6 +288,9 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       }
       if (standardReadingViolations > 0) {
         errors.push(`• ${standardReadingViolations} standard reading${standardReadingViolations !== 1 ? 's are' : ' is'} outside the operating range`)
+      }
+      if (undeclaredLeastCounts > 0) {
+        errors.push(`• ${undeclaredLeastCounts} column${undeclaredLeastCounts !== 1 ? 's do' : ' does'} not say what least count ${undeclaredLeastCounts !== 1 ? 'they step' : 'it steps'} in`)
       }
       setModalState({ open: true, title: 'Cannot Submit', message: `Critical errors found:\n\n${errors.join('\n')}\n\nPlease fix these issues in Section 02 (UUC Details) and Section 05 (Results).`, type: 'error' })
       return
