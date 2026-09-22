@@ -32,7 +32,9 @@ import {
 import { FormSection } from './FormSection'
 import { ReviewerSelect } from './ReviewerSelect'
 import { fieldsWithResolutionProblems } from '@/lib/certificate/fields'
+import { masterBucketsFor, stepViolations } from '@/lib/certificate/step-violations'
 import { useCertificateStore } from '@/lib/stores/certificate-store'
+import { useMasterInstrumentStore } from '@/lib/stores/master-instrument-store'
 import { cn } from '@/lib/utils'
 import { PDFPreviewSection } from '@/components/pdf'
 import { SignatureModal } from '@/components/signatures'
@@ -102,6 +104,7 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
   const [showSignatureModal, setShowSignatureModal] = useState(false)
   const [reviewerError, setReviewerError] = useState<string | null>(null)
   const [modalState, setModalState] = useState<SubmissionModalState>({ open: false, title: '', message: '', type: 'error' })
+  const getUnitByLegacyId = useMasterInstrumentStore((state) => state.getUnitByLegacyId)
 
   // Use store's reviewerId for reviewer selection
   const selectedReviewerId = formData.reviewerId
@@ -171,8 +174,27 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
     0,
   )
 
+  /**
+   * Readings that no instrument could have shown.
+   *
+   * An instrument stepping in 0.05 shows 49.70 and 49.75 and nothing between them, so a
+   * stored 49.72 is a typing error or a wrong least count. Blocking, because a
+   * certificate carrying one states that the unit was found accurate to a precision the
+   * instrument cannot resolve - and that is the claim the certificate exists to make.
+   *
+   * The same pass the results table shows the engineer, so what they are asked to fix
+   * and what this refuses to send can never disagree.
+   */
+  const offStepReadings = formData.parameters.reduce((acc, param) => {
+    const buckets = masterBucketsFor(param, formData.masterInstruments, getUnitByLegacyId)
+    return acc + stepViolations(param, buckets).length
+  }, 0)
+
   const hasCriticalErrors =
-    binRangeViolations > 0 || standardReadingViolations > 0 || undeclaredLeastCounts > 0
+    binRangeViolations > 0 ||
+    standardReadingViolations > 0 ||
+    undeclaredLeastCounts > 0 ||
+    offStepReadings > 0
 
   // Validation checks
   const validationItems: ValidationItem[] = [
@@ -243,6 +265,14 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       isCritical: true,
     },
     {
+      id: 'offStep',
+      label: offStepReadings > 0
+        ? `Readings that no instrument could show (${offStepReadings} reading${offStepReadings !== 1 ? 's' : ''})`
+        : 'Every reading lands on a step its instrument can show',
+      isValid: offStepReadings === 0,
+      isCritical: true,
+    },
+    {
       id: 'leastCounts',
       label: undeclaredLeastCounts > 0
         ? `Columns with no least count declared (${undeclaredLeastCounts} column${undeclaredLeastCounts !== 1 ? 's' : ''})`
@@ -269,6 +299,9 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       if (undeclaredLeastCounts > 0) {
         errors.push(`• ${undeclaredLeastCounts} column${undeclaredLeastCounts !== 1 ? 's do' : ' does'} not say what least count ${undeclaredLeastCounts !== 1 ? 'they step' : 'it steps'} in`)
       }
+      if (offStepReadings > 0) {
+        errors.push(`• ${offStepReadings} reading${offStepReadings !== 1 ? 's do' : ' does'} not land on a step the instrument can show (see Section 05 for which)`)
+      }
       setModalState({ open: true, title: 'Cannot Save Draft', message: `Critical errors found:\n\n${errors.join('\n')}\n\nPlease fix these issues in Section 02 (UUC Details) and Section 05 (Results).`, type: 'error' })
       return
     }
@@ -291,6 +324,9 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
       }
       if (undeclaredLeastCounts > 0) {
         errors.push(`• ${undeclaredLeastCounts} column${undeclaredLeastCounts !== 1 ? 's do' : ' does'} not say what least count ${undeclaredLeastCounts !== 1 ? 'they step' : 'it steps'} in`)
+      }
+      if (offStepReadings > 0) {
+        errors.push(`• ${offStepReadings} reading${offStepReadings !== 1 ? 's do' : ' does'} not land on a step the instrument can show (see Section 05 for which)`)
       }
       setModalState({ open: true, title: 'Cannot Submit', message: `Critical errors found:\n\n${errors.join('\n')}\n\nPlease fix these issues in Section 02 (UUC Details) and Section 05 (Results).`, type: 'error' })
       return
@@ -502,6 +538,14 @@ export function FinalizeSection({ feedbacks = [], reviewerName }: FinalizeSectio
                 )}
                 {standardReadingViolations > 0 && (
                   <p>• {standardReadingViolations} standard reading{standardReadingViolations !== 1 ? 's' : ''} outside operating range (Section 05)</p>
+                )}
+                {/* Listed here as well as on the button, so the reason is on screen
+                    before anything is pressed. */}
+                {undeclaredLeastCounts > 0 && (
+                  <p>• {undeclaredLeastCounts} column{undeclaredLeastCounts !== 1 ? 's do' : ' does'} not say what least count {undeclaredLeastCounts !== 1 ? 'they step' : 'it steps'} in (Section 05)</p>
+                )}
+                {offStepReadings > 0 && (
+                  <p>• {offStepReadings} reading{offStepReadings !== 1 ? 's do' : ' does'} not land on a step the instrument can show (Section 05)</p>
                 )}
               </div>
             </div>

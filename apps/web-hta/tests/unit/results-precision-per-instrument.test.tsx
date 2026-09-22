@@ -43,8 +43,8 @@ function setUp(master: string, uuc: string, over: Partial<Parameter> = {}) {
   return { masterField, uucField }
 }
 
-const warning = () => screen.queryByText(/more decimal places than the least count allows/)
-const notice = () => screen.queryByText(/records no resolution/)
+const warning = () => screen.queryByText(/not land on a step its instrument can show/)
+const notice = () => screen.queryByText(/records no least count/)
 
 describe('each column is judged by its own instrument', () => {
   beforeAll(() => {
@@ -60,23 +60,37 @@ describe('each column is judged by its own instrument', () => {
   it('leaves a master reading written to its own three decimals alone', () => {
     // The fault this closes: judged by the UUC's 0.01, a thermometer resolving to
     // 0.001 was told off for writing the decimal it can actually show.
+    //
+    // 25.001 is a whole number of 0.001 steps, and 25.00 a whole number of 0.01.
     setUp('25.001', '25.00')
     render(<ResultsSection />)
     expect(warning()).not.toBeInTheDocument()
   })
 
-  it('still catches a UUC reading finer than the UUC can show', () => {
+  it('still catches a UUC reading its own instrument could not have shown', () => {
     setUp('25.001', '25.0001')
     render(<ResultsSection />)
     expect(warning()).toBeInTheDocument()
-    expect(screen.getByText(/UUC readings expect 2 decimals/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/UUC Reading: 25.0001 is not a multiple of 0.01/),
+    ).toBeInTheDocument()
   })
 
-  it('names the instrument whose resolution was exceeded, not both', () => {
+  it('names the column that is wrong, not both', () => {
     setUp('25.0001', '25.00')
     render(<ResultsSection />)
-    expect(screen.getByText(/Master readings expect 3 decimals/)).toBeInTheDocument()
-    expect(screen.queryByText(/UUC readings expect/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/Standard Meter Reading: 25.0001 is not a multiple of 0.001/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/UUC Reading: /)).not.toBeInTheDocument()
+  })
+
+  it('offers both readings the instrument could have shown, and chooses neither', () => {
+    // Which one it actually showed is the one thing the engineer knows and this
+    // does not, so rounding for them would put a figure on a certificate nobody read.
+    setUp('25.0001', '25.00')
+    render(<ResultsSection />)
+    expect(screen.getByText(/nearest are 25.000 and 25.001/)).toBeInTheDocument()
   })
 })
 
@@ -99,10 +113,12 @@ describe('a master whose resolution nobody recorded', () => {
     expect(warning()).not.toBeInTheDocument()
   })
 
-  it('goes on checking the UUC, whose resolution is recorded', () => {
+  it('goes on checking the UUC, whose least count is recorded', () => {
     setUp('25.00001', '25.0001', { masterProfileId: undefined })
     render(<ResultsSection />)
     expect(notice()).toBeInTheDocument()
-    expect(screen.getByText(/UUC readings expect 2 decimals/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/UUC Reading: 25.0001 is not a multiple of 0.01/),
+    ).toBeInTheDocument()
   })
 })
