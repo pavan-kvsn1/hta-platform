@@ -180,3 +180,35 @@ export function precisionOf(
   if (fallback?.kind === 'declared') return fallback.precision
   return DEFAULT_CALIBRATION_PRECISION
 }
+
+/**
+ * The resolution an error is reported at: the finer of the two it was taken from.
+ *
+ * An error is a difference between two instruments and is bound by neither one alone.
+ * Reporting it at the coarser instrument's resolution destroys it - a unit reading in
+ * whole degrees against a standard reading to a hundredth gives a real error of 0.28,
+ * and rounding that to the unit's resolution prints 0. Which it did, on issued
+ * certificates: 0.28 as "0" and -0.11 as "-0".
+ *
+ * Not an average and not the coarser: the difference of a figure known to 0.001 and one
+ * known to 0.05 is itself known to 0.001, because the coarse reading is exact at its own
+ * resolution rather than approximate. What limits the error is the finest division
+ * either instrument could show.
+ *
+ * Where only one side states a resolution, that one answers. Where neither does, the
+ * caller is told so rather than handed a number - the same distinction the rest of this
+ * file keeps between "not recorded" and "zero".
+ */
+export function errorResolution(
+  master: ReadingResolution,
+  uuc: ReadingResolution,
+): ReadingResolution {
+  if (master.kind === 'declared' && uuc.kind === 'declared') {
+    return master.leastCount <= uuc.leastCount ? master : uuc
+  }
+  if (master.kind === 'declared') return master
+  if (uuc.kind === 'declared') return uuc
+  // Neither side knows. Keep the master's answer, which distinguishes a capability
+  // nobody declared from one that declares a bucket and states no resolution in it.
+  return master
+}
