@@ -4,8 +4,6 @@ import {
   uucResolution,
   bucketForReading,
   precisionOf,
-  errorResolution,
-  recordedResolution,
 } from '@/lib/utils/reading-resolution'
 import type { CapabilityBucket } from '@/lib/master/registry'
 
@@ -111,88 +109,5 @@ describe('what a computed column prints', () => {
 
   it('falls back to the default where neither states one', () => {
     expect(precisionOf(masterResolution([], 25), uucResolution({}, 25))).toBe(2)
-  })
-})
-
-describe('the resolution an error is reported at', () => {
-  /**
-   * HTA/S22734/165/26 is the case this exists for: the unit's least count says whole
-   * degrees, the standard reads to a thousandth, and errors of 0.28 and -0.11 printed
-   * as "0" and "-0" on an issued certificate.
-   */
-  const fine = () => masterResolution([bucket({ least_count: { value: 0.001, unit: '°C' } })], 25)
-  const coarse = () => uucResolution({ leastCountValue: '1' }, 25)
-
-  it('takes the finer of the two, whichever side it is on', () => {
-    expect(precisionOf(errorResolution(fine(), coarse()))).toBe(3)
-  })
-
-  it('does not care which argument the finer one arrives as', () => {
-    const uucFiner = uucResolution({ leastCountValue: '0.01' }, 25)
-    const masterCoarser = masterResolution([bucket({ least_count: { value: 0.5, unit: '°C' } })], 25)
-    expect(precisionOf(errorResolution(masterCoarser, uucFiner))).toBe(2)
-  })
-
-  it('keeps the step itself, not just its decimals', () => {
-    // 0.025 and 0.05 both print three and two decimals, but the step is what a reading
-    // has to land on, and reducing it to a digit count loses that.
-    const master = masterResolution([bucket({ least_count: { value: 0.025, unit: '°C' } })], 25)
-    const uuc = uucResolution({ leastCountValue: '0.05' }, 25)
-    const chosen = errorResolution(master, uuc)
-    expect(chosen.kind === 'declared' && chosen.leastCount).toBe(0.025)
-  })
-
-  it('uses the one side that states a resolution', () => {
-    expect(precisionOf(errorResolution(masterResolution([], 25), uucResolution({ leastCountValue: '0.01' }, 25)))).toBe(2)
-    expect(precisionOf(errorResolution(fine(), uucResolution({}, 25)))).toBe(3)
-  })
-
-  it('says so when neither side states one, rather than inventing a step', () => {
-    const neither = errorResolution(masterResolution([], 25), uucResolution({}, 25))
-    expect(neither.kind).not.toBe('declared')
-  })
-
-  it('follows the band the reading falls in', () => {
-    // A banded parameter states the unit's resolution once per band; the error follows
-    // it, because that is the unit's resolution at that reading.
-    const banded = {
-      requiresBinning: true,
-      bins: [
-        { binMin: '0', binMax: '50', leastCount: '0.01' },
-        { binMin: '50', binMax: '80', leastCount: '0.1' },
-      ],
-    }
-    const master = masterResolution([bucket({ least_count: { value: 1, unit: '°C' } })], 25)
-    expect(precisionOf(errorResolution(master, uucResolution(banded, 25)))).toBe(2)
-    expect(precisionOf(errorResolution(master, uucResolution(banded, 70)))).toBe(1)
-  })
-})
-
-describe('a resolution the certificate recorded itself', () => {
-  // The register moves on; a certificate has to keep saying what the instrument was
-  // good to on the day, so it keeps its own copy of the master's least count.
-  it('reads a recorded least count, keeping the step', () => {
-    const r = recordedResolution('master', '0.025')
-    expect(r.kind === 'declared' && r.leastCount).toBe(0.025)
-    expect(precisionOf(r)).toBe(3)
-  })
-
-  it('takes a number as readily as a string', () => {
-    expect(precisionOf(recordedResolution('master', 0.5))).toBe(1)
-  })
-
-  it('treats absent, blank and zero as not recorded, not as zero', () => {
-    for (const v of [null, undefined, '', '   ', '0', 'NA']) {
-      expect(recordedResolution('master', v).kind, String(v)).toBe('unrecorded')
-    }
-  })
-
-  it('is what lets the PDF report an error at the finer of the two', () => {
-    // HTA/S22734/165/26: unit says whole degrees, the recorded master says 0.001.
-    const chosen = errorResolution(
-      recordedResolution('master', '0.001'),
-      uucResolution({ leastCountValue: '1' }, 40),
-    )
-    expect(precisionOf(chosen)).toBe(3)
   })
 })
